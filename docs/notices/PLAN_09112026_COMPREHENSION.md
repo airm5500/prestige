@@ -556,3 +556,27 @@ Branche `plan/09112026`, commit `b66c1172f`, essayé sur domain3.
 **À signaler :**
 - `test-retours-refus-abandon.js` a échoué une fois sur un contrôle de droits côté serveur, puis il est passé à la relance. C'est un test instable, sans lien avec ce changement.
 - Le test des identifiants d'extranet n'a pas été lancé : la règle exige un domaine dont toutes les sources visent 127.0.0.1.
+
+---
+
+## Avancement du 10/11 : point 2 fait (commit `73c547170`, branche `plan/09112026`)
+
+**Point 2, réconciliation de BL, fenêtre « Associer » :**
+- **En-tête :** après le nom du produit, le prix d'achat et le prix de vente de la ligne du BL (ex. « … | E2E RECONC DEUX | Prix d'achat : 12 990 | Prix de vente : 17 800 »).
+- **Recherche « contient » :** un morceau pris au milieu du nom (ou d'un code CIP, EAN, grossiste) trouve le produit. Les noms qui commencent par le texte restent en tête de liste.
+- **Désactivés :** la case reste décochée par défaut. Associer un produit désactivé n'ouvre plus de fenêtre : le bouton « Associer » s'arme en rouge (« Confirmer : activer et associer ? ») ; le second clic active le produit (fiche, stock, grossiste) puis poursuit l'association.
+- **Cause cachée :** dans les fenêtres habillées, le thème recouvrait le rouge d'un bouton armé. Il en est exclu.
+
+**Où la donnée apparaît et test de rapprochement :** prix du fichier importé = grille de réconciliation = en-tête de « Associer », ligne par ligne, sur 3 lignes aux prix différents (`test-reconciliation-0911.js`, 21 / 21, passe par un vrai import Copharmed ; 6 échecs sur l'ancien code).
+
+**Règle de calcul et test de cohérence :** `RechercheContientTest`, 5 000 couples (nom, texte) tirés au hasard, graine 20261110, avec des jokers SQL (`%`, `_`, `\`) : « trouvé » si et seulement si le nom contient le texte ; le tri « commence par » est exact. Échoue sur l'ancien « commence par ».
+
+**Traces (bilan) :** bouton armé, rien n'est écrit ; après le second clic, seule la réactivation du produit est écrite ; association non confirmée, code du produit inchangé ; commande, traces d'import, fichier de vérification, numéro de commande et état du produit remis à la fin.
+
+**Cas couverts :** 3 lignes aux prix différents, quantité 1, 2 et 5, avec et sans UG ; texte au milieu du nom ; produit actif et désactivé ; case cochée et décochée ; bouton armé sans second clic (retour à l'état normal) ; double-clic.
+
+**Non-régression :** `test-reconciliation-desactives.js` adapté au bouton, 12 / 12 ; `test-confirmation-couleur-0911.js` 13 / 13 ; suite unitaire 2 237 tests verts.
+
+**À signaler :** après l'activation, la confirmation de la mise à jour du code CIP passe encore par une fenêtre quand le serveur répond en plus d'une seconde (mécanisme commun `PrestigeConfirmation.ligne`, antérieur à ce point). À reprendre avec le mécanisme commun si vous le souhaitez.
+
+**Déployé :** domain3 (tests) et 8080.
