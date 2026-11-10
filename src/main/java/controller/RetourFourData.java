@@ -93,9 +93,13 @@ public class RetourFourData extends HttpServlet {
                 predicate = cb.and(predicate, cb.equal(
                         root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strSTATUT), "is_Closed"));
 
+                /* plan du 09/11, point 4 : recherche « contient » (et non plus « commence par ») */
                 if (!"".equals(search)) {
-                    predicate = cb.and(predicate, cb.or(cb.like(j.get(TFamille_.intCIP), search + "%"),
-                            cb.like(j.get(TFamille_.strNAME), search + "%")));
+                    predicate = cb.and(predicate,
+                            cb.or(cb.like(j.get(TFamille_.intCIP),
+                                    rest.service.impl.CommandeServiceImpl.motifContient(search)),
+                                    cb.like(j.get(TFamille_.strNAME),
+                                            rest.service.impl.CommandeServiceImpl.motifContient(search))));
 
                 }
 
@@ -144,9 +148,11 @@ public class RetourFourData extends HttpServlet {
                 root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strREFLIVRAISON), lgBONLIVRAISONID));
         predicate = cb.and(predicate,
                 cb.equal(root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strSTATUT), "is_Closed"));
+        /* plan du 09/11, point 4 : recherche « contient » (et non plus « commence par ») */
         if (!"".equals(search)) {
-            predicate = cb.and(predicate, cb.or(cb.like(j.get(TFamille_.intCIP), search + "%"),
-                    cb.like(j.get(TFamille_.strNAME), search + "%")));
+            predicate = cb.and(predicate, cb.or(
+                    cb.like(j.get(TFamille_.intCIP), rest.service.impl.CommandeServiceImpl.motifContient(search)),
+                    cb.like(j.get(TFamille_.strNAME), rest.service.impl.CommandeServiceImpl.motifContient(search))));
 
         }
 

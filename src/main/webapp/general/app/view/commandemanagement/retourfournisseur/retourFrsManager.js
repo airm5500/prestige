@@ -426,13 +426,15 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     xtype: 'textfield',
                     id: 'rechecher',
                     name: 'suggestion',
-                    emptyText: 'Rech',
-                    tooltip: 'CIP, EAN ou nom du produit retourné (Entrée pour rechercher)',
+                    emptyText: 'Produit, n° BL, réf.',
+                    /* plan du 09/11, point 4 : recherche « contient », aussi par n° de BL et reference du retour */
+                    tooltip: 'Une partie du CIP, de l’EAN ou du nom du produit retourné, ou du n° de BL, ou de la référence du retour (Entrée pour rechercher)',
                     listeners: {
                         'render': function (cmp) {
                             cmp.getEl().on('keypress', function (e) {
                                 if (e.getKey() === e.ENTER) {
-                                    Me.onRechClick();
+                                    /* plan du 09/11, point 4 : l'ecran du champ (Me est partage avec d'autres ecrans) */
+                                    cmp.up('retourfrsmanager').onRechClick();
 
                                 }
                             });
@@ -710,7 +712,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
 
         this.getStore().load({
             params: {
-                query: val.value,
+                /* plan du 09/11, point 4 : valeur lue au moment de la recherche (val.value retardait d'une frappe) */
+                query: val.getValue(),
                 fourId: lg_GROSSISTE_ID,
                 filtre:Ext.getCmp('filtre').getValue(),
                 dtEnd: Ext.getCmp('datefin').getSubmitValue(),
