@@ -1561,12 +1561,19 @@ public class CommandeServiceImpl implements CommandeService {
         }
     }
 
+    /** Motif LIKE « contient » : jokers du texte neutralises, puis % de part et d'autre. */
+    static String motifContient(String texte) {
+        return "%" + texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    }
+
     @Override
     public JSONObject produitsReconciliation(String query, boolean desactives, String emplacementId) {
         JSONArray data = new JSONArray();
         String q = query == null ? "" : query.trim();
         if (q.length() >= 3) {
-            String like = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            /* plan du 09/11, point 2 : recherche « contient » ; les noms qui commencent par le texte restent en tete */
+            String like = motifContient(q);
+            String debut = like.substring(1);
             @SuppressWarnings("unchecked")
             List<Object[]> lignes = getEm()
                     .createNativeQuery("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.int_PRICE,"
@@ -1575,10 +1582,10 @@ public class CommandeServiceImpl implements CommandeService {
                             + " WHERE f.str_STATUT IN ('enable', ?2) AND (f.int_CIP LIKE ?3 OR f.str_NAME LIKE ?3"
                             + " OR f.int_EAN13 LIKE ?3 OR f.code_ean_fabriquant LIKE ?3 OR EXISTS (SELECT 1 FROM"
                             + " t_famille_grossiste g WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND g.str_CODE_ARTICLE LIKE ?3))"
-                            + " ORDER BY f.str_STATUT = 'disable', f.str_NAME LIMIT 50")
+                            + " ORDER BY f.str_STATUT = 'disable', f.str_NAME NOT LIKE ?4, f.str_NAME LIMIT 50")
                     .setParameter(1, emplacementId)
                     .setParameter(2, desactives ? Constant.STATUT_DISABLE : Constant.STATUT_ENABLE)
-                    .setParameter(3, like).getResultList();
+                    .setParameter(3, like).setParameter(4, debut).getResultList();
             for (Object[] l : lignes) {
                 data.put(new JSONObject().put("lgFAMILLEID", l[0]).put("intCIP", l[1]).put("strNAME", l[2])
                         .put("intPRICE", l[3]).put("intNUMBERAVAILABLE", l[4])

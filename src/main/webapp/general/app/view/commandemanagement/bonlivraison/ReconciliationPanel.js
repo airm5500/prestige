@@ -275,9 +275,16 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             return r.get('desactive') ? '<span style="color:#c62828;font-weight:bold;">' + nom + ' (désactivé)</span>' : nom;
         };
 
+        /* plan du 09/11, point 2 : prix d'achat et prix de vente de la ligne du BL, apres le nom du produit */
+        var prix = function (v) {
+            var n = Number(v);
+            return isFinite(n) ? String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '-';
+        };
         var dialog = Ext.create('Ext.window.Window', {
-            title: 'Associer — Code BL : ' + record.get('cip') + '  |  ' + record.get('libelle'),
-            width: 600,
+            title: 'Associer — Code BL : ' + Ext.String.htmlEncode(record.get('cip') || '') + '  |  '
+                    + Ext.String.htmlEncode(record.get('libelle') || '') + '  |  Prix d\'achat : ' + prix(record.get('prixAchat'))
+                    + '  |  Prix de vente : ' + prix(record.get('prixUn')),
+            width: 760,
             height: 350,
             modal: true,
             layout: 'border',
@@ -295,7 +302,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                             fieldLabel: 'Rechercher',
                             labelWidth: 80,
                             width: 380,
-                            emptyText: 'Nom ou code CIP (min. 3 caractères)...',
+                            emptyText: 'Nom ou code, contient (min. 3 caractères)...',
                             enableKeyEvents: true,
                             listeners: {
                                 keyup: function () {
@@ -331,6 +338,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     ],
                     listeners: {
                         itemdblclick: function (grid, selectedRecord) {
+                            /* le produit double-cliqué est celui que le bouton « Associer » confirmera */
+                            dialog.down('#resultGrid').getSelectionModel().select(selectedRecord);
                             me.associerSiActif(record, rowIndex, selectedRecord, dialog);
                         }
                     }
@@ -339,6 +348,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             buttons: [
                 {
                     text: 'Associer le produit sélectionné',
+                    itemId: 'btnAssocier',
                     handler: function () {
                         var resultGrid = dialog.down('#resultGrid');
                         var sel = resultGrid.getSelectionModel().getSelection();
@@ -376,11 +386,16 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             me.confirmerAssociation(blRecord, rowIndex, produitRecord, dialog);
             return;
         }
-        Ext.MessageBox.confirm('Produit désactivé',
-            'Le produit <b>' + Ext.String.htmlEncode(produitRecord.get('strNAME')) + '</b> est désactivé.<br><br>'
-            + 'Voulez-vous l\'activer pour l\'associer à cette ligne ?',
-            function (btn) {
-                if (btn !== 'yes') {
+        /* plan du 09/11, point 2 : plus de fenetre ; la confirmation se fait dans le bouton « Associer » (rouge),
+           le second clic active le produit puis poursuit l'association. Le produit retenu est celui selectionne au
+           moment du second clic (a defaut, celui du premier clic). */
+        PrestigeConfirmation.bouton(dialog.down('#btnAssocier'), 'Confirmer : activer et associer ?', function () {
+                var sel = dialog.down('#resultGrid').getSelectionModel().getSelection();
+                if (sel.length) {
+                    produitRecord = sel[0];
+                }
+                if (!produitRecord.get('desactive')) {
+                    me.confirmerAssociation(blRecord, rowIndex, produitRecord, dialog);
                     return;
                 }
                 Ext.Ajax.request({

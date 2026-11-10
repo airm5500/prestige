@@ -2812,12 +2812,13 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .x-window.fen-theme .x-toolbar-footer { background: #fff !important; border-top: 1px solid #e0e7ef !important; }
 .x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn, .x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal {
     background-image: none !important; border-radius: 6px !important; box-shadow: none !important; }
-.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn { background: #fff !important; border: 1px solid #c3cfdb !important; }
-.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn .x-btn-inner { color: #1e3a5f !important; font-weight: bold !important; text-shadow: none !important; }
-.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn.x-btn-over { background: #e3edf7 !important; }
-.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal { background: #1e3a5f !important; border: 1px solid #1e3a5f !important; }
-.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal .x-btn-inner { color: #fff !important; font-weight: bold !important; text-shadow: none !important; }
-.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal.x-btn-over { background: #2E75B6 !important; }
+/* plan du 09/11, point 2 : un bouton arme (confirmation dans le bouton) garde son rouge dans les fenetres habillees */
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn:not(.prestige-confirmer-bouton) { background: #fff !important; border: 1px solid #c3cfdb !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn:not(.prestige-confirmer-bouton) .x-btn-inner { color: #1e3a5f !important; font-weight: bold !important; text-shadow: none !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn:not(.prestige-confirmer-bouton).x-btn-over { background: #e3edf7 !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal:not(.prestige-confirmer-bouton) { background: #1e3a5f !important; border: 1px solid #1e3a5f !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal:not(.prestige-confirmer-bouton) .x-btn-inner { color: #fff !important; font-weight: bold !important; text-shadow: none !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal:not(.prestige-confirmer-bouton).x-btn-over { background: #2E75B6 !important; }
 
 /* ===== Nouveau tableau de bord (plan d'octobre, section 8, lot L8 ; maquette tableau-de-bord-1-v3) =====
    Tout est prefixe « tb- » : aucun autre ecran n'est touche. Cartes au dessin des cartes de l'ancien tableau de bord

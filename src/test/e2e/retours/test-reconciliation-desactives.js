@@ -57,9 +57,11 @@ const remettre = () => q(`UPDATE t_famille SET str_STATUT = 'enable' WHERE lg_FA
     const cellule = await p.evaluate((cip) => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; return g.getView().getNode(Math.max(0, g.getStore().findExact('intCIP', cip))).innerHTML; }, CIP);
     ok('Affiché en rouge avec « (désactivé) »', cellule.includes('(désactivé)') && cellule.includes('color:#c62828'));
     await p.evaluate((cip) => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; g.fireEvent('itemdblclick', g, g.getStore().getAt(Math.max(0, g.getStore().findExact('intCIP', cip)))); }, CIP);
-    await p.waitForFunction(() => { const m = Ext.MessageBox; return m.isVisible() && /désactivé/.test(m.msg.getEl().dom.innerHTML); }, null, { timeout: 5000 }).catch(() => {});
-    ok('Associer : proposition d\'activer le produit', await p.evaluate(() => Ext.MessageBox.isVisible() && /activer/.test(Ext.MessageBox.msg.getEl().dom.innerHTML)));
-    await p.evaluate(() => Ext.MessageBox.down('button[itemId=yes]').btnEl.dom.click());
+    /* plan du 09/11, point 2 : plus de fenetre, la confirmation se fait dans le bouton « Associer » */
+    const arme = await p.evaluate(() => { const x = Ext.ComponentQuery.query('#btnAssocier')[0]; return { texte: x.getText(), boite: Ext.MessageBox.isVisible() }; });
+    ok('Associer : le bouton propose d\'activer le produit (sans fenêtre)', /activer/.test(arme.texte) && !arme.boite, JSON.stringify(arme));
+    await p.waitForTimeout(600);
+    await p.locator('.x-window .x-btn').filter({ visible: true, hasText: /activer/ }).first().click();
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /code CIP/.test(Ext.MessageBox.msg.getEl().dom.innerHTML), null, { timeout: 10000 }).catch(() => {});
     ok('Produit activé en base', q(`SELECT str_STATUT FROM t_famille WHERE lg_FAMILLE_ID = '${ID}'`) === 'enable');
     ok('L\'association se poursuit (confirmation du code)', await p.evaluate(() => Ext.MessageBox.isVisible() && /code CIP/.test(Ext.MessageBox.msg.getEl().dom.innerHTML)));
