@@ -393,3 +393,67 @@ Le menu prend la cloche parce que son nom contient « SMS ». Je lui donne un **
 15. **Pointage.**
     - Comment saisissez-vous la référence d'un BL DPCI et d'un BL Copharmed : n° de facture ou n° de BL ?
     - Le montant du relevé Copharmed est-il TTC ?
+
+---
+
+## Réponses du 10/11
+
+1. **Ordre de travail :** pas d'objection, il est suivi. Le pointage BL passe en premier, puisque c'était la demande principale.
+2. **Point 2 :** prix d'achat et prix de vente ajoutés **après le nom du produit** dans l'en-tête « Associer ».
+3. **Point 2 :** la case « Rechercher dans les désactivés » est visible. Je vérifierai seulement qu'elle est décochée par défaut.
+4. **Point 3 :** « la recherche est faite par date de BL ou date d'entrée ». J'ajoute un choix « Date du BL / Date d'entrée », avec la date du BL par défaut.
+5. **Point 6 :** un seul réglage pour la prévision et le tableau de bord.
+6. **Point 7 :** oui, une liste serveur des postes connus.
+7. **Point 8 :** proposition C, maquette d'abord.
+8. **Point 10 :** une couleur par onglet.
+9. **Point 10, indicateurs supplémentaires :** pas de réponse. Le point passe en fin de file et je reposerai la question.
+10. **Point 12 :** les colonnes d'impression sont validées.
+11. **Point 13 :** un **indicateur visuel de l'évolution de l'envoi** est demandé (préparé, envoyé, distribué, lu, échec), y compris pour les liens wa.me (au moins « lien ouvert »).
+12. **Point 14 bis :** maquette du fond violet validée.
+13. **Point 15 :** nom raccourci par « … » validé.
+14. **Point 20 :** on garde « Ajouter des clients » au-dessus.
+15. **Pointage :**
+    - le montant du relevé Copharmed est en TTC ;
+    - références saisies, lues en base (laborex_v1_db, juillet à novembre) :
+
+    | Grossiste | Saisie | Exemple |
+    |---|---|---|
+    | TEDIS | n° de BL avec agence | `2630249626-BKE` |
+    | DPCI | n° de facture | `R50164549` (relevé : `FAC R40235168`) |
+    | Copharmed | n° de facture | `30-217202-00` |
+
+    - Quelques BL TEDIS sont saisis avec une faute de frappe : `26255910091-VRI` pour `2625910091`, `2926011868-VRI` pour `2626011868`.
+
+## Pointage BL : fait le 10/11 (worktree `prestige-plan-09112026`, branche `plan/09112026`)
+
+**Défaut confirmé sur le vrai relevé TEDIS :** le lecteur PDF perdait un chiffre doublé. Par exemple, `2626011868` était lu `262601868` ; 2 BL sur 54 étaient faux sur le relevé du 16 au 30/09.
+
+**Cause :** les chiffres de TEDIS sont serrés. Le second « 1 » chevauchait le premier de 0,53 pt et était pris pour un caractère repeint (faux gras).
+
+**Corrections :**
+- **Lecteur :** un caractère n'est écarté que s'il est identique et posé presque au même endroit.
+- **Avoirs :** rapprochés aussi par leur propre numéro (`AV-2627127450-BKE` saisi en référence d'avoir).
+- **Nouveau statut « À confirmer » :** quand aucun numéro ne correspond, une seule pièce de même nature, de même montant et datée à 3 jours près est proposée. C'est le cas d'un avoir sans référence ou d'un n° mal saisi. Elle n'est jamais pointée automatiquement.
+- **Lignes ignorées :** abonnement `PR-ABO` (réglable par grossiste, « ABO » par défaut). Elles sont conservées et montrées « Ignorées », hors totaux.
+- **Montant comparé en TTC :** une case dans le réglage du grossiste (Copharmed), comparée au TTC des BL.
+- **« Pointer les pièces rapprochées » et « Revenir au format standard » :** confirmation dans le bouton, résultat en avis non bloquant. Il n'y a plus de fenêtre surgissante.
+
+**Tests :**
+
+| Test | Type | Résultat |
+|---|---|---|
+| `ReleveTedisTest` | lecture, faux gras, relevé TEDIS | 3 / 3 |
+| `RapprochementAvoirsRepliTest` | cohérence sur 3 000 relevés au hasard (graine fixe) | 7 / 7 |
+| `ReleveModeleOptionsTest` | lignes ignorées, TTC, ancien réglage relu | 4 / 4 |
+| `test-releve-tedis-0911.js` | rapprochement et bilan (domain3) | 36 / 36 |
+
+Le test d'écran couvre :
+- les 8 lignes comparées écran = PDF = base, en HT puis en TTC ;
+- seuls les rapprochés sont pointés ;
+- le bilan : 2 relevés, 3 pièces pointées, stock inchangé.
+
+**Non-régression :**
+- `test-pointage-bl.js` (format standard Ubipharm) : 18 / 18 ;
+- `test-releve-modele.js` (DPCI par colonnes) : 23 / 23.
+
+**À fournir :** les relevés **DPCI** et **Copharmed** en PDF. Je n'ai reçu que des captures d'écran. Le relevé TEDIS a été vérifié sur le vrai fichier.
