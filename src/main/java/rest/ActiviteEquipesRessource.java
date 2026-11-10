@@ -94,6 +94,31 @@ public class ActiviteEquipesRessource {
         return Response.ok(m).build();
     }
 
+    /**
+     * Plan du 09/11, point 10 : sept indicateurs d'equipe par employe, sur la periode (ou la garde) et l'employe
+     * choisis.
+     */
+    @GET
+    @Path("indicateurs")
+    public Response indicateurs(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("employeId") String employeId, @QueryParam("gardeId") String gardeId) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        if (appliquerGarde(f, gardeId) == GARDE_INTROUVABLE) {
+            return gardeIntrouvable();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.indicateurs(f));
+        return Response.ok(m).build();
+    }
+
     /** Plan avoir du 08/11, point 1 : le meme tableau en CSV (ouvert par Excel), totaux compris. */
     @GET
     @Path("ca-tranches/csv")

@@ -67,6 +67,12 @@ public interface ActiviteEquipesService {
      */
     java.util.Map<String, Object> caTranches(ActiviteFiltreDTO f, Integer taille, String attribution);
 
+    /**
+     * Plan du 09/11, point 10 : sept indicateurs d'equipe par employe (remises, modifications et ecarts de caisse,
+     * panier, conseil, attente client, avoirs et retours, activite par heure de presence).
+     */
+    java.util.Map<String, Object> indicateurs(ActiviteFiltreDTO f);
+
     /** Une anomalie avec le fil de ce que l'employe a fait juste avant ; null si elle n'existe pas. */
     rest.service.dto.ActiviteAnomaliesDTO.Element anomalie(long id);
 }

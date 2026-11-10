@@ -163,6 +163,12 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-rep .d{font-size:11px;color:#64748b;white-space:normal}'
                     + '.ae-rep-alerte{border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;margin-bottom:12px}'
                     + '.ae-rep-alerte.mal{background:#fef2f2;color:#b91c1c}.ae-rep-alerte.bon{background:#f0fdf4;color:#15803d}'
+                    /* plan du 09/11, point 10 : tableaux des sept indicateurs */
+                    + '.ae-ind{border-collapse:collapse;width:100%;font-size:12px}.ae-ind th{background:#e8eef7;color:#1a3d6d;text-align:left;'
+                    + 'padding:4px 6px;white-space:nowrap;position:sticky;top:0}.ae-ind td{padding:3px 6px;border-bottom:1px solid #eef1f5;white-space:nowrap}'
+                    + '.ae-ind .n{text-align:right;font-variant-numeric:tabular-nums}.ae-ind small{display:block;color:#7c3aed;font-size:11px}'
+                    + '.ae-ind tfoot td{font-weight:bold;background:#f8fafc;border-top:2px solid #dbe3ec}.ae-ind tbody tr:hover{background:#f3f7fc}'
+                    + '.ae-ind-pied{margin:6px 2px;color:#334155;font-size:12px}'
                     + testextjs.view.activiteequipes.ActiviteEquipes.cssOnglets(),
                     'activite-equipes-styles');
         },
@@ -549,6 +555,241 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         return me.donnees;
     },
 
+    /* ------------------------------------------------------------------ INDICATEURS (plan du 09/11, point 10) */
+
+    /*
+     * Sept indicateurs par employe. Colonnes : [libelle, cle, format] ; format n = nombre, m = montant, d = decimal,
+     * p = pourcentage, s = duree en secondes, h = heures ; [cle, cle2] = valeur et son pourcentage en dessous.
+     */
+    INDICATEURS: [
+        {code: 'REMISES', titre: 'Remises accordées', qui: 'Caissière',
+            aide: '<b>Mesure</b> : remises accordées par chaque caissière sur les ventes qu\'elle a encaissées ; taux = remises ÷ CA, '
+                    + 'part des ventes remisées.<br><b>Pertinence</b> : une remise est de la marge donnée ; un taux qui s\'écarte de '
+                    + 'celui des collègues signale une habitude ou un oubli de règle.<br><b>Gain</b> : de la marge préservée, des remises '
+                    + 'accordées selon la même règle par tous.',
+            colonnes: [['Ventes', 'ventes', 'n'], ['Remisées', ['ventesRemisees', 'partRemisees'], 'n'], ['CA', 'ca', 'm'],
+                ['Remises', 'remise', 'm'], ['Taux', 'tauxRemise', 'p']]},
+        {code: 'MODIFS_ECARTS', titre: 'Ventes modifiées et écarts de caisse', qui: 'Employé',
+            aide: '<b>Mesure</b> : ventes modifiées par l\'employé (nombre, montant déplacé = somme des écarts avant / après) ; '
+                    + 'caisses fermées de la période : billetées, en manquant (billetage inférieur au solde attendu), montants manquants '
+                    + 'et surplus, caisses sans billetage (même règle que l\'analyse des écarts de caisse).<br><b>Pertinence</b> : '
+                    + 'modifications et manquants qui reviennent chez la même personne sont le premier signe d\'une erreur de méthode '
+                    + 'ou d\'un risque.<br><b>Gain</b> : une caisse juste, des écarts expliqués le jour même, moins de pertes.',
+            colonnes: [['Ventes modifiées', 'modifications', 'n'], ['Montant déplacé', 'montantModifie', 'm'],
+                ['Caisses billetées', 'caisses', 'n'], ['En manquant', ['manquants', 'recurrence'], 'n'], ['Manquant', 'montantManquant', 'm'],
+                ['Surplus', 'montantSurplus', 'm'], ['Sans billetage', 'sansBilletage', 'n']]},
+        {code: 'PANIER', titre: 'Panier et produits par vente', qui: 'Caissière',
+            aide: '<b>Mesure</b> : panier moyen (CA ÷ ventes), lignes et produits (quantités) par vente encaissée.<br>'
+                    + '<b>Pertinence</b> : à fréquentation égale, le panier dit qui propose le complément utile (conseil associé, '
+                    + 'quantité adaptée).<br><b>Gain</b> : du CA en plus sans un client de plus ; repérer les bonnes pratiques à partager.',
+            colonnes: [['Ventes', 'ventes', 'n'], ['CA', 'ca', 'm'], ['Panier moyen', 'panierMoyen', 'm'],
+                ['Lignes / vente', 'lignesParVente', 'd'], ['Produits / vente', 'produitsParVente', 'd']]},
+        {code: 'CONSEIL', titre: 'Taux de conseil', qui: 'Employé',
+            aide: '<b>Mesure</b> : part des ventes encaissées où un employé est noté dans « Conseil » ; conseils donnés par chacun et '
+                    + 'CA des ventes conseillées. Sous le tableau : panier moyen avec et sans conseil.<br><b>Pertinence</b> : le conseil '
+                    + 'fait la différence d\'une officine ; l\'écart de panier mesure ce qu\'il rapporte.<br><b>Gain</b> : savoir qui '
+                    + 'conseille, encourager la saisie du conseil, et chiffrer son effet sur le CA.',
+            colonnes: [['Ventes encaissées', 'ventes', 'n'], ['Avec conseil', 'ventesConseillees', 'n'], ['Taux', 'tauxConseil', 'p'],
+                ['Conseils donnés', 'conseils', 'n'], ['CA conseillé', 'caConseille', 'm'], ['Panier conseillé', 'panierConseille', 'm']]},
+        {code: 'ATTENTE', titre: 'Attente client en caisse', qui: 'Caissière',
+            aide: '<b>Mesure</b> : pour les préventes (vendeur différent de la caissière), temps entre le dernier produit saisi par '
+                    + 'le vendeur et l\'encaissement ; médiane des attentes de 0 à 1 h, part des attentes de plus de 5 min.<br>'
+                    + '<b>Pertinence</b> : c\'est le temps que le client passe debout entre le comptoir et la caisse.<br><b>Gain</b> : '
+                    + 'ouvrir une caisse de plus aux bonnes heures, des clients qui ne repartent pas.',
+            colonnes: [['Préventes', 'preventes', 'n'], ['Mesurées', 'mesurees', 'n'], ['Attente médiane', 'attenteMediane', 's'],
+                ['Plus de 5 min', ['longues', 'partLongues'], 'n']]},
+        {code: 'AVOIRS', titre: 'Avoirs et retours', qui: 'Caissière',
+            aide: '<b>Mesure</b> : ventes encaissées avec un avoir (vente en avoir ou produit dû au client), lignes en avoir, taux ; '
+                    + 'retours de produits = modifications de vente de type « produits » faites par l\'employé.<br><b>Pertinence</b> : '
+                    + 'un avoir est un produit promis et non servi ; trop d\'avoirs révèlent des ruptures, trop de retours des erreurs '
+                    + 'de délivrance.<br><b>Gain</b> : moins de clients revenus pour rien, un stock et des commandes ajustés.',
+            colonnes: [['Ventes', 'ventes', 'n'], ['Avec avoir', 'ventesAvoir', 'n'], ['Taux', 'tauxAvoir', 'p'],
+                ['Lignes en avoir', 'lignesAvoir', 'n'], ['Retours de produits', 'retoursProduits', 'n']]},
+        {code: 'PRESENCE', titre: 'Activité par heure de présence', qui: 'Employé',
+            aide: '<b>Mesure</b> : temps connecté à Prestige (sessions fusionnées, limitées à la période ; une session restée ouverte '
+                    + 'compte 12 h au plus), ventes et CA encaissés par heure de présence. Connexions enregistrées depuis le 25/10/2026.'
+                    + '<br><b>Pertinence</b> : rapporte l\'activité au temps passé, pour comparer un temps plein et un temps partiel.<br>'
+                    + '<b>Gain</b> : un planning (RH) fondé sur la charge réelle ; une aide pour accompagner, pas un classement.',
+            colonnes: [['Heures connectées', 'heures', 'h'], ['Ventes', 'ventes', 'n'], ['CA', 'ca', 'm'],
+                ['Ventes / heure', 'ventesParHeure', 'd'], ['CA / heure', 'caParHeure', 'm']]}
+    ],
+
+    cadresIndicateurs: function () {
+        var me = this;
+        return Ext.Array.map(me.INDICATEURS, function (i) {
+            return me.cadre('cInd' + i.code, i.titre, i.aide, {xtype: 'component', itemId: 'aeInd' + i.code, autoScroll: true, html: ''});
+        });
+    },
+
+    chargerIndicateurs: function (f) {
+        var me = this;
+        var version = me.versionIndicateurs = (me.versionIndicateurs || 0) + 1;
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/indicateurs', method: 'GET', params: f, timeout: 180000,
+            success: function (r) {
+                if (me.isDestroyed || version !== me.versionIndicateurs) {
+                    return;
+                }
+                var o = Ext.decode(r.responseText, true) || {};
+                me.donneesIndicateurs = o.data;
+                Ext.each(me.INDICATEURS, function (i) {
+                    var z = me.down('#aeInd' + i.code);
+                    if (z) {
+                        z.update(o.success ? me.htmlIndicateur(i, o.data[i.code])
+                                : '<div class="ae-vide">' + Ext.String.htmlEncode(o.msg || 'Indisponible') + '</div>');
+                    }
+                });
+            },
+            failure: function (r) {
+                if (!me.isDestroyed && version === me.versionIndicateurs) {
+                    Ext.each(me.INDICATEURS, function (i) {
+                        var z = me.down('#aeInd' + i.code);
+                        if (z) {
+                            z.update('<div class="ae-vide">Le serveur n\'a pas répondu (' + r.status + ').</div>');
+                        }
+                    });
+                }
+            }});
+    },
+
+    /* une valeur affichee selon son format ; absente : tiret */
+    valeurIndicateur: function (v, format) {
+        var N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
+        if (v === null || v === undefined) {
+            return '—';
+        }
+        if (format === 'p') {
+            return N(v, true) + ' %';
+        }
+        if (format === 'd' || format === 'h') {
+            return N(v, true) + (format === 'h' ? ' h' : '');
+        }
+        if (format === 's') {
+            var s = Math.round(v);
+            return s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + (s % 60 < 10 ? '0' : '') + (s % 60) + ' s';
+        }
+        return N(v);
+    },
+
+    htmlIndicateur: function (i, b) {
+        var me = this, e = Ext.String.htmlEncode;
+        if (!b || !b.lignes || !b.lignes.length) {
+            return '<div class="ae-vide">Aucune donnée sur la période.</div>';
+        }
+        var cellule = function (x, c) {
+            var cle = Ext.isArray(c[1]) ? c[1][0] : c[1], pct = Ext.isArray(c[1]) ? c[1][1] : null;
+            return '<td class="n" data-cle="' + cle + '" data-v="' + (x[cle] === null || x[cle] === undefined ? '' : x[cle]) + '">'
+                    + me.valeurIndicateur(x[cle], c[2])
+                    + (pct ? '<small data-cle="' + pct + '" data-v="' + (x[pct] === null || x[pct] === undefined ? '' : x[pct]) + '">'
+                            + me.valeurIndicateur(x[pct], 'p') + '</small>' : '') + '</td>';
+        };
+        var pied = '';
+        if (i.code === 'CONSEIL') {
+            pied = '<div class="ae-ind-pied">Panier moyen avec conseil : <b data-cle="panierAvecConseil">' + me.valeurIndicateur(b.total.panierAvecConseil, 'm')
+                    + '</b> · sans conseil : <b data-cle="panierSansConseil">' + me.valeurIndicateur(b.total.panierSansConseil, 'm') + '</b></div>';
+        }
+        if (i.code === 'ATTENTE') {
+            pied = '<div class="ae-ind-pied">Attente médiane de l\'équipe : <b data-cle="attenteMediane">' + me.valeurIndicateur(b.total.attenteMediane, 's') + '</b></div>';
+        }
+        return '<table class="ae-ind" data-code="' + i.code + '"><thead><tr><th>' + e(i.qui) + '</th>'
+                + Ext.Array.map(i.colonnes, function (c) {
+                    return '<th class="n">' + e(c[0]) + '</th>';
+                }).join('') + '</tr></thead><tbody>'
+                + Ext.Array.map(b.lignes, function (x) {
+                    return '<tr data-id="' + e(x.id) + '"><td class="ae-ind-nom">' + e(x.nom) + '</td>' + Ext.Array.map(i.colonnes, function (c) {
+                        return cellule(x, c);
+                    }).join('') + '</tr>';
+                }).join('') + '</tbody><tfoot><tr><td>Total</td>' + Ext.Array.map(i.colonnes, function (c) {
+                    return cellule(b.total, c);
+                }).join('') + '</tr></tfoot></table>' + pied;
+    },
+
+    /* ---- masquer / ramener une carte (toutes les cartes des Analyses), memorise pour l'utilisateur */
+    CLE_MASQUES: 'activite-indicateurs',
+
+    barreMasques: function () {
+        var me = this;
+        return {xtype: 'toolbar', dock: 'top', itemId: 'aeBarreMasques', cls: 'ae-seuil', items: [
+                {xtype: 'tbtext', text: 'Une carte inutile se masque par sa croix ; le bouton à droite la ramène.'}, '->',
+                {xtype: 'button', itemId: 'aeMasques', text: 'Indicateurs masqués (0)', iconCls: 'fa fa-eye', disabled: true,
+                    tooltip: 'Ramener une carte masquée, une par une, ou toutes', menu: {itemId: 'aeMenuMasques', items: []}}]};
+    },
+
+    cadresMasquables: function () {
+        return Ext.Array.filter(this.analyses ? this.analyses.query('panel') : [], function (p) {
+            return p.aeCadre;
+        });
+    },
+
+    masquer: function (id) {
+        var me = this;
+        if (Ext.Array.indexOf(me.masques || [], id) < 0) {
+            me.masques = (me.masques || []).concat([id]);
+        }
+        me.appliquerMasques();
+        me.sauverMasques();
+    },
+
+    ramener: function (id) {
+        var me = this;
+        me.masques = id ? Ext.Array.remove((me.masques || []).slice(), id) : [];
+        me.appliquerMasques();
+        me.sauverMasques();
+    },
+
+    appliquerMasques: function () {
+        var me = this, m = me.masques || [], b = me.down('#aeMasques');
+        if (!b) {
+            return;
+        }
+        var cadres = me.cadresMasquables(), caches = [];
+        Ext.suspendLayouts();
+        Ext.each(cadres, function (p) {
+            var cache = Ext.Array.indexOf(m, p.itemId) >= 0;
+            p.setVisible(!cache);
+            if (cache) {
+                caches.push(p);
+            }
+        });
+        Ext.resumeLayouts(true);
+        b.setText('Indicateurs masqués (' + caches.length + ')');
+        b.setDisabled(!caches.length);
+        var menu = b.menu;
+        menu.removeAll();
+        Ext.each(caches, function (p) {
+            menu.add({text: p.title, itemId: 'aeRamener-' + p.itemId, iconCls: 'fa fa-eye', handler: function () {
+                    me.ramener(p.itemId);
+                }});
+        });
+        if (caches.length > 1) {
+            menu.add('-');
+            menu.add({text: 'Tout réafficher', itemId: 'aeRamenerTout', handler: function () {
+                    me.ramener(null);
+                }});
+        }
+    },
+
+    lireMasques: function () {
+        var me = this;
+        Ext.Ajax.request({url: '../api/v1/preferences/' + me.CLE_MASQUES, method: 'GET', success: function (r) {
+                var v = (Ext.decode(r.responseText, true) || {}).valeur;
+                if (!me.isDestroyed && v && Ext.isArray(v.masques)) {
+                    me.masques = Ext.Array.filter(v.masques, function (x) {
+                        return Ext.isString(x);
+                    });
+                    me.appliquerMasques();
+                }
+            }});
+    },
+
+    sauverMasques: function () {
+        var me = this;
+        Ext.Ajax.request({url: '../api/v1/preferences/' + me.CLE_MASQUES, method: 'PUT', headers: {'Content-Type': 'application/json'},
+            jsonData: {masques: me.masques || []},
+            failure: function (r) {
+                PrestigeToast.afficher('Le choix des cartes n\'a pas été enregistré (' + r.status + ').', {niveau: 'alerte'});
+            }});
+    },
+
     /* ------------------------------------------------------------------ ANALYSES */
 
     TACHES: ['VENTE', 'VENDEUR', 'BL', 'COMMANDE', 'AJUSTEMENT', 'INVENTAIRE', 'RETOUR', 'ANNULATION', 'MODIFICATION'],
@@ -557,8 +798,12 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
     /* cadre d'un graphique : titre, aide au survol du « ? », hauteur fixe */
     cadre: function (itemId, titre, aide, contenu, largeur) {
         return {xtype: 'panel', itemId: itemId, title: titre, columnWidth: largeur || 0.5, height: 340, margin: '0 10 12 0', layout: 'fit',
-            cls: 'ae-graphe', frame: false, bodyStyle: 'background:#fff', animCollapse: false,
-            tools: [{type: 'help', tooltip: aide}], items: [contenu]};
+            cls: 'ae-graphe', frame: false, bodyStyle: 'background:#fff', animCollapse: false, aeCadre: true,
+            /* plan du 09/11, point 10 : chaque carte se masque ; le bouton « Indicateurs masques » la ramene */
+            tools: [{type: 'help', tooltip: aide}, {type: 'close', itemId: 'aeMasquer', tooltip: 'Masquer cette carte (bouton « Indicateurs masqués » pour la ramener)',
+                    handler: function () {
+                        this.masquer(itemId);
+                    }, scope: this}], items: [contenu]};
     },
 
     creerAnalyses: function () {
@@ -709,6 +954,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
 
         return Ext.create('Ext.panel.Panel', {
             itemId: 'aeAnalyses', autoScroll: true, bodyPadding: '12 2 12 12', bodyStyle: 'background:#f8fafc',
+            dockedItems: [me.barreMasques()],
+            listeners: {afterrender: function () {
+                    me.lireMasques();
+                }},
             items: [
                 {xtype: 'component', itemId: 'aeTuiles', html: ''},
                 /* plan avoir du 08/11, point 1 : memes reperes que la carte du tableau de bord */
@@ -778,7 +1027,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                                 + 'Chaque vente compte une seule fois : le total est le même dans les deux cas. Totaux par employé et par tranche ; '
                                 + '« Export CSV » pour Excel.', {xtype: 'component', itemId: 'aeCaTranches', autoScroll: true, html: ''}, 1),
                                 {height: 420, dockedItems: [me.barreCaTranches()]})
-                    ]}
+                    ].concat(me.cadresIndicateurs())}
             ]
         });
     },
@@ -1309,6 +1558,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 me.chargerAnnulations(f);
                 me.chargerGardes(f);
                 me.chargerCaTranches(f);
+                me.chargerIndicateurs(f);
             },
             failure: function (r) {
                 if (!a.isDestroyed) {

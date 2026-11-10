@@ -392,6 +392,65 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
      * Plan du 08/11, point 15.3 : preventes encaissees sur la periode (date d'encaissement), une ligne par vente :
      * caissiere, montant, duree de sa prise en caisse a l'encaissement (null si la prise n'est pas connue).
      */
+    /*
+     * Plan du 09/11, point 10 : sept indicateurs d'equipe. Ventes : memes regles que SQL_VENTES (une ligne par vente) ;
+     * attente = de la derniere ligne saisie a l'encaissement.
+     */
+    static final String SQL_IND_VENTES = "SELECT p.lg_USER_CAISSIER_ID, p.lg_USER_VENDEUR_ID, p.lg_USER_CONSEIL_ID, p.int_PRICE,"
+            + " IFNULL(p.int_PRICE_REMISE, 0), COUNT(*), IFNULL(SUM(d.int_QUANTITY), 0), p.b_IS_AVOIR, SUM(IFNULL(d.int_AVOIR, 0) > 0),"
+            + " TIMESTAMPDIFF(SECOND, MAX(d.dt_UPDATED), p.completion_date) FROM t_preenregistrement p"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'"
+            + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 %s GROUP BY p.lg_PREENREGISTREMENT_ID";
+    static final String SQL_IND_MODIFS = "SELECT v.user_id, v.type_modification, IFNULL(v.montant_avant, 0), IFNULL(v.montant_apres, 0)"
+            + " FROM vente_modifiee v WHERE v.mvt_date >= ?1 AND v.mvt_date < ?2 %s";
+    /** caisses fermees : meme lecture que l'analyse des ecarts de caisse (billetage - solde du soir) */
+    static final String SQL_IND_CAISSES = "SELECT rc.lg_USER_ID, IFNULL(rc.int_SOLDE_SOIR, 0), (SELECT SUM(b.int_AMOUNT) FROM t_billetage b"
+            + " WHERE b.ld_CAISSE_ID = rc.ld_CAISSE_ID AND b.lg_USER_ID = rc.lg_USER_ID) FROM t_resume_caisse rc"
+            + " WHERE rc.str_STATUT <> 'is_Using' AND rc.dt_CREATED >= ?1 AND rc.dt_CREATED < ?2 %s";
+    static final String SQL_IND_SESSIONS = "SELECT s.lg_USER_ID, s.debut, s.fin FROM t_session_utilisateur s"
+            + " WHERE s.debut < ?2 AND (s.fin IS NULL OR s.fin > ?1) %s";
+
+    @Override
+    public Map<String, Object> indicateurs(ActiviteFiltreDTO f) {
+        LocalDateTime de = borneDebut(f), a = borneFin(f);
+        List<rest.service.impl.activite.IndicateursEquipe.Vente> ventes = new ArrayList<>();
+        for (Object[] r : lire(SQL_IND_VENTES, "", de, a, null)) {
+            ventes.add(new rest.service.impl.activite.IndicateursEquipe.Vente(texte(r[0]), texte(r[1]), texte(r[2]),
+                    entier(r[3]), entier(r[4]), (int) entier(r[5]), entier(r[6]), vrai(r[7]), (int) entier(r[8]),
+                    r[9] == null ? null : entier(r[9])));
+        }
+        List<rest.service.impl.activite.IndicateursEquipe.Modification> modifs = new ArrayList<>();
+        for (Object[] r : lire(SQL_IND_MODIFS, "", de, a, null)) {
+            modifs.add(new rest.service.impl.activite.IndicateursEquipe.Modification(texte(r[0]), texte(r[1]),
+                    entier(r[2]), entier(r[3])));
+        }
+        List<rest.service.impl.activite.IndicateursEquipe.Caisse> caisses = new ArrayList<>();
+        for (Object[] r : lire(SQL_IND_CAISSES, "", de, a, null)) {
+            caisses.add(new rest.service.impl.activite.IndicateursEquipe.Caisse(texte(r[0]), entier(r[1]),
+                    r[2] == null ? null : Math.round(((Number) r[2]).doubleValue())));
+        }
+        List<rest.service.impl.activite.IndicateursEquipe.Session> sessions = new ArrayList<>();
+        for (Object[] r : lire(SQL_IND_SESSIONS, "", de, a, null)) {
+            sessions.add(new rest.service.impl.activite.IndicateursEquipe.Session(texte(r[0]),
+                    r[1] == null ? null : heure(r[1]), r[2] == null ? null : heure(r[2])));
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("debut", f.getDebut().toString());
+        m.put("fin", f.getFin().toString());
+        m.putAll(rest.service.impl.activite.IndicateursEquipe.calculer(ventes, modifs, caisses, sessions, de, a,
+                LocalDateTime.now(), noms(), f.getEmployeId()));
+        return m;
+    }
+
+    private static String texte(Object o) {
+        return o == null ? null : String.valueOf(o);
+    }
+
+    private static long entier(Object o) {
+        return o instanceof Number ? ((Number) o).longValue() : 0;
+    }
+
     static final String SQL_CAISSIERES = "SELECT p.lg_USER_CAISSIER_ID AS emp, p.int_PRICE AS prix,"
             + " TIMESTAMPDIFF(SECOND, pc.pris_le, p.completion_date) AS duree FROM t_preenregistrement p"
             + " LEFT JOIN vente_prise_caisse pc ON pc.vente_id = p.lg_PREENREGISTREMENT_ID AND pc.user_id = p.lg_USER_CAISSIER_ID"
