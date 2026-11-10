@@ -518,3 +518,5 @@ Branche `plan/09112026`, commit `f62f1d788`, essayé sur domain3 en 1366 × 768 
   - chaque indicateur caché peut être ramené un par un.
 
   Ce travail se fait avec le point 10.
+
+**Décision du 10/11 sur le doublon :** la branche `claude/pointage-releves` sert de référence pour le pointage BL. Mon correctif a été annulé sur `plan/09112026` (`364488ce0`). Cette branche ne touche donc plus aucun fichier du pointage. Le correctif du faux gras du lecteur PDF et les tests TEDIS restent consultables dans `7d05972ea`. Je les ai signalés à la session du pointage, pour qu'elle reprenne ce qui lui manque.
