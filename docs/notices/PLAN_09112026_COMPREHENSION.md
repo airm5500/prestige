@@ -580,3 +580,23 @@ Branche `plan/09112026`, commit `b66c1172f`, essayé sur domain3.
 **À signaler :** après l'activation, la confirmation de la mise à jour du code CIP passe encore par une fenêtre quand le serveur répond en plus d'une seconde (mécanisme commun `PrestigeConfirmation.ligne`, antérieur à ce point). À reprendre avec le mécanisme commun si vous le souhaitez.
 
 **Déployé :** domain3 (tests) et 8080.
+
+---
+
+## Retour du 10/11 : Entrée sans effet dans la fiche article (« componentLayoutCounter »)
+
+**Constat (journal de 14:52, fil d'Ariane) :** recherches dans la fiche article, puis « Détail sur l'article » (14:48:09), puis 6 chiffres + Entrée (affiché « SCAN ») : aucune requête ne part, erreur « Cannot read properties of undefined (reading 'componentLayoutCounter') ». Même erreur au journal le 31/10 et le 09/11, toujours après un détail d'article.
+
+**Cause :** l'icône « Détail sur l'article » pose le verrou d'ouverture (`PrestigeChargement.verrou`) sur la *vue* de la grille, qui appelle `vue.setLoading()`. Dans Ext 4.2.1, `setLoading` détruit le masque de la vue — celui qui suit les chargements de la liste — sans le désabonner de la liste. Au chargement suivant (Entrée, page suivante…), ce masque détruit répond sans composant et le chargement s'arrête avant la requête. Le correctif du point 1 ne retirait ce masque qu'avant une recherche : la page suivante plantait encore, et la grille perdait son masque de chargement. Même verrou sur une vue : ventes terminées, préventes, commandes (réconciliation), suggestions.
+
+**Correctif (commit `66cadaf0d`, branche `plan/09112026` ; `app.js`, pour toute l'application) :**
+- sur une vue dont le masque suit la liste, `setLoading` pose un masque ponctuel à part et laisse celui de la liste en place ;
+- un masque détruit ou sans composant se désabonne de sa liste au lieu de planter (filet pour tout autre chemin), et se désabonne aussi à sa destruction.
+
+**Second défaut trouvé au passage (`detailArticle.js`) :** à l'ouverture, le détail détruisait le filtre rayon de la fiche article (même identifiant global `lg_ZONE_GEO_ID`). Le champ du détail s'appelle maintenant `detail_lg_ZONE_GEO_ID`.
+
+**Test (`test-masque-chargement-1011.js`, 17 / 17 ; 13 échecs sur l'ancien code, dont l'erreur exacte du journal) :** vrai clic sur l'icône du détail, fermeture par « Fermer », puis page suivante, recherche de 6 chiffres + Entrée, quatre Entrée de suite. Rapprochement : CIP de la grille = CIP renvoyés par le serveur (page 2 et recherche). Cas général hors fiche article : grille dans une fenêtre, `setLoading` posé puis retiré sur sa vue, liste rechargée, grille fermée (plus aucun masque abonné). Aucun calcul ni aucune écriture en base : pas de test de cohérence ni de bilan.
+
+**Non-régression :** verrou du double clic 15 / 15 ; fiche article (point 1) 21 / 21 ; détail de vente 18 / 18 ; dernière vente de la fiche 5 / 5 ; ergonomie du détail article 9 / 9 et monographie à la demande 6 / 6 sur 8080 (sur domain3, le service des monographies est inactif : précondition non remplie, sans lien avec ce changement).
+
+**Déployé :** domain3 (tests) et 8080. Si l'erreur revenait, recharger la page (F5) : un onglet ouvert avant le déploiement garde l'ancien code.
