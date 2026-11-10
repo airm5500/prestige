@@ -53,6 +53,11 @@ public final class CreditLigne {
             res.add(p);
             somme += p;
         }
+        return ramenerAuTotal(res, somme, totalTp);
+    }
+
+    /** Ramene les parts d'un organisme a son total : ecart d'arrondi absorbe, sinon (plafond) prorata. */
+    private static List<Integer> ramenerAuTotal(List<Integer> res, long somme, int totalTp) {
         int total = Math.max(0, totalTp);
         if (somme == total || somme <= 0) {
             return res;
@@ -72,6 +77,80 @@ public final class CreditLigne {
         }
         absorber(res, (int) (total - cumul));
         return res;
+    }
+
+    /**
+     * Retours du 10/11 (ticket 5842772163) : parts par organisme et par ligne, calculees comme le moteur. Sur chaque
+     * ligne, dans l'ORDRE DE PASSAGE des organismes, la part vaut base x taux, bornee a ce qui reste de la ligne apres
+     * ceux qui passent avant ; puis chaque organisme est ramene a son total sur la vente (arrondi, plafond). Sans cette
+     * borne, un complementaire qui n'avait rien pris sur une ligne deja couverte y recevait une part par prorata («
+     * MUGEFCI · Taux 0 % : 190 »).
+     *
+     * @param basesParTp
+     *            [organisme][ligne] : base de l'organisme sur la ligne (quantite comprise)
+     * @param tauxParTp
+     *            [organisme][ligne] : taux applique (0 a 100)
+     * @param plafondsLigne
+     *            [ligne] : ce que les organismes peuvent prendre ensemble sur la ligne
+     * @param ordresParLigne
+     *            [ligne] : indices des organismes dans leur ordre de passage sur cette ligne
+     * @param totaux
+     *            [organisme] : part enregistree de l'organisme sur la vente
+     *
+     * @return [organisme][ligne]
+     */
+    public static List<List<Integer>> partsBornees(List<List<Integer>> basesParTp, List<List<Integer>> tauxParTp,
+            List<Integer> plafondsLigne, List<List<Integer>> ordresParLigne, List<Integer> totaux) {
+        List<List<Integer>> res = new ArrayList<>();
+        int nbTp = basesParTp == null ? 0 : basesParTp.size();
+        int nbLignes = plafondsLigne == null ? 0 : plafondsLigne.size();
+        for (int t = 0; t < nbTp; t++) {
+            List<Integer> col = new ArrayList<>();
+            for (int i = 0; i < nbLignes; i++) {
+                col.add(0);
+            }
+            res.add(col);
+        }
+        for (int i = 0; i < nbLignes; i++) {
+            long reste = Math.max(0, plafondsLigne.get(i) == null ? 0 : plafondsLigne.get(i));
+            List<Integer> ordre = ordresParLigne == null || i >= ordresParLigne.size() ? null : ordresParLigne.get(i);
+            for (int k = 0; k < nbTp; k++) {
+                int t = ordre == null || k >= ordre.size() || ordre.get(k) == null ? k : ordre.get(k);
+                if (t < 0 || t >= nbTp) {
+                    continue;
+                }
+                Integer b = i < basesParTp.get(t).size() ? basesParTp.get(t).get(i) : null;
+                Integer tx = tauxParTp == null || t >= tauxParTp.size() || i >= tauxParTp.get(t).size() ? null
+                        : tauxParTp.get(t).get(i);
+                BigDecimal taux = BigDecimal.valueOf(Math.max(0, tx == null ? 0 : tx)).divide(BigDecimal.valueOf(100),
+                        10, RoundingMode.HALF_UP);
+                long p = BigDecimal.valueOf(b == null ? 0 : b).multiply(taux).setScale(0, RoundingMode.HALF_UP)
+                        .longValue();
+                p = Math.max(0, Math.min(p, reste));
+                res.get(t).set(i, (int) p);
+                reste -= p;
+            }
+        }
+        for (int t = 0; t < nbTp; t++) {
+            long somme = 0;
+            for (Integer p : res.get(t)) {
+                somme += p;
+            }
+            Integer total = totaux == null || t >= totaux.size() ? null : totaux.get(t);
+            if (total != null) {
+                ramenerAuTotal(res.get(t), somme, total);
+            }
+        }
+        return res;
+    }
+
+    /**
+     * Retour du 10/11 (ticket 1750418138) : sur une vente a plusieurs organismes, celui dont la part est nulle n'est
+     * pas imprime (ni sous la ligne, ni dans le bloc du client). Un organisme seul reste imprime, meme a zero, et un
+     * montant negatif (vente annulee) n'est jamais masque.
+     */
+    public static boolean masquerPartNulle(int part, int nombreOrganismes) {
+        return part == 0 && nombreOrganismes > 1;
     }
 
     /**

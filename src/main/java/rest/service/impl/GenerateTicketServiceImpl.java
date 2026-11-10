@@ -347,22 +347,50 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         || CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR()).isEmpty()
                                 ? null : d.getCalculationBasePrice());
             }
-            // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne
+            // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne ; retour du
+            // 10/11 : dans l'ordre de passage de la ligne (l'organisme qui passe en premier garde son taux)
             List<List<Integer>> affichesParLigne = new ArrayList<>();
             for (int i = 0; i < lignes.size(); i++) {
+                List<Integer> ordre = rest.service.vente.PriseEnChargeTotale.ordreDePassage(tps,
+                        lignes.get(i).getTpPremierId());
                 List<Integer> taux = new ArrayList<>();
-                for (List<Integer> col : tauxParTp) {
-                    taux.add(col.get(i));
+                for (Integer t : ordre) {
+                    taux.add(tauxParTp.get(t).get(i));
                 }
-                affichesParLigne.add(CreditLigne.tauxAffiches(taux));
+                List<Integer> dansLOrdre = CreditLigne.tauxAffiches(taux);
+                List<Integer> parOrganisme = new ArrayList<>(taux);
+                for (int k = 0; k < ordre.size(); k++) {
+                    parOrganisme.set(ordre.get(k), dansLOrdre.get(k));
+                }
+                affichesParLigne.add(parOrganisme);
             }
+            // retours du 10/11 : part de chaque organisme sur chaque ligne bornee a ce qui reste de la ligne, dans
+            // l'ordre de passage (celui du moteur), et organisme a part nulle non imprime sous la ligne
+            List<Integer> totaux = new ArrayList<>();
+            for (TPreenregistrementCompteClientTiersPayent tp : tps) {
+                totaux.add(tp.getIntPRICE() == null ? 0 : tp.getIntPRICE());
+            }
+            List<Integer> plafondsLigne = new ArrayList<>();
+            List<List<Integer>> ordresParLigne = new ArrayList<>();
+            for (int i = 0; i < lignes.size(); i++) {
+                TPreenregistrementDetail d = lignes.get(i);
+                boolean basePropre = false;
+                for (List<Integer> u : basesUnitairesParTp) {
+                    basePropre = basePropre || u.get(i) != null;
+                }
+                // base propre a un organisme (lot Q2.5, ligne marquee) : la borne est le prix de la ligne ; sinon
+                // c'est la base de la ligne (regle du minimum)
+                plafondsLigne.add(basePropre ? Math.abs(d.getIntPRICE() == null ? 0 : d.getIntPRICE()) : bases.get(i));
+                ordresParLigne.add(rest.service.vente.PriseEnChargeTotale.ordreDePassage(tps, d.getTpPremierId()));
+            }
+            List<List<Integer>> partsParTp = CreditLigne.partsBornees(basesParTp, tauxParTp, plafondsLigne,
+                    ordresParLigne, totaux);
             for (int t = 0; t < tps.size(); t++) {
                 TPreenregistrementCompteClientTiersPayent tp = tps.get(t);
-                int total = tp.getIntPRICE() == null ? 0 : tp.getIntPRICE();
-                List<Integer> parts = CreditLigne.parts(basesParTp.get(t), tauxParTp.get(t), total);
+                List<Integer> parts = partsParTp.get(t);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
-                    if (!afficher.get(i)) {
+                    if (!afficher.get(i) || CreditLigne.masquerPartNulle(parts.get(i), tps.size())) {
                         continue;
                     }
                     Integer prefOrganisme = prefDeLaLigne.get(i);
@@ -431,8 +459,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             e.articlesVo = articlesTicket(vo);
             e.articlesVno = articlesTicket(vno);
             List<String[]> tps = new ArrayList<>();
-            for (TPreenregistrementCompteClientTiersPayent t : listeVenteTiersPayantsByIdVente(
-                    vo.getLgPREENREGISTREMENTID())) {
+            List<TPreenregistrementCompteClientTiersPayent> organismesVo = listeVenteTiersPayantsByIdVente(
+                    vo.getLgPREENREGISTREMENTID());
+            for (TPreenregistrementCompteClientTiersPayent t : organismesVo) {
+                // retour du 10/11 : organisme a part nulle non imprime (plusieurs organismes)
+                if (CreditLigne.masquerPartNulle(t.getIntPRICE() == null ? 0 : t.getIntPRICE(), organismesVo.size())) {
+                    continue;
+                }
                 tps.add(new String[] { t.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME(),
                         String.valueOf(t.getIntPERCENT() == null ? 0 : t.getIntPERCENT()),
                         String.valueOf(t.getIntPRICE() == null ? 0 : t.getIntPRICE()) });
@@ -1088,6 +1121,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
         datas.add("Part du Client:: " + DateConverter.amountFormat(partClt) + "  CFA");
         for (int i = 0; i < lstT.size(); i++) {
+            // retour du 10/11 : un organisme qui ne prend rien sur la vente n'est pas imprime (plusieurs organismes)
+            if (CreditLigne.masquerPartNulle(lstT.get(i).getIntPRICE() == null ? 0 : lstT.get(i).getIntPRICE(),
+                    lstT.size())) {
+                continue;
+            }
             if (Objects.isNull(p.getHasPriceOption()) || !p.getHasPriceOption()) {
                 datas.add(lstT.get(i).getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() + "   "
                         + lstT.get(i).getIntPERCENT() + "%" + " :: "

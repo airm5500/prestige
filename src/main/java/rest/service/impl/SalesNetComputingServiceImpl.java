@@ -352,11 +352,14 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
 
     private List<SaleItemInput> buildSaleItemInputs(List<TPreenregistrementDetail> items, CalculationInput input,
             Set<String> tiersPayantIds, List<TiersPayantInput> tiersPayantInputs) {
+        // retour du 10/11 : la marque « prise en charge totale » d'une ligne n'est lue que si le parametre vaut 1
+        boolean priseEnChargeTotale = rest.service.vente.PriseEnChargeTotale.actif(em);
 
         return items.stream().map(sl -> {
             SaleItemInput si = new SaleItemInput();
             TFamille produit = sl.getLgFAMILLEID();
             si.setSalesLineId(sl.getLgPREENREGISTREMENTDETAILID());
+            si.setPremierCompteTiersPayantId(priseEnChargeTotale ? sl.getTpPremierId() : null);
             si.setTotalSalesAmount(BigDecimal.valueOf(sl.getIntPRICE()));
             si.setQuantity(sl.getIntQUANTITY());
             si.setDiscountAmount(BigDecimal.valueOf(Objects.requireNonNullElse(sl.getIntPRICEREMISE(), 0)));

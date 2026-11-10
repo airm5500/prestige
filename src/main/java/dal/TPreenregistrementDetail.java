@@ -128,6 +128,22 @@ public class TPreenregistrementDetail implements Serializable {
         return Boolean.TRUE.equals(comptant);
     }
 
+    /**
+     * Retour du 10/11/2026 : compte client tiers-payant qui passe en premier sur cette ligne et prend 100 % de sa
+     * propre base (prise en charge totale, confirmee a la caisse, pour cette vente seulement). Null : ordre habituel.
+     * Lu par le calcul seulement si KEY_PRISE_EN_CHARGE_TOTALE vaut 1.
+     */
+    @Column(name = "tp_premier_id", length = 40)
+    private String tpPremierId;
+
+    public String getTpPremierId() {
+        return tpPremierId;
+    }
+
+    public void setTpPremierId(String tpPremierId) {
+        this.tpPremierId = tpPremierId == null || tpPremierId.trim().isEmpty() ? null : tpPremierId;
+    }
+
     public void setComptant(Boolean comptant) {
         this.comptant = comptant != null && comptant;
     }
@@ -497,6 +513,7 @@ public class TPreenregistrementDetail implements Serializable {
         this.prixAchat = p.getPrixAchat();
         this.montantTvaUg = p.getMontantTvaUg();
         this.comptant = p.isComptant();
+        this.tpPremierId = p.getTpPremierId();
 
     }
 

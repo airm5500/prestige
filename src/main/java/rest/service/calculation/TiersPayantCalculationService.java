@@ -35,10 +35,15 @@ public class TiersPayantCalculationService {
         Map<String, BigDecimal> tiersPayants = new HashMap<>();
         for (SaleItemInput saleItemInput : input.getSaleItems()) {
             // Lot « base par tiers-payant » (Q2.5) : parametre a 0, la methode d'aujourd'hui s'execute telle quelle
-            CalculatedShare itemShare = input.isBasePrixReferenceParTiersPayant()
-                    ? calculateSaleItemBaseParTiersPayant(saleItemInput, input.getTiersPayants(),
+            // retour du 10/11 : une ligne marquee « prise en charge totale » a son propre calcul ; sans marque
+            // (toujours le cas quand KEY_PRISE_EN_CHARGE_TOTALE vaut 0), rien ne change
+            CalculatedShare itemShare = estMarquee(saleItemInput, input.getTiersPayants())
+                    ? calculateSaleItemPriseEnChargeTotale(saleItemInput, input.getTiersPayants(),
                             input.getNatureVente())
-                    : calculateSaleItem(saleItemInput, input.getTiersPayants(), input.getNatureVente());
+                    : input.isBasePrixReferenceParTiersPayant()
+                            ? calculateSaleItemBaseParTiersPayant(saleItemInput, input.getTiersPayants(),
+                                    input.getNatureVente())
+                            : calculateSaleItem(saleItemInput, input.getTiersPayants(), input.getNatureVente());
 
             totalAmountAssurance = totalAmountAssurance.add(itemShare.getTotalReimbursedAmount());
             discountAmount = discountAmount.add(saleItemInput.getDiscountAmount());
@@ -304,6 +309,94 @@ public class TiersPayantCalculationService {
             }
             BigDecimal actualShare;
             if (rate == 1.0f && natureVente == NatureVente.ASSURANCE && !aPrixReference) {
+                actualShare = resteSurLaLigne;
+            } else {
+                actualShare = calculationBase.multiply(BigDecimal.valueOf(rate)).min(resteSurLaLigne);
+            }
+            totalPartTiersPayant = totalPartTiersPayant.add(actualShare);
+            itemShare.getTiersPayants().put(tiersPayantInput.getClientTiersPayantId(), actualShare);
+        }
+        itemShare.setCalculationBasePrice(basePrincipale);
+        itemShare.setTotalReimbursedAmount(totalPartTiersPayant);
+        return itemShare;
+    }
+
+    /** La ligne porte-t-elle la marque d'un organisme de la vente ? */
+    private static boolean estMarquee(SaleItemInput saleItem, List<TiersPayantInput> tiersPayantInputs) {
+        String premier = saleItem.getPremierCompteTiersPayantId();
+        if (premier == null || tiersPayantInputs == null) {
+            return false;
+        }
+        for (TiersPayantInput tp : tiersPayantInputs) {
+            if (premier.equals(tp.getClientTiersPayantId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Retour du 10/11/2026, parametre KEY_PRISE_EN_CHARGE_TOTALE a 1 : ligne marquee « prise en charge totale ».
+     *
+     * <p>
+     * L'organisme marque PASSE EN PREMIER et prend 100 % de sa propre base (son prix de reference s'il en a un, sinon
+     * le prix de vente) x quantite, sans depasser le prix de la ligne. Les autres suivent dans leur ordre de priorite,
+     * chacun sur sa propre base et a son propre taux (regle de la base par tiers-payant, quel que soit
+     * KEY_PRIX_REF_BASE_PAR_TP), borne a ce qui reste de la ligne. Les plafonds s'appliquent ensuite, inchanges : la
+     * part ecretee va au client. Chaque organisme laisse dans taux_produit le taux et la base appliques, que le ticket
+     * relit.
+     */
+    private CalculatedShare calculateSaleItemPriseEnChargeTotale(SaleItemInput saleItem,
+            List<TiersPayantInput> tiersPayantInputs, NatureVente natureVente) {
+        tiersPayantInputs.sort(Comparator.comparingInt(tp -> tp.getPriorite()));
+        List<TiersPayantInput> ordre = new ArrayList<>();
+        for (TiersPayantInput tp : tiersPayantInputs) {
+            if (saleItem.getPremierCompteTiersPayantId().equals(tp.getClientTiersPayantId()) && (ordre.isEmpty()
+                    || !saleItem.getPremierCompteTiersPayantId().equals(ordre.get(0).getClientTiersPayantId()))) {
+                ordre.add(0, tp);
+            } else {
+                ordre.add(tp);
+            }
+        }
+        CalculatedShare itemShare = new CalculatedShare();
+        itemShare.setPharmacyPrice(saleItem.getRegularUnitPrice());
+        itemShare.setSaleLineId(saleItem.getSalesLineId());
+        itemShare.setDiscountAmount(saleItem.getDiscountAmount());
+        BigDecimal quantite = BigDecimal.valueOf(saleItem.getQuantity());
+        BigDecimal totalPartTiersPayant = BigDecimal.ZERO;
+        Integer basePrincipale = null;
+        for (int rang = 0; rang < ordre.size(); rang++) {
+            TiersPayantInput tiersPayantInput = ordre.get(rang);
+            boolean premier = rang == 0;
+            TiersPayantPrixInput reference = saleItem.getPrixAssurances().stream()
+                    .filter(p -> p.getCompteTiersPayantId().equals(tiersPayantInput.getClientTiersPayantId()))
+                    .findFirst().orElse(null);
+            boolean aPrixReference = reference != null && reference.getOptionPrixType() != PrixReferenceType.TAUX
+                    && reference.getPrice() != null && reference.getPrice() > 0;
+            BigDecimal baseUnitaire = aPrixReference ? BigDecimal.valueOf(reference.getPrice())
+                    : itemShare.getPharmacyPrice();
+            BigDecimal calculationBase = baseUnitaire.multiply(quantite);
+            if (aPrixReference && basePrincipale == null) {
+                basePrincipale = reference.getPrice();
+            }
+            float rate = tiersPayantInput.getTaux();
+            if (reference != null && reference.getOptionPrixType() != PrixReferenceType.PRIX_REFERENCE) {
+                rate = reference.getRate() / 100.0f;
+            }
+            if (premier) {
+                rate = 1.0f;
+            }
+            Rate memo = new Rate(saleItem.getSalesLineId(), tiersPayantInput.getClientTiersPayantId(), rate);
+            memo.setBaseLigne(baseUnitaire.intValue());
+            itemShare.getRates().add(memo);
+            BigDecimal resteSurLaLigne = saleItem.getTotalSalesAmount().subtract(totalPartTiersPayant);
+            if (resteSurLaLigne.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal actualShare;
+            if (premier) {
+                actualShare = calculationBase.min(resteSurLaLigne);
+            } else if (rate == 1.0f && natureVente == NatureVente.ASSURANCE && !aPrixReference) {
                 actualShare = resteSurLaLigne;
             } else {
                 actualShare = calculationBase.multiply(BigDecimal.valueOf(rate)).min(resteSurLaLigne);

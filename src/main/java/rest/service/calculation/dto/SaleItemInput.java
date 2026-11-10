@@ -12,6 +12,19 @@ public class SaleItemInput {
     private BigDecimal discountAmount = BigDecimal.ZERO;
     private List<TiersPayantPrixInput> prixAssurances = new ArrayList<>();
     private BigDecimal totalSalesAmount;
+    /**
+     * Retour du 10/11/2026 : compte client tiers-payant qui passe en premier sur la ligne et prend 100 % de sa propre
+     * base (prise en charge totale). Null (defaut) : calcul habituel de la ligne.
+     */
+    private String premierCompteTiersPayantId;
+
+    public String getPremierCompteTiersPayantId() {
+        return premierCompteTiersPayantId;
+    }
+
+    public void setPremierCompteTiersPayantId(String premierCompteTiersPayantId) {
+        this.premierCompteTiersPayantId = premierCompteTiersPayantId;
+    }
 
     public String getSalesLineId() {
         return salesLineId;
