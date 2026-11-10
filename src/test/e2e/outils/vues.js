@@ -74,4 +74,25 @@ async function attendreMessage(p, texte, delai) {
 /* clic sur le bouton (ok, yes, no, cancel) de la boite de message visible */
 const repondre = (p, bouton) => cliquer(p, 'messagebox{isVisible()} button[itemId=' + bouton + ']');
 
-module.exports = { BASE, connexion, ouvrirMenu, cliquer, choisir, saisir, texteMessage, attendreMessage, repondre };
+/* apres le clic sur l'icone « Annuler.Vente » : plan du 08/11, point 18, le motif est choisi dans un menu sur l'icone et la
+   confirmation se fait dans le motif (premier clic : motif, second clic : « Confirmer »). Ancien code : fenetre « Annuler », Oui. */
+async function confirmerAnnulation(p, motif) {
+  const item = p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: motif || 'Erreur de saisie' }).first();
+  if (await item.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
+    await item.click();
+    await p.waitForTimeout(600);
+    await p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: 'Confirmer' }).first().click();
+  } else {
+    await attendreMessage(p, 'Annuler', 15000);
+    await repondre(p, 'yes');
+  }
+}
+
+/* apres le clic sur l'icone « Modifier » d'une vente terminee : plan du 08/11, point 18, motif obligatoire choisi dans le
+   menu sur l'icone, un seul clic (sans menu : ancien code, rien a faire) */
+async function choisirMotif(p, motif) {
+  const item = p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: motif || 'Erreur de saisie' }).first();
+  if (await item.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) { await item.click(); }
+}
+
+module.exports = { BASE, connexion, ouvrirMenu, cliquer, choisir, saisir, texteMessage, attendreMessage, repondre, confirmerAnnulation, choisirMotif };
