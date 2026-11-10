@@ -2416,6 +2416,40 @@ window.PrestigeScan = (function () {
  */
 window.PrestigeConfirmation = (function () {
     var DELAI = 5000, GARDE = 400;
+    /* plan du 09/11, point 18 : une seule couleur pour tout bouton arme (rouge, texte blanc), quel que soit l'ecran */
+    (function () {
+        if (document.getElementById('prestige-confirmer-style')) {
+            return;
+        }
+        var st = document.createElement('style');
+        st.id = 'prestige-confirmer-style';
+        st.textContent = '.x-btn.prestige-confirmer-bouton,.x-btn.prestige-confirmer-bouton.x-btn-over,'
+                + '.x-btn.prestige-confirmer-bouton.x-btn-focus,.x-btn.prestige-confirmer-bouton.x-btn-pressed'
+                + '{background:#c0392b !important;background-image:none !important;border-color:#922b21 !important}'
+                + '.x-btn.prestige-confirmer-bouton .x-btn-inner{color:#fff !important}';
+        (document.head || document.documentElement).appendChild(st);
+    })();
+    /* meme rendu que PrestigeConfirmation.bouton : le style pose sur le bouton l'emporte sur les regles du theme */
+    function armer(btn) {
+        if (!btn || btn.isDestroyed || !btn.addCls) {
+            return;
+        }
+        btn.addCls('prestige-confirmer-bouton');
+        if (btn.getEl()) {
+            btn.getEl().setStyle({background: '#c0392b', borderColor: '#c0392b'});
+            btn.getEl().select('.x-btn-inner').setStyle('color', '#fff');
+        }
+    }
+    function desarmer(btn) {
+        if (!btn || btn.isDestroyed || !btn.removeCls || !btn.hasCls('prestige-confirmer-bouton')) {
+            return;
+        }
+        btn.removeCls('prestige-confirmer-bouton');
+        if (btn.getEl()) {
+            btn.getEl().setStyle({background: '', borderColor: ''});
+            btn.getEl().select('.x-btn-inner').setStyle('color', '');
+        }
+    }
     function icone(img, texte, action) {
         if (!img || !img.parentNode || img.prestigeConfirmation) {
             return;
@@ -2548,7 +2582,7 @@ window.PrestigeConfirmation = (function () {
         }
         btn.setText(etat.texte);
     }
-    return {icone: icone, ligne: ligne, bouton: bouton};
+    return {icone: icone, ligne: ligne, bouton: bouton, armer: armer, desarmer: desarmer};
 })();
 
 /*

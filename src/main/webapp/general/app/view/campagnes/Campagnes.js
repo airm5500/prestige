@@ -59,6 +59,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         });
         me.on('destroy', function () {
             clearTimeout(me.minuteurSuivi);
+            clearTimeout(me.minuteurJournal);
         });
         me.on('tabchange', function (p, t) {
             if (t.itemId === 'ongletPropositions') {
@@ -91,7 +92,12 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 + '.cmp-bandeau{margin:8px;padding:8px 12px;border-radius:6px;background:#fff4e0;color:#7a4b00}'
                 + '.cmp-vide{padding:20px;color:#7f8c8d}'
                 + '.x-btn.cmp-confirmer{background:#c0392b !important;border-color:#922b21 !important}'
-                + '.x-btn.cmp-confirmer .x-btn-inner{color:#fff !important}', 'campagnes-styles');
+                + '.x-btn.cmp-confirmer .x-btn-inner{color:#fff !important}'
+                /* plan du 09/11, point 14 : la ligne choisie du journal ne se remplit plus de violet ; fond clair, texte
+                   fonce, les couleurs de l'indicateur d'envoi restent visibles */
+                + '.cmp-journal .x-grid-row-selected .x-grid-cell,.cmp-journal .x-grid-row-selected.x-grid-row-over .x-grid-cell'
+                + '{background:#f3ecfb !important;background-image:none !important}'
+                + '.cmp-journal .x-grid-row-selected .x-grid-cell-inner{color:#1f2937 !important}', 'campagnes-styles');
     },
 
     esc: function (v) {
@@ -1183,7 +1189,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         var me = this;
         return {
             title: 'Journal', itemId: 'ongletJournal', iconCls: 'fa fa-history', layout: 'border',
-            items: [{xtype: 'gridpanel', itemId: 'journal', columnLines: true, region: 'center',
+            items: [{xtype: 'gridpanel', itemId: 'journal', columnLines: true, region: 'center', cls: 'cmp-journal',
                     store: Ext.create('Ext.data.Store', {fields: ['id', 'titre', 'origine', 'statut', 'canal', 'modele', 'cibles', 'envoyes', 'exclus', 'partis',
                             'distribues', 'lus', 'repondus', 'echecs', 'enAttente', 'quand', 'auteur', 'accordExplicite'], data: []}),
                     listeners: {select: function (g, r) {
@@ -1266,14 +1272,32 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 + Ext.String.htmlEncode(texte) + '</span></div>';
     },
 
-    chargerJournal: function () {
+    chargerJournal: function (rafraichir) {
         var me = this, o = me.down('#ongletJournal');
+        clearTimeout(me.minuteurJournal);
         me.appel('GET', 'journal', null, function (r) {
-            if (!r.success) {
-                me.etat(o, r.message, 'cmp-erreur');
+            if (me.isDestroyed) {
                 return;
             }
-            o.down('#journal').getStore().loadData(r.data || []);
+            /* plan du 09/11, point 14 : le journal se met a jour toutes les 20 s tant que son onglet est affiche */
+            me.minuteurJournal = setTimeout(function () {
+                if (!me.isDestroyed && me.getActiveTab() === o && me.isVisible(true)) {
+                    me.chargerJournal(true);
+                }
+            }, 20000);
+            if (!r.success) {
+                if (!rafraichir) {
+                    me.etat(o, r.message, 'cmp-erreur');
+                }
+                return;
+            }
+            var g = o.down('#journal'), sm = g.getSelectionModel(), choisie = sm.getSelection()[0], id = choisie ? choisie.get('id') : null;
+            g.getStore().loadData(r.data || []);
+            /* la campagne choisie reste choisie (sans relancer le suivi, qui a son propre rafraichissement) */
+            var i = id ? g.getStore().findExact('id', id) : -1;
+            if (i >= 0) {
+                sm.select(g.getStore().getAt(i), false, true);
+            }
         });
     },
 
@@ -1291,9 +1315,10 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             }
             /* evolution des envois : le suivi se met a jour toutes les 20 s tant que le journal est affiche et la campagne choisie */
             me.minuteurSuivi = setTimeout(function () {
-                var j = me.isDestroyed ? null : o.down('#journal');
-                if (j && me.getActiveTab() === o && me.isVisible(true) && j.getSelectionModel().isSelected(campagne)) {
-                    me.chargerSuivi(campagne, true);
+                var j = me.isDestroyed ? null : o.down('#journal'), choisie = j ? j.getSelectionModel().getSelection()[0] : null;
+                /* la ligne du journal peut avoir ete rechargee : on compare l'identifiant de la campagne */
+                if (choisie && me.getActiveTab() === o && me.isVisible(true) && choisie.get('id') === campagne.get('id')) {
+                    me.chargerSuivi(choisie, true);
                 }
             }, 20000);
             if (!r.success) {

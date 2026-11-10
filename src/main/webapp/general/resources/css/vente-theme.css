@@ -2720,16 +2720,17 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .mv-barre.mv-barre-serree .x-toolbar-separator { display: none !important; }
 
 /* Ecrans habilles : panneaux internes et boutons restes au bleu ExtJS (gardes : « Filtres », « Effacer les filtres » ;
-   fiche officine, mon compte : « Enregistrer »). Dessin seulement. */
+   fiche officine, mon compte : « Enregistrer »). Dessin seulement. Un bouton arme (confirmation dans le bouton) garde
+   son rouge : plan du 09/11, point 18. */
 .mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default:not(.x-tab-bar) { background: #eef2f6 !important; background-image: none !important;
     border: 0 !important; border-bottom: 1px solid #dde4ec !important; box-shadow: none; }
 .mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default .x-panel-header-text-default { color: #1e3a5f !important; font-weight: bold; }
-.mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.seg-bouton),
-.mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) {
+.mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.prestige-confirmer-bouton):not(.seg-bouton),
+.mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.prestige-confirmer-bouton) {
     background: #f4f7fa !important; background-image: none !important; border: 1px solid #c3cfdb !important; border-radius: 4px; }
-.mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.seg-bouton) .x-btn-inner,
-.mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) .x-btn-inner { color: #1e3a5f !important; font-weight: bold; text-shadow: none !important; }
-.mv-panneau .x-btn-default-small.x-btn-over:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) { background: #e3edf7 !important; }
+.mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.prestige-confirmer-bouton):not(.seg-bouton) .x-btn-inner,
+.mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.prestige-confirmer-bouton) .x-btn-inner { color: #1e3a5f !important; font-weight: bold; text-shadow: none !important; }
+.mv-panneau .x-btn-default-small.x-btn-over:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.prestige-confirmer-bouton) { background: #e3edf7 !important; }
 
 /* ===== Equivalents DCI et produits retires d'une suggestion (plan d'octobre 1.1 / 1.4) ===== */
 .eq-fenetre .vc-corps { padding-top: 12px; }

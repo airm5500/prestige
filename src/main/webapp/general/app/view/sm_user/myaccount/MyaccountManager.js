@@ -331,6 +331,7 @@ Ext.define('testextjs.view.sm_user.myaccount.MyaccountManager', {
         const b = this.down('#pinEnregistrer');
         if (b && b.confirmer) {
             b.confirmer = false;
+            PrestigeConfirmation.desarmer(b);
             b.setText('Enregistrer le code PIN');
         }
     },
@@ -360,10 +361,12 @@ Ext.define('testextjs.view.sm_user.myaccount.MyaccountManager', {
         if (!b.confirmer) {
             b.confirmer = true;
             b.setText('Confirmer le nouveau code ?');
+            PrestigeConfirmation.armer(b);
             me.resultatPin(true, '');
             return;
         }
         b.confirmer = false;
+        PrestigeConfirmation.desarmer(b);
         b.disable();
         Ext.Ajax.request({
             method: 'POST', url: '../api/v1/user/badge-pin', headers: {'Content-Type': 'application/json'},

@@ -494,7 +494,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
             }
             statuts += em
                     .createNativeQuery("UPDATE whatsapp_message SET statut = ?1, erreur = COALESCE(?2, erreur),"
-                            + " updated_at = NOW() WHERE message_id = ?3")
+                            + " updated_at = NOW() WHERE message_id = ?3 AND " + avanceSql("statut", "?1"))
                     .setParameter(1, statut).setParameter(2, s.erreur).setParameter(3, s.messageId).executeUpdate();
             rest.service.impl.whatsapp.DiscussionStockage.statut(em, s.messageId, statut);
         }
@@ -511,6 +511,34 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         /* ni texte ni numero dans le journal : seulement des nombres */
         LOG.log(Level.INFO, "Webhook WhatsApp : {0} statut(s), {1} desinscription(s), {2} message(s) recu(s) garde(s)",
                 new Object[] { statuts, desinscrits, gardes });
+    }
+
+    /*
+     * Plan du 09/11, point 14 : les accuses de Meta arrivent dans le desordre (un « sent » en retard apres « read ») ;
+     * un statut ne recule jamais : ENVOYE < ECHEC < DELIVRE < LU. Les autres etats (SIMULE, attente...) valent 0.
+     */
+    static final String[] ORDRE_STATUTS = { "ENVOYE", "ECHEC", "DELIVRE", "LU" };
+
+    static int rangStatut(String statut) {
+        for (int i = 0; i < ORDRE_STATUTS.length; i++) {
+            if (ORDRE_STATUTS[i].equals(statut)) {
+                return i + 1;
+            }
+        }
+        return 0;
+    }
+
+    /** Condition SQL : le nouveau statut est plus avance que celui en base (meme ordre que rangStatut). */
+    public static String avanceSql(String colonne, String nouveau) {
+        return "(" + rangSql(colonne) + ") < (" + rangSql(nouveau) + ")";
+    }
+
+    static String rangSql(String expression) {
+        StringBuilder b = new StringBuilder("CASE COALESCE(").append(expression).append(", '')");
+        for (int i = 0; i < ORDRE_STATUTS.length; i++) {
+            b.append(" WHEN '").append(ORDRE_STATUTS[i]).append("' THEN ").append(i + 1);
+        }
+        return b.append(" ELSE 0 END").toString();
     }
 
     static String statutJournal(String statutMeta) {

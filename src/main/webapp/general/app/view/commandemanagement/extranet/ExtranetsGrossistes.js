@@ -303,9 +303,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             b.arme = maintenant;
             b.texteNormal = b.texteNormal || b.getText();
             b.setText(texteConfirmation);
+            PrestigeConfirmation.armer(b);
             b.minuteur = setTimeout(function () {
                 if (!b.isDestroyed) {
                     b.arme = false;
+                    PrestigeConfirmation.desarmer(b);
                     b.setText(b.texteNormal);
                 }
             }, 6000);
@@ -316,6 +318,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         }
         clearTimeout(b.minuteur);
         b.arme = false;
+        PrestigeConfirmation.desarmer(b);
         b.setText(b.texteNormal);
         action();
     },

@@ -913,17 +913,17 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         if (b.arme) {
             clearTimeout(b.minuteur);
             b.arme = false;
-            b.removeCls('pr-fini-ko');
+            b.removeCls('prestige-confirmer-bouton');
             b.setText(texteRepos);
             return true;
         }
         b.arme = true;
         b.setText(texteConfirmation);
-        b.addCls('pr-fini-ko');
+        b.addCls('prestige-confirmer-bouton');
         b.minuteur = setTimeout(function () {
             if (!b.isDestroyed && b.arme) {
                 b.arme = false;
-                b.removeCls('pr-fini-ko');
+                b.removeCls('prestige-confirmer-bouton');
                 b.setText(texteRepos);
             }
         }, 6000);
@@ -976,11 +976,11 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         if (!motif) {
             /* le motif est obligatoire : le bouton le dit, sans fenetre */
             b.setText('Motif obligatoire');
-            b.addCls('pr-fini-ko');
+            b.addCls('prestige-confirmer-bouton');
             champ.focus();
             setTimeout(function () {
                 if (!b.isDestroyed && !b.arme) {
-                    b.removeCls('pr-fini-ko');
+                    b.removeCls('prestige-confirmer-bouton');
                     b.setText('Refuser');
                 }
             }, 2500);
@@ -1005,11 +1005,11 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         if (!b.arme) {
             b.arme = true;
             b.setText(Me.peutValider === false ? 'Confirmer la mise en attente' : 'Confirmer : les quantités sortent du stock');
-            b.addCls('pr-fini-ko');
+            b.addCls('prestige-confirmer-bouton');
             b.minuteur = setTimeout(function () {
                 if (!b.isDestroyed && b.arme) {
                     b.arme = false;
-                    b.removeCls('pr-fini-ko');
+                    b.removeCls('prestige-confirmer-bouton');
                     b.setText(Me.libelleEnregistrer());
                 }
             }, 6000);
@@ -1017,7 +1017,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         }
         clearTimeout(b.minuteur);
         b.arme = false;
-        b.removeCls('pr-fini-ko');
+        b.removeCls('prestige-confirmer-bouton');
         b.setText(Me.libelleEnregistrer());
         var valider = Me.peutValider !== false;
         var fin = PrestigeChargement.occuper(b, valider ? 'Validation du retour' : 'Mise en attente');

@@ -975,9 +975,11 @@ Ext.define('testextjs.view.rh.RhManager', {
         var b = f.down('#btnDesactiverBadge'), regen = f.down('#btnRegenererBadge');
         clearTimeout(b.minuteur);
         b.arme = false;
+        PrestigeConfirmation.desarmer(b);
         b.setText('Désactiver');
         clearTimeout(regen.minuteur);
         regen.arme = false;
+        PrestigeConfirmation.desarmer(regen);
         regen.setText('Régénérer le QR');
         regen.setDisabled(!rec || !actif);
         f.getForm().reset();
@@ -1045,10 +1047,12 @@ Ext.define('testextjs.view.rh.RhManager', {
         if (!b.arme) {
             b.arme = true;
             b.setText('Confirmer : nouveau QR');
+            PrestigeConfirmation.armer(b);
             me.messageBadge('Les exemplaires déjà imprimés de ce badge ne permettront plus de se connecter. Cliquez de nouveau pour confirmer.', false);
             b.minuteur = setTimeout(function () {
                 if (!b.isDestroyed && b.arme) {
                     b.arme = false;
+                    PrestigeConfirmation.desarmer(b);
                     b.setText('Régénérer le QR');
                     me.messageBadge('');
                 }
@@ -1057,6 +1061,7 @@ Ext.define('testextjs.view.rh.RhManager', {
         }
         clearTimeout(b.minuteur);
         b.arme = false;
+        PrestigeConfirmation.desarmer(b);
         b.setText('Régénérer le QR');
         var id = f.getForm().findField('id').getValue();
         me.appelBadge(b, 'Régénération', '../api/v1/rh/badges/' + encodeURIComponent(id) + '/regenerer', {}, function () {
@@ -1071,9 +1076,11 @@ Ext.define('testextjs.view.rh.RhManager', {
             motif.show();
             motif.focus(false, 50);
             b.setText('Confirmer la désactivation');
+            PrestigeConfirmation.armer(b);
             b.minuteur = setTimeout(function () {
                 if (!b.isDestroyed && b.arme) {
                     b.arme = false;
+                    PrestigeConfirmation.desarmer(b);
                     b.setText('Désactiver');
                 }
             }, 8000);
@@ -1081,6 +1088,7 @@ Ext.define('testextjs.view.rh.RhManager', {
         }
         clearTimeout(b.minuteur);
         b.arme = false;
+        PrestigeConfirmation.desarmer(b);
         b.setText('Désactiver');
         var id = f.getForm().findField('id').getValue();
         me.appelBadge(b, 'Désactivation', '../api/v1/rh/badges/' + encodeURIComponent(id) + '/desactiver', {motif: motif.getValue() || ''}, function (r) {
@@ -1214,15 +1222,18 @@ Ext.define('testextjs.view.rh.RhManager', {
             if (!b.confirmer) {
                 b.confirmer = true;
                 b.setText('Confirmer le retrait de « ' + Ext.String.htmlEncode(rec.get('nom')) + ' »');
+                PrestigeConfirmation.armer(b);
                 Ext.defer(function () {
                     if (!b.isDestroyed && b.confirmer) {
                         b.confirmer = false;
+                        PrestigeConfirmation.desarmer(b);
                         b.setText('Retirer');
                     }
                 }, 5000);
                 return;
             }
             b.confirmer = false;
+            PrestigeConfirmation.desarmer(b);
             b.setText('Retirer');
             me.appel('POST', '../api/v1/rh/bornes/' + encodeURIComponent(rec.get('id')) + '/retirer', null, function () {
                 store.load();

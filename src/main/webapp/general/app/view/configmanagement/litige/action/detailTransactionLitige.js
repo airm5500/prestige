@@ -198,9 +198,11 @@ Ext.define('testextjs.view.configmanagement.litige.action.detailTransactionLitig
             b.enConfirmation = true;
             b.confirmeDepuis = Date.now();
             b.setText('Confirmer la cl&ocirc;ture ?');
+            PrestigeConfirmation.armer(b);
             Ext.defer(function () {
                 if (b.enConfirmation && !b.isDestroyed) {
                     b.enConfirmation = false;
+                    PrestigeConfirmation.desarmer(b);
                     b.setText(b.texteInitial);
                 }
             }, 5000);
@@ -210,6 +212,7 @@ Ext.define('testextjs.view.configmanagement.litige.action.detailTransactionLitig
             return;
         }
         b.enConfirmation = false;
+        PrestigeConfirmation.desarmer(b);
         b.setText(b.texteInitial);
         b.disable();
         var v = form.getValues();

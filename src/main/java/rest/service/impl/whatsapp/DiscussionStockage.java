@@ -85,7 +85,11 @@ public final class DiscussionStockage {
 
     /** Statut d'une reponse envoyee depuis l'ecran (ENVOYE, DELIVRE, LU, ECHEC), suivi par le webhook. */
     public static int statut(EntityManager em, String messageId, String statut) {
-        return em.createNativeQuery("UPDATE whatsapp_discussion SET statut = ?1 WHERE message_id = ?2 AND sens = 'S'")
+        /* plan du 09/11, point 14 : un statut ne recule jamais (accuses dans le desordre) */
+        return em
+                .createNativeQuery(
+                        "UPDATE whatsapp_discussion SET statut = ?1 WHERE message_id = ?2 AND sens = 'S' AND "
+                                + rest.service.impl.WhatsAppServiceImpl.avanceSql("statut", "?1"))
                 .setParameter(1, statut).setParameter(2, messageId).executeUpdate();
     }
 
