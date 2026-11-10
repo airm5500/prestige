@@ -81,11 +81,19 @@ public final class ReleveModele {
         public final Map<Champ, Float> positions = new EnumMap<>(Champ.class);
         /** textes de la colonne Type qui designent un avoir, separes par des virgules */
         public String marqueursAvoir = "AV";
+        /**
+         * Plan du 09/11 : textes de la colonne Type des lignes a ignorer (pas une livraison : abonnement TEDIS « PR-ABO
+         * »...), separes par des virgules.
+         */
+        public String marqueursIgnores = IGNORES_DEFAUT;
+        /** Plan du 09/11 : le montant du releve est TTC (Copharmed) ; il est compare au TTC des BL. */
+        public boolean montantTtc;
 
         public JSONObject json() {
             JSONObject c = new JSONObject();
             positions.forEach((k, v) -> c.put(k.name(), Math.round(v * 10) / 10.0));
-            return new JSONObject().put("version", 1).put("colonnes", c).put("marqueursAvoir", marqueursAvoir);
+            return new JSONObject().put("version", 1).put("colonnes", c).put("marqueursAvoir", marqueursAvoir)
+                    .put("marqueursIgnores", marqueursIgnores).put("montantTtc", montantTtc);
         }
 
         public static Modele lire(String json) {
@@ -100,6 +108,8 @@ public final class ReleveModele {
                 }
             }
             m.marqueursAvoir = o.optString("marqueursAvoir", "AV");
+            m.marqueursIgnores = o.optString("marqueursIgnores", IGNORES_DEFAUT);
+            m.montantTtc = o.optBoolean("montantTtc", false);
             return m;
         }
 
@@ -118,6 +128,9 @@ public final class ReleveModele {
             return null;
         }
     }
+
+    /** Plan du 09/11 : lignes ignorees par defaut (abonnements). */
+    public static final String IGNORES_DEFAUT = "ABO";
 
     /** Ecart maximal (points) entre la position memorisee d'une colonne et celle du nouveau releve. */
     static final float ECART_POSITION = 30f;
@@ -306,7 +319,15 @@ public final class ReleveModele {
 
     /** Modele construit a partir des rangs de colonnes choisis a l'ecran. */
     public static Modele modele(Map<Champ, Integer> rangs, List<Colonne> cols, String marqueursAvoir) {
+        return modele(rangs, cols, marqueursAvoir, IGNORES_DEFAUT, false);
+    }
+
+    /** Plan du 09/11 : avec les lignes ignorees et le montant compare (HT ou TTC). */
+    public static Modele modele(Map<Champ, Integer> rangs, List<Colonne> cols, String marqueursAvoir,
+            String marqueursIgnores, boolean montantTtc) {
         Modele m = new Modele();
+        m.marqueursIgnores = marqueursIgnores == null ? "" : marqueursIgnores.trim();
+        m.montantTtc = montantTtc;
         rangs.forEach((ch, i) -> {
             if (i != null && i >= 0 && i < cols.size()) {
                 m.positions.put(ch, cols.get(i).centre());
@@ -603,6 +624,32 @@ public final class ReleveModele {
                 agence, numeroBl, indice, sequence, d, ht);
     }
 
+    /** Plan du 09/11 : la colonne Type designe une ligne a ignorer (abonnement...). */
+    public static boolean ignoree(String[] v, Map<Champ, Integer> rangs, String marqueursIgnores) {
+        return marqueursIgnores != null && rangs.containsKey(Champ.TYPE)
+                && estAvoir(valeur(v, rangs, Champ.TYPE), marqueursIgnores);
+    }
+
+    /** Plan du 09/11 : operations ignorees du releve (lues comme les autres, pour les montrer a part). */
+    public static List<ReleveGrossiste.Ligne> ignorees(List<LigneBrute> lignes, Modele m) {
+        List<ReleveGrossiste.Ligne> sortie = new ArrayList<>();
+        if (m == null || m.incomplet() != null) {
+            return sortie;
+        }
+        List<Colonne> cols = colonnes(lignes);
+        Map<Champ, Integer> rangs = rangs(m, cols);
+        for (LigneBrute l : lignes) {
+            String[] v = ranger(l, cols);
+            if (ignoree(v, rangs, m.marqueursIgnores)) {
+                ReleveGrossiste.Ligne x = ligne(v, rangs, m.marqueursAvoir);
+                if (x != null) {
+                    sortie.add(x);
+                }
+            }
+        }
+        return sortie;
+    }
+
     /** Operations du releve lues avec le modele du grossiste. */
     public static List<ReleveGrossiste.Ligne> lire(List<LigneBrute> lignes, Modele m) {
         List<ReleveGrossiste.Ligne> sortie = new ArrayList<>();
@@ -615,7 +662,11 @@ public final class ReleveModele {
             return sortie;
         }
         for (LigneBrute l : lignes) {
-            ReleveGrossiste.Ligne x = ligne(ranger(l, cols), rangs, m.marqueursAvoir);
+            String[] v = ranger(l, cols);
+            if (ignoree(v, rangs, m.marqueursIgnores)) {
+                continue;
+            }
+            ReleveGrossiste.Ligne x = ligne(v, rangs, m.marqueursAvoir);
             if (x != null) {
                 sortie.add(x);
             }

@@ -277,6 +277,10 @@ public class PointageBLRessource {
             return "Rapproché";
         case "ECART":
             return "Écart de montant";
+        case "PROBABLE":
+            return "À confirmer";
+        case "IGNOREE":
+            return "Ignorée (pas une livraison)";
         case "ABSENT_PRESTIGE":
             return "Absent de Prestige";
         case "ABSENT_RELEVE":
@@ -470,6 +474,13 @@ public class PointageBLRessource {
         return StringUtils.left(m.replaceAll("[^A-Za-z0-9/ ,;-]", ""), 60);
     }
 
+    /** Plan du 09/11 : textes de la colonne Type des lignes a ignorer (abonnements...). */
+    private static String ignores(JSONObject o) {
+        String m = StringUtils
+                .trimToEmpty(o.optString("marqueursIgnores", rest.service.impl.ReleveModele.IGNORES_DEFAUT));
+        return StringUtils.left(m.replaceAll("[^A-Za-z0-9/ ,;-]", ""), 60);
+    }
+
     /** Essai des colonnes choisies (rien n'est enregistre). */
     @POST
     @Path("releve/essai")
@@ -484,7 +495,8 @@ public class PointageBLRessource {
         if (i == null) {
             return json(echec(IMPORT_PERIME));
         }
-        return json(service.essayer(i.brutes, o.optJSONObject("champs"), marqueurs(o)));
+        return json(service.essayer(i.brutes, o.optJSONObject("champs"), marqueurs(o), ignores(o),
+                o.optBoolean("montantTtc", false)));
     }
 
     /** Applique les colonnes choisies, memorise le reglage du grossiste et rapproche le releve. */
@@ -502,8 +514,10 @@ public class PointageBLRessource {
             return json(echec(IMPORT_PERIME));
         }
         TUser u = utilisateur();
-        return json(service.appliquerModele(i.grossiste, emplacement(u), i.fichier, i.brutes, o.optJSONObject("champs"),
-                marqueurs(o), u.getLgUSERID()).put("jeton", o.optString("jeton")));
+        return json(service
+                .appliquerModele(i.grossiste, emplacement(u), i.fichier, i.brutes, o.optJSONObject("champs"),
+                        marqueurs(o), ignores(o), o.optBoolean("montantTtc", false), u.getLgUSERID())
+                .put("jeton", o.optString("jeton")));
     }
 
     @GET

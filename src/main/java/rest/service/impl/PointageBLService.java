@@ -45,10 +45,21 @@ public class PointageBLService {
         String grossisteId, grossiste;
         LocalDate date;
         long montantHt;
+        /** plan du 09/11 : TTC du BL (avoirs : le HT, seul connu) */
+        Long montantTtc;
 
         Piece piece() {
+            return piece(false);
+        }
+
+        /** plan du 09/11 : piece comparee au TTC si le releve du grossiste est en TTC (Copharmed) */
+        Piece piece(boolean ttc) {
             return new Piece(type + ":" + id, !TYPE_BL.equals(type), reference, referenceAvoir, sequence, date,
-                    montantHt);
+                    montant(ttc));
+        }
+
+        long montant(boolean ttc) {
+            return ttc && montantTtc != null ? montantTtc : montantHt;
         }
 
         JSONObject json() {
@@ -105,7 +116,7 @@ public class PointageBLService {
         java.sql.Date debut = java.sql.Date.valueOf(du), fin = java.sql.Date.valueOf(au.plusDays(1));
         for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON,"
                 + " b.str_SEQ_CLIENT, b.dt_DATE_LIVRAISON, COALESCE(b.int_MHT, 0), b.str_STATUT, b.dt_POINTAGE,"
-                + " CONCAT_WS(' ', pu.str_FIRST_NAME, pu.str_LAST_NAME)"
+                + " CONCAT_WS(' ', pu.str_FIRST_NAME, pu.str_LAST_NAME), b.int_HTTC"
                 + " FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
                 + " JOIN t_user bu ON bu.lg_USER_ID = b.lg_USER_ID"
                 + " LEFT JOIN t_user pu ON pu.lg_USER_ID = b.lg_POINTAGE_USER"
@@ -124,6 +135,7 @@ public class PointageBLService {
             p.statut = "is_Closed".equals(r[5]) ? "Entré en stock" : "En cours";
             p.pointeLe = quand(r[6]);
             p.pointePar = texte(r[7]);
+            p.montantTtc = r[8] == null ? null : nombre(r[8]);
             sortie.add(p);
         }
         for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT rf.lg_RETOUR_FRS_ID, b.str_REF_LIVRAISON,"
@@ -383,6 +395,9 @@ public class PointageBLService {
         String lecture = LECTURE_MODELE;
         ReleveModele.Modele m = modele(grossisteId);
         List<ReleveGrossiste.Ligne> lignes = m == null ? new ArrayList<>() : ReleveModele.lire(brutes, m);
+        /* plan du 09/11 : lignes ignorees et montant compare du reglage du grossiste */
+        List<ReleveGrossiste.Ligne> ignorees = lignes.isEmpty() ? new ArrayList<>() : ReleveModele.ignorees(brutes, m);
+        boolean ttc = !lignes.isEmpty() && m.montantTtc;
         if (lignes.isEmpty()) {
             lecture = LECTURE_STANDARD;
             lignes = ReleveGrossiste.lire(texte);
@@ -395,7 +410,7 @@ public class PointageBLService {
                             : "Le réglage mémorisé pour ce grossiste ne lit plus ce relevé (présentation changée ?).")
                             + " Désignez les colonnes du relevé : le réglage sera mémorisé pour ce grossiste.");
         }
-        return enregistrer(grossisteId, emplacement, fichier, lignes, userId).put("lecture", lecture);
+        return enregistrer(grossisteId, emplacement, fichier, lignes, ignorees, ttc, userId).put("lecture", lecture);
     }
 
     /** Lignes du releve rangees en colonnes, en-tetes, et colonnes proposees (reglage memorise ou devine). */
@@ -431,7 +446,9 @@ public class PointageBLService {
         }
         return new JSONObject().put("success", true).put("colonnes", colonnes).put("lignes", lignes)
                 .put("tronque", brutes.size() > APERCU_MAX).put("champs", champs).put("disponibles", disponibles)
-                .put("marqueursAvoir", m == null ? "AV" : m.marqueursAvoir).put("memorise", m != null);
+                .put("marqueursAvoir", m == null ? "AV" : m.marqueursAvoir).put("memorise", m != null)
+                .put("marqueursIgnores", m == null ? ReleveModele.IGNORES_DEFAUT : m.marqueursIgnores)
+                .put("montantTtc", m != null && m.montantTtc);
     }
 
     /** Choix de colonnes envoye par l'ecran : { "NUMERO": 1, "DATE": 0, ... }. */
@@ -452,15 +469,18 @@ public class PointageBLService {
     private static final class Lecture {
 
         final List<ReleveGrossiste.Ligne> lignes = new ArrayList<>();
+        /* plan du 09/11 : lignes ignorees (abonnements...) */
+        final List<ReleveGrossiste.Ligne> ignorees = new ArrayList<>();
         final JSONArray reconnues = new JSONArray();
         String erreur;
     }
 
-    private static Lecture lire(List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs) {
+    private static Lecture lire(List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs,
+            String ignores, boolean ttc) {
         Lecture r = new Lecture();
         List<ReleveModele.Colonne> cols = ReleveModele.colonnes(brutes);
         java.util.Map<ReleveModele.Champ, Integer> choix = choix(champs, cols.size());
-        ReleveModele.Modele m = ReleveModele.modele(choix, cols, marqueurs);
+        ReleveModele.Modele m = ReleveModele.modele(choix, cols, marqueurs, ignores, ttc);
         r.erreur = m.incomplet();
         if (r.erreur != null) {
             return r;
@@ -470,12 +490,14 @@ public class PointageBLService {
             if (l.cellules.isEmpty()) {
                 continue;
             }
-            ReleveGrossiste.Ligne x = ReleveModele.ligne(ReleveModele.ranger(l, cols), choix, m.marqueursAvoir);
+            String[] v = ReleveModele.ranger(l, cols);
+            ReleveGrossiste.Ligne x = ReleveModele.ligne(v, choix, m.marqueursAvoir);
+            boolean ignoree = x != null && ReleveModele.ignoree(v, choix, m.marqueursIgnores);
             if (x != null) {
-                r.lignes.add(x);
+                (ignoree ? r.ignorees : r.lignes).add(x);
                 if (n < APERCU_MAX) {
-                    r.reconnues.put(new JSONObject().put("n", n).put("type", x.type.name()).put("numero", x.numero)
-                            .put("sequence", x.sequence).put("date", x.date.format(JJ_MM_AAAA))
+                    r.reconnues.put(new JSONObject().put("n", n).put("type", ignoree ? "IGNOREE" : x.type.name())
+                            .put("numero", x.numero).put("sequence", x.sequence).put("date", x.date.format(JJ_MM_AAAA))
                             .put("montantHt", x.montantHt));
                 }
             }
@@ -485,18 +507,20 @@ public class PointageBLService {
     }
 
     /** Essai des colonnes choisies : lignes reconnues et totaux, sans rien enregistrer. */
-    public JSONObject essayer(List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs) {
-        Lecture r = lire(brutes, champs, marqueurs);
+    public JSONObject essayer(List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs, String ignores,
+            boolean ttc) {
+        Lecture r = lire(brutes, champs, marqueurs, ignores, ttc);
         long[] t = RapprochementBL.totaux(r.lignes, java.util.Collections.emptyList());
         return new JSONObject().put("success", true).put("msg", StringUtils.defaultString(r.erreur))
                 .put("reconnues", r.reconnues).put("nombre", r.lignes.size()).put("totalBl", t[0])
-                .put("totalAvoirs", t[1]);
+                .put("totalAvoirs", t[1]).put("ignorees", r.ignorees.size());
     }
 
     /** Applique les colonnes choisies, memorise le reglage du grossiste et rapproche le releve. */
     public JSONObject appliquerModele(String grossisteId, String emplacement, String fichier,
-            List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs, String userId) {
-        Lecture r = lire(brutes, champs, marqueurs);
+            List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs, String ignores, boolean ttc,
+            String userId) {
+        Lecture r = lire(brutes, champs, marqueurs, ignores, ttc);
         if (r.erreur != null) {
             return new JSONObject().put("success", false).put("msg", r.erreur);
         }
@@ -505,17 +529,18 @@ public class PointageBLService {
                     "Aucune ligne reconnue avec ces colonnes : vérifiez la colonne de la date, du N° BL et du montant.");
         }
         List<ReleveModele.Colonne> cols = ReleveModele.colonnes(brutes);
-        String json = ReleveModele.modele(choix(champs, cols.size()), cols, marqueurs).json().toString();
+        String json = ReleveModele.modele(choix(champs, cols.size()), cols, marqueurs, ignores, ttc).json().toString();
         em.createNativeQuery("INSERT INTO t_releve_modele (lg_GROSSISTE_ID, str_MODELE, dt_UPDATED, lg_USER_ID)"
                 + " VALUES (?1, ?2, NOW(), ?3) ON DUPLICATE KEY UPDATE str_MODELE = VALUES(str_MODELE),"
                 + " dt_UPDATED = NOW(), lg_USER_ID = VALUES(lg_USER_ID)").setParameter(1, grossisteId)
                 .setParameter(2, json).setParameter(3, userId).executeUpdate();
-        return enregistrer(grossisteId, emplacement, fichier, r.lignes, userId).put("lecture", LECTURE_MODELE);
+        return enregistrer(grossisteId, emplacement, fichier, r.lignes, r.ignorees, ttc, userId).put("lecture",
+                LECTURE_MODELE);
     }
 
     /** Rapprochement des lignes lues et conservation du releve. */
     JSONObject enregistrer(String grossisteId, String emplacement, String fichier, List<ReleveGrossiste.Ligne> lignes,
-            String userId) {
+            List<ReleveGrossiste.Ligne> ignorees, boolean ttc, String userId) {
         LocalDate debut = lignes.stream().map(l -> l.date).min(LocalDate::compareTo).get();
         LocalDate finR = lignes.stream().map(l -> l.date).max(LocalDate::compareTo).get();
         List<PieceVue> vues = pieces(grossisteId, emplacement, debut.minusDays(MARGE_JOURS),
@@ -523,7 +548,7 @@ public class PointageBLService {
         List<Piece> pieces = new ArrayList<>();
         java.util.Map<String, PieceVue> parCle = new java.util.HashMap<>();
         vues.forEach(v -> {
-            pieces.add(v.piece());
+            pieces.add(v.piece(ttc));
             parCle.put(v.type + ":" + v.id, v);
         });
         List<Resultat> resultats = new ArrayList<>();
@@ -534,6 +559,10 @@ public class PointageBLService {
                 continue;
             }
             resultats.add(r);
+        }
+        /* plan du 09/11 : lignes ignorees conservees a part (ni rapprochees, ni dans les totaux) */
+        for (ReleveGrossiste.Ligne l : ignorees) {
+            resultats.add(new Resultat(Statut.IGNOREE, l, null, 0));
         }
         long[] t = RapprochementBL.totaux(lignes, java.util.Collections.emptyList());
         String id = UUID.randomUUID().toString();
@@ -561,7 +590,8 @@ public class PointageBLService {
             q.setParameter(9, r.statut.name());
             q.setParameter(10, v == null ? null : v.type).setParameter(11, v == null ? null : v.id);
             q.setParameter(12, v == null ? null : StringUtils.left(v.reference, 40));
-            q.setParameter(13, v == null ? null : (TYPE_BL.equals(v.type) ? v.montantHt : -Math.abs(v.montantHt)));
+            q.setParameter(13,
+                    v == null ? null : (TYPE_BL.equals(v.type) ? v.montant(ttc) : -Math.abs(v.montant(ttc))));
             q.setParameter(14, r.statut == Statut.ECART ? r.ecart : null);
             q.executeUpdate();
         }

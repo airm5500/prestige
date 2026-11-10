@@ -51,7 +51,7 @@ function nettoyer() {
   const err = [];
   const connexion = async () => {
     p.on('pageerror', (e) => err.push(String(e.message)));
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
@@ -120,11 +120,12 @@ function nettoyer() {
     ok('Compteur cliquable : masquer puis réafficher les rapprochés', filtre);
 
     /* pointer les rapproches */
-    await p.evaluate(() => Ext.ComponentQuery.query('pointagebl #pointerRapproches')[0].btnEl.dom.click());
-    await p.waitForFunction(() => Ext.MessageBox.isVisible() && Ext.MessageBox.msgButtons.yes.isVisible(), null, { timeout: 10000 });
-    await p.evaluate(() => Ext.MessageBox.msgButtons.yes.btnEl.dom.click());
-    await p.waitForFunction(() => Ext.MessageBox.isVisible() && /pointé/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 15000 });
-    await p.evaluate(() => Ext.MessageBox.hide());
+    /* plan du 09/11 : confirmation dans le bouton (deux clics), resultat en avis non bloquant */
+    const idPointer = await p.evaluate(() => Ext.ComponentQuery.query('pointagebl #pointerRapproches')[0].getId());
+    await p.click('#' + idPointer);
+    await p.waitForTimeout(600);
+    await p.click('#' + idPointer);
+    await p.waitForFunction(() => Array.from(document.querySelectorAll('.prestige-toast')).some((t) => /point/i.test(t.textContent)), null, { timeout: 15000 });
     ok('« Pointer les pièces rapprochées » : BL 900101 et le retour pointés, les autres non',
       q("SELECT GROUP_CONCAT(lg_BON_LIVRAISON_ID ORDER BY 1) FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID LIKE 'E2E-PBL-%' AND dt_POINTAGE IS NOT NULL") === 'E2E-PBL-1'
       && q("SELECT dt_POINTAGE IS NOT NULL FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = 'E2E-PBL-R3'") === '1');
