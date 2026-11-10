@@ -4205,6 +4205,14 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         const vno = Ext.create('testextjs.view.vente.VenteVNO');
         contenu.add(vno);
         me.loadVenteData(venteId);
+        /* plan du 09/11, point 11 : sur l'ecran de prevente (scan du QR ou du numero compris), la vente rechargee garde
+         * la vue de prevente (ni encaissement ni cloture, « Fermer la prevente ») ; ce n'est pas une prise en caisse */
+        if (me.getCategorie() === 'PREVENTE') {
+            me.componentsToHidePresales();
+            me.getVnobtnCloture().hide();
+            me.getBtnClosePrevente().show();
+            return;
+        }
         /* plan du 08/11, point 15.3 : prise en caisse d'une prevente, comme a l'ecran de vente de l'officine (le serveur
          * ne retient que la premiere ouverture d'une prevente d'un autre vendeur) ; sans effet sur la vente */
         if (venteId) {

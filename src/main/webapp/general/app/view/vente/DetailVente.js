@@ -27,7 +27,10 @@ Ext.define('testextjs.view.vente.DetailVente', {
         const reglement = vente.reglement;
         const typeVente = vente.typeVente;
         const ayantDroit = vente.ayantDroit;
-        const labelWith = 130;
+        /* plan du 09/11, point 9 : sections empilees sans chevauchement, chaque libelle et chaque valeur sur une
+         * ligne (texte complet en info-bulle s'il ne tient pas), defilement vertical seulement */
+        const labelWith = 125;
+        const champ = me.champDetail();
         const reglements = vente.reglements;
         this.title = "Detail de la vente  [" + vente.strREF + "]";
 
@@ -111,21 +114,15 @@ Ext.define('testextjs.view.vente.DetailVente', {
                                     collapsible: false,
                                     bodyPadding: 5,
                                     title: "Infos.Generales de la vente",
-                                    layout: {
-                                        type: 'vbox',
-                                        align: 'stretch'
-                                    },
+                                    layout: 'anchor',
+                                    overflowY: 'auto',
+                                    defaults: {anchor: '100%'},
                                     items: [
                                         {
                                             xtype: 'fieldset',
                                             title: "Infos.vente",
-                                            layout: 'vbox',
-                                            defaults: {
-                                                xtype: 'displayfield',
-                                                fieldStyle: "color:blue;font-weight:bold;font-size:1em",
-                                                labelWidth: labelWith
-
-                                            },
+                                            layout: 'anchor',
+                                            defaults: Ext.apply({labelWidth: labelWith}, champ),
                                             margin: '0 0 5 0',
                                             items: [
                                                 {
@@ -212,12 +209,8 @@ Ext.define('testextjs.view.vente.DetailVente', {
                                         {
                                             xtype: 'fieldset',
                                             title: "Mode de règlements",
-                                            layout: 'vbox',
-                                            defaults: {
-                                                xtype: 'displayfield',
-                                                fieldStyle: "color:blue;font-weight:bold;font-size:1em",
-                                                labelWidth: labelWith
-                                            },
+                                            layout: 'anchor',
+                                            defaults: Ext.apply({labelWidth: labelWith}, champ),
                                             margin: '0 0 5 0',
                                             items: me.buildReglements(reglements)
 
@@ -227,13 +220,9 @@ Ext.define('testextjs.view.vente.DetailVente', {
                                         {
                                             xtype: 'fieldset',
                                             title: "Infos.Client",
-                                            layout: 'vbox',
+                                            layout: 'anchor',
                                             hidden: !client,
-                                            defaults: {
-                                                xtype: 'displayfield',
-                                                fieldStyle: "color:blue;font-weight:bold;font-size:1em",
-                                                labelWidth: labelWith
-                                            },
+                                            defaults: Ext.apply({labelWidth: labelWith}, champ),
                                             margin: '0 0 5 0',
                                             items: [
 
@@ -244,7 +233,7 @@ Ext.define('testextjs.view.vente.DetailVente', {
 
                                                 },
                                                 {
-                                                    fieldLabel: 'Prénon du client',
+                                                    fieldLabel: 'Prénom du client',
                                                     flex: 1,
                                                     value: client?.strLASTNAME
 
@@ -267,12 +256,8 @@ Ext.define('testextjs.view.vente.DetailVente', {
                                             xtype: 'fieldset',
                                             title: "Infos. ayant droit",
                                             hidden: !ayantDroit,
-                                            layout: 'vbox',
-                                            defaults: {
-                                                xtype: 'displayfield',
-                                                fieldStyle: "color:blue;font-weight:bold;font-size:1em",
-                                                labelWidth: labelWith
-                                            },
+                                            layout: 'anchor',
+                                            defaults: Ext.apply({labelWidth: labelWith}, champ),
                                             margin: '0 0 5 0',
                                             items: [
                                                 {
@@ -292,13 +277,9 @@ Ext.define('testextjs.view.vente.DetailVente', {
                                         {
                                             xtype: 'fieldset',
                                             title: "Infos. Tiers-payant",
-                                            layout: 'vbox',
+                                            layout: 'anchor',
                                             hidden: assurances.length === 0,
-                                            defaults: {
-                                                xtype: 'displayfield',
-                                                fieldStyle: "color:blue;font-weight:bold;font-size:1em",
-                                                labelWidth: labelWith
-                                            },
+                                            defaults: Ext.apply({labelWidth: labelWith}, champ),
 
                                             margin: '0 0 5 0',
                                             items: me.buildTiersPayantItems(assurances)
@@ -310,7 +291,8 @@ Ext.define('testextjs.view.vente.DetailVente', {
                         },
                         {
                             xtype: 'fieldset',
-                            flex: 1.5,
+                            flex: 1.3,
+                            margin: '0 0 0 6',
                             title: 'Ligne produits',
                             layout: {
                                 type: 'fit',
@@ -399,6 +381,22 @@ Ext.define('testextjs.view.vente.DetailVente', {
         });
         me.callParent(arguments);
     },
+    champDetail: function () {
+        return {
+            xtype: 'displayfield',
+            anchor: '100%',
+            margin: '0 0 2 0',
+            labelStyle: 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis',
+            fieldStyle: 'color:blue;font-weight:bold;font-size:1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis',
+            listeners: {
+                afterrender: function (f) {
+                    if (f.inputEl) {
+                        f.inputEl.dom.setAttribute('data-qtip', Ext.String.htmlEncode(f.inputEl.dom.textContent || ''));
+                    }
+                }
+            }
+        };
+    },
     buildTiersPayantItems: function (items) {
         let datas = [];
         if (items && items.length > 0) {
@@ -409,7 +407,7 @@ Ext.define('testextjs.view.vente.DetailVente', {
                     value: item.tiersPayant.strFULLNAME
                 },
                         {
-                            fieldLabel: 'Motant',
+                            fieldLabel: 'Montant',
                             flex: 1,
                             value: item.intPRICE,
                             renderer: function (v) {

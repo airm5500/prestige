@@ -29,6 +29,9 @@ var PRESTIGE_ICON_MAP = [
     { keys: ['fichier'],                                    icon: 'fa-folder-open',                 bg: '#fef3c7', fg: '#b45309' },
     { keys: ['rétrocession', 'retrocession'],               icon: 'fa-right-left',                  bg: '#ecfdf5', fg: '#059669' },
     { keys: ['analyse de gestion', 'analyse'],              icon: 'fa-chart-line',                  bg: '#fef9c3', fg: '#ca8a04' },
+    /* plan du 09/11, point 19 : « CAMPAGNES SMS / WHATSAPP » prenait la cloche des notifications (« sms ») ; la cle la
+       plus longue est essayee en premier */
+    { keys: ['campagnes sms', 'campagne'],                  icon: 'fa-bullhorn',                    bg: '#f5f3ff', fg: '#7c3aed' },
     { keys: ['notification', 'sms', 'alerte'],              icon: 'fa-bell',                        bg: '#fff1f2', fg: '#e11d48' },
     { keys: ['gestion des utilisateurs', 'utilisateur'],    icon: 'fa-users-gear',                  bg: '#f1f5f9', fg: '#475569' },
     { keys: ['configuration', 'config', 'param'],           icon: 'fa-sliders',                     bg: '#f8fafc', fg: '#64748b' },
