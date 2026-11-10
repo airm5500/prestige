@@ -502,8 +502,10 @@ public class PointageBLRessource {
             return json(echec(IMPORT_PERIME));
         }
         TUser u = utilisateur();
-        return json(service.appliquerModele(i.grossiste, emplacement(u), i.fichier, i.brutes, o.optJSONObject("champs"),
-                marqueurs(o), u.getLgUSERID()).put("jeton", o.optString("jeton")));
+        return json(service
+                .appliquerModele(i.grossiste, emplacement(u), i.fichier, i.brutes, o.optJSONObject("champs"),
+                        marqueurs(o), o.optBoolean("montantTtc", false), u.getLgUSERID())
+                .put("jeton", o.optString("jeton")));
     }
 
     @GET

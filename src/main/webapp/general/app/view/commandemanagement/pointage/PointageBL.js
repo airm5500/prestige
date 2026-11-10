@@ -289,7 +289,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                     maxLength: 60, enforceMaxLength: true, maskRe: /[A-Za-z0-9\/ ,;-]/,
                                                     listeners: {change: function () {
                                                             me.essayerBuffer();
-                                                        }}}])
+                                                        }}}, {xtype: 'checkbox', itemId: 'montantTtc', boxLabel: 'Montant du relevé en TTC (comparé au TTC des BL)',
+                                                    inputValue: true}])
                                         }, {
                                             xtype: 'toolbar', dock: 'bottom', items: ['->',
                                                 {text: 'Annuler', itemId: 'annulerReconnaissance', handler: function () {
@@ -555,6 +556,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         me.down('#marqueursAvoir').suspendEvents();
         me.down('#marqueursAvoir').setValue(o.marqueursAvoir || 'AV');
         me.down('#marqueursAvoir').resumeEvents();
+        me.down('#montantTtc').setValue(!!o.montantTtc);
         Ext.Array.each(cols, function (c) {
             fields.push('c' + c.rang);
         });
@@ -604,7 +606,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                 champs[c.champ] = v;
             }
         });
-        return {jeton: me.jeton, champs: champs, marqueursAvoir: me.down('#marqueursAvoir').getValue()};
+        return {jeton: me.jeton, champs: champs, marqueursAvoir: me.down('#marqueursAvoir').getValue(),
+            montantTtc: !!me.down('#montantTtc').getValue()};
     },
 
     essayerBuffer: function () {

@@ -152,7 +152,8 @@ class ReleveFormatsGrossistesTest {
         List<ReleveGrossiste.Ligne> r = lire(listing(),
                 Map.of(Champ.NUMERO, 0, Champ.SEQUENCE, 1, Champ.DATE, 2, Champ.MONTANT, 3));
         assertEquals(4, r.size());
-        assertEquals("350112", r.get(0).numeroBl);
+        /* plan du 09/11 : l'agence « 20- » est gardee (avant : 350112, confondu avec 10-350112-00) */
+        assertEquals("20-350112-00", r.get(0).numeroBl);
         assertEquals("100", r.get(0).sequence);
         assertEquals(11255L, r.get(0).montantHt);
         assertEquals(118600L, r.get(3).montantHt);
@@ -169,10 +170,64 @@ class ReleveFormatsGrossistesTest {
         assertEquals(256616L, r.get(3).montantHt);
     }
 
+    /** Plan du 09/11 : Copharmed, N° avec agence (10-, 30-), montant TTC, un avoir. */
+    static byte[] copharmed() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Document d = new Document(PageSize.A4);
+        PdfWriter.getInstance(d, out);
+        d.open();
+        d.add(new Paragraph("COPHARMED   Relevé de compte   du 01/10/2026 au 31/10/2026"));
+        d.add(tableau(new String[] { "Type", "N° Facture", "Date", "Montant TTC" }, new String[][] {
+                { "FA", "10-298560-00", "06/10/2026", "144 218" }, { "FA", "30-298560-00", "07/10/2026", "57 400" },
+                { "FA", "20-401627-00", "15/10/2026", "88 120" }, { "AV", "10-298561-00", "20/10/2026", "-12 980" } },
+                3, "Total   276 758"));
+        d.close();
+        return out.toByteArray();
+    }
+
+    /** Plan du 09/11 : TEDIS, avoirs designes par leur propre numero, lignes PR-ABO a ignorer. */
+    static byte[] tedis() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Document d = new Document(PageSize.A4);
+        PdfWriter.getInstance(d, out);
+        d.open();
+        d.add(new Paragraph("TEDIS PHARMA   Relevé   du 01/10/2026 au 31/10/2026"));
+        d.add(tableau(new String[] { "Type", "N° pièce", "Date", "Montant HT Net" },
+                new String[][] { { "FA", "2627120001-BKE", "05/10/2026", "45 300" },
+                        { "PR-ABO", "2627120002-BKE", "05/10/2026", "2 500" },
+                        { "AV", "AV-2627127450-BKE", "12/10/2026", "-15 000" },
+                        { "AV", "AV-2627127451-BKE", "14/10/2026", "-7 200" } },
+                3, "Total   25 600"));
+        d.close();
+        return out.toByteArray();
+    }
+
+    @Test
+    void copharmedEtTedisLus() throws Exception {
+        List<LigneBrute> c = ReleveModeleTest.lignes(copharmed());
+        List<Colonne> cc = ReleveModele.colonnes(c);
+        List<ReleveGrossiste.Ligne> r = ReleveModele.lire(c,
+                ReleveModele.modele(ReleveModele.deviner(c, cc), cc, null));
+        assertEquals(4, r.size());
+        assertEquals("10-298560-00", r.get(0).numeroBl);
+        assertEquals("30-298560-00", r.get(1).numeroBl);
+        assertEquals(144218L, r.get(0).montantHt);
+        assertEquals(ReleveGrossiste.Type.AVOIR, r.get(3).type);
+        List<LigneBrute> t = ReleveModeleTest.lignes(tedis());
+        List<Colonne> tc = ReleveModele.colonnes(t);
+        List<ReleveGrossiste.Ligne> u = ReleveModele.lire(t,
+                ReleveModele.modele(ReleveModele.deviner(t, tc), tc, null));
+        assertEquals(3, u.size(), "PR-ABO ignorée");
+        assertEquals("2627127450", u.get(1).numeroBl);
+        assertEquals(-15000L, u.get(1).montantHt);
+    }
+
     /** Fixtures des tests de bout en bout (ecran) : regenerees a la demande. */
     public static void main(String[] args) throws Exception {
         File dir = new File(args[0]);
         Files.write(new File(dir, "releve-e2e-modele-dpci.pdf").toPath(), dpci());
         Files.write(new File(dir, "releve-e2e-modele-listing.pdf").toPath(), listing());
+        Files.write(new File(dir, "releve-e2e-copharmed.pdf").toPath(), copharmed());
+        Files.write(new File(dir, "releve-e2e-tedis.pdf").toPath(), tedis());
     }
 }
