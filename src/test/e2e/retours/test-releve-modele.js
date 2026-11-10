@@ -131,7 +131,7 @@ function nettoyer() {
     ok('Autre présentation : réglage inadapté signalé, reconnaissance proposée', await carte() === 'reconnaissance' && /ne lit plus ce relevé/.test(await info()), await info());
     ok('Listing : N° de facture, Séquence, Date, Montant reconnus', c2.NUMERO === 0 && c2.SEQUENCE === 1 && c2.DATE === 2 && c2.MONTANT === 3, JSON.stringify(c2));
     l = await lus();
-    ok('Listing : 4 lignes lues (N° 20-350112-00 / séquence 100 / 11 255)', l.length === 4 && /^BL 350112 \/ 100 · 14\/09\/2026 · 11 255$/.test(l[0].replace(/ | /g, ' ')), JSON.stringify(l));
+    ok('Listing : 4 lignes lues (N° 20-350112-00 / séquence 100 / 11 255)', l.length === 4 && /^BL 20-350112-00 \/ 100 · 14\/09\/2026 · 11 255$/.test(l[0].replace(/ | /g, ' ')), JSON.stringify(l));
     await ev(E + '.down("#annulerReconnaissance").btnEl.dom.click()');
     await p.waitForTimeout(500);
     ok('Annuler : retour à la liste, réglage du grossiste inchangé', await carte() === 'grilleReleve' && q("SELECT str_MODELE FROM t_releve_modele WHERE lg_GROSSISTE_ID = '" + G + "'") === m);

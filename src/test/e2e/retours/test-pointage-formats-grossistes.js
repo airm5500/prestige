@@ -80,11 +80,15 @@ function nettoyer() {
     await p.waitForFunction(() => Ext.ComponentQuery.query('pointagebl')[0].releveCourant, null, { timeout: 30000 });
     await p.waitForTimeout(1500);
   };
-  const ecran = () => ev('(function(){var o=' + E + '.releveCourant;return {lecture:o.lecture,lignes:o.data.map(function(x){return [x.statut,x.numero||"",x.ecart||0,x.pieceReference||""].join(":")}).sort()};})()');
+  /* le banc a d'autres BL du mois : seules les pieces du jeu d'essai comptent parmi les absentes du releve */
+  const NOS = BLS.map((x) => x[2]);
+  const nos = (l) => l.filter((x) => !/^ABSENT_RELEVE:/.test(x) || NOS.includes(x.split(':').pop()));
+  const ecranBrut = () => ev('(function(){var o=' + E + '.releveCourant;return {lecture:o.lecture,lignes:o.data.map(function(x){return [x.statut,x.numero||"",x.ecart||0,x.pieceReference||""].join(":")}).sort()};})()');
   /* lignes du dernier releve de ce fichier, en base, meme forme que l'ecran */
-  const base = (fichier) => q("SELECT CONCAT_WS(':', l.str_STATUT, COALESCE(l.str_NUMERO, ''), COALESCE(l.int_ECART, 0), COALESCE(l.str_PIECE_REF, ''))"
+  const base = (fichier) => nos(q("SELECT CONCAT_WS(':', l.str_STATUT, COALESCE(l.str_NUMERO, ''), COALESCE(l.int_ECART, 0), COALESCE(l.str_PIECE_REF, ''))"
     + " FROM t_releve_grossiste_ligne l WHERE l.lg_RELEVE_ID = (SELECT lg_RELEVE_ID FROM t_releve_grossiste WHERE str_FICHIER = '" + fichier + "' ORDER BY dt_IMPORT DESC LIMIT 1)")
-    .split(/\r?\n/).map((x) => x.trim()).filter(Boolean).sort();
+    .split(/\r?\n/).map((x) => x.trim()).filter(Boolean).sort());
+  const ecran = async () => { const o = await ecranBrut(); o.tous = o.lignes; o.lignes = nos(o.lignes); return o; };
   const ligneBase = (fichier, numero) => q("SELECT CONCAT_WS(':', l.str_STATUT, l.int_MONTANT_HT, COALESCE(l.int_PIECE_HT, ''), COALESCE(l.lg_PIECE_ID, ''))"
     + " FROM t_releve_grossiste_ligne l WHERE l.str_NUMERO = '" + numero + "' AND l.lg_RELEVE_ID = (SELECT lg_RELEVE_ID FROM t_releve_grossiste WHERE str_FICHIER = '"
     + fichier + "' ORDER BY dt_IMPORT DESC LIMIT 1)");
@@ -106,13 +110,14 @@ function nettoyer() {
       'RAPPROCHE:10-298560-00:0:10-298560-00', 'RAPPROCHE:30-298560-00:0:30-298560-00'].sort();
     ok('Copharmed : 10- et 30- distincts, comparés au TTC, 20401627-00 = 20-401627-00 (écart 120), avoir non saisi, BL absent du relevé',
       JSON.stringify(e.lignes) === JSON.stringify(attendu), JSON.stringify(e.lignes));
-    ok('Rapprochement écran / base, ligne par ligne (Copharmed)', JSON.stringify(base('releve-e2e-copharmed.pdf')) === JSON.stringify(e.lignes),
+    ok('Rapprochement écran / base, ligne par ligne (Copharmed)', JSON.stringify(base('releve-e2e-copharmed.pdf')) === JSON.stringify(e.lignes)
+      && q("SELECT COUNT(*) FROM t_releve_grossiste_ligne WHERE lg_RELEVE_ID = (SELECT lg_RELEVE_ID FROM t_releve_grossiste WHERE str_FICHIER = 'releve-e2e-copharmed.pdf' ORDER BY dt_IMPORT DESC LIMIT 1)") === String(e.tous.length),
       JSON.stringify(base('releve-e2e-copharmed.pdf')));
     ok('Base : 10-298560-00 rapproché au TTC (144 218 = 144 218) sur la bonne pièce',
       ligneBase('releve-e2e-copharmed.pdf', '10-298560-00') === 'RAPPROCHE:144218:144218:E2E-PFG-C1', ligneBase('releve-e2e-copharmed.pdf', '10-298560-00'));
     ok('Base : 30-298560-00 sur sa propre pièce', ligneBase('releve-e2e-copharmed.pdf', '30-298560-00') === 'RAPPROCHE:57400:57400:E2E-PFG-C2',
       ligneBase('releve-e2e-copharmed.pdf', '30-298560-00'));
-    ok('Bilan : un seul relevé Copharmed, 5 lignes', q("SELECT COUNT(*) FROM t_releve_grossiste WHERE str_FICHIER = 'releve-e2e-copharmed.pdf'") === '1'
+    ok('Bilan : un seul relevé Copharmed, 5 lignes du jeu de test', q("SELECT COUNT(*) FROM t_releve_grossiste WHERE str_FICHIER = 'releve-e2e-copharmed.pdf'") === '1'
       && base('releve-e2e-copharmed.pdf').length === 5);
     const m = q("SELECT str_MODELE FROM t_releve_modele WHERE lg_GROSSISTE_ID = '" + COP + "'");
     ok('Réglage Copharmed mémorisé avec le TTC', /"montantTtc":true/.test(m), m);
@@ -131,7 +136,8 @@ function nettoyer() {
     e = await ecran();
     const attenduT = ['ECART:2627127451:200:2627120001-BKE', 'RAPPROCHE:2627120001:0:2627120001-BKE', 'RAPPROCHE:2627127450:0:2627120001-BKE'].sort();
     ok('TEDIS : PR-ABO ignorée, avoirs rapprochés par leur propre numéro (écart 200 signalé)', JSON.stringify(e.lignes) === JSON.stringify(attenduT), JSON.stringify(e.lignes));
-    ok('Rapprochement écran / base, ligne par ligne (TEDIS)', JSON.stringify(base('releve-e2e-tedis.pdf')) === JSON.stringify(e.lignes), JSON.stringify(base('releve-e2e-tedis.pdf')));
+    ok('Rapprochement écran / base, ligne par ligne (TEDIS)', JSON.stringify(base('releve-e2e-tedis.pdf')) === JSON.stringify(e.lignes)
+      && q("SELECT COUNT(*) FROM t_releve_grossiste_ligne WHERE lg_RELEVE_ID = (SELECT lg_RELEVE_ID FROM t_releve_grossiste WHERE str_FICHIER = 'releve-e2e-tedis.pdf' ORDER BY dt_IMPORT DESC LIMIT 1)") === String(e.tous.length), JSON.stringify(base('releve-e2e-tedis.pdf')));
     ok('Base : avoir AV-2627127450-BKE sur le bon retour, en HT', ligneBase('releve-e2e-tedis.pdf', '2627127450') === 'RAPPROCHE:-15000:-15000:E2E-PFG-R1',
       ligneBase('releve-e2e-tedis.pdf', '2627127450'));
     ok('Réglage TEDIS sans TTC', !/montantTtc/.test(q("SELECT str_MODELE FROM t_releve_modele WHERE lg_GROSSISTE_ID = '" + TED + "'")));
