@@ -298,7 +298,12 @@ Ext.define('testextjs.view.Header', {
                     Ext.MessageBox.alert('Error Message', result.errors);
                     return;
                 }
-                localStorage.clear();
+                /* plan du 09/11, point 7 : la deconnexion vide les donnees de la session, pas le nom du poste */
+                if (window.PrestigePoste && window.PrestigePoste.viderSession) {
+                    window.PrestigePoste.viderSession();
+                } else {
+                    localStorage.clear();
+                }
                 window.location.replace("../index.jsp?content=panelInfos.jsp&lng=fr&action=logout");
 
             },

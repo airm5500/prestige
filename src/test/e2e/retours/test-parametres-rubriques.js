@@ -36,9 +36,11 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await p.waitForTimeout(1200);
     const ecran = () => p.evaluate(() => { const g = Ext.ComponentQuery.query('parametermanager')[0], v = g.down('#rubriquesParam');
       return { choisie: v.getSelectionModel().getSelection()[0].get('libelle'), total: g.getStore().getTotalCount(), rubriques: g.getStore().collect('rubrique'),
-        colonne: !!g.down('#colRubrique'), pastilles: v.getEl().dom.querySelectorAll('.param-rubrique').length, visible: v.isVisible() }; });
+        colonne: !!g.down('#colRubrique'), pastilles: v.getEl().dom.querySelectorAll('.param-rubrique:not([data-code="POSTE"])').length,
+        poste: v.getEl().dom.querySelectorAll('.param-rubrique[data-code="POSTE"]').length, visible: v.isVisible() }; });
     let e = await ecran();
-    ok('Écran : rubriques à gauche, « Toutes les rubriques » choisie, colonne « Rubrique »', e.visible && e.pastilles === rub.results.length && e.choisie === 'Toutes les rubriques' && e.colonne && e.total === liste.total,
+    /* plan du 09/11, point 7 : la rubrique « Poste » (reglage du poste, hors base) s'ajoute a celles du serveur */
+    ok('Écran : rubriques à gauche (celles du serveur + « Poste »), « Toutes les rubriques » choisie, colonne « Rubrique »', e.visible && e.pastilles === rub.results.length && e.poste === 1 && e.choisie === 'Toutes les rubriques' && e.colonne && e.total === liste.total,
       JSON.stringify(e).slice(0, 200));
     const etiq = rub.results.find((r) => r.code === 'ETIQUETTE');
     /* vrai clic souris sur la rubrique, puis attente du rechargement de la liste */

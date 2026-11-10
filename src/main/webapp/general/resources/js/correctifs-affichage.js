@@ -1900,6 +1900,27 @@ window.PrestigePoste = {
             // stockage indisponible (navigation privee) : le nom reseau sera utilise
         }
         return v;
+    },
+    /* plan du 09/11, point 7 : reglages du POSTE, gardes a la deconnexion (nom, bandeau « Nommez cet appareil » deja
+       propose) ; tout le reste du stockage (donnees de la session) est vide comme avant */
+    GARDES: ['prestige.poste', 'prestige.poste.demande'],
+    viderSession: function () {
+        'use strict';
+        var gardes = {};
+        try {
+            this.GARDES.forEach(function (k) {
+                var v = window.localStorage.getItem(k);
+                if (v !== null) {
+                    gardes[k] = v;
+                }
+            });
+            window.localStorage.clear();
+            Object.keys(gardes).forEach(function (k) {
+                window.localStorage.setItem(k, gardes[k]);
+            });
+        } catch (e) {
+            // stockage indisponible : rien a vider
+        }
     }
 };
 Ext.onReady(function () {
