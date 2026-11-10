@@ -478,3 +478,43 @@ Branche `plan/09112026`, commit `6b930cd3f`, essayé sur domain3.
 - les 21 menus de la base gardent leur icône, sauf les campagnes.
 
 **À signaler :** la copie d'essai `laborex_audit` avait reçu, du cas 4 (sécurité, branche `essai/cas4-9080`, en attente), des migrations 7.2.38 et 7.2.39 d'un autre contenu. Les scripts de même numéro de cette branche (`prix_reference_saisie`, `str_PSCODE`) n'y avaient donc jamais été joués, et toute vente assurance échouait. Je les ai joués à la main sur cette copie. Avant de fusionner le cas 4, il faudra renuméroter ses deux migrations (`V7.2.38__securite_base`, `V7.2.39__securite_journal`), sinon une base qui les reçoit en premier sautera les nôtres.
+
+## Point 1 : fait le 10/11
+
+Branche `plan/09112026`, commit `f62f1d788`, essayé sur domain3 en 1366 × 768 et 1280 × 720.
+
+**Mise en page de la fiche en modification :**
+- une seule largeur de libellé (130 px) dans IDENTITÉ, PRIX & STOCK et GESTION ;
+- les champs restent dans leur bloc : ils dépassaient d'environ 10 px à droite, ce qui coupait le bord des listes ;
+- aucun champ étiré au-delà de 380 px ;
+- 8 px sous chaque liste déroulante ;
+- Semois Q1 et Q2 sortis de la ligne des cases, qui débordait de près de 100 px, et placés chacun sur sa ligne ;
+- la zone réserve passe dans PRIX & STOCK, juste sous « Code tableau » ;
+- les libellés deviennent « Quantité en réserve », « Contenance CH » et « PSCODE ».
+
+**Erreur « componentLayoutCounter » du journal :**
+- **Cause :** un masque de chargement dont le composant n'existe plus restait abonné à la liste des articles. Chaque chargement échouait, et la liste ne se rechargeait plus.
+- **Correction :** la recherche pendant la frappe vise la grille du champ tapé (rien si l'écran est fermé), et un masque orphelin est détaché avant le chargement.
+- **Réserve :** je n'ai pas trouvé le geste exact qui crée ce masque orphelin. Le test remet donc ce défaut à l'essai : il retrouve le message du journal sur l'ancien code et ne lève plus d'erreur sur le nouveau.
+
+**Tests :**
+- `test-fiche-article-0911.js` : 21 / 21 (rouge sur l'ancien code). Il vérifie le rapprochement fiche = base (CIP, désignation, prix d'achat et de vente, code tableau, PSCODE) et fait le bilan : « Enregistrer » sans changement laisse la fiche identique en base.
+- Non-régression :
+  - réserve et étiquette : 14 / 14 ;
+  - code géo : 14 / 14 ;
+  - PSCODE : 15 / 15.
+
+## Réponses du 10/11 (suite)
+
+- **Relevés DPCI et Copharmed :** les PDF sont reçus (`dpci1.pdf`, `copharemd0023642.pdf`). Je les ai transmis à la session du pointage BL.
+- **Doublon à trancher :** deux branches corrigent le même pointage, chacune à sa façon, dans les mêmes cinq fichiers :
+  - `plan/09112026` (`7d05972ea`) : lecteur PDF, avoirs, « À confirmer », lignes ABO, TTC ;
+  - `claude/pointage-releves` (`0a1e23f66`) : avoirs DPCI et TEDIS, PR-ABO, Copharmed avec agence et en TTC.
+
+  Il faut choisir la branche de référence avant toute fusion.
+- **Q9, les 7 indicateurs d'« Activité des équipes » :** oui, on les ajoute, avec trois exigences :
+  - l'aide du menu dit pour chacun sa pertinence et le gain attendu ;
+  - chaque indicateur peut être caché ;
+  - chaque indicateur caché peut être ramené un par un.
+
+  Ce travail se fait avec le point 10.
