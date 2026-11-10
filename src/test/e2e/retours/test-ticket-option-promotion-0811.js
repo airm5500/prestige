@@ -25,7 +25,7 @@ const MENU = q("SELECT str_VALUE FROM t_menu WHERE lg_MENU_ID = '10'");
 const TABLE = () => q("SELECT CONCAT_WS('|', ticket, largeur, HEX(reglages), IFNULL(DATE_FORMAT(maj, '%Y-%m-%d %H:%i:%s'), ''), HEX(IFNULL(utilisateur, ''))) FROM ticket_modele ORDER BY ticket, largeur");
 const AVANT = TABLE();
 const remettreTable = () => {
-  q('DELETE FROM ticket_modele;' + AVANT.split('\n').filter(Boolean).map((l) => {
+  q('DELETE FROM ticket_modele;' + AVANT.split(/\r?\n/).filter(Boolean).map((l) => {
     const [t, lg, r, maj, u] = l.split('|');
     return `INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('${t}', ${Number(lg)}, UNHEX('${r}'), ${maj ? `'${maj}'` : 'NOW()'}, UNHEX('${u || ''}'));`;
   }).join(''));
