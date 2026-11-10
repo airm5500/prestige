@@ -659,3 +659,80 @@ Branche `plan/09112026`, commit `b66c1172f`, essayé sur domain3.
 **Temps :** une page du filtre sur un inventaire de 11 000 lignes répond en 0,7 à 0,8 s.
 
 **Non-régression :** filtre prix d'achat 12 / 12 (il compte maintenant 10 filtres), icônes de l'inventaire 11 / 11, colonnes 7 / 7, clôture 12 / 12, suite unitaire 2 224 tests verts.
+
+---
+
+## Point 10 : fait le 10/11 (commits `4762a07f3`, `63497694d`, `786872db4`, `83eebac1a`, branche `plan/09112026`)
+
+**Ce qui change dans Activité des équipes :**
+- **Période :** bouton « 1 mois » et sélecteur de garde (les analyses se limitent aux heures de la garde choisie).
+- **Ventes longues :** le critère (« plus de », « au moins »… et le nombre de minutes) s'essaie sur l'écran, puis « Enregistrer pour tous » le rend commun. La confirmation se fait dans le bouton. Le critère vaut pour les Analyses, l'onglet Anomalies et la carte du tableau de bord ; il est gardé en paramètre (migration V7.6.6).
+- **Mesures corrigées :**
+  - vitesse par opérateur et par type : temps médian entre deux produits saisis, sur les ventes de 2 lignes ou plus que l'employé a saisies lui-même (préventes reprises en caisse écartées) ;
+  - charge au clavier : 15 min au plus par vente ;
+  - BL : temps compté depuis l'ouverture du BL (avant, depuis la commande : 509 s en moyenne au lieu de 38 s).
+  Chaque carte explique la mesure, ce qu'elle apprend et le gain.
+- **Annulations par auteur :** par caissière, ventes encaissées au comptant et à crédit, taux de chaque opération sur les ventes de son type, taux global à droite. Le détail d'une ligne a la colonne « Encaissé par ».
+- **CA par employé :** attribution « Conseil » (celui qui a conseillé ; ligne « Sans conseil »), tri par un clic sur l'en-tête, nombre de ventes en violet.
+- **Couleurs :**
+  - une couleur par onglet ;
+  - plus de filet de couleur à gauche des tuiles et constats ;
+  - ligne « n alertes : … » retirée ;
+  - légende « Ventes » de la couleur des barres.
+- **Sept indicateurs :** chacun a sa carte, avec une aide « Mesure / Pertinence / Gain ».
+  - remises ;
+  - ventes modifiées et écarts de caisse ;
+  - panier et produits par vente ;
+  - taux de conseil (panier avec et sans conseil) ;
+  - attente client en caisse ;
+  - avoirs et retours ;
+  - activité par heure de présence.
+- **Masquer une carte :** toute carte des Analyses se masque par sa croix, sans fenêtre. « Indicateurs masqués (n) » la ramène, une par une ou toutes. Le choix est gardé pour chaque utilisateur.
+
+**Où la donnée apparaît, et tests de rapprochement (écran = API = base, ligne par ligne) :**
+
+| Test | Ce qui est rapproché | Résultat |
+|---|---|---|
+| `test-activite-mesures-1011` | vitesses, charge par jour, BL par grossiste, octobre 2026 | 9 / 9 |
+| `test-activite-seuil-persistant-1011` | critère essayé puis enregistré : Analyses, Anomalies, tableau de bord, paramètre en base | 15 / 15 |
+| `test-activite-annulations-auteurs-0811` | taux par caissière, « Encaissé par » | 15 / 15 |
+| `test-activite-ca-conseil-1011` | CA par conseiller, tri, violet | 10 / 10 |
+| `test-activite-couleurs-1011` | couleurs calculées des onglets, aucun filet gauche, légende | 9 / 9 |
+| `test-activite-indicateurs-1011` | les 7 indicateurs, employé par employé et total ; masquage, reconnexion | 29 / 29 |
+
+Tous ces tests étaient rouges sur l'ancien code.
+
+**Règles de calcul et tests de cohérence (milliers de cas, graine fixe) :**
+- `SeuilDureeCoherenceTest` : le critère enregistré, essayé ou partiel ;
+- `MesuresActiviteCoherenceTest` : la médiane est comprise entre la vente la plus rapide et la plus lente ; la charge ne dépasse jamais 15 min par vente ;
+- `AnnulationsTauxCaissiereCoherenceTest` : taux = opérations ÷ ventes du type ; pas de taux sans vente ;
+- `CaTranchesConseilCoherenceTest` : somme des lignes = total = CA, quelle que soit l'attribution ;
+- `IndicateursEquipeCoherenceTest` (2 000 périodes) :
+  - taux de remise = remises ÷ CA, panier = CA ÷ ventes ;
+  - chaque vente conseillée compte une fois ;
+  - manquant + surplus = somme des écarts de caisse ;
+  - présence : sessions qui se chevauchent comptées une fois, bornées à la période ;
+  - jamais négatif, sauf le manquant ;
+  - le filtre sur un employé donne la même ligne que pour l'équipe.
+
+**Traces (bilan) :**
+- Le seul enregistrement est le critère des ventes longues (2 lignes de `t_parameters`), relu par le service et par le test. Il est remis à son état d'origine en fin de test.
+- Le choix des cartes masquées est une préférence de l'utilisateur (`activite-indicateurs`), relue en base puis remise à son état d'origine.
+- Les ventes d'essai (`E2E-AECC`, `E2E-AEIN`) sont retirées en fin de test.
+
+**Cas couverts :**
+- deux caissières et deux conseillers, des ventes sans conseil ;
+- remises à 0 et non nulles ;
+- quantités supérieures à 1, plusieurs lignes ;
+- préventes avec une attente de 1 min 30 et une de 7 min ;
+- une ligne en avoir, une vente en avoir, une vente annulée (qui ne compte pas) ;
+- octobre 2026 réel : 17 484 ventes, dont 7 837 préventes reprises, 445 ventes modifiées et 158 caisses fermées ;
+- sessions ouvertes et sessions qui débordent de la période.
+
+**Défaut trouvé par le test des indicateurs :** une session encore ouverte (sans fin) faisait échouer l'appel (erreur 500). C'est corrigé.
+
+**Limites à connaître :**
+- La présence ne compte que les connexions enregistrées depuis le 25/10/2026. Le planning (`t_planning`) est vide.
+- Sur la copie d'essai, aucune remise ni aucun conseil n'est saisi en octobre : ces deux cartes ne s'alimenteront qu'avec l'usage.
+
+**Non-régression :** les 18 tests d'écran de l'activité sont verts sur domain3 (anomalies, données, gardes, préventes, pastilles, tableau de bord…). Les tests unitaires de l'activité sont verts : 49.
