@@ -520,3 +520,39 @@ Branche `plan/09112026`, commit `f62f1d788`, essayé sur domain3 en 1366 × 768 
   Ce travail se fait avec le point 10.
 
 **Décision du 10/11 sur le doublon :** la branche `claude/pointage-releves` sert de référence pour le pointage BL. Mon correctif a été annulé sur `plan/09112026` (`364488ce0`). Cette branche ne touche donc plus aucun fichier du pointage. Le correctif du faux gras du lecteur PDF et les tests TEDIS restent consultables dans `7d05972ea`. Je les ai signalés à la session du pointage, pour qu'elle reprenne ce qui lui manque.
+
+## Points 18 et 14 : faits le 10/11
+
+Branche `plan/09112026`, commit `b66c1172f`, essayé sur domain3.
+
+**Point 18, une seule couleur pour les confirmations :**
+- Extranets grossistes, Litiges, Mon compte (PIN), RH (nouveau QR, désactivation d'un badge, retrait d'une borne) et Retour fournisseur passent par le même rendu : rouge, texte blanc.
+- Le retour fournisseur prenait le style « échec » (texte rouge seulement).
+- **Cause cachée :** sur les écrans habillés, une règle du thème recouvrait le rouge, y compris celui du mécanisme commun. Un bouton armé en est désormais exclu.
+- **Test :** `test-confirmation-couleur-0911.js`, 13 / 13 (rouge sur l'ancien code). Il arme chaque bouton par un vrai clic, sans jamais confirmer, vérifie le rouge, puis le retour à l'état normal. Bilan : rien n'est écrit.
+- **Non couvert à l'écran :** le litige, car la copie d'essai n'en contient aucun. Le correctif est le même, et le test existant des litiges passe (19 / 19).
+
+**Point 14, journal des campagnes :**
+- **Statuts :** un statut ne recule plus (envoyé < échec < distribué < lu), pour les messages comme pour les fils de discussion.
+- **Rafraîchissement :** le journal se recharge toutes les 20 s tant que son onglet est affiché. La campagne choisie reste choisie, et son suivi continue.
+- **Couleurs :** la ligne choisie a un fond clair, et les couleurs de l'indicateur d'envoi restent visibles.
+- **Tests :**
+  - `StatutWhatsAppOrdreTest` (cohérence : 5 000 suites d'accusés au hasard, graine 20261110) : 3 / 3 ;
+  - `test-campagnes-journal-0911.js` : 13 / 13, rouge sur l'ancien code. Il passe par le vrai webhook signé, puis rapproche journal = suivi = base.
+
+**Non-régression :**
+
+| Test | Résultat |
+|---|---|
+| Indicateur d'envoi | 12 / 12 |
+| Suivi | 8 / 8 |
+| Suppression en masse | 18 / 18 |
+| Badges RH | 14 / 14 |
+| PIN | 28 / 28 |
+| Litiges | 19 / 19 |
+| Refus et abandon d'un retour | 32 / 32 |
+| Suite unitaire | 2 235 tests verts |
+
+**À signaler :**
+- `test-retours-refus-abandon.js` a échoué une fois sur un contrôle de droits côté serveur, puis il est passé à la relance. C'est un test instable, sans lien avec ce changement.
+- Le test des identifiants d'extranet n'a pas été lancé : la règle exige un domaine dont toutes les sources visent 127.0.0.1.
