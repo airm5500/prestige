@@ -44,6 +44,8 @@ public class PointageBLService {
         /* demandes serveur (45) : grossiste de la piece */
         String grossisteId, grossiste;
         LocalDate date;
+        /** plan du 09/11, point 3 : date d'entree de la piece dans Prestige (saisie du BL, du retour) */
+        LocalDate dateSaisie;
         long montantHt;
         /** BL : montant TTC saisi (int_HTTC), compare quand le releve du grossiste est en TTC */
         Long montantTtc;
@@ -64,6 +66,7 @@ public class PointageBLService {
                     .put("sequence", StringUtils.defaultString(sequence))
                     .put("statut", StringUtils.defaultString(statut))
                     .put("date", date == null ? "" : date.format(JJ_MM_AAAA))
+                    .put("dateSaisie", dateSaisie == null ? "" : dateSaisie.format(JJ_MM_AAAA))
                     .put("montantHt", TYPE_BL.equals(type) ? montantHt : -Math.abs(montantHt))
                     .put("pointable", !TYPE_RECEPTION.equals(type)).put("pointe", pointeLe != null)
                     .put("pointeLe", StringUtils.defaultString(pointeLe))
@@ -105,18 +108,28 @@ public class PointageBLService {
     }
 
     /** BL et avoirs du grossiste sur la periode, pour l'emplacement de l'operateur. */
-    @SuppressWarnings("unchecked")
     List<PieceVue> pieces(String grossisteId, String emplacement, LocalDate du, LocalDate au) {
+        return pieces(grossisteId, emplacement, du, au, false);
+    }
+
+    /**
+     * Plan du 09/11, point 3 : la periode porte sur la date du BL (date de l'avoir pour un retour), ou, avec
+     * selonSaisie, sur la date d'entree dans Prestige (saisie du BL, du retour).
+     */
+    @SuppressWarnings("unchecked")
+    List<PieceVue> pieces(String grossisteId, String emplacement, LocalDate du, LocalDate au, boolean selonSaisie) {
         List<PieceVue> sortie = new ArrayList<>();
         java.sql.Date debut = java.sql.Date.valueOf(du), fin = java.sql.Date.valueOf(au.plusDays(1));
+        String dateBl = selonSaisie ? "b.dt_CREATED" : "b.dt_DATE_LIVRAISON";
+        String dateRetour = selonSaisie ? "rf.dt_CREATED" : "COALESCE(rf.dt_AVOIR, rf.dt_DATE)";
         for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON,"
                 + " b.str_SEQ_CLIENT, b.dt_DATE_LIVRAISON, COALESCE(b.int_MHT, 0), b.str_STATUT, b.dt_POINTAGE,"
-                + " CONCAT_WS(' ', pu.str_FIRST_NAME, pu.str_LAST_NAME), b.int_HTTC"
+                + " CONCAT_WS(' ', pu.str_FIRST_NAME, pu.str_LAST_NAME), b.int_HTTC, b.dt_CREATED"
                 + " FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
                 + " JOIN t_user bu ON bu.lg_USER_ID = b.lg_USER_ID"
                 + " LEFT JOIN t_user pu ON pu.lg_USER_ID = b.lg_POINTAGE_USER"
                 + " WHERE o.lg_GROSSISTE_ID = ?1 AND bu.lg_EMPLACEMENT_ID = ?2 AND b.str_STATUT IN ('enable', 'is_Closed')"
-                + " AND b.dt_DATE_LIVRAISON >= ?3 AND b.dt_DATE_LIVRAISON < ?4 ORDER BY b.dt_DATE_LIVRAISON, b.str_REF_LIVRAISON")
+                + " AND " + dateBl + " >= ?3 AND " + dateBl + " < ?4 ORDER BY " + dateBl + ", b.str_REF_LIVRAISON")
                 .setParameter(1, grossisteId).setParameter(2, emplacement).setParameter(3, debut).setParameter(4, fin)
                 .getResultList()) {
             PieceVue p = new PieceVue();
@@ -131,19 +144,19 @@ public class PointageBLService {
             p.pointeLe = quand(r[6]);
             p.pointePar = texte(r[7]);
             p.montantTtc = r[8] == null ? null : nombre(r[8]);
+            p.dateSaisie = date(r[9]);
             sortie.add(p);
         }
         for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT rf.lg_RETOUR_FRS_ID, b.str_REF_LIVRAISON,"
                 + " rf.str_REF_AVOIR, COALESCE(rf.dt_AVOIR, rf.dt_DATE), COALESCE(rf.int_AVOIR_HT, rf.dl_AMOUNT, 0),"
                 + " rf.str_REF_RETOUR_FRS, rf.dt_POINTAGE, CONCAT_WS(' ', pu.str_FIRST_NAME, pu.str_LAST_NAME), b.str_SEQ_CLIENT,"
-                + " rf.lg_BON_LIVRAISON_ID"
+                + " rf.lg_BON_LIVRAISON_ID, rf.dt_CREATED"
                 + " FROM t_retour_fournisseur rf LEFT JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = rf.lg_BON_LIVRAISON_ID"
                 + " JOIN t_user ru ON ru.lg_USER_ID = rf.lg_USER_ID"
                 + " LEFT JOIN t_user pu ON pu.lg_USER_ID = rf.lg_POINTAGE_USER"
                 + " WHERE rf.lg_GROSSISTE_ID = ?1 AND ru.lg_EMPLACEMENT_ID = ?2 AND rf.str_STATUT IN ('enable', 'is_Closed')"
-                + " AND COALESCE(rf.dt_AVOIR, rf.dt_DATE) >= ?3 AND COALESCE(rf.dt_AVOIR, rf.dt_DATE) < ?4")
-                .setParameter(1, grossisteId).setParameter(2, emplacement).setParameter(3, debut).setParameter(4, fin)
-                .getResultList()) {
+                + " AND " + dateRetour + " >= ?3 AND " + dateRetour + " < ?4").setParameter(1, grossisteId)
+                .setParameter(2, emplacement).setParameter(3, debut).setParameter(4, fin).getResultList()) {
             PieceVue p = new PieceVue();
             p.type = TYPE_RETOUR;
             p.id = texte(r[0]);
@@ -156,18 +169,19 @@ public class PointageBLService {
             p.pointePar = texte(r[7]);
             p.sequence = texte(r[8]);
             p.blId = texte(r[9]);
+            p.dateSaisie = date(r[10]);
             sortie.add(p);
         }
         for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON,"
-                + " b.dt_DATE_LIVRAISON, SUM(d.int_QTE_RETURN * d.int_PAF), b.str_SEQ_CLIENT"
+                + " b.dt_DATE_LIVRAISON, SUM(d.int_QTE_RETURN * d.int_PAF), b.str_SEQ_CLIENT, b.dt_CREATED"
                 + " FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
                 + " JOIN t_user bu ON bu.lg_USER_ID = b.lg_USER_ID"
                 + " JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
                 + " WHERE o.lg_GROSSISTE_ID = ?1 AND bu.lg_EMPLACEMENT_ID = ?2 AND b.str_STATUT IN ('enable', 'is_Closed')"
-                + " AND b.dt_DATE_LIVRAISON >= ?3 AND b.dt_DATE_LIVRAISON < ?4 AND d.int_QTE_RETURN > 0"
-                + " GROUP BY b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON, b.dt_DATE_LIVRAISON, b.str_SEQ_CLIENT")
-                .setParameter(1, grossisteId).setParameter(2, emplacement).setParameter(3, debut).setParameter(4, fin)
-                .getResultList()) {
+                + " AND " + dateBl + " >= ?3 AND " + dateBl + " < ?4 AND d.int_QTE_RETURN > 0"
+                + " GROUP BY b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON, b.dt_DATE_LIVRAISON, b.str_SEQ_CLIENT,"
+                + " b.dt_CREATED").setParameter(1, grossisteId).setParameter(2, emplacement).setParameter(3, debut)
+                .setParameter(4, fin).getResultList()) {
             PieceVue p = new PieceVue();
             p.type = TYPE_RECEPTION;
             p.id = texte(r[0]);
@@ -177,6 +191,7 @@ public class PointageBLService {
             p.montantHt = Math.abs(nombre(r[3]));
             p.statut = "Manquants à la réception";
             p.sequence = texte(r[4]);
+            p.dateSaisie = date(r[5]);
             sortie.add(p);
         }
         return sortie;
@@ -200,18 +215,26 @@ public class PointageBLService {
      */
     public JSONObject liste(List<String> grossistes, String emplacement, LocalDate du, LocalDate au, String etat,
             boolean parGrossiste) {
+        return liste(grossistes, emplacement, du, au, etat, parGrossiste, false);
+    }
+
+    /** Plan du 09/11, point 3 : periode selon la date du BL (defaut) ou selon la date d'entree (selonSaisie). */
+    public JSONObject liste(List<String> grossistes, String emplacement, LocalDate du, LocalDate au, String etat,
+            boolean parGrossiste, boolean selonSaisie) {
         List<PieceVue> toutes = new java.util.ArrayList<>();
         for (String g : grossistes) {
             String libelle = libelleGrossiste(g);
-            for (PieceVue p : pieces(g, emplacement, du, au)) {
+            for (PieceVue p : pieces(g, emplacement, du, au, selonSaisie)) {
                 p.grossisteId = g;
                 p.grossiste = libelle;
                 toutes.add(p);
             }
         }
         if (grossistes.size() > 1) {
-            toutes.sort(java.util.Comparator.comparing((PieceVue p) -> p.date == null ? LocalDate.MIN : p.date)
-                    .thenComparing(p -> StringUtils.defaultString(p.reference)));
+            toutes.sort(java.util.Comparator.comparing((PieceVue p) -> {
+                LocalDate d = selonSaisie ? p.dateSaisie : p.date;
+                return d == null ? LocalDate.MIN : d;
+            }).thenComparing(p -> StringUtils.defaultString(p.reference)));
         }
         JSONArray data = new JSONArray();
         long bl = 0, avoirs = 0, pointes = 0, nonPointes = 0;
