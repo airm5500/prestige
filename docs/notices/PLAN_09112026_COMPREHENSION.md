@@ -827,3 +827,32 @@ Les deux tests étaient rouges sur l'ancien code.
 **Tests adaptés :** `test-parametres-rubriques` (la rubrique « Poste » s'ajoute à celles du serveur).
 
 **Non-régression (domain3) :** verts : nom d'appareil 53-54 (6), 56 (10), poste mobile (9), rubriques (8), journal complet (18), connexion (18), sessions (12), badge (16), badge et code (28), droits serveur (26), colonnes de « Ventes terminées » (14), allers-retours de connexion (9).
+
+## Point 15 : fait le 10/11 (commit `ee1925cea`, branche `plan/09112026`)
+
+**Ce qui change :** le nom long du tiers payant se présente au choix du modèle de ticket (« Paramétrages › Modèles de ticket », choix « Nom long du tiers payant ») :
+- **Une ligne** (par défaut, rien ne change sans le vouloir) : le nom est raccourci par « … » ; le taux et le montant restent entiers, sur la même ligne ;
+- **Deux lignes** : le nom tient sur deux lignes au plus (la seconde raccourcie par « … » s'il le faut) ; le taux et le montant sont à droite, centrés sur les deux lignes.
+- Un nom qui tient, ou un libellé sans taux, ne change pas.
+- Le choix est proposé pour les tickets de vente (comptant, assurance, carnet, dépôt, mixte), pas pour le ticket Z. Il suit le droit de modifier les modèles et ne vaut que pour le nouveau modèle.
+- L'exemple de la vente carnet porte désormais un nom long, pour juger le rendu dans l'aperçu.
+
+**Où la donnée apparaît, et test de rapprochement :** `test-ticket-tiers-payant-long-1011` (13 / 13, deux passages de suite ; rouge sur l'ancien code), par de vrais clics :
+- aperçu des modèles (zone Client et hauteur du ticket) ;
+- base : `ticket_modele.reglages.tiersPayant`, pour ce ticket et cette largeur ;
+- relu à la réouverture de l'écran (même choix, même aperçu) ;
+- l'impression passe par le même dessin (`GenerateTicketServiceImpl` lit les réglages du modèle, puis `RenduTicket.dessiner`), vérifié par `TicketTiersPayantNomLongTest`.
+
+**Règles et test de cohérence :** `TicketTiersPayantNomLongTest`, 5 000 libellés tirés au hasard (graine 20261115), sur des largeurs de 50 à 250 points :
+- une ligne : le libellé tient dans la largeur, le taux est gardé entier, le nom raccourci est le début du vrai nom ;
+- deux lignes : chaque ligne tient dans sa colonne, le taux est entier, les deux lignes sont le nom dans l'ordre, et le nom entier quand il tient ;
+- dessin réel sur 58 et 80 mm : en une ligne, même hauteur qu'un nom court ; en deux lignes, exactement une ligne de plus ; un nom court reste sur une ligne ; rien ne déborde ;
+- le réglage est relu ; une valeur inconnue ou un modèle enregistré avant ce point reviennent à « Une ligne ».
+
+**Traces (bilan) :** une seule donnée nouvelle, le réglage dans `ticket_modele.reglages`, lue par l'aperçu et par l'impression. Le test remet la table comme avant, même s'il est interrompu.
+
+**Incident pendant les essais, corrigé :** un premier passage coupé par le délai avait laissé le réglage « Deux lignes » dans la copie d'essai. Ligne retirée ; le test remet désormais la table à l'arrêt forcé et sur une erreur non traitée.
+
+**Cas couverts :** formes « NOM [80%] », « NOM [80%] : » et « NOM 80 % », taux décimaux, nom court, nom sans taux, nom accentué, largeurs 58 et 80 mm, plusieurs tiers payants sur un ticket, valeur inconnue.
+
+**Non-régression :** 92 tests du ticket verts ; modèles de ticket 15, 19 (05/11), 10 (date), 11 (cadre net), 13 (promotion), 14 (police).
