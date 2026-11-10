@@ -24,6 +24,8 @@ var url_services_data_dci_famille = '../webservices/configmanagement/dci/ws_data
 var url_services_transaction_dci_famille = '../webservices/configmanagement/dci/ws_transaction_dci_famille.jsp?mode=';
 
 var Oview, Omode, Me, ref, type, bool_DECONDITIONNE;
+/* plan du 09/11, point 1 : largeur unique des libelles de la fiche article */
+var FA_LIBELLE = 130;
 var gammeStore, laboratoireStore;
 
 /* Valeurs par defaut de la fiche article a la creation (point 18). Ce sont des LIBELLES, pas
@@ -191,7 +193,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
         var int_RESERVE = new Ext.form.field.Display({
             xtype: 'displayfield',
             hidden: true,
-            fieldLabel: 'Quantite reserve: ',
+            fieldLabel: 'Quantité en réserve',
             name: 'int_STOCK_RESERVE',
             itemId: 'int_RESERVE',
             fieldStyle: 'color:blue;',
@@ -257,9 +259,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                     xtype: 'container',
                     layout: { type: 'hbox', align: 'stretch' },
                     defaults: {
+                        /* plan du 09/11, point 1 : une seule largeur de libelle (FA_LIBELLE) ; les champs restent dans
+                           leur bloc (anchor -20 : le corps du bloc a 10 px de marge de chaque cote) et ne s'etirent
+                           pas au-dela de 380 px ; 8 px sous chaque liste deroulante */
                         xtype: 'fieldset', flex: 1, layout: 'anchor', margin: '0 6 0 0', padding: '4 8 6 8',
                         defaultType: 'textfield',
-                        defaults: { anchor: '100%', labelAlign: 'right', labelWidth: 118, msgTarget: 'side' }
+                        defaults: { anchor: '-20', maxWidth: 380, labelAlign: 'right', labelWidth: FA_LIBELLE, msgTarget: 'side' }
                     },
                     items: [
                         {
@@ -268,20 +273,20 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             items: [ {
                             // Bouton « + » : generateur de CIP interne, en creation seulement
                             xtype: 'container', layout: 'hbox', margin: '0 0 5 0',
-                            items: [ { flex: 1, fieldLabel: 'Cip', xtype: 'textfield', labelAlign: 'right', labelWidth: 118, maskRe: /[0-9.]/, autoCreate: { tag: 'input', maxlength: '7' }, emptyText: 'CIP', name: 'int_CIP', itemId: 'int_CIP', allowBlank: false }, { xtype: 'button', itemId: 'btnGenererCip', text: '+', width: 28, margin: '0 0 0 4',
+                            items: [ { flex: 1, fieldLabel: 'Cip', xtype: 'textfield', labelAlign: 'right', labelWidth: FA_LIBELLE, maskRe: /[0-9.]/, autoCreate: { tag: 'input', maxlength: '7' }, emptyText: 'CIP', name: 'int_CIP', itemId: 'int_CIP', allowBlank: false }, { xtype: 'button', itemId: 'btnGenererCip', text: '+', width: 28, margin: '0 0 0 4',
                                   tooltip: 'Générer un code CIP interne inexistant dans le système',
                                   handler: function (btn) { window.PrestigeCodeCip.generer(btn, btn.up('container').down('#int_CIP'), btn.up('form').down('#str_DESCRIPTION')); } } ]
                         },
                         { fieldLabel: 'Designation', emptyText: 'DESIGNATION', name: 'str_DESCRIPTION', itemId: 'str_DESCRIPTION', allowBlank: false },
-                        { xtype: 'combobox', fieldLabel: 'Famille', name: 'lg_FAMILLEARTICLE_ID', itemId: 'lg_FAMILLEARTICLE_ID', store: store_famillearticle_famille, valueField: 'lg_FAMILLEARTICLE_ID', displayField: 'str_LIBELLE', pageSize: 20, minChars: 2, queryMode: 'remote', allowBlank: false, emptyText: 'Choisir une famille...' },
-                        { xtype: 'combobox', fieldLabel: 'Emplacement', name: 'lg_ZONE_GEO_ID', itemId: 'lg_ZONE_GEO_ID', store: store_zonegeo_famille, valueField: 'lg_ZONE_GEO_ID', displayField: 'str_LIBELLEE', pageSize: 20, minChars: 2, allowBlank: false, forceSelection: true, queryMode: 'remote', emptyText: 'Choisir un emplacement...' },
-                        { xtype: 'combobox', fieldLabel: 'Fabriquant', name: 'lg_FABRIQUANT_ID', itemId: 'lg_FABRIQUANT_ID', store: store_fabriquant, valueField: 'lg_FABRIQUANT_ID', displayField: 'str_NAME', pageSize: 20, typeAhead: true, hidden: true, queryMode: 'remote', emptyText: 'Choisir un frabriquant...' },
-                        { xtype: 'combobox', fieldLabel: 'Grossiste', name: 'lg_GROSSISTE_ID', itemId: 'lg_GROSSISTE_ID', store: store_grossiste_famille, valueField: 'lg_GROSSISTE_ID', pageSize: 20, displayField: 'str_LIBELLE', minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un grossiste...' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Famille', name: 'lg_FAMILLEARTICLE_ID', itemId: 'lg_FAMILLEARTICLE_ID', store: store_famillearticle_famille, valueField: 'lg_FAMILLEARTICLE_ID', displayField: 'str_LIBELLE', pageSize: 20, minChars: 2, queryMode: 'remote', allowBlank: false, emptyText: 'Choisir une famille...' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Emplacement', name: 'lg_ZONE_GEO_ID', itemId: 'lg_ZONE_GEO_ID', store: store_zonegeo_famille, valueField: 'lg_ZONE_GEO_ID', displayField: 'str_LIBELLEE', pageSize: 20, minChars: 2, allowBlank: false, forceSelection: true, queryMode: 'remote', emptyText: 'Choisir un emplacement...' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Fabriquant', name: 'lg_FABRIQUANT_ID', itemId: 'lg_FABRIQUANT_ID', store: store_fabriquant, valueField: 'lg_FABRIQUANT_ID', displayField: 'str_NAME', pageSize: 20, typeAhead: true, hidden: true, queryMode: 'remote', emptyText: 'Choisir un frabriquant...' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Grossiste', name: 'lg_GROSSISTE_ID', itemId: 'lg_GROSSISTE_ID', store: store_grossiste_famille, valueField: 'lg_GROSSISTE_ID', pageSize: 20, displayField: 'str_LIBELLE', minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un grossiste...' },
                         { fieldLabel: 'Code EAN 13', xtype: 'textfield', maskRe: /[0-9.]/, emptyText: 'Code EAN 13', name: 'int_EAN13', itemId: 'int_EAN13' },
                         { fieldLabel: 'Code EAN fabricant', xtype: 'textfield', maxLength: 40, enforceMaxLength: true, emptyText: 'Code EAN fabricant', name: 'code_EAN_FABRIQUANT', itemId: 'code_EAN_FABRIQUANT' },
                         // plan du 06/11, point 15 : reference Ubipharm, facultative, en majuscules
-                        { fieldLabel: 'PSCODE (Ubipharm)', xtype: 'textfield', maxLength: 20, enforceMaxLength: true, maskRe: /[A-Za-z0-9-]/, fieldStyle: 'text-transform:uppercase;', emptyText: 'ex. FORT256', name: 'str_PSCODE', itemId: 'str_PSCODE' },
-                        { xtype: 'combobox', fieldLabel: 'Code TVA', name: 'lg_CODE_TVA_ID', itemId: 'lg_CODE_TVA_ID', store: store_codetva, valueField: 'lg_CODE_TVA_ID', displayField: 'str_NAME', typeAhead: true, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un code TVA...' },
+                        { fieldLabel: 'PSCODE', xtype: 'textfield', maxLength: 20, enforceMaxLength: true, maskRe: /[A-Za-z0-9-]/, fieldStyle: 'text-transform:uppercase;', emptyText: 'ex. FORT256', name: 'str_PSCODE', itemId: 'str_PSCODE' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Code TVA', name: 'lg_CODE_TVA_ID', itemId: 'lg_CODE_TVA_ID', store: store_codetva, valueField: 'lg_CODE_TVA_ID', displayField: 'str_NAME', typeAhead: true, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un code TVA...' },
                         { xtype: 'displayfield', fieldLabel: 'Stock', hidden: true, name: 'int_NUMBER_AVAILABLE', itemId: 'int_NUMBER_AVAILABLE', fieldStyle: 'color:blue;font-weight:bold;', value: 0 } ]
                         },
                         {
@@ -303,7 +308,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     }
                                 },
                         {
-                                    fieldLabel: 'Quantité dans *UN CH*',
+                                    fieldLabel: 'Contenance CH',
                                     hidden: true,
                                     xtype: 'numberfield',
                                     minValue: 1,
@@ -342,39 +347,17 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                 },
                         { xtype: 'numberfield', fieldLabel: 'Prix CMU', maskRe: /[0-9.]/, emptyText: 'PRIX CMU', name: 'cmu_price', itemId: 'cmu_price',},
                         { fieldLabel: 'Taux.Marque', xtype: 'textfield', maskRe: /[0-9.]/, value: 0, emptyText: 'TAUX MARQUE', name: 'int_TAUX_MARQUE', itemId: 'int_TAUX_MARQUE' },
-                        { xtype: 'combobox', fieldLabel: 'Code.Remise', name: 'str_CODE_REMISE', itemId: 'str_CODE_REMISE', store: ['0', '1', '2', '3', '4'], valueField: 'str_CODE_REMISE', displayField: 'str_CODE_REMISE', value: 0, typeAhead: true, queryMode: 'local', emptyText: 'Choisir une Remise...' },
-                        { fieldLabel: 'Code.Tableau', emptyText: 'Code Tableau', name: 'int_T', itemId: 'int_T' } ]
-                        },
-                        {
-                            title: '<span style="color:#6a3fa0;font-weight:bold;letter-spacing:.5px;">GESTION</span>',
-                            style: { background: '#f3eefa', borderColor: '#dccdee' },
-                            margin: 0,
-                            items: [ { fieldLabel: 'Code Geo article', xtype: 'textfield', emptyText: 'Ex: A12-B03-C04', name: 'str_CODE_GEO_ARTICLE', itemId: 'str_CODE_GEO_ARTICLE' },
-                        /* Plan d'octobre (6) : localisation dans la reserve et colisage (informatif) */
-                        { fieldLabel: 'Code Geo réserve', xtype: 'textfield', emptyText: 'Ex: R02-E04', maxLength: 50, name: 'str_CODE_GEO_ARTICLE_RESERVE', itemId: 'str_CODE_GEO_ARTICLE_RESERVE' },
-                        { fieldLabel: 'Colisage', xtype: 'numberfield', minValue: 0, allowDecimals: false, emptyText: 'Unités par colis', name: 'int_COLISAGE', itemId: 'int_COLISAGE' },
-                        /* retours du 13/10 (point 2) : le type d'etiquette se choisit dans la fiche (il etait cache) */
-                        { xtype: 'combobox', fieldLabel: 'Type d\'étiquette', name: 'lg_TYPEETIQUETTE_ID', itemId: 'lg_TYPEETIQUETTE_ID', store: store_etiquette, valueField: 'lg_TYPEETIQUETTE_ID', displayField: 'str_DESCRIPTION', queryMode: 'local', editable: false, forceSelection: true, emptyText: 'Choisir un type d\'étiquette...' },
-                        { xtype: 'displayfield', itemId: 'typeEtiquetteMessage', hidden: true, hideLabel: true, fieldStyle: 'color:#c0392b;font-weight:bold' },
-                        { xtype: 'displayfield', fieldLabel: 'Classe ABC', name: 'classe_abc_display', itemId: 'classe_abc_display', value: 'Non classe', fieldStyle: 'color:blue;font-weight:bold;' },
-                        {
-                            // Calcul seuil, Suggerer, Article remisable, Semois Q1 et Q2 sur la meme ligne
-                            xtype: 'container', layout: 'hbox', margin: '0 0 5 0', defaultType: 'checkbox',
-                            items: [ { width: 100, boxLabel: 'Calcul seuil', tooltip: 'Calcul seuil / qté réappro', name: 'bool_CALCUL_SEUIL', itemId: 'bool_CALCUL_SEUIL', checked: true,}, { width: 78, boxLabel: 'Suggérer', name: 'bool_SUGGERABLE', itemId: 'bool_SUGGERABLE', checked: true,}, { width: 86, boxLabel: 'Remisable', tooltip: 'Article remisable', name: 'bool_REMISE', itemId: 'bool_REMISE', checked: true,}, { xtype: 'numberfield', fieldLabel: 'Q1', labelWidth: 18, labelAlign: 'right', width: 66, margin: '0 0 0 4', hideTrigger: true, tooltip: 'Semois Q1 (seuil réappro)',  minValue: 0, allowDecimals: false, name: 'int_Q1_SEUIL_REAPPRO', itemId: 'int_Q1_SEUIL_REAPPRO' }, { xtype: 'numberfield', fieldLabel: 'Q2', labelWidth: 18, labelAlign: 'right', width: 66, margin: '0 0 0 4', hideTrigger: true, tooltip: 'Semois Q2 (qté réappro)',  minValue: 0, allowDecimals: false, name: 'int_Q2_QTE_REAPPRO', itemId: 'int_Q2_QTE_REAPPRO' } ]
-                        },
-                        { fieldLabel: 'Seuil.Reappro', maskRe: /[0-9.]/, xtype: 'numberfield', emptyText: 'Seuil.Reappro', name: 'int_STOCK_REAPROVISONEMENT', itemId: 'int_STOCK_REAPROVISONEMENT' },
-                        { fieldLabel: 'Qte.Reappro', xtype: 'numberfield', maskRe: /[0-9.]/, emptyText: 'Qte.Reappro', name: 'int_QTE_REAPPROVISIONNEMENT', itemId: 'int_QTE_REAPPROVISIONNEMENT' },
-                        { xtype: 'combobox', fieldLabel: 'Code.Gestion', name: 'lg_CODE_GESTION_ID', itemId: 'lg_CODE_GESTION_ID', store: store_codegestion_famille, pageSize: 20, valueField: 'lg_CODE_GESTION_ID', displayField: 'str_CODE_BAREME', typeAhead: true, queryMode: 'remote', emptyText: 'Choisir un code gestion...' },
-                        { xtype: 'combobox', fieldLabel: 'Gamme', name: 'gammeId', itemId: 'gammeId', store: gammeStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', minChars: 2, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir une gamme..' },
-                        { xtype: 'combobox', fieldLabel: 'Laboratoire', name: 'laboratoireId', itemId: 'laboratoireId', store: laboratoireStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', minChars: 2, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir un laboratoire..' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Code.Remise', name: 'str_CODE_REMISE', itemId: 'str_CODE_REMISE', store: ['0', '1', '2', '3', '4'], valueField: 'str_CODE_REMISE', displayField: 'str_CODE_REMISE', value: 0, typeAhead: true, queryMode: 'local', emptyText: 'Choisir une Remise...' },
+                        { fieldLabel: 'Code.Tableau', emptyText: 'Code Tableau', name: 'int_T', itemId: 'int_T' },
                         {
                             // Reserve : la case, puis seuil reserve, seuil mini rayon et quantite reservee (affiches si cochee)
-                            xtype: 'fieldset', itemId: 'info_reserve', layout: 'anchor', defaults: { anchor: '100%', labelAlign: 'right', labelWidth: 118 },
+                            xtype: 'fieldset', itemId: 'info_reserve', layout: 'anchor', defaults: { anchor: '-14', maxWidth: 366, labelAlign: 'right', labelWidth: FA_LIBELLE - 6 },
                             padding: '4 6 2 6', margin: '2 0 0 0', style: { borderColor: '#d5dce6' },
                             items: [
-                                { labelWidth: 236, allowBlank: false,
+                                { allowBlank: false,
                                     xtype: 'checkbox',
-                                    fieldLabel: 'Cet article aura t-il un stock reserve?',
+                                    fieldLabel: 'Stock en réserve',
+                                    boxLabel: 'oui, cet article a un stock en réserve',
                                     name: 'bool_RESERVE',
                                     itemId: 'bool_RESERVE',
                                     listeners: {
@@ -438,6 +421,31 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                 int_RESERVE
                             ]
                         } ]
+                        },
+                        {
+                            title: '<span style="color:#6a3fa0;font-weight:bold;letter-spacing:.5px;">GESTION</span>',
+                            style: { background: '#f3eefa', borderColor: '#dccdee' },
+                            margin: 0,
+                            items: [ { fieldLabel: 'Code Geo article', xtype: 'textfield', emptyText: 'Ex: A12-B03-C04', name: 'str_CODE_GEO_ARTICLE', itemId: 'str_CODE_GEO_ARTICLE' },
+                        /* Plan d'octobre (6) : localisation dans la reserve et colisage (informatif) */
+                        { fieldLabel: 'Code Geo réserve', xtype: 'textfield', emptyText: 'Ex: R02-E04', maxLength: 50, name: 'str_CODE_GEO_ARTICLE_RESERVE', itemId: 'str_CODE_GEO_ARTICLE_RESERVE' },
+                        { fieldLabel: 'Colisage', xtype: 'numberfield', minValue: 0, allowDecimals: false, emptyText: 'Unités par colis', name: 'int_COLISAGE', itemId: 'int_COLISAGE' },
+                        /* retours du 13/10 (point 2) : le type d'etiquette se choisit dans la fiche (il etait cache) */
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Type d\'étiquette', name: 'lg_TYPEETIQUETTE_ID', itemId: 'lg_TYPEETIQUETTE_ID', store: store_etiquette, valueField: 'lg_TYPEETIQUETTE_ID', displayField: 'str_DESCRIPTION', queryMode: 'local', editable: false, forceSelection: true, emptyText: 'Choisir un type d\'étiquette...' },
+                        { xtype: 'displayfield', itemId: 'typeEtiquetteMessage', hidden: true, hideLabel: true, fieldStyle: 'color:#c0392b;font-weight:bold' },
+                        { xtype: 'displayfield', fieldLabel: 'Classe ABC', name: 'classe_abc_display', itemId: 'classe_abc_display', value: 'Non classe', fieldStyle: 'color:blue;font-weight:bold;' },
+                        {
+                            // Calcul seuil, Suggerer, Article remisable sur la meme ligne (Semois Q1 et Q2 en dessous)
+                            xtype: 'container', layout: 'hbox', margin: '0 0 5 0', defaultType: 'checkbox',
+                            items: [ { width: 100, boxLabel: 'Calcul seuil', tooltip: 'Calcul seuil / qté réappro', name: 'bool_CALCUL_SEUIL', itemId: 'bool_CALCUL_SEUIL', checked: true,}, { width: 78, boxLabel: 'Suggérer', name: 'bool_SUGGERABLE', itemId: 'bool_SUGGERABLE', checked: true,}, { width: 86, boxLabel: 'Remisable', tooltip: 'Article remisable', name: 'bool_REMISE', itemId: 'bool_REMISE', checked: true,} ]
+                        },
+                        { xtype: 'numberfield', fieldLabel: 'Semois Q1', anchor: null, width: FA_LIBELLE + 5 + 90, hideTrigger: true, tooltip: 'Semois Q1 (seuil réappro)', minValue: 0, allowDecimals: false, name: 'int_Q1_SEUIL_REAPPRO', itemId: 'int_Q1_SEUIL_REAPPRO' },
+                        { xtype: 'numberfield', fieldLabel: 'Semois Q2', anchor: null, width: FA_LIBELLE + 5 + 90, hideTrigger: true, tooltip: 'Semois Q2 (qté réappro)', minValue: 0, allowDecimals: false, name: 'int_Q2_QTE_REAPPRO', itemId: 'int_Q2_QTE_REAPPRO' },
+                        { fieldLabel: 'Seuil.Reappro', maskRe: /[0-9.]/, xtype: 'numberfield', emptyText: 'Seuil.Reappro', name: 'int_STOCK_REAPROVISONEMENT', itemId: 'int_STOCK_REAPROVISONEMENT' },
+                        { fieldLabel: 'Qte.Reappro', xtype: 'numberfield', maskRe: /[0-9.]/, emptyText: 'Qte.Reappro', name: 'int_QTE_REAPPROVISIONNEMENT', itemId: 'int_QTE_REAPPROVISIONNEMENT' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Code.Gestion', name: 'lg_CODE_GESTION_ID', itemId: 'lg_CODE_GESTION_ID', store: store_codegestion_famille, pageSize: 20, valueField: 'lg_CODE_GESTION_ID', displayField: 'str_CODE_BAREME', typeAhead: true, queryMode: 'remote', emptyText: 'Choisir un code gestion...' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Gamme', name: 'gammeId', itemId: 'gammeId', store: gammeStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', minChars: 2, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir une gamme..' },
+                        { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Laboratoire', name: 'laboratoireId', itemId: 'laboratoireId', store: laboratoireStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', minChars: 2, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir un laboratoire..' } ]
                         },
                         {
                             /* Plan d'octobre (6) : 4e colonne, image du produit (Ajouter / Modifier / Retirer). */

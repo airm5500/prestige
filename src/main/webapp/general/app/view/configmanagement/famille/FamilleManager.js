@@ -849,6 +849,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 change: {
                                     buffer: 600,
                                     fn: function (field, newValue) {
+                                        /* plan du 09/11, point 1 : la pause de frappe peut finir apres la fermeture
+                                           de l'ecran ; on vise la grille du champ, et rien si elle est fermee */
+                                        var vue = field.isDestroyed ? null : field.up('famillemanager');
+                                        if (!vue || vue.isDestroyed) {
+                                            return;
+                                        }
+                                        Me_Workflow = vue;
                                         var texte = (newValue || '').trim();
                                         if (texte.length >= 3) {
                                             Me_Workflow.onRechClick(false);
@@ -2071,7 +2078,29 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         return c || FM_NULL_FIELD;
     },
 
+    /* plan du 09/11, point 1 (erreur « componentLayoutCounter » du journal) : un masque de chargement dont le
+       composant n'existe plus, reste abonne a la liste, fait echouer tout chargement ; on le detache avant */
+    fmMasquesOrphelins: function () {
+        const store = this.getStore();
+        const ev = store && store.events ? store.events.beforeload : null;
+        const abonnes = ev && ev.listeners ? ev.listeners.slice() : [];
+        Ext.each(abonnes, function (l) {
+            const m = l.scope;
+            if (m && m instanceof Ext.LoadMask && !(m.getOwner && m.getOwner())) {
+                try {
+                    m.bindStore(null);
+                } catch (e) {
+                    store.un('beforeload', l.fn, m);
+                }
+            }
+        });
+    },
+
     onRechClick: function (selectionner) {
+        if (!Me_Workflow || Me_Workflow.isDestroyed) {
+            return;
+        }
+        Me_Workflow.fmMasquesOrphelins();
         const val = Me_Workflow.fmField('rechecher');
 
         // Une recherche a ete demandee au moins une fois : effacer le champ pourra
