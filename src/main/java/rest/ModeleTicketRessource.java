@@ -104,7 +104,9 @@ public class ModeleTicketRessource {
         return json(new JSONObject().put("success", true).put("largeur", mm).put("droit", peutModifier())
                 .put("tickets", tickets).put("imprimantes", imprimantes).put("blocs", blocs)
                 .put("ecartTailleMax", ReglagesTicket.ECART_TAILLE_MAX).put("largeurMin", ReglagesTicket.LARGEUR_MIN)
-                .put("margeMax", ReglagesTicket.MARGE_MAX).put("polices", new JSONArray(ReglagesTicket.POLICES))
+                .put("margeMax", ReglagesTicket.MARGE_MAX).put("debutMin", ReglagesTicket.DEBUT_MIN)
+                .put("debutMax", ReglagesTicket.DEBUT_MAX).put("debutPas", ReglagesTicket.DEBUT_PAS)
+                .put("polices", new JSONArray(ReglagesTicket.POLICES))
                 .put("blocsCommuns", new JSONArray(ReglagesTicket.BLOCS_COMMUNS)));
     }
 

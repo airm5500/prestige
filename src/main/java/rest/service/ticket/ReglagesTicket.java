@@ -38,6 +38,13 @@ public final class ReglagesTicket {
     /** Retour du 05/11 : marge laissee de chaque cote du rouleau, en millimetres. */
     public static final int MARGE_MAX = 6;
     /**
+     * Retour du 10/11 : debut d'impression, decalage de tout le ticket vers la gauche (negatif) ou la droite, en
+     * millimetres, par pas de {@link #DEBUT_PAS} ; la largeur du ticket ne change pas.
+     */
+    public static final double DEBUT_MIN = -3;
+    public static final double DEBUT_MAX = 6;
+    public static final double DEBUT_PAS = 0.5;
+    /**
      * Retour du 03/11 : polices proposees (toutes livrees avec Windows). Une police absente du poste qui imprime
      * retombe sur Arial Narrow (RenduTicket).
      */
@@ -120,6 +127,7 @@ public final class ReglagesTicket {
     private boolean cadreNet;
     private boolean net;
     private int marge = 0;
+    private double debut = 0;
     private String police = POLICE_DEFAUT;
     private List<Position> disposition = new ArrayList<>();
 
@@ -232,6 +240,20 @@ public final class ReglagesTicket {
         return marge;
     }
 
+    /** Retour du 10/11 : decalage du debut d'impression, en millimetres (negatif : vers la gauche). */
+    public double debut() {
+        return debut;
+    }
+
+    /** Debut d'impression borne et arrondi au pas de 0,5 mm ; une valeur illisible vaut 0. */
+    public static double debutValide(double mm) {
+        if (Double.isNaN(mm) || Double.isInfinite(mm)) {
+            return 0;
+        }
+        double borne = Math.max(DEBUT_MIN, Math.min(DEBUT_MAX, mm));
+        return Math.round(borne / DEBUT_PAS) * DEBUT_PAS;
+    }
+
     /** Retour du 03/11 : police du nouveau modele, l'une de {@link #POLICES}. */
     public String police() {
         return police;
@@ -258,7 +280,7 @@ public final class ReglagesTicket {
                 .put("recapitulatif", recapitulatif).put("commentaires", commentaires)
                 .put("encoursCarnet", encoursCarnet).put("signatureClient", signatureClient)
                 .put("signatures", signatures).put("cadreNet", cadreNet).put("net", net).put("marge", marge)
-                .put("police", police).put("disposition", d);
+                .put("debut", debut).put("police", police).put("disposition", d);
     }
 
     /**
@@ -284,6 +306,7 @@ public final class ReglagesTicket {
         r.cadreNet = j.optBoolean("cadreNet", r.cadreNet);
         r.net = j.optBoolean("net", r.net);
         r.marge = Math.max(0, Math.min(MARGE_MAX, j.optInt("marge", r.marge)));
+        r.debut = debutValide(j.optDouble("debut", r.debut));
         String police = j.optString("police", r.police);
         r.police = POLICES.contains(police) ? police : r.police;
         JSONArray d = j.optJSONArray("disposition");
@@ -305,7 +328,7 @@ public final class ReglagesTicket {
      * bloc qui le suit dans l'ordre du modele : l'ordre du ticket ne change pas.
      */
     public ReglagesTicket avecCommuns(ReglagesTicket source) {
-        JSONObject j = json().put("police", source.police).put("marge", source.marge);
+        JSONObject j = json().put("police", source.police).put("marge", source.marge).put("debut", source.debut);
         List<Position> d = new ArrayList<>(disposition);
         for (String bloc : BLOCS_COMMUNS) {
             Position p = source.position(bloc);

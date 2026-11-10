@@ -228,6 +228,12 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                 + '<button type="button" data-marge="-1"' + (actif && marge > 0 ? '' : ' disabled') + ' aria-label="Réduire la marge">−</button>'
                 + '<span class="mtk-sel" data-valeur-marge="' + marge + '">' + marge + ' mm</span>'
                 + '<button type="button" data-marge="1"' + (actif && marge < margeMax ? '' : ' disabled') + ' aria-label="Agrandir la marge">+</button></span></div>');
+        /* retour du 10/11 : debut d'impression, deplace tout le ticket sans changer sa largeur */
+        var debut = Number(r.debut) || 0, debutMin = d.debutMin !== undefined ? d.debutMin : -3, debutMax = d.debutMax || 6;
+        h.push('<div class="mtk-champ"><span>Début d\'impression<small>− rapproche le ticket du bord gauche, + l\'en éloigne ; sa largeur ne change pas ; commun à tous les tickets</small></span><span class="mtk-choix">'
+                + '<button type="button" data-debut="-1"' + (actif && debut > debutMin ? '' : ' disabled') + ' aria-label="Rapprocher le ticket du bord gauche">−</button>'
+                + '<span class="mtk-sel" data-valeur-debut="' + debut + '">' + me.texteDebut(debut) + '</span>'
+                + '<button type="button" data-debut="1"' + (actif && debut < debutMax ? '' : ' disabled') + ' aria-label="Éloigner le ticket du bord gauche">+</button></span></div>');
         me.OPTIONS.forEach(function (o) {
             if (o.pour.indexOf(me.etat.ticket) < 0) {
                 return;
@@ -511,6 +517,12 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             } else if (b.hasAttribute('data-partie')) {
                 var m = me.etat.donnees.ecartTailleMax;
                 me.regler(b.getAttribute('data-partie'), Number(b.getAttribute('data-pas')), -m, m, 0);
+            } else if (b.hasAttribute('data-debut')) {
+                var dd = me.etat.donnees, pasDebut = (dd.debutPas || 0.5) * Number(b.getAttribute('data-debut'));
+                me.modifier(function (r) {
+                    var v = Math.round(((Number(r.debut) || 0) + pasDebut) * 2) / 2;
+                    r.debut = Math.max(dd.debutMin !== undefined ? dd.debutMin : -3, Math.min(dd.debutMax || 6, v));
+                });
             } else if (b.hasAttribute('data-marge')) {
                 var pasMarge = Number(b.getAttribute('data-marge'));
                 me.modifier(function (r) {
@@ -663,6 +675,12 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                 }
             });
         }
+    },
+
+    /** Retour du 10/11 : « 0 mm », « −1,5 mm », « +2 mm ». */
+    texteDebut: function (v) {
+        var t = String(Math.abs(v)).replace('.', ',') + ' mm';
+        return v > 0 ? '+' + t : v < 0 ? '−' + t : t;
     },
 
     /** Bouton a confirmer : premier clic, le texte devient la question ; second clic dans les 6 s, l'action. */

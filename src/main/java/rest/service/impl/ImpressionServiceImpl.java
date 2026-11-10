@@ -649,7 +649,7 @@ public class ImpressionServiceImpl implements Printable {
                     DEPART_NOUVEAU).hauteur;
             ge.dispose();
         }
-        if (!placer(g2d, pageFormat, pageIndex, papierMm, hauteurEnCours, droiteImprimable)) {
+        if (!placer(g2d, pageFormat, pageIndex, papierMm, hauteurEnCours, droiteImprimable, reglagesTicket.debut())) {
             return Printable.NO_SUCH_PAGE;
         }
         RenduTicket.dessiner(g2d, documentEnCours, reglagesTicket, papierMm, fontSize, DEPART_NOUVEAU);
@@ -664,9 +664,19 @@ public class ImpressionServiceImpl implements Printable {
      */
     static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur,
             double droite) {
+        return placer(g2d, pageFormat, pageIndex, papierMm, hauteur, droite, 0);
+    }
+
+    /**
+     * Retour du 10/11 : {@code debutMm}, reglage « Debut d'impression » des modeles de ticket, decale tout le ticket
+     * (negatif : vers la gauche), sans changer sa largeur ; le depart ne passe jamais avant le bord de la zone.
+     */
+    static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur,
+            double droite, double debutMm) {
         double largeur = RenduTicket.largeurImprimable(papierMm);
-        // essais du 05/11 : a 0 puis a 5 points, la Star coupait le bord gauche ; le depart reste a 9 points
-        double x = pageFormat.getImageableX();
+        // essais du 05/11 : depart par defaut a 9 points ; retour du 10/11 : trop de blanc a gauche sur la Star, le
+        // debut se regle dans les modeles de ticket
+        double x = Math.max(0, pageFormat.getImageableX() + ReglagesTicket.debutValide(debutMm) * RenduTicket.PT_MM);
         double echelle = 1;
         if (droite > x && x + largeur > droite) {
             // photo du 05/11 : ramene a gauche, le ticket etait coupe a gauche ; il garde son depart et se reduit
