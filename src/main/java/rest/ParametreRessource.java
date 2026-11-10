@@ -264,6 +264,8 @@ public class ParametreRessource {
             }
             JSONArray results = new JSONArray();
             int fin = limit > 0 ? Math.min(parametres.size(), Math.max(0, start) + limit) : parametres.size();
+            // retour du 10/11 : explication depliable d'un parametre (bouton « i »), seulement pour ceux qui en ont une
+            java.util.Map<String, String> explications = explications(odm);
             for (int i = Math.max(0, start); i < fin; i++) {
                 TParameters p = parametres.get(i);
                 // faille de droits du 31/10 : la valeur d'un secret ne sort pas, meme vers l'ecran des parametres
@@ -274,6 +276,10 @@ public class ParametreRessource {
                         .put("str_STATUT", p.getStrSTATUT());
                 util.RubriqueParametre.Rubrique r = util.RubriqueParametre.de(p.getStrKEY());
                 row.put("rubrique", r.code).put("rubriqueLibelle", r.libelle).put("rubriqueCouleur", r.couleur);
+                String explication = explications.get(p.getStrKEY());
+                if (explication != null && !util.ParametresSecrets.estSecret(p.getStrKEY())) {
+                    row.put("explication", explication);
+                }
                 try {
                     row.put("str_SECTION_KEY", p.getStrSECTIONKEY());
                 } catch (Exception ignore) {
@@ -290,6 +296,29 @@ public class ParametreRessource {
         } finally {
             odm.closeEntityManager();
         }
+    }
+
+    /**
+     * Retour du 10/11/2026 : explications des parametres (table parametre_explication : cle, JSON {regle, titre,
+     * entetes, cas, rappels}). Une explication illisible ou une table absente ne fait jamais tomber la liste : le
+     * parametre n'a simplement pas de bouton « i ».
+     */
+    private java.util.Map<String, String> explications(dataManager odm) {
+        java.util.Map<String, String> res = new java.util.HashMap<>();
+        try {
+            List<?> lignes = odm.getEm().createNativeQuery("SELECT str_KEY, explication FROM parametre_explication")
+                    .getResultList();
+            for (Object l : lignes) {
+                Object[] c = (Object[]) l;
+                String json = c[1] == null ? null : String.valueOf(c[1]);
+                if (c[0] != null && util.ExplicationParametre.estValide(json)) {
+                    res.put(String.valueOf(c[0]), json);
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "explications des parametres", e);
+        }
+        return res;
     }
 
     /**

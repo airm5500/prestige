@@ -17,6 +17,19 @@ public class ReferenceTpDTO {
     private String type;
     private boolean defaut;
     private String prixReferenceId;
+    /**
+     * Retour du 10/11/2026 : vrai si cet organisme passe en premier sur la ligne et prend 100 % de sa base (prise en
+     * charge totale confirmee a la caisse) ; le taux affiche vaut alors 100.
+     */
+    private boolean premier;
+
+    public boolean isPremier() {
+        return premier;
+    }
+
+    public void setPremier(boolean premier) {
+        this.premier = premier;
+    }
 
     public String getDetailId() {
         return detailId;

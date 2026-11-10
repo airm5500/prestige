@@ -21,6 +21,46 @@ function ecranDuComposant(composant) {
     return composant && composant.up ? composant.up('parametermanager') : null;
 }
 
+/*
+ * Retour du 10/11/2026 : explication d'un parametre, a partir de son JSON {regle, titre, entetes, cas, rappels}.
+ * Tout le texte est encode : aucune balise venue de la base n'est interpretee.
+ */
+function Me_parametres_rendreExplication(json) {
+    var x = Ext.JSON.decode(json, true);
+    if (!x) {
+        return '';
+    }
+    var h = Ext.String.htmlEncode, s = '<div class="param-explication">';
+    if (x.regle) {
+        s += '<p>' + h(String(x.regle)) + '</p>';
+    }
+    if (Ext.isArray(x.cas) && x.cas.length) {
+        if (x.titre) {
+            s += '<div class="param-explication-titre">' + h(String(x.titre)) + '</div>';
+        }
+        s += '<table>';
+        if (Ext.isArray(x.entetes) && x.entetes.length) {
+            s += '<tr>' + Ext.Array.map(x.entetes, function (c) {
+                return '<th>' + h(String(c)) + '</th>';
+            }).join('') + '</tr>';
+        }
+        Ext.Array.each(x.cas, function (ligne) {
+            if (Ext.isArray(ligne)) {
+                s += '<tr>' + Ext.Array.map(ligne, function (c) {
+                    return '<td>' + h(String(c)) + '</td>';
+                }).join('') + '</tr>';
+            }
+        });
+        s += '</table>';
+    }
+    if (Ext.isArray(x.rappels) && x.rappels.length) {
+        s += '<ul>' + Ext.Array.map(x.rappels, function (r) {
+            return '<li>' + h(String(r)) + '</li>';
+        }).join('') + '</ul>';
+    }
+    return s + '</div>';
+}
+
 function relancerRecherche(composant) {
     var ecran = ecranDuComposant(composant);
     if (ecran) {
@@ -81,6 +121,18 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
             plugins: [this.cellEditing],
             store: store,
             id: 'GridparametreID',
+            // retour du 10/11 : explication depliable sous la ligne (bouton « i »), repliee par defaut, sans fenetre
+            features: [{
+                    ftype: 'rowbody',
+                    getAdditionalData: function (data, idx, record) {
+                        var ouverte = !!(record && record.explicationOuverte && record.get('explication'));
+                        return {
+                            rowBody: ouverte ? Me_parametres_rendreExplication(record.get('explication')) : '',
+                            rowBodyCls: ouverte ? 'param-explication-ouverte' : 'param-explication-fermee',
+                            rowBodyColspan: this.view.headerCt.getColumnCount()
+                        };
+                    }
+                }],
             columns: [{
                     xtype: 'rownumberer',
                     text: 'Num.Ligne',
@@ -122,6 +174,25 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                     dataIndex: 'str_SECTION_KEY',
                     hidden: true,
                     flex: 1
+                },
+                {
+                    // retour du 10/11 : bouton « i », seulement si le parametre a une explication ; un clic deplie
+                    // l'explication sous la ligne, un second la replie
+                    header: '',
+                    itemId: 'paramInfoColumn',
+                    dataIndex: 'explication',
+                    width: 34,
+                    sortable: false,
+                    menuDisabled: true,
+                    align: 'center',
+                    renderer: function (value, meta, rec) {
+                        if (!value) {
+                            return '';
+                        }
+                        meta.tdAttr = 'data-qtip="' + (rec.explicationOuverte ? 'Replier l\'explication' : 'Voir l\'explication et des exemples') + '"';
+                        meta.tdStyle = 'cursor:pointer;';
+                        return '<span class="param-info' + (rec.explicationOuverte ? ' param-info-ouvert' : '') + '">i</span>';
+                    }
                 },
                 {
                     // Interrupteur pour les parametres booleens (valeur 0 ou 1) : un clic bascule la
@@ -311,7 +382,18 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                     + '.param-rubrique-survol{background:#eef4fb}'
                     + '.param-rubrique-choisie{background:#1e3a5f;color:#fff;border-color:#1e3a5f}'
                     + '.param-rubrique-nombre{color:#fff;border-radius:10px;padding:0 7px;font-size:11px;font-weight:bold;margin-left:6px}'
-                    + '.param-pastille{display:inline-block;padding:1px 8px;border-radius:9px;color:#fff;font-size:11px;white-space:nowrap}', 'param-rubriques-style');
+                    + '.param-pastille{display:inline-block;padding:1px 8px;border-radius:9px;color:#fff;font-size:11px;white-space:nowrap}'
+                    + '.param-info{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:#2e86c1;color:#fff;font-weight:bold;font-style:italic;font-family:Georgia,serif;font-size:12px;text-align:center}'
+                    + '.param-info-ouvert{background:#1e3a5f}'
+                    + '.x-grid-rowbody-tr.param-explication-fermee{display:none}'
+                    + '.param-explication{margin:2px 8px 8px 50px;padding:8px 12px;background:#f4f8fc;border-left:4px solid #2e86c1;border-radius:4px;font-size:12px;color:#22313f;white-space:normal;line-height:1.45}'
+                    + '.param-explication p{margin:0 0 6px}'
+                    + '.param-explication-titre{font-weight:bold;margin:6px 0 4px}'
+                    + '.param-explication table{border-collapse:collapse;margin:0 0 6px;max-width:100%}'
+                    + '.param-explication th,.param-explication td{border:1px solid #cfdbe6;padding:3px 8px;text-align:right}'
+                    + '.param-explication th:first-child,.param-explication td:first-child{text-align:left}'
+                    + '.param-explication th{background:#e3edf6}'
+                    + '.param-explication ul{margin:0;padding-left:18px}', 'param-rubriques-style');
         }
 
         this.callParent();
@@ -340,6 +422,14 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
     },
     onCellClick: function (view, td, cellIndex, rec, tr, rowIndex, e) {
         var column = view.getHeaderAtIndex(cellIndex);
+        // retour du 10/11 : le bouton « i » deplie ou replie l'explication du parametre
+        if (column && column.itemId === 'paramInfoColumn') {
+            if (rec.get('explication')) {
+                rec.explicationOuverte = !rec.explicationOuverte;
+                view.refreshNode(rowIndex);
+            }
+            return;
+        }
         if (!column || column.itemId !== 'paramSwitchColumn') {
             return;
         }

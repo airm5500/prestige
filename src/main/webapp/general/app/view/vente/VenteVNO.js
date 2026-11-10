@@ -1630,7 +1630,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
             return '';
         }
         if (meta) {
-            meta.tdCls = (meta.tdCls ? meta.tdCls + ' ' : '') + (ref.defaut ? 'vp-ref-defaut' : 'vp-ref-fiche');
+            // retour du 10/11 : l'assurance qui passe en premier sur la ligne (100 %) a son propre style
+            meta.tdCls = (meta.tdCls ? meta.tdCls + ' ' : '')
+                    + (ref.premier && champ === 'taux' ? 'vp-ref-premier' : (ref.defaut ? 'vp-ref-defaut' : 'vp-ref-fiche'));
         }
         if (champ === 'taux') {
             return Ext.util.Format.number(ref.taux, '0');
@@ -1672,7 +1674,10 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         }
     },
 
-    /** Message sous la grille (refus en rouge, enregistrement en vert) ; null le retire. Cree a la demande. */
+    /**
+     * Message sous la grille (refus en rouge, enregistrement en vert) ; null le retire. Cree a la demande.
+     * erreur === 'question' : question en attente d'une reponse au clavier (retour du 10/11).
+     */
     afficherMessageReferenceTp: function (texte, erreur) {
         const me = this, conteneur = me.down('#gridContainer'), grille = me.down('#venteGrid');
         let message = me.down('#messageReferenceTp');
@@ -1690,9 +1695,14 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                 xtype: 'component', itemId: 'messageReferenceTp', cls: 'vp-ref-message', margin: '0 0 5 0'
             });
         }
-        message.removeCls(['vp-ref-message-ko', 'vp-ref-message-ok']);
-        message.addCls(erreur ? 'vp-ref-message-ko' : 'vp-ref-message-ok');
-        message.update((erreur ? '✖ ' : '✔ ') + Ext.String.htmlEncode(texte));
+        message.removeCls(['vp-ref-message-ko', 'vp-ref-message-ok', 'vp-ref-message-question']);
+        if (erreur === 'question') {
+            message.addCls('vp-ref-message-question');
+            message.update('? ' + Ext.String.htmlEncode(texte));
+        } else {
+            message.addCls(erreur ? 'vp-ref-message-ko' : 'vp-ref-message-ok');
+            message.update((erreur ? '✖ ' : '✔ ') + Ext.String.htmlEncode(texte));
+        }
         message.show();
     },
 

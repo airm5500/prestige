@@ -137,6 +137,39 @@ public class PrixReferenceRessource {
         }
         JSONObject json = new JSONObject().put("success", true).put("reference",
                 new JSONObject(resultat.getReference()));
+        ajouterNet(json, venteId, params);
+        return Response.ok(json.toString()).build();
+    }
+
+    /**
+     * Retour du 10/11/2026 : « prise en charge totale » d'une ligne. Le tiers-payant passe en premier sur la ligne et
+     * prend 100 % de sa propre base, pour cette vente seulement ; 403 si KEY_PRISE_EN_CHARGE_TOTALE vaut 0, 400 si la
+     * marque est refusee (vente close, tiers-payant absent, autre tiers-payant deja marque). Puis net recalcule.
+     */
+    @PUT
+    @Path("vente/{venteId}/ligne/{detailId}/premier")
+    public Response premier(@PathParam("venteId") String venteId, @PathParam("detailId") String detailId,
+            SaisieReferenceCaisseParams params) {
+        Response refus = refusSiInactif();
+        if (refus != null) {
+            return refus;
+        }
+        if (!prixReferenceService.priseEnChargeTotaleActive()) {
+            return Droits.interdit("prise en charge totale d'une ligne (paramètre KEY_PRISE_EN_CHARGE_TOTALE)");
+        }
+        if (params == null) {
+            return refus("Aucune donn\u00e9e re\u00e7ue.");
+        }
+        String motif = prixReferenceService.marquerPremier(venteId, detailId, params.getTiersPayantId());
+        if (motif != null) {
+            return refus(motif);
+        }
+        JSONObject json = new JSONObject().put("success", true);
+        ajouterNet(json, venteId, params);
+        return Response.ok(json.toString()).build();
+    }
+
+    private void ajouterNet(JSONObject json, String venteId, SaisieReferenceCaisseParams params) {
         // Net recalcule comme le ferait l'ecran apres une modification de la fiche article : meme service,
         // memes parametres (tiers-payants, bons, remise). Sans eux, l'ecran le relance lui-meme.
         if (params.getTierspayants() != null && !params.getTierspayants().isEmpty()) {
@@ -155,6 +188,5 @@ public class PrixReferenceRessource {
                 LOG.log(Level.WARNING, "net apres saisie de reference", e);
             }
         }
-        return Response.ok(json.toString()).build();
     }
 }

@@ -8371,6 +8371,16 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         me.prixRefCaisse = false;
         me.prixRefBaseParTp = false;
+        // retour du 10/11 : prise en charge totale d'une ligne ; a 0, aucune question n'est jamais posee
+        me.priseEnChargeTotale = false;
+        me.annulerQuestionPremier(true);
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/app-params/value/KEY_PRISE_EN_CHARGE_TOTALE',
+            success: function (response) {
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                me.priseEnChargeTotale = r.success === true && String(r.data).trim() === '1';
+            }
+        });
         Ext.Ajax.request({
             method: 'GET', url: '../api/v1/app-params/value/KEY_PRIX_REF_BASE_PAR_TP',
             success: function (response) {
@@ -8447,6 +8457,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (!me.prixRefCaisse || !vue || me.getSafeComboValue('getTypeVenteCombo', '1') !== '2') {
             return false;
         }
+        me.annulerQuestionPremier(true);
         const courante = vue.referenceTpDeLaLigne(e.record, ref.tpId);
         if (!courante) {
             return false;
@@ -8530,12 +8541,138 @@ Ext.define('testextjs.controller.VenteCtr', {
             refuser('le taux (' + taux + ') doit être compris entre 5 et 100.');
             return;
         }
+        // retour du 10/11 : un taux mis a 100 % pose la question « passe en premier et paiera 100 % de cette ligne »
+        // (parametre KEY_PRISE_EN_CHARGE_TOTALE a 1). Entree confirme, Echap annule la saisie : rien n'est ecrit ici.
+        if (ref.champ === 'taux' && taux === 100 && me.priseEnChargeTotale && !courante.premier) {
+            me.demanderPriseEnChargeTotale(e.record, e.column, ref, ligne);
+            return;
+        }
         // Entree sur une valeur inchangee : rien n'est ecrit (une valeur par defaut reste une valeur par defaut tant
         // qu'elle n'est pas modifiee ; une reference de la fiche reste telle quelle)
         if (valeur === courante.valeur && taux === courante.taux) {
             return;
         }
         me.enregistrerReferenceTp(e.record, ref, valeur, taux, ligne);
+    },
+
+    /**
+     * Retour du 10/11/2026 : question posee sous la grille, sans fenetre. Une seule assurance peut passer en premier
+     * sur une ligne : si une autre l'est deja, la saisie est refusee. La reponse se donne au clavier : Entree
+     * confirme, Echap annule ; toute autre touche ou un clic annule aussi (la question ne reste jamais en attente
+     * pendant qu'on saisit autre chose).
+     */
+    demanderPriseEnChargeTotale: function (record, colonne, ref, ligne) {
+        const me = this, vue = me.vueVenteReferenceTp();
+        if (!vue) {
+            return;
+        }
+        me.annulerQuestionPremier(true);
+        const autres = (record.get('referencesTp') || []).filter(function (r) {
+            return r && r.premier && r.tpId !== ref.tpId;
+        });
+        if (autres.length) {
+            vue.marquerCelluleReferenceTp(record, colonne);
+            vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : ' + autres[0].libelle + ' passe déjà en premier sur cette ligne, '
+                    + 'une seule assurance par ligne. Valeur rétablie, rien n\'a été enregistré.', true);
+            return;
+        }
+        vue.afficherMessageReferenceTp(ref.libelle + ' passe en premier et paiera 100 % de cette ligne. '
+                + 'Entrée pour confirmer, Échap pour annuler.', 'question');
+        const question = {record: record, ref: ref, ligne: ligne};
+        question.touche = function (ev) {
+            if (me.questionPremier !== question) {
+                return;
+            }
+            const t = ev.key;
+            if (t === 'Shift' || t === 'Control' || t === 'Alt' || t === 'Meta' || t === 'CapsLock') {
+                return;
+            }
+            if (t === 'Enter') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                me.annulerQuestionPremier(true);
+                me.confirmerPriseEnChargeTotale(question);
+            } else if (t === 'Escape') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                me.annulerQuestionPremier(false);
+            } else {
+                // une autre touche : la question est abandonnee, la touche suit son chemin
+                me.annulerQuestionPremier(false);
+            }
+        };
+        question.clic = function () {
+            if (me.questionPremier === question) {
+                me.annulerQuestionPremier(false);
+            }
+        };
+        me.questionPremier = question;
+        // apres la touche Entree qui a valide la cellule : l'ecoute ne commence qu'a la touche suivante
+        Ext.defer(function () {
+            if (me.questionPremier === question) {
+                document.addEventListener('keydown', question.touche, true);
+                document.addEventListener('mousedown', question.clic, true);
+            }
+        }, 80);
+    },
+
+    /** Retire la question en attente ; silencieux = sans message « saisie annulee ». */
+    annulerQuestionPremier: function (silencieux) {
+        const me = this, question = me.questionPremier;
+        if (!question) {
+            return;
+        }
+        me.questionPremier = null;
+        document.removeEventListener('keydown', question.touche, true);
+        document.removeEventListener('mousedown', question.clic, true);
+        const vue = me.vueVenteReferenceTp();
+        if (vue) {
+            if (silencieux) {
+                vue.afficherMessageReferenceTp(null);
+            } else {
+                vue.afficherMessageReferenceTp('Ligne ' + question.ligne + ' : saisie annulée, le taux n\'a pas changé.', false);
+            }
+        }
+    },
+
+    /** PUT v1/prix-reference/vente/{venteId}/ligne/{detailId}/premier, puis net recalcule et lignes rechargees. */
+    confirmerPriseEnChargeTotale: function (question) {
+        const me = this, vue = me.vueVenteReferenceTp(), vente = me.getCurrent();
+        if (!vue || !vente) {
+            return;
+        }
+        const ligne = question.ligne, ref = question.ref;
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/prix-reference/vente/' + vente.lgPREENREGISTREMENTID + '/ligne/'
+                    + question.record.get('lgPREENREGISTREMENTDETAILID') + '/premier',
+            params: Ext.JSON.encode({
+                tiersPayantId: ref.tpId, remiseId: me.getVnoremise().getValue(), tierspayants: me.buildAssuranceData()
+            }),
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (!result.success) {
+                    vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : ' + (result.msg || 'demande refusée.'), true);
+                    me.refresh();
+                    return;
+                }
+                vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : ' + ref.libelle + ' passe en premier et paie 100 % de cette ligne, '
+                        + 'pour cette vente seulement — net recalculé.', false);
+                if (result.net && result.net.success && result.net.data) {
+                    me.appliquerNetReferenceTp(result.net.data);
+                } else {
+                    me.toRecalculate = true;
+                    me.autoComputeNetAssurance();
+                }
+                me.refresh();
+            },
+            failure: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : ' + (result.msg || ('demande refusée (' + response.status + ').')), true);
+                me.refresh();
+            }
+        });
     },
 
     /** PUT v1/prix-reference/vente/{venteId}/ligne/{detailId}, puis net recalcule et lignes rechargees. */

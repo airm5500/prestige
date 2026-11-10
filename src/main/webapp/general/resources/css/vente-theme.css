@@ -3470,6 +3470,9 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .vp-vente .vp-ref-message { padding: 5px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 700; }
 .vp-vente .vp-ref-message-ko { background: #FDECEA; color: #7a1f14; border-radius: 6px; }
 .vp-vente .vp-ref-message-ok { background: #E8F5E9; color: #1b5e20; border-radius: 6px; }
+/* retour du 10/11 : question « passe en premier et paiera 100 % » (Entree confirme, Echap annule) et cellule marquee */
+.vp-vente .vp-ref-message-question { background: #FFF4D6; color: #6b4a00; border-radius: 6px; box-shadow: inset 0 0 0 1px #e0b84a; }
+.vp-vente .x-grid-cell.vp-ref-premier .x-grid-cell-inner { color: #b45309; font-weight: 800; }
 .vp-vente .vp-ref-rappel { font-size: 11px; color: #5a6b7c; padding: 0 4px; }
 
 /* Cas 1 du 03/11/2026 : ligne au comptant dans une vente assurance (KEY_LIGNE_COMPTANT_VO). Rien de ceci ne s'applique

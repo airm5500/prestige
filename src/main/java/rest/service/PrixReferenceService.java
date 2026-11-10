@@ -62,6 +62,19 @@ public interface PrixReferenceService {
     SaisieReferenceResultat saisieCaisse(String venteId, String detailId, String tiersPayantId, Integer valeur,
             Integer taux);
 
+    /** Retour du 10/11/2026 : vrai si KEY_PRISE_EN_CHARGE_TOTALE vaut 1. */
+    boolean priseEnChargeTotaleActive();
+
+    /**
+     * Retour du 10/11/2026 : marque la ligne pour que ce tiers-payant passe en premier et prenne 100 % de sa propre
+     * base, pour cette vente seulement (rien n'est ecrit dans les prix de reference). Controle le parametre, que la
+     * ligne appartient a une vente assurance encore ouverte, que le tiers-payant est sur la vente et qu'aucun autre
+     * n'est deja marque sur la ligne.
+     *
+     * @return le motif du refus, ou null si la marque est posee (ou l'etait deja)
+     */
+    String marquerPremier(String venteId, String detailId, String tiersPayantId);
+
     /**
      * Plan du 06/11, point 5.1 : references actives d'une ligne de vente pour ces tiers-payants, la saisie faite a la
      * caisse sur CETTE vente (pas encore validee) remplacant celle de la fiche article.

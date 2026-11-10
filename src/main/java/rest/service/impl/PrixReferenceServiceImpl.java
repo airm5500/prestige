@@ -217,6 +217,7 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
             existantes.put(p.getTiersPayant().getLgTIERSPAYANTID(), p);
         }
         int prixVente = Objects.requireNonNullElse(ligne.getIntPRICEUNITAIR(), 0);
+        boolean marqueLue = ligne.getTpPremierId() != null && priseEnChargeTotaleActive();
         for (TPreenregistrementCompteClientTiersPayent v : tps) {
             TCompteClientTiersPayant compte = v.getLgCOMPTECLIENTTIERSPAYANTID();
             TTiersPayant tp = compte.getLgTIERSPAYANTID();
@@ -244,9 +245,51 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
                 r.setTaux(existante.getValeurTaux() == null || existante.getType() == PrixReferenceType.PRIX_REFERENCE
                         ? tauxDefaut : Math.round(existante.getValeurTaux()));
             }
+            // retour du 10/11 : l'organisme qui passe en premier sur la ligne affiche 100 %
+            if (marqueLue && compte.getLgCOMPTECLIENTTIERSPAYANTID().equals(ligne.getTpPremierId())) {
+                r.setPremier(true);
+                r.setTaux(100);
+            }
             lignes.add(r);
         }
         return lignes;
+    }
+
+    @Override
+    public boolean priseEnChargeTotaleActive() {
+        return rest.service.vente.PriseEnChargeTotale.actif(em);
+    }
+
+    @Override
+    public String marquerPremier(String venteId, String detailId, String tiersPayantId) {
+        TPreenregistrementDetail ligne = detailId == null ? null : em.find(TPreenregistrementDetail.class, detailId);
+        if (ligne == null || ligne.getLgPREENREGISTREMENTID() == null || venteId == null
+                || !venteId.equals(ligne.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID())) {
+            return "Ligne de vente introuvable.";
+        }
+        TPreenregistrement vente = ligne.getLgPREENREGISTREMENTID();
+        List<TPreenregistrementCompteClientTiersPayent> tps = tiersPayantsDeLaVente(vente);
+        TPreenregistrementCompteClientTiersPayent voulu = null;
+        String dejaMarque = null;
+        for (TPreenregistrementCompteClientTiersPayent v : tps) {
+            TCompteClientTiersPayant c = v.getLgCOMPTECLIENTTIERSPAYANTID();
+            if (tiersPayantId != null && tiersPayantId.equals(c.getLgTIERSPAYANTID().getLgTIERSPAYANTID())) {
+                voulu = v;
+            } else if (c.getLgCOMPTECLIENTTIERSPAYANTID().equals(ligne.getTpPremierId())) {
+                dejaMarque = StringUtils.defaultIfBlank(c.getLgTIERSPAYANTID().getStrNAME(),
+                        c.getLgTIERSPAYANTID().getStrFULLNAME());
+            }
+        }
+        String motif = rest.service.vente.PriseEnChargeTotale.refus(priseEnChargeTotaleActive(),
+                vente.getLgTYPEVENTEID() != null
+                        && Constant.VENTE_ASSURANCE_ID.equals(vente.getLgTYPEVENTEID().getLgTYPEVENTEID()),
+                Constant.STATUT_IS_CLOSED.equals(vente.getStrSTATUT()), voulu != null, dejaMarque);
+        if (motif != null) {
+            return motif;
+        }
+        ligne.setTpPremierId(voulu.getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID());
+        em.merge(ligne);
+        return null;
     }
 
     @Override
@@ -317,6 +360,34 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
          */
         PrixReferenceSaisie saisie = saisieDeLaLigne(detailId, tiersPayantId);
         Optional<PrixReference> fiche = getByProduitIdAndTiersPayantId(produit.getLgFAMILLEID(), tiersPayantId);
+        /*
+         * Retour du 10/11 : sur une ligne ou ce tiers-payant passe en premier (prise en charge totale), la grille
+         * affiche 100 %. Un autre taux saisi retire la marque ; un prix saisi garde la marque, et le taux enregistre
+         * reste celui d'avant la marque (saisie, fiche, sinon taux du client) : le 100 % de la marque ne va jamais sur
+         * la fiche article.
+         */
+        if (ligne.getTpPremierId() != null && priseEnChargeTotaleActive()) {
+            TPreenregistrementCompteClientTiersPayent marque = tiersPayantsDeLaVente(vente).stream()
+                    .filter(v -> v.getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID()
+                            .equals(ligne.getTpPremierId())
+                            && tiersPayantId.equals(
+                                    v.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getLgTIERSPAYANTID()))
+                    .findFirst().orElse(null);
+            if (marque != null) {
+                if (taux != 100) {
+                    ligne.setTpPremierId(null);
+                    em.merge(ligne);
+                } else if (saisie != null && saisie.getValeurTaux() != null) {
+                    taux = Math.round(saisie.getValeurTaux());
+                } else if (fiche.isPresent() && fiche.get().isEnabled() && fiche.get().getValeurTaux() != null
+                        && fiche.get().getType() != PrixReferenceType.PRIX_REFERENCE) {
+                    taux = Math.round(fiche.get().getValeurTaux());
+                } else {
+                    taux = Objects.requireNonNullElse(marque.getIntPERCENT(), Objects
+                            .requireNonNullElse(marque.getLgCOMPTECLIENTTIERSPAYANTID().getIntPOURCENTAGE(), taux));
+                }
+            }
+        }
         PrixReference effective = saisie != null ? depuisSaisie(saisie, produit)
                 : fiche.filter(PrixReference::isEnabled).map(ReferenceCaisse::copie).orElse(null);
         PrixReference nouvelle = new PrixReference();
