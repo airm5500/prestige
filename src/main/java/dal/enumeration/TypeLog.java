@@ -47,7 +47,9 @@ public enum TypeLog {
     // faille de droits du 31/10 : acces de depannage ouvert ou ferme (ajoute a la fin : rang)
     SECURITE_DROITS("Droits et accès sensibles", true),
     // cas 3 du 03/11/2026 : produit coche / decoche « ordonnancier » ou « sensible » (ajoute a la fin : rang)
-    ORDONNANCIER_PRODUIT("Produit ordonnancier ou sensible", true);
+    ORDONNANCIER_PRODUIT("Produit ordonnancier ou sensible", true),
+    // plan du 09/11, point 13 : envoi d'un message (ticket Z par SMS ou WhatsApp) ; ajoute a la fin : rang
+    ENVOI_MESSAGE("Envoi de message", true);
 
     private final String value;
     private final boolean checked;

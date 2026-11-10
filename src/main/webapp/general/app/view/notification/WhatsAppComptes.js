@@ -24,10 +24,30 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
             emptyText: aide ? 'non défini : ' + aide : 'non défini', aide: aide, itemId: name};
     },
 
+    /**
+     * Plan du 09/11, point 13 : indicateur de l'evolution d'un envoi. Quatre pastilles (prepare, envoye, distribue, lu),
+     * allumees jusqu'a l'etape atteinte ; un echec est en rouge ; un lien wa.me n'a que deux etapes (prepare, ouvert).
+     */
+    suivi: function (statut, etapes, etat) {
+        var lien = statut === 'OUVERT', echec = statut === 'ECHEC';
+        var noms = lien ? ['Préparé', 'Lien ouvert'] : ['Préparé', 'Envoyé', 'Distribué', 'Lu'];
+        var couleurs = ['#85929e', '#85c1e9', '#2471a3', '#1e8449'];
+        var h = '<span class="wa-suivi" data-statut="' + Ext.String.htmlEncode(statut || '') + '" data-etapes="' + (etapes || 0) + '">';
+        for (var i = 0; i < noms.length; i++) {
+            var allume = !echec && i < etapes;
+            var c = echec ? (i === 0 ? '#c0392b' : '#e5e8e8') : (allume ? (lien && i === 1 ? '#2471a3' : couleurs[i]) : '#e5e8e8');
+            h += '<span class="wa-etape' + (allume ? ' wa-etape-faite' : '') + '" title="' + noms[i] + '" style="display:inline-block;width:10px;height:10px;'
+                    + 'border-radius:5px;margin-right:3px;vertical-align:middle;background:' + c + '"></span>';
+        }
+        var tc = echec ? '#c0392b' : (statut === 'LU' ? '#1e8449' : (statut === 'DELIVRE' ? '#2471a3' : '#555'));
+        return h + ' <b class="wa-etat" style="color:' + tc + ';vertical-align:middle">' + Ext.String.htmlEncode(etat || '') + '</b></span>';
+    },
+
     initComponent: function () {
         var me = this;
         var journal = Ext.create('Ext.data.Store', {
-            fields: ['date', 'maj', 'mode', 'simule', 'statut', 'erreur', 'repliSms', 'telephone', 'client', 'essai'],
+            fields: ['date', 'maj', 'mode', 'simule', 'statut', 'erreur', 'repliSms', 'telephone', 'client', 'essai',
+                'origine', 'origineLibelle', 'utilisateur', 'etapes', 'etat'],
             proxy: {type: 'ajax', url: '../api/v1/whatsapp/journal', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
         });
         var section = function (titre, items) {
@@ -122,10 +142,18 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                                 return r.get('essai') ? '<i>essai</i>' : Ext.String.htmlEncode(v || '');
                             }},
                         {text: 'Téléphone', dataIndex: 'telephone', width: 110},
-                        {text: 'Mode', dataIndex: 'mode', width: 60},
-                        {text: 'Statut', dataIndex: 'statut', width: 90, renderer: function (v) {
-                                var c = {SIMULE: '#7f8c8d', ENVOYE: '#2980b9', DELIVRE: '#27ae60', LU: '#1e8449', ECHEC: '#c0392b'}[v] || '#555';
-                                return '<b style="color:' + c + '">' + ({SIMULE: 'simulé', ENVOYE: 'envoyé', DELIVRE: 'délivré', LU: 'lu', ECHEC: 'échec'}[v] || v) + '</b>';
+                        /* plan du 09/11, point 13 : origine de l'envoi et utilisateur qui l'a declenche */
+                        {text: 'Origine', dataIndex: 'origineLibelle', width: 95, renderer: function (v, m, r) {
+                                return '<span class="wa-origine" data-origine="' + Ext.String.htmlEncode(r.get('origine') || '') + '">'
+                                        + Ext.String.htmlEncode(v || '') + '</span>';
+                            }},
+                        {text: 'Utilisateur', dataIndex: 'utilisateur', width: 120, renderer: function (v) {
+                                return Ext.String.htmlEncode(v || '');
+                            }},
+                        {text: 'Mode', dataIndex: 'mode', width: 55},
+                        /* plan du 09/11, point 13 : suivi de l'envoi (prepare, envoye, distribue, lu ; echec) */
+                        {text: 'Suivi', dataIndex: 'statut', width: 190, renderer: function (v, m, r) {
+                                return me.suivi(r.get('statut'), r.get('etapes'), r.get('etat'));
                             }},
                         {text: 'Repli SMS', dataIndex: 'repliSms', width: 75, renderer: function (v) {
                                 return v ? 'oui' : '';

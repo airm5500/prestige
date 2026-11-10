@@ -23,6 +23,12 @@ public interface SmsService {
     void sendSMS(String content);
 
     /**
+     * Plan du 09/11, point 13 : envoi au numero d'administration, avec son resultat (« Envoyé », « Échec », « Non
+     * envoyé : motif »), pour le tracer ; jamais le texte.
+     */
+    String sendSMSStatut(String content);
+
+    /**
      * Envoi immédiat et asynchrone d'une notification SMS à partir de son identifiant (rechargée dans une transaction
      * dédiée). Utilisé pour ne plus attendre le job planifié (ex. SMS de disponibilité d'avoir).
      */

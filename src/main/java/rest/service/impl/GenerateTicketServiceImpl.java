@@ -572,6 +572,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private SessionHelperService sessionHelperService;
     @EJB
     private SmsService smsService;
+    /* plan du 09/11, point 13 : envoi du ticket Z trace dans le journal des evenements */
+    @EJB
+    private rest.service.LogService logService;
     @EJB
     private rest.service.WhatsAppService whatsAppService;
 
@@ -3907,8 +3910,30 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     // @Asynchronous
     @Override
     public void sendToSms(Params params) throws JSONException {
-        params.setOperateur(this.sessionHelperService.getCurrentUser());
-        this.smsService.sendSMS(texteTicketZ(buildTicketZ(params)));
+        TUser u = this.sessionHelperService.getCurrentUser();
+        params.setOperateur(u);
+        String statut = this.smsService.sendSMSStatut(texteTicketZ(buildTicketZ(params)));
+        /* plan du 09/11, point 13 : envoi trace dans le journal des evenements (jamais le texte) */
+        tracerTicketZ(u, "SMS", statut);
+    }
+
+    /**
+     * Plan du 09/11, point 13 : texte de la trace (canal et etat, jamais le texte du ticket), 255 caracteres au plus.
+     */
+    static String traceTicketZ(String canal, String etat) {
+        String t = "Ticket Z envoyé au pharmacien (" + canal + ") : " + StringUtils.defaultIfBlank(etat, "Échec");
+        return t.length() > 255 ? t.substring(0, 255) : t;
+    }
+
+    /** Plan du 09/11, point 13 : « Ticket Z envoye au pharmacien (canal) : etat », avec l'utilisateur. */
+    private void tracerTicketZ(TUser u, String canal, String etat) {
+        try {
+            String desc = traceTicketZ(canal, etat);
+            logService.journaliserSansRisque(u, "TICKET_Z", desc, dal.enumeration.TypeLog.ENVOI_MESSAGE,
+                    "whatsapp_message", desc);
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "journal de l'envoi du ticket Z", e);
+        }
     }
 
     /**
@@ -3919,11 +3944,17 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     public JSONObject sendToWhatsApp(Params params) {
         String numero = util.AppParameters.getInstance().mobile;
         if (StringUtils.isBlank(numero)) {
+            tracerTicketZ(this.sessionHelperService.getCurrentUser(), "WhatsApp",
+                    "Non envoyé : aucun numéro d'administration");
             return new JSONObject().put("success", false).put("statut", "ECHEC").put("message",
                     "Aucun numéro d'administration (celui du SMS) n'est réglé.");
         }
-        params.setOperateur(this.sessionHelperService.getCurrentUser());
-        return whatsAppService.envoyerTexte(numero, texteTicketZ(buildTicketZ(params)));
+        TUser u = this.sessionHelperService.getCurrentUser();
+        params.setOperateur(u);
+        JSONObject r = whatsAppService.envoyerTexte(numero, texteTicketZ(buildTicketZ(params)),
+                rest.service.impl.whatsapp.OrigineEnvoi.TICKET_Z, u == null ? null : u.getLgUSERID());
+        tracerTicketZ(u, "WhatsApp", rest.service.impl.whatsapp.OrigineEnvoi.etat(r.optString("statut", "ECHEC")));
+        return r;
     }
 
     /** Texte du ticket Z envoye au numero d'administration (SMS et WhatsApp) : par caissier, puis total general. */

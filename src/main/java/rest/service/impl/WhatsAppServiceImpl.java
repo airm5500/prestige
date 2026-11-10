@@ -174,7 +174,8 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         WhatsAppCompte c = compte(modeDefaut());
         WhatsAppEnvoi.Resultat r = WhatsAppEnvoi.envoyer(c, tel.getInternational(),
                 StringUtils.defaultIfBlank(texte, "Message d'essai de la pharmacie."));
-        journaliser(null, null, tel.getLocal(), c == null ? modeDefaut() : c.mode, r, false);
+        journaliser(null, null, tel.getLocal(), c == null ? modeDefaut() : c.mode, r, false,
+                rest.service.impl.whatsapp.OrigineEnvoi.ESSAI, operateur == null ? null : operateur.getLgUSERID());
         LOG.log(Level.INFO, "Essai WhatsApp ({0}) : {1}",
                 new Object[] { modeDefaut(), r.accepte ? "accepte" : "refuse" });
         return new JSONObject()
@@ -186,14 +187,15 @@ public class WhatsAppServiceImpl implements WhatsAppService {
     }
 
     @Override
-    public JSONObject envoyerTexte(String numero, String texte) {
+    public JSONObject envoyerTexte(String numero, String texte, String origine, String userId) {
         TelephoneCi.Resultat tel = TelephoneCi.controler(numero);
         if (!tel.isValide()) {
             return refus("Numéro invalide : " + tel.getMotif() + ".").put("statut", "ECHEC");
         }
         WhatsAppCompte c = compte(modeDefaut());
         WhatsAppEnvoi.Resultat r = WhatsAppEnvoi.envoyer(c, tel.getInternational(), texte);
-        journaliser(null, null, tel.getLocal(), c == null ? modeDefaut() : c.mode, r, false);
+        journaliser(null, null, tel.getLocal(), c == null ? modeDefaut() : c.mode, r, false,
+                rest.service.impl.whatsapp.OrigineEnvoi.valide(origine), userId);
         String statut = r.accepte ? (r.simule ? "SIMULE" : "ENVOYE") : "ECHEC";
         return new JSONObject()
                 .put("success", r.accepte).put("simule",
@@ -212,6 +214,10 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         WhatsAppCompte c = compte(modeDefaut());
         /* retour du 24/10 : piece jointe de la campagne a laquelle appartient la notification */
         PieceJointe piece = pieceDeLaCampagne(notificationId);
+        /* plan du 09/11, point 13 : origine (campagne ou rappel) et utilisateur qui a declenche l'envoi */
+        String origine = deCampagne(notificationId) ? rest.service.impl.whatsapp.OrigineEnvoi.CAMPAGNE
+                : rest.service.impl.whatsapp.OrigineEnvoi.RAPPEL;
+        String auteur = n.getUser() == null ? null : n.getUser().getLgUSERID();
         int envoyes = 0;
         List<NotificationClient> nonServis = new ArrayList<>();
         for (NotificationClient nc : n.getNotificationClients()) {
@@ -232,7 +238,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
             }
             boolean repli = !r.accepte && repliSms && !Boolean.FALSE.equals(tc.getBoolCONSENTSMS());
             journaliser(n.getId(), tc.getLgCLIENTID(), tel.isValide() ? tel.getLocal() : null,
-                    c == null ? modeDefaut() : c.mode, r, repli);
+                    c == null ? modeDefaut() : c.mode, r, repli, origine, auteur);
             if (r.accepte) {
                 envoyes++;
             } else if (repli) {
@@ -257,6 +263,13 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                 new Object[] { notificationId, envoyes, nonServis.size() });
         return new JSONObject().put("success", true).put("envoyes", envoyes).put("repli", nonServis.size())
                 .put("repliNotificationId", repliId == null ? JSONObject.NULL : repliId);
+    }
+
+    /** Plan du 09/11, point 13 : la notification appartient-elle a une campagne ? */
+    @SuppressWarnings("unchecked")
+    private boolean deCampagne(String notificationId) {
+        return !em.createNativeQuery("SELECT 1 FROM t_campagne_ligne WHERE lg_NOTIFICATION_ID = ?1")
+                .setParameter(1, notificationId).setMaxResults(1).getResultList().isEmpty();
     }
 
     /** Piece jointe de la campagne d'une notification, ou null (pas de campagne, ou campagne sans piece). */
@@ -289,15 +302,20 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         }
     }
 
+    /**
+     * Une ligne du journal des envois (jamais le texte du message). Plan du 09/11, point 13 : avec l'origine de l'envoi
+     * et l'utilisateur qui l'a declenche.
+     */
     private void journaliser(String notificationId, String clientId, String telephone, String mode,
-            WhatsAppEnvoi.Resultat r, boolean repli) {
+            WhatsAppEnvoi.Resultat r, boolean repli, String origine, String userId) {
         em.createNativeQuery("INSERT INTO whatsapp_message (id, notification_id, client_id, telephone, mode, simule,"
-                + " statut, message_id, erreur, repli_sms, created_at, updated_at)"
-                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, NOW(), NOW())")
+                + " statut, message_id, erreur, repli_sms, created_at, updated_at, origine, utilisateur_id)"
+                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, NOW(), NOW(), ?11, ?12)")
                 .setParameter(1, UUID.randomUUID().toString()).setParameter(2, notificationId).setParameter(3, clientId)
                 .setParameter(4, telephone).setParameter(5, mode).setParameter(6, r.simule ? 1 : 0)
                 .setParameter(7, r.accepte ? (r.simule ? "SIMULE" : "ENVOYE") : "ECHEC").setParameter(8, r.messageId)
-                .setParameter(9, r.erreur).setParameter(10, repli ? 1 : 0).executeUpdate();
+                .setParameter(9, r.erreur).setParameter(10, repli ? 1 : 0).setParameter(11, origine)
+                .setParameter(12, userId).executeUpdate();
     }
 
     /* ------------------------------------------------------------------ fils de discussion (demande du 25/10) */
@@ -353,7 +371,9 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                 .nettoyer(modele ? personnaliser(texte, r.clientId) : texte);
         WhatsAppEnvoi.Resultat res = WhatsAppEnvoi.envoyer(c, TelephoneCi.controler(r.numero).getInternational(), t,
                 piece);
-        journaliser(null, r.clientId, r.numero, c == null ? modeDefaut() : c.mode, res, false);
+        journaliser(null, r.clientId, r.numero, c == null ? modeDefaut() : c.mode, res, false, modele
+                ? rest.service.impl.whatsapp.OrigineEnvoi.DISCUSSION : rest.service.impl.whatsapp.OrigineEnvoi.AVIS,
+                userId);
         rest.service.impl.whatsapp.DiscussionStockage.sortant(em, r, t, piece == null ? null : piece.nomFichier,
                 piece == null ? "TEXTE" : ("IMAGE".equalsIgnoreCase(piece.type) ? "IMAGE" : "DOCUMENT"), res, userId);
         String statut = res.accepte ? (res.simule ? "SIMULE" : "ENVOYE") : "ECHEC";
@@ -595,11 +615,16 @@ public class WhatsAppServiceImpl implements WhatsAppService {
     @Override
     @SuppressWarnings("unchecked")
     public JSONObject journal(int limite) {
+        /* plan du 09/11, point 13 : origine, utilisateur et etapes du suivi */
         List<Object[]> r = em.createNativeQuery("SELECT w.created_at, w.updated_at, w.mode, w.simule, w.statut,"
                 + " w.erreur, w.repli_sms, w.telephone,"
-                + " TRIM(CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,''))), w.notification_id"
+                + " TRIM(CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,''))), w.notification_id,"
+                + " w.origine, TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))),"
+                + " CASE WHEN w.notification_id IS NOT NULL AND EXISTS (SELECT 1 FROM t_campagne_ligne l"
+                + " WHERE l.lg_NOTIFICATION_ID = w.notification_id) THEN 1 ELSE 0 END"
                 + " FROM whatsapp_message w LEFT JOIN t_client c ON c.lg_CLIENT_ID = w.client_id"
-                + " ORDER BY w.created_at DESC LIMIT " + Math.max(1, Math.min(500, limite))).getResultList();
+                + " LEFT JOIN t_user u ON u.lg_USER_ID = w.utilisateur_id" + " ORDER BY w.created_at DESC LIMIT "
+                + Math.max(1, Math.min(500, limite))).getResultList();
         JSONArray a = new JSONArray();
         for (Object[] l : r) {
             a.put(new JSONObject().put("date", l[0] == null ? "" : String.valueOf(l[0]).substring(0, 19))
@@ -607,9 +632,39 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                     .put("simule", vrai(l[3])).put("statut", l[4])
                     .put("erreur", StringUtils.defaultString((String) l[5])).put("repliSms", vrai(l[6]))
                     .put("telephone", StringUtils.defaultString((String) l[7]))
-                    .put("client", StringUtils.defaultString((String) l[8])).put("essai", l[9] == null));
+                    .put("client", StringUtils.defaultString((String) l[8])));
+            String origine = rest.service.impl.whatsapp.OrigineEnvoi.afficher((String) l[10], (String) l[9],
+                    vrai(l[12]));
+            String statut = (String) l[4];
+            a.getJSONObject(a.length() - 1).put("essai", rest.service.impl.whatsapp.OrigineEnvoi.ESSAI.equals(origine))
+                    .put("origine", origine)
+                    .put("origineLibelle", rest.service.impl.whatsapp.OrigineEnvoi.libelle(origine))
+                    .put("utilisateur", StringUtils.defaultString((String) l[11]))
+                    .put("etapes", rest.service.impl.whatsapp.OrigineEnvoi.etapes(statut))
+                    .put("etat", rest.service.impl.whatsapp.OrigineEnvoi.etat(statut));
         }
         return new JSONObject().put("success", true).put("total", a.length()).put("data", a);
+    }
+
+    /**
+     * Plan du 09/11, point 13 : lien wa.me ouvert depuis Campagne client. Prestige ne voit pas l'envoi reel (il part du
+     * WhatsApp du telephone ou du navigateur) : il garde seulement le clic, avec le client et l'utilisateur.
+     */
+    @Override
+    public JSONObject lienOuvert(String clientId, String userId) {
+        TClient tc = StringUtils.isBlank(clientId) ? null : em.find(TClient.class, clientId);
+        if (tc == null) {
+            return refus("Client introuvable.");
+        }
+        TelephoneCi.Resultat tel = util.TelephoneClient.controler(tc);
+        em.createNativeQuery("INSERT INTO whatsapp_message (id, notification_id, client_id, telephone, mode, simule,"
+                + " statut, message_id, erreur, repli_sms, created_at, updated_at, origine, utilisateur_id)"
+                + " VALUES (?1, NULL, ?2, ?3, 'LIEN', 0, ?4, NULL, NULL, 0, NOW(), NOW(), ?5, ?6)")
+                .setParameter(1, UUID.randomUUID().toString()).setParameter(2, tc.getLgCLIENTID())
+                .setParameter(3, tel.isValide() ? tel.getLocal() : null)
+                .setParameter(4, rest.service.impl.whatsapp.OrigineEnvoi.OUVERT)
+                .setParameter(5, rest.service.impl.whatsapp.OrigineEnvoi.LIEN).setParameter(6, userId).executeUpdate();
+        return new JSONObject().put("success", true);
     }
 
     /* ------------------------------------------------------------------ outils */
