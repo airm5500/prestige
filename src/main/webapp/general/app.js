@@ -1186,6 +1186,98 @@ window.PrestigeCouleursLignes = (function () {
 })();
 
 // ---------------------------------------------------------------------
+// Retour du 10/11 : « Cannot read properties of undefined (reading
+// 'componentLayoutCounter') », Entree et page suivante sans effet.
+//
+// Dans Ext 4.2.1, setLoading() detruit this.loadMask. Sur une vue de
+// grille, this.loadMask est le masque qui suit les chargements de la
+// liste : il etait detruit SANS etre desabonne de la liste, et au
+// chargement suivant ce masque mort repondait sans composant, ce qui
+// arretait le chargement avant la requete. Le verrou d'ouverture
+// (PrestigeChargement.verrou) pose setLoading sur la vue depuis les
+// icones de ligne : detail article, ventes terminees, preventes...
+//
+// 1. Sur une vue dont le masque suit la liste, setLoading pose un masque
+//    ponctuel a part et laisse celui de la liste en place.
+// 2. Un masque detruit ou sans composant se desabonne de sa liste au lieu
+//    de planter (filet pour tout autre chemin).
+// ---------------------------------------------------------------------
+Ext.define('Prestige.override.VueMasquePonctuel', {
+    override: 'Ext.view.AbstractView',
+
+    setLoading: function (load, targetEl) {
+        var me = this,
+            masque = me.loadMask,
+            config;
+        if (!(masque && masque.isComponent && !masque.isDestroyed && masque.store)) {
+            return me.callParent(arguments);
+        }
+        Ext.destroy(me.masquePonctuel);
+        me.masquePonctuel = null;
+        if (me.rendered && load !== false && !me.collapsed) {
+            config = {target: me};
+            if (Ext.isObject(load)) {
+                Ext.apply(config, load);
+            } else if (Ext.isString(load)) {
+                config.msg = load;
+            }
+            if (targetEl) {
+                config.useTargetEl = true;
+            }
+            me.masquePonctuel = new Ext.LoadMask(config);
+            me.masquePonctuel.show();
+        }
+        return me.masquePonctuel;
+    },
+
+    onDestroy: function () {
+        Ext.destroy(this.masquePonctuel);
+        this.masquePonctuel = null;
+        this.callParent(arguments);
+    }
+});
+
+Ext.define('Prestige.override.MasqueSansComposant', {
+    override: 'Ext.LoadMask',
+
+    /* desabonne de la liste sans passer par bindStore(null), qui detruirait une liste en autoDestroy */
+    lacherListe: function () {
+        var me = this;
+        if (me.store) {
+            me.unbindStoreListeners(me.store);
+            me.store = null;
+        }
+    },
+
+    estMort: function () {
+        var proprietaire = this.getOwner();
+        return this.isDestroyed || !proprietaire || proprietaire.isDestroyed;
+    },
+
+    onBeforeLoad: function () {
+        if (this.estMort()) {
+            this.lacherListe();
+            return;
+        }
+        return this.callParent(arguments);
+    },
+
+    onLoad: function () {
+        if (this.estMort()) {
+            this.loading = false;
+            this.lacherListe();
+            return;
+        }
+        return this.callParent(arguments);
+    },
+
+    onDestroy: function () {
+        this.lacherListe();
+        this.callParent(arguments);
+    }
+});
+
+// ---------------------------------------------------------------------
 // Ligne active : au clic, c'est la LIGNE entiere qui est marquee (violet),
 // pas la seule cellule cliquee.
 //

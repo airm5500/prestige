@@ -306,7 +306,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         winDetailArticleOuverte = null;
         // Nettoyage des IDs globaux partages avec d'autres vues (evite duplicate id)
         var sharedIds = [
-            'lg_ZONE_GEO_ID', 'lg_FAMILLEARTICLE_ID', 'lg_CODE_ACTE_ID', 'lg_CODE_GESTION_ID',
+            'detail_lg_ZONE_GEO_ID', 'lg_FAMILLEARTICLE_ID', 'lg_CODE_ACTE_ID', 'lg_CODE_GESTION_ID',
             'lg_TYPEETIQUETTE_ID', 'int_CIP', 'str_DESCRIPTION', 'int_EAN13',
             'int_PRICE', 'int_PAF', 'int_PAT', 'int_PRICE_TIPS', 'int_TAUX_MARQUE',
             'str_CODE_REMISE', 'str_CODE_TAUX_REMBOURSEMENT', 'int_T', 'str_CODE_TVA',
@@ -559,7 +559,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                         {
                                             fieldLabel: 'Emplacement',
                                             name: 'lg_ZONE_GEO_ID',
-                                            id: 'lg_ZONE_GEO_ID'
+                                            id: 'detail_lg_ZONE_GEO_ID'
                                         },
                                         {
                                             fieldLabel: 'Famille',
@@ -1653,7 +1653,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('int_Q1_SEUIL_REAPPRO').setValue(rec.int_Q1_SEUIL_REAPPRO);
         Ext.getCmp('int_Q2_QTE_REAPPRO').setValue(rec.int_Q2_QTE_REAPPRO);
         Ext.getCmp('lg_FAMILLEARTICLE_ID').setValue(rec.lg_FAMILLEARTICLE_ID);
-        Ext.getCmp('lg_ZONE_GEO_ID').setValue(rec.lg_ZONE_GEO_ID);
+        Ext.getCmp('detail_lg_ZONE_GEO_ID').setValue(rec.lg_ZONE_GEO_ID);
         Ext.getCmp('str_DESCRIPTION').setValue(rec.str_DESCRIPTION);
         Ext.getCmp('int_CIP').setValue(rec.int_CIP);
         Ext.getCmp('int_QTEDETAIL').setValue(rec.int_NUMBERDETAIL);
