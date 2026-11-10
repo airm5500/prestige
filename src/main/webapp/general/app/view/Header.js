@@ -24,7 +24,8 @@ Ext.define('testextjs.view.Header', {
                 xtype: 'component',
                 id: 'app-header-title',
                 html: '<a href="#" onclick="loadMainMenu();" class="hdr-brand" title="Retour au menu principal">'
-                        + '<span class="hdr-brand-ico"><i class="fa fa-plus"></i></span>'
+                        /* plan du 09/11, point 16 : icone Prestige 3 a la place de la croix */
+                        + '<span class="hdr-brand-ico hdr-brand-ico--image"><img src="../resources/images/icone-prestige/icone-prestige-64.png?v=3" alt=""></span>'
                         + '<span class="hdr-brand-txt hdr-animated-text--brand">PRESTIGE 3</span>'
                         + '</a>'
             }
