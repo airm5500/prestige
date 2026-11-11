@@ -99,13 +99,18 @@ Ils auraient touché le serveur de l'utilisateur ; ils sont donc retirés de la 
 
 La session du lot Q2.5 a joué deux tests sur 8080 après son redéploiement de 01:12 : `test-parametres-explication-1011` (10/10) et `test-rapprochement-ticket` (19/19).
 
-## 4. Défaut constaté pendant ces tests, sans lien avec la branche
+## 4. Règlement partiel de 160 F au lieu de 7 160 F : ce n'était pas un défaut (correction du 11/11)
 
-**Règlement partiel d'un différé, sur le code de l'intégration.** Le test `retours/test-recu-differe-numero-1111` saisit 7 160 F à l'écran « Faire un règlement » sur 2 ventes cochées. Seuls **160 F** sont enregistrés : dossier, caisse, transaction, règlement et dettes.
+**Constat.** Le test `retours/test-recu-differe-numero-1111` saisissait 7 160 F à l'écran « Faire un règlement » sur 2 ventes cochées. Seuls **160 F** étaient enregistrés, sur l'ancien code comme sur la version fusionnée.
 
-Le défaut est **confirmé** par ce test, qui échoue deux fois : sur l'ancien code `66cadaf0d` et sur la version fusionnée. Il existait donc avant la fusion.
+**Cause : la vitesse de saisie du test, pas Prestige.** Le même écart est apparu ensuite sur `plan/09112026`.
+- Le champ « MONTANT RECU » sélectionne son contenu à la prise de focus (`selectOnFocus`).
+- Sous Chrome, ExtJS fait cette sélection par une tâche différée.
+- Le test tapait aussitôt après le clic. La sélection tardive englobait alors le « 7 » déjà tapé, et le « 1 » suivant l'écrasait.
 
-Sur `plan/09112026`, le même test enregistre bien 7 160 F. La différence entre les deux branches est à analyser avant la prochaine fusion de `plan/09112026`.
+Une personne ne tape pas dans la milliseconde qui suit le clic.
+
+**Correction du test** (commit `2b8c89992`, `plan/09112026`) : il attend après le clic et relit le champ avant de valider. Le test passe 44/44, avec 7 160 F enregistrés partout. Le défaut annoncé ici comme « confirmé » est retiré.
 
 ## 5. Incident de la nuit sur 8080 (domain1)
 
