@@ -132,9 +132,11 @@ class RenduTicketTest {
     void reglementDiffere() {
         String t = texte(doc(ModeleTicket.REGLEMENT_DIFFERE, 80, new ReglagesTicket(ModeleTicket.REGLEMENT_DIFFERE)));
         assertTrue(t.contains("REÇU DE RÈGLEMENT · DIFFÉRÉ"), t);
-        assertTrue(t.contains("PAIRE[Montant dû (3 dossiers) | 27 450 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[Montant dû (3 ventes) | 27 450 F CFA]"), t);
         assertTrue(t.contains("ENCADRE[RÉGLÉ | 20 000 F CFA]"), t);
-        assertTrue(t.contains("PAIRE[Reste dû | 7 450 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[Reste sur ces ventes | 7 450 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[Solde restant du client | 12 950 F CFA]"), t);
+        assertFalse(t.contains("Reste dû"), t);
         assertTrue(t.contains("PAIRE[Vente 261028_00041 | 12 300]"), t);
     }
 

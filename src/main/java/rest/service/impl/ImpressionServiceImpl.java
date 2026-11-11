@@ -76,6 +76,8 @@ public class ImpressionServiceImpl implements Printable {
     private String referencePied = "";
     private String encoursCarnet = "";
     private List<String[]> piecesReglees = new ArrayList<>();
+    /** Plan du 10/11, point 1 : ventes reglees d'un recu de differe (« VENTES;du;reste »), nouveau modele seulement. */
+    private String ventesReglees;
     /** Cas 1 du 03/11/2026 : les deux ventes du ticket client combine (VENTE_MIXTE). */
     private List<ConversionTicket.Section> sectionsTicket = new ArrayList<>();
 
@@ -587,6 +589,10 @@ public class ImpressionServiceImpl implements Printable {
         this.encoursCarnet = encoursCarnet == null ? "" : encoursCarnet;
     }
 
+    public void setVentesReglees(String ventesReglees) {
+        this.ventesReglees = ventesReglees;
+    }
+
     public void setPiecesReglees(List<String[]> pieces) {
         this.piecesReglees = pieces == null ? new ArrayList<>() : pieces;
     }
@@ -622,6 +628,10 @@ public class ImpressionServiceImpl implements Printable {
         s.imageCode = this.isShowCodeBar() ? nonNul(this.getCodeBar()) : "";
         s.referencePied = referencePied;
         s.datas = this.datas == null ? new ArrayList<>() : this.datas;
+        if (ventesReglees != null) {
+            s.datas = new ArrayList<>(s.datas);
+            s.datas.add(ventesReglees);
+        }
         s.infoSellers = this.infoSellers == null ? new ArrayList<>() : this.infoSellers;
         s.infoTiersPayants = this.infoTiersPayants == null ? new ArrayList<>() : this.infoTiersPayants;
         s.subtotal = this.subtotal == null ? new ArrayList<>() : this.subtotal;

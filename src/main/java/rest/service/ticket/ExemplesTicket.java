@@ -68,6 +68,12 @@ public final class ExemplesTicket {
             s.infoSellers = Collections.singletonList("Opérateur:: A.KONE");
             s.datas = Arrays.asList("NBRE DOSSIER(S);VERSE;RESTANT",
                     facture ? "2;350 000F CFA;0F CFA" : "3;20 000F CFA;7 450F CFA", " ; ; ");
+            if (t == ModeleTicket.REGLEMENT_DIFFERE) {
+                /* le client doit encore 5 500 F sur une vente non reglee ici : son solde differe du reste des ventes */
+                s.datas = new ArrayList<>(
+                        Arrays.asList("NBRE DOSSIER(S);VERSE;RESTANT", "3;20 000F CFA;12 950F CFA", " ; ; "));
+                s.datas.add(ConversionTicket.ligneVentes(new long[] { 27450 }, new long[] { 7450 }));
+            }
             s.subtotal = Arrays.asList("Net à payer: ;     " + (facture ? "350.000" : "27.450") + "; F CFA;1",
                     "Règlement: ;     " + (facture ? "Chèque" : "Espèces") + "; ;0",
                     "Montant Versé: ;     " + (facture ? "350.000" : "20.000") + "; F CFA;0",

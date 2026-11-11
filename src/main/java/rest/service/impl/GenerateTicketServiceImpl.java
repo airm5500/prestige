@@ -568,6 +568,43 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return res.size() > 10 ? new ArrayList<>() : res;
     }
 
+    /**
+     * Plan du 10/11, point 1 (accord du 11/11) : « VENTES;du;reste » des seules ventes reglees par ce dossier, a la
+     * date du dossier. reste = reste actuel de la dette + versements posterieurs sur cette dette (une reimpression
+     * apres un autre reglement redonne les montants du jour du recu) ; du = reste + part reglee. Null si une dette est
+     * introuvable (le recu garde alors l'ancienne presentation).
+     */
+    private String ligneVentesReglees(TDossierReglement dossier, List<TDossierReglementDetail> details) {
+        long[] du = new long[details.size()];
+        long[] reste = new long[details.size()];
+        for (int i = 0; i < details.size(); i++) {
+            TDossierReglementDetail d = details.get(i);
+            TPreenregistrementCompteClient dette = d.getStrREF() == null ? null
+                    : getEntityManager().find(TPreenregistrementCompteClient.class, d.getStrREF());
+            if (dette == null) {
+                return null;
+            }
+            reste[i] = (dette.getIntPRICERESTE() == null ? 0 : dette.getIntPRICERESTE())
+                    + versementsPosterieurs(d.getStrREF(), dossier);
+            du[i] = reste[i] + (d.getDblAMOUNT() == null ? 0 : d.getDblAMOUNT().longValue());
+        }
+        return ConversionTicket.ligneVentes(du, reste);
+    }
+
+    /** Somme versee sur une dette par les dossiers de reglement crees apres celui-ci. */
+    private long versementsPosterieurs(String dette, TDossierReglement dossier) {
+        if (dossier == null || dossier.getDtCREATED() == null) {
+            return 0;
+        }
+        Double s = getEntityManager()
+                .createQuery("SELECT SUM(d.dblAMOUNT) FROM TDossierReglementDetail d WHERE d.strREF = :dette"
+                        + " AND d.lgDOSSIERREGLEMENTID.dtCREATED > :date AND d.lgDOSSIERREGLEMENTID <> :dossier",
+                        Double.class)
+                .setParameter("dette", dette).setParameter("date", dossier.getDtCREATED())
+                .setParameter("dossier", dossier).getSingleResult();
+        return s == null ? 0 : Math.round(s);
+    }
+
     /** Vente d'une dette de differe (t_preenregistrement_compte_client) ; null si la reference n'en est pas une. */
     private TPreenregistrement venteDeLaDette(String ref) {
         if (ref == null || ref.isEmpty()) {
@@ -1808,6 +1845,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             brancherModele(imp, ModeleTicket.REGLEMENT_DIFFERE, printService);
             imp.setReferencePied(num);
             imp.setPiecesReglees(piecesReglees(lstTDossierReglementDetail, "Vente "));
+            imp.setVentesReglees(ligneVentesReglees(dossierReglement, lstTDossierReglementDetail));
             imp.setShowCodeBar(true);
             imp.setOperation(dossierReglement.getDtCREATED());
             imp.setIntBegin(0);

@@ -22,10 +22,11 @@
  *      - une ligne du bloc CORPS par vente cochee, libelle = « Vente N° <numero> du <date> » (numero et date lus en base
  *        par la dette), montant = dbl_AMOUNT du detail ; aucun uuid ni identifiant de dette dans tout le recu ;
  *      - somme des lignes = « RÉGLÉ » imprime = t_dossier_reglement.dbl_AMOUNT = montant saisi a l'ecran ;
- *      - « Montant dû (n dossiers) » imprime = dbl_MONTANT_ATTENDU = « Montant Restant » affiche a l'ecran, n = nombre
- *        de ventes cochees ;
- *      - « Reste dû » imprime = du - regle = solde du client en base apres reglement (somme des int_PRICE_RESTE de
- *        ses dettes : le « Montant dû » envoye par l'ecran est le total de TOUTES ses dettes, vente non cochee comprise) ;
+ *      - « Montant dû (n ventes) » imprime = reste avant reglement des seules ventes cochees = « Net à payer » de
+ *        l'ecran, n = nombre de ventes cochees ;
+ *      - « Reste sur ces ventes » = leur reste en base apres reglement = du - regle ;
+ *      - « Solde restant du client » (accord du 11/11) = solde du client en base apres reglement (somme des
+ *        int_PRICE_RESTE de toutes ses dettes, vente non cochee comprise) = dbl_MONTANT_ATTENDU - regle ;
  *      - le numero de chaque vente cochee affiche dans la grille (colonne « Référence.Bon » = str_REF) est le str_REF de
  *        la base, et se retrouve tel quel dans le recu quand le parametre vaut 1 ; avec 0, le recu porte str_REF_TICKET ;
  *        la date de la grille est celle du recu ;
@@ -141,11 +142,17 @@ function lireRecu(t) {
 
     /* montant recu tape dans le champ (especes, mode par defaut), puis Tab */
     const champMontant = await p.evaluate(() => Ext.ComponentQuery.query('fairereglement #montantRecu')[0].inputEl.dom.id);
+    /* selectOnFocus d'ExtJS sous Chrome selectionne le texte par une tache differee : taper tout de suite apres le clic
+       laissait cette selection tardive englober le premier chiffre, ecrase par le suivant (7160 saisi, 160 enregistre).
+       Un utilisateur ne tape pas en moins d'une milliseconde : on attend la selection, puis on relit le champ. */
     await p.click('#' + champMontant);
+    await p.waitForTimeout(300);
     await p.keyboard.press('Control+A');
     await p.keyboard.type(String(montant), { delay: 30 });
     await p.keyboard.press('Tab');
     await p.waitForTimeout(400);
+    const saisi = await p.evaluate(() => Ext.ComponentQuery.query('fairereglement #montantRecu')[0].getValue());
+    ok('Écran : le champ « MONTANT RECU » contient le montant tapé (' + montant + ')', Number(saisi) === montant, String(saisi));
 
     /* ecran avant validation : grille (texte affiche), selection, montants affiches */
     const ecran = await p.evaluate(() => {
@@ -281,15 +288,22 @@ function lireRecu(t) {
       ok('Reçu : la vente non cochée (A) n\'apparaît pas (ni son numéro, ni son numéro de ticket)' + sfx,
         !!avant.A.ref && !!avant.A.ticket && r.texte.indexOf(avant.A.ref) < 0 && r.texte.indexOf(avant.A.ticket) < 0, avant.A.ref + ' / ' + avant.A.ticket);
       const somme = r.corps.reduce((s, y) => s + y.montant, 0);
-      const regle = r.paire(/^R[ÉE]GL[ÉE]$/i), du = r.paire(/^Montant d[ûu]/i), reste = r.paire(/^Reste d[ûu]/i);
+      const regle = r.paire(/^R[ÉE]GL[ÉE]$/i), du = r.paire(/^Montant d[ûu]/i), reste = r.paire(/^Reste sur ces ventes$/i),
+        solde = r.paire(/^Solde restant du client$/i);
+      const duVentes = avant.B.reste + avant.C.reste, resteVentes = apres.B.reste + apres.C.reste;
       ok('Reçu : somme des lignes = « RÉGLÉ » imprimé = dbl_AMOUNT du dossier' + sfx,
         !!regle && somme === chiffres(regle.valeur) && somme === regleBase, 'lignes ' + somme + ', RÉGLÉ ' + (regle ? regle.valeur : 'absent') + ', base ' + regleBase);
-      ok('Reçu : « Montant dû (2 dossiers) » = dbl_MONTANT_ATTENDU = « Montant Restant » de l\'écran' + sfx,
-        !!du && chiffres(du.valeur) === attenduBase && attenduBase === chiffres(ecran.restant) && /\(2 dossiers\)/.test(du.libelle),
-        du ? du.libelle + ' = ' + du.valeur : 'absent');
-      ok('Reçu : « Reste dû » = dû − réglé = solde du client en base après règlement' + sfx,
-        !!reste && chiffres(reste.valeur) === attenduBase - regleBase && chiffres(reste.valeur) === soldeApres,
-        (reste ? reste.valeur : 'absent') + ' ; ' + attenduBase + ' − ' + regleBase + ' ; solde ' + soldeApres);
+      ok('Reçu : « Montant dû (2 ventes) » = reste avant règlement des seules ventes réglées = « Net à payer » de l\'écran' + sfx,
+        !!du && chiffres(du.valeur) === duVentes && duVentes === chiffres(ecran.net) && /\(2 ventes\)/.test(du.libelle),
+        (du ? du.libelle + ' = ' + du.valeur : 'absent') + ' ; base ' + duVentes + ' ; écran ' + ecran.net);
+      ok('Reçu : « Reste sur ces ventes » = leur reste en base après règlement = dû − réglé' + sfx,
+        !!reste && chiffres(reste.valeur) === resteVentes && resteVentes === duVentes - regleBase,
+        (reste ? reste.valeur : 'absent') + ' ; base ' + resteVentes + ' ; ' + duVentes + ' − ' + regleBase);
+      ok('Reçu : « Solde restant du client » = solde du client en base après règlement = « Montant Restant » de l\'écran − réglé' + sfx,
+        !!solde && chiffres(solde.valeur) === soldeApres && soldeApres === attenduBase - regleBase && attenduBase === chiffres(ecran.restant),
+        (solde ? solde.valeur : 'absent') + ' ; solde ' + soldeApres + ' ; ' + attenduBase + ' − ' + regleBase);
+      ok('Reçu : plus de « Montant dû (n dossiers) » ni de « Reste dû »' + sfx,
+        !r.paires.some((x) => /dossiers\)|^Reste d[ûu]$/i.test(x.libelle)), r.paires.map((x) => x.libelle).join(' ; '));
     }
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } catch (e) {
