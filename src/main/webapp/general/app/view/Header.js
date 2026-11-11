@@ -136,8 +136,8 @@ Ext.define('testextjs.view.Header', {
                         text: mkOptionItem('fa-info-circle', 'A propos'),
                         cls: 'pft-item',
                         handler: function () {
-                            // testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos","");
-                            testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos", "");
+                            /* plan du 09/11, point 8 : volet a droite, l'ecran en cours reste ouvert derriere */
+                            testextjs.view.sm_user.about.AboutManager.ouvrir();
                         }
                     }]
             })
