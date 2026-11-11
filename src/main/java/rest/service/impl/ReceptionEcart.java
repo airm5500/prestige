@@ -95,6 +95,50 @@ public final class ReceptionEcart {
         return lotsSansDate > 0;
     }
 
+    /** Debut du message de refus, inchange (l'application mobile peut le reconnaitre). */
+    public static final String MSG_PEREMPTION = "Certaines dates de péremptions ne sont pas renseignées";
+
+    /** Une ligne du BL vue par le controle de peremption. */
+    public static final class LignePeremption {
+        final String produit;
+        final String cip;
+        final String nom;
+        final boolean suivi;
+        final int nbLots;
+        final int lotsSansDate;
+
+        public LignePeremption(String produit, String cip, String nom, boolean suivi, int nbLots, int lotsSansDate) {
+            this.produit = produit;
+            this.cip = cip;
+            this.nom = nom;
+            this.suivi = suivi;
+            this.nbLots = nbLots;
+            this.lotsSansDate = lotsSansDate;
+        }
+    }
+
+    /**
+     * Retour du 11/11 (BL R20285250) : les produits qui bloquent, « CIP libelle (detail) », dans l'ordre du BL, une
+     * seule fois par produit (les lots sont ceux du produit sur le BL, une ligne repetee les voit deux fois).
+     */
+    public static List<String> sansPeremption(List<LignePeremption> lignes, boolean modeRecu) {
+        java.util.Set<String> vus = new java.util.HashSet<>();
+        List<String> out = new java.util.ArrayList<>();
+        for (LignePeremption l : lignes) {
+            if (l.suivi && peremptionManquante(modeRecu, l.nbLots, l.lotsSansDate) && vus.add(l.produit)) {
+                String detail = l.nbLots == 0 ? "aucun lot" : l.lotsSansDate
+                        + (l.lotsSansDate > 1 ? " lots sans date sur " : " lot sans date sur ") + l.nbLots;
+                out.add((l.cip == null ? "" : l.cip + " ") + (l.nom == null ? "" : l.nom) + " (" + detail + ")");
+            }
+        }
+        return out;
+    }
+
+    /** Message de refus : le debut habituel, puis les produits a completer. */
+    public static String messagePeremption(List<String> produits) {
+        return MSG_PEREMPTION + " : " + String.join(" ; ", produits) + ".";
+    }
+
     public static Bilan bilan(List<Ligne> lignes) {
         int entree = 0, manquant = 0, ecarts = 0;
         for (Ligne l : lignes) {

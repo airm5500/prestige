@@ -108,6 +108,8 @@ public final class Constant {
     public static final String P_BL_MOBILE_SCANNER = "P_BL_MOBILE_SCANNER";
     public static final String LIBELLE_SCANNER_RECEPTION_BL = "Scanner la réception des BL";
     public static final String CODE_PRODUITS_NON_SAISIS = "PRODUITS_NON_SAISIS";
+    /** retour du 11/11 : entree en stock refusee, dates de peremption manquantes (liste dans « produits ») */
+    public static final String CODE_PEREMPTION_MANQUANTE = "PEREMPTION_MANQUANTE";
     /** refus d'une operation incompatible avec l'etat de l'objet (deja commande, deja cloture...) */
     public static final String CODE_ETAT = "ETAT";
     /** droit des commandes : envoi PharmaML d'une suggestion, releve des reponses des grossistes (decision 2) */
