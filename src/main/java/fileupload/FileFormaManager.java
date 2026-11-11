@@ -679,8 +679,9 @@ public class FileFormaManager extends HttpServlet {
         }
     }
 
+    /* retour du 11/11 : un produit repete dans le fichier ne cree pas un second lot identique (LotsImport) */
     private void addLot(TOrderDetail orderDetail, int qty, String numeroLot, String datePeremption) {
-        orderDetail.getLots().add(new OrderDetailLot(numeroLot, datePeremption, qty));
+        LotsImport.ajouter(orderDetail.getLots(), numeroLot, datePeremption, qty);
     }
 
     public TFamilleGrossiste getTFamilleGrossiste(String codeCip) {

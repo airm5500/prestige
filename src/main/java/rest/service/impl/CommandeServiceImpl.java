@@ -265,6 +265,26 @@ public class CommandeServiceImpl implements CommandeService {
                         .put("produits", new JSONArray(nonSaisis))
                         .put("msg", "Produits non saisis : " + String.join(", ", nonSaisis));
             }
+            /*
+             * retour du 11/11 (BL R20285250) : le refus nomme les produits dont un lot n'a pas de date ; il est fait
+             * avant la transaction, sur tout le BL. Le controle dans la boucle reste en garde.
+             */
+            if (peremptionDateIsEnabled) {
+                List<ReceptionEcart.LignePeremption> lp = new ArrayList<>();
+                for (TBonLivraisonDetail bn : lstTBonLivraisonDetail) {
+                    TFamille f = bn.getLgFAMILLEID();
+                    List<TLot> lots = getLot(f.getLgFAMILLEID(), bonLivraison);
+                    lp.add(new ReceptionEcart.LignePeremption(f.getLgFAMILLEID(), f.getIntCIP(), f.getStrNAME(),
+                            Boolean.TRUE.equals(f.getBoolCHECKEXPIRATIONDATE()), lots.size(),
+                            (int) lots.stream().filter(l -> Objects.isNull(l.getDtPEREMPTION())).count()));
+                }
+                List<String> sansDate = ReceptionEcart.sansPeremption(lp, modeRecu);
+                if (!sansDate.isEmpty()) {
+                    return json.put("success", false).put("code", Constant.CODE_PEREMPTION_MANQUANTE)
+                            .put("produits", new JSONArray(sansDate))
+                            .put("msg", ReceptionEcart.messagePeremption(sansDate));
+                }
+            }
             userTransaction.begin();
             JSONArray ugArray = new JSONArray();
             // Produits dont le stock rayon augmente : ils seront evalues APRES le commit, pour voir
