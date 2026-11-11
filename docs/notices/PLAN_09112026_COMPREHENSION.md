@@ -945,7 +945,7 @@ Votre réponse : on garde « Ajouter des clients » au-dessus de « Clients de l
 
 **Test :** `test-icone-prestige3-1011` passe de 16 à 19 contrôles : pas de carré blanc, grande illustration = nouvelle icône, dégradé d'origine du panneau inchangé. 19 / 19 sur 8080 ; rouge sur le code précédent (17 / 19).
 
-## Point 8 : maquette « À propos » (proposition C), en attente d'avis
+## Point 8 : maquette « À propos » (proposition C) — faite ensuite, voir plus bas
 
 Fichier [MAQUETTE_POINT_8_A_PROPOS_2026-11-11.html](MAQUETTE_POINT_8_A_PROPOS_2026-11-11.html). Elle garde les couleurs de l'application (bandeau bleu nuit, accents vert d'eau) ; seule l'icône est nouvelle.
 
@@ -1076,8 +1076,31 @@ Ces tests prennent désormais l'adresse du serveur dans `BASE`.
 
 **Limite :** la copie `laborex_audit` contient peu de différés (3 clients sur la période testée). Le contrôle sur les données du poste est donc léger ; il serait à rejouer sur la copie `laborex_v1_db`.
 
+## Point 8 du plan du 09/11 : fait (commit `f9b65409e`)
+
+« À propos » s'ouvre en volet à droite, avec deux onglets, Version et Assistance, comme demandé le 11/11. Test : `test-a-propos-1111`, 28 / 28.
+
+## Demande 61 : faite (commit `c3f7b4ac7`)
+
+- Droit des suggestions de réserve absent de la base : rien ne le contrôle.
+- Un retour des manquants abandonné ne bloque plus le BL.
+- La réponse `deja:true` est complète.
+
+Réponse détaillée : `REPONSE_SERVEUR_2026-11-11_demande61.md`.
+
+Tests :
+- `test-demande59-bl-recu` : 40 / 40 ;
+- `test-reserve-voir-suggestions-droits` : 108 / 108.
+
+## Fusion dans l'intégration (11/11, sur votre ordre)
+
+`plan/09112026` est fusionnée dans `integration/recette-2026-10-29` (`67261e713`), sans conflit et sans le cas 4.
+- **Tests unitaires :** 2 293, aucun échec.
+- **Tests d'écran :** 26 sur 26 sur domain3. Deux tests avaient 8080 en dur ; ils sont corrigés (`6d6a2ee79`).
+- **Rapport :** `RAPPORT_FUSION_PLAN_09112026_2026-11-11.md`.
+- **Cahier :** `CAHIER_RECETTE_2026-11-11.xlsx`, sur l'intégration.
+
 ## Reste à faire
 
-- Point 8 du plan du 09/11 : la maquette « À propos » attend votre avis.
-- 350 tests d'écran ont encore l'adresse 8080 en dur, dont `test-reserve-sans-doublon`. Sur un autre domaine (domain3), ils testent le serveur de 8080 au lieu de celui qu'on vient de déployer. Il faut les faire passer par `BASE`, comme ceux corrigés ici.
-- Aucune fusion sans votre accord.
+- Environ 350 tests d'écran ont encore l'adresse 8080 en dur. Sur domain3, ils testent le serveur de 8080 au lieu de celui qu'on vient de déployer. Il faut les faire passer par `BASE`.
+- `claude/pointage-releves` (point 3 du plan du 09/11) attend votre ordre de fusion.
