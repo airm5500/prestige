@@ -78,7 +78,7 @@ function nettoyer() {
   const b = await ENV_E2E.lancer(chromium);
   const session = async () => {
     const p = await (await b.newContext()).newPage();
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     return p;
@@ -115,7 +115,7 @@ function nettoyer() {
       && auth.droits && auth.droits.creerInventaire === true && !!auth.xtypeuser, JSON.stringify({ role: auth.role, droits: auth.droits, x: auth.xtypeuser }));
     await p3.context().close();
     const anonyme = await (await b.newContext()).newPage();
-    await anonyme.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await anonyme.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const sans = await anonyme.evaluate(async () => (await fetch('../api/v1/user/droits')).status);
     ok('GET user/droits sans session : 401', sans === 401, sans);
   } catch (x) {

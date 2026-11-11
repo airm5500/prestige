@@ -18,6 +18,8 @@
  *  - Rapprochement ligne par ligne : reponse de la cloture = route des ecarts = cellule de l'etat de controle = base.
  *  - Retour des manquants : en attente, sans sortie de stock, une ligne par manquant ; second appel : le meme retour ;
  *    visible dans la liste ; valide a l'ecran (confirmation dans le bouton) : stock et mouvements inchanges.
+ *  - Demande 61 : la reponse « deja » a la forme de la creation ; un retour refuse reste renvoye ; un retour
+ *    abandonne ne compte plus (un nouvel appel cree un nouveau retour, valide ensuite a l'ecran).
  * Tout est retire : BL, commandes, lots, entrepot, etiquettes, mouvements, transactions, notifications, journal,
  * retour et son historique, cles mobiles ; produits remis a l'identique (fiche, stock, grossiste) ; droit remis.
  */
@@ -243,7 +245,7 @@ function poser() {
 
     /* retour des manquants */
     const r1 = await api('POST', '../api/v1/reception/' + B1 + '/retour-manquants', {}, CLE + '-retour');
-    const retourId = r1.j && r1.j.retourId;
+    let retourId = r1.j && r1.j.retourId, refRetour = r1.j && r1.j.ref;
     ok('Retour des manquants : créé en attente, 3 lignes, 10 boîtes', r1.j && r1.j.success === true && r1.j.deja === false && r1.j.lignes === attendus.length
       && r1.j.totalManquant === TOTAL_MANQUANT && r1.j.statut === 'is_Waiting', JSON.stringify(r1.j));
     const rb = q(`SELECT CONCAT_WS('|', str_STATUT, bool_SANS_SORTIE_STOCK, IF(dt_ATTENTE IS NULL, '-', 'date'), lg_USER_ATTENTE = '${ADMIN}') FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '${retourId}'`);
@@ -257,6 +259,37 @@ function poser() {
       && JSON.stringify(r3.j) === JSON.stringify(r1.j) && q(`SELECT COUNT(*) FROM t_retour_fournisseur WHERE lg_BON_LIVRAISON_ID = '${B1}'`) === '1', JSON.stringify(r2.j));
     const e2 = await api('GET', '../api/v1/reception/' + B1 + '/ecarts');
     ok('Route des écarts : le retour des manquants y est rattaché', e2.j && e2.j.retourManquants && e2.j.retourManquants.retourId === retourId, JSON.stringify(e2.j && e2.j.retourManquants));
+
+    /* demande 61 (3) : la reponse « deja » a la meme forme que la creation */
+    const CHAMPS = ['success', 'deja', 'retourId', 'ref', 'statut', 'lignes', 'totalManquant', 'route', 'msg'];
+    ok('Demande 61 : « deja » rend les mêmes champs que la création (lignes, totalManquant = ceux du retour)',
+      r2.j && CHAMPS.every((k) => k in r2.j) && r2.j.lignes === r1.j.lignes && r2.j.totalManquant === r1.j.totalManquant && r2.j.ref === r1.j.ref && r2.j.statut === 'is_Waiting',
+      JSON.stringify(r2.j));
+    /* demande 61 (2) : un retour refuse compte encore (il se corrige) ; un retour abandonne ne compte plus */
+    const refus = await api('POST', '../api/v1/retourfournisseur/refuser/' + retourId, { motif: 'Essai demande 61' });
+    const r4 = await api('POST', '../api/v1/reception/' + B1 + '/retour-manquants', {}, CLE + '-retour4');
+    ok('Demande 61 : retour refusé → toujours renvoyé (deja, même retour, statut refusé, mêmes lignes)', refus.status === 200
+      && q(`SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '${retourId}'`) === 'is_Refused'
+      && r4.j && r4.j.deja === true && r4.j.retourId === retourId && r4.j.statut === 'is_Refused' && r4.j.lignes === attendus.length && r4.j.totalManquant === TOTAL_MANQUANT,
+      JSON.stringify({ refus: refus.j, r4: r4.j }));
+    const abandon = await api('POST', '../api/v1/retourfournisseur/abandonner/' + retourId);
+    const r5 = await api('POST', '../api/v1/reception/' + B1 + '/retour-manquants', {}, CLE + '-retour5');
+    const nouveau = r5.j && r5.j.retourId;
+    ok('Demande 61 : retour abandonné → un nouvel appel crée un nouveau retour (deja:false), mêmes manquants',
+      abandon.status === 200 && q(`SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '${retourId}'`) === 'is_Abandoned'
+      && r5.j && r5.j.success === true && r5.j.deja === false && nouveau && nouveau !== retourId && r5.j.statut === 'is_Waiting'
+      && r5.j.lignes === attendus.length && r5.j.totalManquant === TOTAL_MANQUANT
+      && q(`SELECT COUNT(*) FROM t_retour_fournisseur WHERE lg_BON_LIVRAISON_ID = '${B1}'`) === '2'
+      && q(`SELECT IFNULL(SUM(int_NUMBER_RETURN), 0) FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID = '${nouveau}'`) === String(TOTAL_MANQUANT),
+      JSON.stringify({ abandon: abandon.j, r5: r5.j }));
+    const r6 = await api('POST', '../api/v1/reception/' + B1 + '/retour-manquants', {}, CLE + '-retour6');
+    const e3 = await api('GET', '../api/v1/reception/' + B1 + '/ecarts');
+    ok('Demande 61 : ensuite, « deja » et la route des écarts désignent le nouveau retour, pas l\'abandonné',
+      r6.j && r6.j.deja === true && r6.j.retourId === nouveau && e3.j && e3.j.retourManquants && e3.j.retourManquants.retourId === nouveau
+      && q(`SELECT COUNT(*) FROM t_retour_fournisseur WHERE lg_BON_LIVRAISON_ID = '${B1}'`) === '2', JSON.stringify({ r6: r6.j, ecarts: e3.j && e3.j.retourManquants }));
+    ok('Demande 61 : refus, abandon et nouveau retour ne touchent ni au stock ni aux mouvements', P.every((id, i) => stock(id) === STOCK1[i] && mvts(id) === MVT1[i]));
+    /* la suite (liste et validation a l'ecran) porte sur le nouveau retour */
+    retourId = nouveau; refRetour = r5.j.ref;
     ok('Création du retour : stocks et mouvements inchangés', P.every((id, i) => stock(id) === STOCK1[i] && mvts(id) === MVT1[i]));
     const sansManquant = await api('POST', '../api/v1/reception/' + B2 + '/retour-manquants', {}, CLE + '-retourb2');
     ok('BL non entré au reçu : pas de retour des manquants (409)', sansManquant.status === 409 && sansManquant.j && sansManquant.j.code === 'BL_NON_ENTRE_AU_RECU', JSON.stringify(sansManquant));
@@ -286,7 +319,7 @@ function poser() {
     await p.waitForTimeout(1000);
     ok('Validation du retour des manquants : stocks et mouvements inchangés (rien n\'est sorti)', P.every((id, i) => stock(id) === STOCK1[i] && mvts(id) === MVT1[i]),
       JSON.stringify(P.map((id, i) => STOCK1[i] + '->' + stock(id))));
-    const jr = q(`SELECT COUNT(*) FROM t_event_log WHERE dt_CREATED >= '${debut}' AND str_DESCRIPTION LIKE 'Retour des manquants ${r1.j.ref} validé sans sortie de stock : ${attendus.length} ligne(s), ${TOTAL_MANQUANT} boîte(s)%'`);
+    const jr = q(`SELECT COUNT(*) FROM t_event_log WHERE dt_CREATED >= '${debut}' AND str_DESCRIPTION LIKE 'Retour des manquants ${refRetour} validé sans sortie de stock : ${attendus.length} ligne(s), ${TOTAL_MANQUANT} boîte(s)%'`);
     ok('Journal : la validation sans sortie de stock est tracée', jr === '1', jr);
     ok('Aucune fenêtre surgissante, aucune erreur JavaScript', dialogues.length === 0 && err.length === 0, dialogues.concat(err).join(' | '));
   } catch (x) {

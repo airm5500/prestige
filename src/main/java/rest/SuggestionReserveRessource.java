@@ -46,6 +46,9 @@ public class SuggestionReserveRessource {
     private @EJB rest.service.mobile.MobileClientRefService mobileClientRefService;
     private @EJB rest.report.ReportUtil reportUtil;
 
+    /* demande 61 : droit controle seulement s'il existe en base */
+    private @EJB rest.service.impl.PrivilegesEnBase privilegesEnBase;
+
     private TUser currentUser() {
         HttpSession hs = servletRequest.getSession();
         return (TUser) hs.getAttribute(Constant.AIRTIME_USER);
@@ -110,7 +113,8 @@ public class SuggestionReserveRessource {
      * @return le refus 403 a renvoyer, ou null si la session porte le droit
      */
     private Response refusVoir() {
-        return Droits.a(servletRequest, P_VOIR_SUGGESTIONS) ? null : Droits.interdit(LIBELLE_VOIR_SUGGESTIONS);
+        return privilegesEnBase.voitSuggestionsReserve(servletRequest) ? null
+                : Droits.interdit(LIBELLE_VOIR_SUGGESTIONS);
     }
 
     /** Motifs disponibles, eventuellement restreints a un sens de mouvement. */

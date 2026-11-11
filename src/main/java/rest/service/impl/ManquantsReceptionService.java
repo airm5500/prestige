@@ -112,18 +112,26 @@ public class ManquantsReceptionService {
                 .put("commande", commande).put("recu", recu).put("ug", ug).put("manquant", manquant);
     }
 
+    /**
+     * Retour des manquants du BL qui compte encore : ni supprime, ni abandonne (demande 61 : un retour abandonne est
+     * clos sans suite, les manquants peuvent etre reclames a nouveau ; un retour refuse, lui, se corrige et compte). Le
+     * plus recent s'il y en a plusieurs. Meme forme que la creation : lignes et boites du retour.
+     */
     @SuppressWarnings("unchecked")
     private JSONObject retourExistant(String blId) {
-        List<Object[]> l = em
-                .createNativeQuery("SELECT lg_RETOUR_FRS_ID, str_REF_RETOUR_FRS, str_STATUT"
-                        + " FROM t_retour_fournisseur WHERE lg_BON_LIVRAISON_ID = ?1 AND bool_SANS_SORTIE_STOCK = 1"
-                        + " AND str_STATUT <> 'delete' ORDER BY dt_CREATED LIMIT 1")
-                .setParameter(1, blId).getResultList();
+        List<Object[]> l = em.createNativeQuery("SELECT r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT,"
+                + " (SELECT COUNT(*) FROM t_retour_fournisseur_detail d WHERE d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID),"
+                + " (SELECT COALESCE(SUM(d.int_NUMBER_RETURN), 0) FROM t_retour_fournisseur_detail d"
+                + " WHERE d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID)"
+                + " FROM t_retour_fournisseur r WHERE r.lg_BON_LIVRAISON_ID = ?1 AND r.bool_SANS_SORTIE_STOCK = 1"
+                + " AND r.str_STATUT NOT IN ('delete', ?2) ORDER BY r.dt_CREATED DESC LIMIT 1").setParameter(1, blId)
+                .setParameter(2, RetourEtats.ABANDONNE).getResultList();
         if (l.isEmpty()) {
             return null;
         }
-        return new JSONObject().put("retourId", texte(l.get(0)[0])).put("ref", texte(l.get(0)[1])).put("statut",
-                texte(l.get(0)[2]));
+        Object[] r = l.get(0);
+        return new JSONObject().put("retourId", texte(r[0])).put("ref", texte(r[1])).put("statut", texte(r[2]))
+                .put("lignes", nombre(r[3])).put("totalManquant", nombre(r[4]));
     }
 
     /* ------------------------------------------------------------------ retour des manquants */

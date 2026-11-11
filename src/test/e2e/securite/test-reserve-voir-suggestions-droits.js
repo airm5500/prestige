@@ -17,7 +17,11 @@
  *  - cloche (notifications-centre catalogue et compteurs) et tableau de bord (alertes, liste « rayon ») : la categorie
  *    et les compteurs des suggestions de reserve absents pour SANS, presents pour AVEC ;
  *  - rapprochement : voirSuggestions de GET v1/reserve/droits = presence du droit en base, pour chaque profil ;
- *  - sans session : les lectures gardent leur reponse d'avant (200 « deconnecte »).
+ *  - sans session : 401 « Veuillez vous connecter » sur TOUTES les routes (lectures, actions, creation, motifs), jamais
+ *    403 (demande 61) ;
+ *  - droit absent de la base (P_RESERVE_SUGGESTION desactive le temps du test, remis a la fin) : comportement d'avant
+ *    la demande 60 pour SANS (lectures 200, actions non refusees par ce droit, voirSuggestions vrai, cloche et tableau
+ *    de bord avec les suggestions), comme la cloture d'un BL (demande 61).
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -35,6 +39,9 @@ const PROFILS = {
 };
 const MDP = 'E2e-Rvs-60';
 const LIBELLE = 'Droit manquant : Voir les suggestions de réserve';
+/* demande 61 : le droit est desactive le temps d'un bloc ; il est toujours remis a la fin */
+let droitDesactive = false;
+function remettreDroit() { if (droitDesactive) { q("UPDATE t_privilege SET str_STATUT = 'enable' WHERE str_NAME = 'P_RESERVE_SUGGESTION'"); droitDesactive = false; } }
 
 function nettoyer() {
   const ids = Object.values(PROFILS).map((p) => "'" + p.id + "'").join(',');
@@ -193,17 +200,56 @@ const droitEnBase = (login) => q("SELECT COUNT(*) FROM t_user u JOIN t_role_user
     ok('Rapprochement : voirSuggestions = présence de P_RESERVE_SUGGESTION en base, pour les quatre profils',
       [[PROFILS.sans.login, drSans], [PROFILS.avec.login, drAvec], [PROFILS.voir.login, drVoir], [ENV_E2E.LOGIN, drAdm]].every(([l, d]) => typeof d.voirSuggestions === 'boolean' && d.voirSuggestions === droitEnBase(l)), lignes.join(' ; '));
 
-    /* ---- sans session : reponse d'avant */
+    /* ---- demande 61 : droit absent de la base -> comportement d'avant la demande 60 (comme la cloture d'un BL) */
+    q("UPDATE t_privilege SET str_STATUT = 'disable' WHERE str_NAME = 'P_RESERVE_SUGGESTION'");
+    droitDesactive = true;
+    const sans2 = await session(PROFILS.sans.login, MDP);
+    for (const a of lectures(ID, cree.str_REF).concat([['GET', S + ID + '/compte-rendu/excel']])) {
+      const r = await appel(sans2, a[0], a[1], a[2]);
+      ok('Droit absent de la base, SANS : ' + a[0] + ' ' + a[1].replace(S, '').replace(ID, '{id}') + ' : non refusé (comme avant)', r.http === 200 && !r.interdit, r.http + ' ' + (r.msg || ''));
+    }
+    for (const a of actions('ZZZ-E2E-RVS', 'ZZZ-E2E-RVS')) {
+      const r = await appel(sans2, a[0], a[1], a[2]);
+      ok('Droit absent de la base, SANS : ' + a[0] + ' ' + a[1].replace(S, '') + ' : non refusé par ce droit', !refuse(r) && r.http !== 401, r.http + ' ' + (r.msg || r.message || ''));
+    }
+    const drSans2 = await appel(sans2, 'GET', '../api/v1/reserve/droits');
+    const catSans2 = await appel(sans2, 'GET', '../api/v1/notifications-centre/catalogue');
+    const tbSans2 = await appel(sans2, 'GET', '../api/v1/tableau-bord/alertes?frais=1');
+    const tbListeSans2 = await appel(sans2, 'GET', '../api/v1/tableau-bord/alertes/liste?type=rayon');
+    ok('Droit absent de la base, SANS : voirSuggestions vrai, cloche et tableau de bord avec les suggestions (comme avant)',
+      drSans2.voirSuggestions === true && (catSans2.data || []).some((c) => c.cle === 'reserve') && 'suggestionsRayon' in tbSans2 && tbListeSans2.http === 200,
+      JSON.stringify({ voir: drSans2.voirSuggestions, tb: Object.keys(tbSans2), liste: tbListeSans2.http }));
+    await sans2.context().close();
+    remettreDroit();
+    const sans3 = await session(PROFILS.sans.login, MDP);
+    const remis = await appel(sans3, 'GET', S + 'liste');
+    ok('Droit remis en base : SANS de nouveau refusé (403)', refuse(remis), remis.http + ' ' + (remis.msg || ''));
+    await sans3.context().close();
+
+    /* ---- sans session : 401 sur toutes les routes, jamais 403 (demande 61) */
     const anonyme = await (await b.newContext()).newPage();
     await anonyme.goto(URL + '/security/index.html', { waitUntil: 'domcontentloaded' });
-    const anon = await appel(anonyme, 'GET', S + 'liste');
-    /* reponse d'avant (constatee sur l'ancien code) : 401 « Veuillez vous connecter », jamais 403 */
-    ok('Sans session : liste répond comme avant (401 « Veuillez vous connecter », jamais 403)', anon.http === 401 && !anon.interdit && /connecter/.test(anon.brut || anon.msg || ''), JSON.stringify(anon).slice(0, 120));
+    const toutes = lectures(ID, cree.str_REF).concat([['GET', S + ID + '/compte-rendu/excel'], ['GET', S + 'motifs?categorie=RAYON'],
+      ['POST', S + 'creer', { categorie: 'RAYON', motifId: MOTIF, commentaire: COMMENTAIRE, items: [{ lg_FAMILLE_ID: PS[0], int_QTE: 1 }] }],
+      ['POST', S + 'creer-depuis-recherche', { type: 'ALL', search: CIP, motifId: MOTIF, commentaire: COMMENTAIRE }],
+      ['POST', S + 'supprimer-selection', { ids: [ID], motif: 'E2E' }]], actions(ID, LIGNE));
+    const avantAnon = bilan(ID);
+    for (const a of toutes) {
+      const r = await appel(anonyme, a[0], a[1], a[2]);
+      ok('Sans session : ' + a[0] + ' ' + a[1].replace(S, '').replace(ID, '{id}').replace(LIGNE, '{ligne}').replace(/\?.*$/, '') + ' : 401, jamais 403',
+        r.http === 401 && !r.interdit, r.http + ' ' + (r.msg || r.brut || ''));
+    }
+    /* import-lignes attend un fichier (multipart) : envoye comme par l'ecran */
+    const imp = await anonyme.evaluate(async (u) => { const fd = new FormData(); fd.append('fichier', new Blob(['CIP;QTE\n123;1\n'], { type: 'text/csv' }), 'e2e.csv');
+      const r = await fetch(u, { method: 'POST', body: fd }); const t = await r.text(); return { http: r.status, interdit: /interdit/.test(t), brut: t.slice(0, 80) }; }, S + 'import-lignes?categorie=RAYON');
+    ok('Sans session : POST import-lignes (fichier) : 401, jamais 403', imp.http === 401 && !imp.interdit, imp.http + ' ' + imp.brut);
+    ok('Sans session : rien n\'a changé (bilan identique)', bilan(ID) === avantAnon, avantAnon + ' => ' + bilan(ID));
     await anonyme.context().close();
   } catch (x) {
     ok('Déroulé sans erreur', false, x.stack);
   } finally {
     await b.close();
+    remettreDroit();
     nettoyer();
     ok('Jeu d\'essai retiré (profils, rôles, suggestions)', q("SELECT (SELECT COUNT(*) FROM t_user WHERE lg_USER_ID LIKE 'E2E-RVS-%') + (SELECT COUNT(*) FROM t_role WHERE lg_ROLE_ID LIKE 'E2E-RVS-%')"
       + " + (SELECT COUNT(*) FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + COMMENTAIRE + "' OR lg_USER_CREATEUR_ID LIKE 'E2E-RVS-%')"
