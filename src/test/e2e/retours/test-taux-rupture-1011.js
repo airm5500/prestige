@@ -57,7 +57,7 @@ function reference(m, n, qm) {
   suivre(d);
   const avant = empreinte();
   try {
-    await d.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await d.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await d.fill('#str_login', ENV_E2E.LOGIN); await d.fill('#str_password', 'e2etest'); await d.click('#login');
     await d.waitForURL('**/general/**', { timeout: 60000 });
     const accueil = d.url();
