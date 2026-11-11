@@ -23,7 +23,7 @@ const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const privilegeEssai = require('../support/privilege-essai');
-const { connexion, ouvrirMenu, cliquer, texteMessage, repondre } = require('../outils/vues');
+const { connexion, ouvrirMenu, cliquer, texteMessage, repondre, confirmerAnnulation, choisirMotif } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
@@ -191,6 +191,7 @@ const dates = (id) => q(`SELECT CONCAT_WS(' ', DATE(p.dt_UPDATED), (SELECT m.mvt
     /* 2. modification d'une vente d'hier : quantite 1 -> 2 */
     const ligne = await chercher(ancienne, HIER_ECRAN);
     await icone(ligne, 'Modifier').click();
+    await choisirMotif(p);
     await p.waitForFunction(() => { const c = testextjs.app.getController('VenteCtr'); return c.current && c.current.lgPREENREGISTREMENTID
       && Ext.ComponentQuery.query('doventemanager #btnCloture').some((x) => x.isVisible(true)); }, null, { timeout: 60000 });
     await p.waitForTimeout(1500);
@@ -226,8 +227,7 @@ const dates = (id) => q(`SELECT CONCAT_WS(' ', DATE(p.dt_UPDATED), (SELECT m.mvt
     droitAnnuler.accorder();
     const ligneT = await chercher(triple, HIER_ECRAN);
     await icone(ligneT, 'Annuler.Vente').click();
-    await p.waitForTimeout(800);
-    await repondre(p, 'yes');
+    await confirmerAnnulation(p);
     for (let i = 0; i < 60 && !/impression/i.test(await texteMessage(p)); i++) { await p.waitForTimeout(1000); }
     await repondre(p, 'no').catch(() => {});
     await p.waitForTimeout(1000);

@@ -28,7 +28,7 @@ const TABLE = () => q("SELECT CONCAT_WS('|', ticket, largeur, HEX(reglages), IFN
 const AVANT = TABLE();
 const remettre = () => {
   q('DELETE FROM ticket_modele');
-  AVANT.split('\n').filter(Boolean).forEach((l) => {
+  AVANT.split(/\r?\n/).filter(Boolean).forEach((l) => {
     const [t, lg, r, maj, u] = l.split('|');
     q(`INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('${t}', ${Number(lg)}, UNHEX('${r}'), ${maj ? `'${maj}'` : 'NOW()'}, UNHEX('${u}'))`);
   });

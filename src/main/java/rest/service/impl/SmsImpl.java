@@ -663,32 +663,38 @@ public class SmsImpl implements SmsService {
 
     @Override
     public void sendSMS(String message) {
+        sendSMSStatut(message);
+    }
+
+    @Override
+    public String sendSMSStatut(String message) {
         if (StringUtils.isEmpty(sp.mobile)) {
-            return;
+            return "Non envoyé : aucun numéro d'administration";
         }
         try {
             SmsProvider provider = smsProviderFactory.current();
             if (provider == null) {
                 LOG.log(Level.WARNING, "Envoi SMS ignore : aucun fournisseur SMS en vigueur pris en charge");
-                return;
+                return "Non envoyé : aucun fournisseur SMS";
             }
             if (envoisSuspendus()) {
-                return;
+                return "Non envoyé : envois suspendus";
             }
             SmsSendResult result = provider.send(sp.mobile, message, null);
             LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
                     new Object[] { sp.mobile, provider.getCode(), result.toLog() });
             if (result.isAccepted()) {
                 coupeCircuit.enregistrerSucces();
-            } else {
-                signalerRefus(result, provider.getCode(),
-                        "Envoi SMS admin refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
-                        "Numero d'administration " + sp.mobile + ". Erreur : " + result.getErrorMessage());
+                return "Envoyé";
             }
+            signalerRefus(result, provider.getCode(),
+                    "Envoi SMS admin refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
+                    "Numero d'administration " + sp.mobile + ". Erreur : " + result.getErrorMessage());
+            return "Échec";
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
             reportSupport("ERROR", "Exception lors de l'envoi SMS admin : " + ex.getMessage(), null, ex);
+            return "Échec";
         }
-
     }
 }

@@ -226,7 +226,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
 //                                            typeAhead: true,
                                             minChars: 2,
                                             queryMode: 'remote',
-                                            emptyText: 'Choisir un bon de livraison...',
+                                            emptyText: 'N° de BL (une partie suffit)...',
                                             /* audit 06 RF-02 : deux grossistes peuvent avoir le meme numero de BL ; la liste montre le grossiste */
                                             listConfig: {
                                                 getInnerTpl: function () {
@@ -333,7 +333,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                             // recherche des 2 caracteres saisis (4 par defaut en remote)
                                             minChars: 2,
                                             disabled: true,
-                                            emptyText: 'Choisir un article par Nom ou Cip...',
+                                            emptyText: 'Nom ou CIP (une partie suffit)...',
                                             listConfig: {
                                                 getInnerTpl: function () {
                                                     return '<span style="width:100px;display:inline-block;">{int_CIP}</span>{str_DESCRIPTION} <span style="float: right; font-weight:600;"> ({int_PAF})</span>';

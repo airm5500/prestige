@@ -52,6 +52,22 @@ public final class EditionSections {
         return l;
     }
 
+    /**
+     * Plan du 10/11, point 2 : les lignes de l'edition dediee rp_reserve_apres_entree.jrxml, dans l'ordre des colonnes
+     * de la fenetre (CIP, produit, sens, rayon, reserve, seuil mini rayon, seuil maxi rayon, quantite proposee).
+     */
+    public static List<commonTasks.dto.LigneReserveApresEntreeDTO> reserveApresEntreeLignes(JSONArray lignes) {
+        List<commonTasks.dto.LigneReserveApresEntreeDTO> l = new ArrayList<>();
+        JSONArray t = lignes == null ? new JSONArray() : lignes;
+        for (int i = 0; i < t.length(); i++) {
+            JSONObject p = t.getJSONObject(i);
+            l.add(new commonTasks.dto.LigneReserveApresEntreeDTO(p.optString("cip", ""), p.optString("nom", ""),
+                    sensReserve(p.optString("categorie")), brut(p, "stockRayon"), brut(p, "stockReserve"),
+                    p.optString("seuilMini", ""), p.optString("seuilMaxi", ""), brut(p, "quantite")));
+        }
+        return l;
+    }
+
     /** « 3 produit(s) · 2 vers la réserve · 1 vers le rayon ». */
     public static String indicateursReserve(JSONArray lignes) {
         int n = lignes == null ? 0 : lignes.length(), vers = 0;

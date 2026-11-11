@@ -29,6 +29,10 @@ import util.Constant;
 @Produces(MediaType.APPLICATION_JSON)
 public class TableauBordRessource {
 
+    /* demande 61 : droit controle seulement s'il existe en base */
+    @javax.ejb.EJB
+    private rest.service.impl.PrivilegesEnBase privilegesEnBase;
+
     private static final long COURT = 60_000L;
     private static final long LONG = 6 * 3_600_000L;
     private static final Map<String, Object[]> CACHE = new ConcurrentHashMap<>();
@@ -158,7 +162,7 @@ public class TableauBordRessource {
         }
         Response r = cache("alertes|" + per + "|" + rup + "|" + ren + "|" + sug + "|" + nv + "|" + emplacement(u),
                 COURT, frais == 1, () -> service.alertes(per, rup, ren, sug, nv, emplacement(u)));
-        if (Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+        if (privilegesEnBase.voitSuggestionsReserve(servletRequest)) {
             return r;
         }
         /*
@@ -181,7 +185,7 @@ public class TableauBordRessource {
             return deconnecte();
         }
         /* demande 60 : la liste « rayon » est faite des lignes des suggestions de reserve a traiter */
-        if ("rayon".equals(type) && !Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+        if ("rayon".equals(type) && !privilegesEnBase.voitSuggestionsReserve(servletRequest)) {
             return Droits.interdit(SuggestionReserveRessource.LIBELLE_VOIR_SUGGESTIONS);
         }
         JSONObject o = service.alerteListe(StringUtils.defaultString(type), per, rup, nv, emplacement(u), limite);

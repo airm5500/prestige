@@ -5,7 +5,9 @@
  *  - carte « Vitesse par type de vente » a cote de « Vitesse par opérateur », avec son aide « ? » ;
  *  - rapprochement, type par type : barres a l'ecran = API = calcul refait ici depuis la base (une ligne par vente :
  *    type, avoir, duree, saisie, lignes, montant ; memes regles : vente retenue si 0 <= duree <= 1 h et au moins une
- *    ligne) : nombre de ventes, secondes par ligne, lignes par vente, panier ;
+ *    ligne) : nombre de ventes, secondes par ligne, lignes par vente, panier ; plan du 09/11, point 10 : secondes par
+ *    ligne = mediane des secondes entre deux produits (saisie / (lignes - 1)) des ventes d'au moins 2 lignes, saisie
+ *    plafonnee a la duree, preventes reprises ecartees ; lignes par vente sur les ventes retenues hors reprises ;
  *  - somme des ventes par type = tuile « Ventes encaissées » ;
  *  - cas varies : plusieurs types (comptant, assurance, carnet...), et un employe seul (filtre Employé) ;
  *  - survol d'une barre : infobulle avec le type et le detail ; aucune erreur JavaScript.
@@ -25,18 +27,23 @@ const arrondi = (x) => Math.round(x * 10) / 10;
 /* calcul independant : une ligne par vente, memes filtres que l'ecran */
 function attendu(emp) {
   const lignes = q(`SELECT p.lg_TYPE_VENTE_ID, p.b_IS_AVOIR + 0, TIMESTAMPDIFF(SECOND, p.dt_CREATED, COALESCE(p.completion_date, p.dt_UPDATED)),`
-    + ` GREATEST(0, TIMESTAMPDIFF(SECOND, p.dt_CREATED, MAX(d.dt_UPDATED))), COUNT(*), p.int_PRICE FROM t_preenregistrement p`
+    + ` GREATEST(0, TIMESTAMPDIFF(SECOND, p.dt_CREATED, MAX(d.dt_UPDATED))), COUNT(*), p.int_PRICE,`
+    + ' (p.lg_USER_VENDEUR_ID IS NOT NULL AND p.lg_USER_VENDEUR_ID <> p.lg_USER_CAISSIER_ID) + 0 FROM t_preenregistrement p'
     + ` JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID`
     + ` WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'`
     + ` AND p.dt_UPDATED >= '${D}' AND p.dt_UPDATED < '${F}'` + (emp ? ` AND p.lg_USER_ID = '${emp}'` : '') + ' GROUP BY p.lg_PREENREGISTREMENT_ID').split('\n').filter(Boolean);
   const m = {};
   for (const l of lignes) {
-    const [typ, avoir, duree, saisie, n, prix] = l.split('\t');
-    const k = libelle(typ, avoir), x = m[k] || (m[k] = { ventes: 0, lignes: 0, saisie: 0, retenues: 0, montant: 0 });
+    const [typ, avoir, duree, saisie, n, prix, reprise] = l.split('\t');
+    const k = libelle(typ, avoir), x = m[k] || (m[k] = { ventes: 0, lignes: 0, retenues: 0, montant: 0, entre: [] });
     x.ventes++; x.montant += Number(prix);
-    if (Number(duree) >= 0 && Number(duree) <= 3600 && Number(n) > 0) { x.retenues++; x.lignes += Number(n); x.saisie += Number(saisie); }
+    if (Number(duree) >= 0 && Number(duree) <= 3600 && Number(n) > 0 && reprise !== '1') {
+      x.retenues++; x.lignes += Number(n);
+      if (Number(n) >= 2) { x.entre.push(Math.min(Number(saisie), Number(duree)) / (Number(n) - 1)); }
+    }
   }
-  return TYPES.filter((t) => m[t]).map((t) => ({ nom: t, ventes: m[t].ventes, secondesParLigne: arrondi(m[t].lignes ? m[t].saisie / m[t].lignes : 0),
+  const mediane = (l) => { const d = l.slice().sort((a, b) => a - b); return d.length === 0 ? 0 : d.length % 2 ? d[(d.length - 1) / 2] : (d[d.length / 2 - 1] + d[d.length / 2]) / 2; };
+  return TYPES.filter((t) => m[t]).map((t) => ({ nom: t, ventes: m[t].ventes, secondesParLigne: arrondi(mediane(m[t].entre)),
     lignesParVente: arrondi(m[t].retenues ? m[t].lignes / m[t].retenues : 0), panierMoyen: Math.round(m[t].montant / m[t].ventes) }));
 }
 

@@ -109,7 +109,7 @@ public class ReglementRessource {
     public static class LigneReleve {
 
         private final String type, date, libelle, reference, client;
-        private final Long debit, credit, solde;
+        private final Long debit, credit, solde, soldeDebut;
 
         LigneReleve(JSONObject o) {
             type = o.optString("type");
@@ -120,6 +120,12 @@ public class ReglementRessource {
             debit = o.optLong("debit");
             credit = o.optLong("credit");
             solde = o.optLong("solde");
+            soldeDebut = o.has("soldeDebut") ? o.optLong("soldeDebut") : null;
+        }
+
+        /** Plan du 10/11, point 4 : solde au debut du client (ligne CLIENT), sinon null. */
+        public Long getSoldeDebut() {
+            return soldeDebut;
         }
 
         public String getType() {
@@ -198,13 +204,14 @@ public class ReglementRessource {
             String nom = clientId == null || clientId.trim().isEmpty() ? "Tous les clients"
                     : org.apache.commons.lang3.StringUtils
                             .left(org.apache.commons.lang3.StringUtils.defaultIfBlank(clientNom, "Client choisi"), 80);
-            parametres.put("P_CLIENT", nom);
+            parametres.put("P_CLIENT", nom + " · " + r.optInt("clients") + " client(s)");
             parametres.put("P_TOTAUX",
                     "Solde au début : " + milliers(r.optLong("soldeInitial")) + "   ·   Débit (ventes) : "
                             + milliers(r.optLong("totalDebit")) + "   ·   Crédit (règlements) : "
                             + milliers(r.optLong("totalCredit")) + "   ·   Solde à la fin : "
                             + milliers(r.optLong("soldeFinal")));
-            String url = reportUtil.buildReport(parametres, "releve_differes", lignes);
+            /* plan du 10/11, point 4 : edition groupee par client (nouveau modele, l'ancien n'est plus appele) */
+            String url = reportUtil.buildReport(parametres, "releve_differes_clients", lignes);
             fichier = reportUtil.editionEcrite(url)
                     ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
         }
@@ -244,13 +251,23 @@ public class ReglementRessource {
         byte[] contenu = excelExport.createExcelReport(
                 "Relevé des différés du " + du.format(JJ_MM_AAAA) + " au " + au.format(JJ_MM_AAAA) + " (solde au début "
                         + milliers(r.optLong("soldeInitial")) + ")",
-                new String[] { "Date et heure", "Opération", "Référence", "Client", "Débit", "Crédit", "Solde" },
+                /*
+                 * plan du 10/11, point 4 : groupe par client ; la ligne du client porte son solde au debut et ses
+                 * totaux
+                 */
+                new String[] { "Date et heure", "Opération", "Référence", "Client", "Solde au début", "Débit", "Crédit",
+                        "Solde" },
                 lignes, (row, l) -> {
                     int i = 0;
+                    boolean client = "CLIENT".equals(l.getType());
                     row.createCell(i++).setCellValue(l.getDate());
-                    row.createCell(i++).setCellValue(l.getLibelle());
+                    row.createCell(i++).setCellValue(client ? "Client : " + l.getClient() : l.getLibelle());
                     row.createCell(i++).setCellValue(l.getReference());
                     row.createCell(i++).setCellValue(l.getClient());
+                    if (l.getSoldeDebut() != null) {
+                        row.createCell(i).setCellValue(l.getSoldeDebut());
+                    }
+                    i++;
                     row.createCell(i++).setCellValue(l.getDebit() == null ? 0 : l.getDebit());
                     row.createCell(i++).setCellValue(l.getCredit() == null ? 0 : l.getCredit());
                     row.createCell(i).setCellValue(l.getSolde());
@@ -272,6 +289,26 @@ public class ReglementRessource {
                     .put("msg", "La date de début est après la date de fin.").toString()).build();
         }
         return Response.ok(reglementService.releveDifferes(du, au, clientId).toString()).build();
+    }
+
+    /** Plan du 10/11, point 4 : volet de droite de l'onglet « Solde », clic sur une vente (ou son annulation). */
+    @GET
+    @Path("releve/vente/{id}")
+    public Response releveVente(@PathParam("id") String id) {
+        if (servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return Response.ok(reglementService.detailVenteReleve(id).toString()).build();
+    }
+
+    /** Plan du 10/11, point 4 : volet de droite de l'onglet « Solde », clic sur un reglement. */
+    @GET
+    @Path("releve/reglement/{id}")
+    public Response releveReglement(@PathParam("id") String id) {
+        if (servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return Response.ok(reglementService.detailReglementReleve(id).toString()).build();
     }
 
     @GET
@@ -297,6 +334,19 @@ public class ReglementRessource {
         }
         JSONObject json = generateTicketService.ticketReglementDiffere(ref);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Plan du 10/11, point 1 : contenu du recu de reglement d'un differe, bloc par bloc, sans impression (tests de
+     * rapprochement ecran / recu / base). Lecture seule.
+     */
+    @GET
+    @Path("ticket/{id}/apercu")
+    public Response apercuTicket(@PathParam("id") String ref) throws JSONException {
+        if (servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return SalesRessource.apercuTickets(() -> generateTicketService.apercuTicketReglementDiffere(ref));
     }
 
     @PUT

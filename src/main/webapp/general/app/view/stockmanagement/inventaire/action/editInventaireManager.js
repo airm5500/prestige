@@ -115,7 +115,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             /* 'NEGATIF' : articles dont la quantite retenue par l'inventaire est encore negative.
              * Une ligne non comptee porte toujours le stock machine du depart : ces articles
              * resteront en stock negatif si l'inventaire est cloture en l'etat. */
-            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}, {str_TYPE: 'NEGATIF', str_desc: 'Articles encore négatifs'}, {str_TYPE: 'PAF_SUP_PV', str_desc: 'Prix achat > prix vente'}]
+            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}, {str_TYPE: 'NEGATIF', str_desc: 'Articles encore négatifs'}, {str_TYPE: 'PAF_SUP_PV', str_desc: 'Prix achat > prix vente'}, {str_TYPE: 'VENDUS_APRES', str_desc: 'Vendus après la création de l\'inventaire'}]
         });
 
         var store_grossiste = new Ext.data.Store({
@@ -662,7 +662,24 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                         return v;
                                     },
 
-                                    sortable: true}
+                                    sortable: true},
+                                {
+                                    /* plan du 09/11, point 12 : quantite vendue depuis la creation de l'inventaire,
+                                       affichee seulement avec le filtre « Vendus après la création de l'inventaire » */
+                                    header: 'Vendus depuis',
+                                    itemId: 'colVendusDepuis',
+                                    tooltip: 'Quantité vendue (ventes encaissées, non annulées) depuis la création de l\'inventaire',
+                                    hidden: true,
+                                    hideable: false,
+                                    sortable: false,
+                                    flex: 1,
+                                    tdCls: 'inv-cell-big',
+                                    align: 'right',
+                                    renderer: function (v, m, r) {
+                                        var n = r.raw ? r.raw.int_VENDU_DEPUIS : null;
+                                        return (n === null || n === undefined) ? '' : n;
+                                    }
+                                }
                             ]),
                             tbar: [
                                 {
@@ -703,6 +720,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
                                             var OGridStore = Ext.getCmp('gridpanelInventaireID').getStore();
 
+                                            var colVendus = Ext.getCmp('gridpanelInventaireID').down('#colVendusDepuis');
+                                            if (colVendus) {
+                                                colVendus.setVisible(value === 'VENDUS_APRES');
+                                            }
                                             OGridStore.getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + value + "&search_value=" + rechecher + "&lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID;
 
                                             OGridStore.load();
@@ -1376,7 +1397,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         p.showStock = (chkShowStock && chkShowStock.getValue()) ? 'true' : 'false';
         /* plan du 08/11, point 17 : le filtre « Prix achat > prix vente » s'imprime par le service REST, avec les
            lignes memes de l'ecran (le modele de l'officine ne connait pas ce filtre) */
-        if (p.str_TYPE === 'PAF_SUP_PV') {
+        /* plan du 09/11, point 12 : « Vendus après la création de l'inventaire », meme service REST */
+        if (p.str_TYPE === 'PAF_SUP_PV' || p.str_TYPE === 'VENDUS_APRES') {
             Ext.Ajax.request({url: '../api/v1/inventaire/filtre/pdf', method: 'GET', params: p, timeout: 240000,
                 success: function (r) {
                     var o = Ext.decode(r.responseText, true) || {};

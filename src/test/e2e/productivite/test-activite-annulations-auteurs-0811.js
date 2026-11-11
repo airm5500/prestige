@@ -11,6 +11,9 @@
  *  - cas variés : plusieurs vendeurs avec annulées, plusieurs caissières, des modifications au comptant et à crédit ;
  *    un employé seul (filtre Employé) ;
  *  - ergonomie : tableaux dans leur cadre, aucune fenêtre ouverte, aucune erreur JavaScript. Lecture seule.
+ * Plan du 09/11, point 10 : par caissière, ventes encaissées au comptant et à crédit, taux de chaque opération sur les
+ * ventes de son type et taux global à droite (écran = API = base, ligne par ligne ; règle taux = opérations ÷ ventes) ;
+ * colonne « Encaissé par » dans le détail (détail d'une caissière : toujours elle ; écran = API).
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -38,7 +41,13 @@ function vendeurs(emp) {
   return Object.values(m).map((x) => Object.assign(x, { taux: arrondi(100 * x.annulees / x.ventes) }));
 }
 function caissieres(emp) {
-  const m = {}, de = (c) => m[c] || (m[c] = { id: c, annulationsComptant: 0, modificationsComptant: 0, modificationsCredit: 0 });
+  const m = {}, de = (c) => m[c] || (m[c] = { id: c, annulationsComptant: 0, modificationsComptant: 0, modificationsCredit: 0, ventesComptant: 0, ventesCredit: 0 });
+  for (const [c, typ] of lignesSql(`SELECT p.lg_USER_CAISSIER_ID, p.lg_TYPE_VENTE_ID FROM t_preenregistrement p WHERE p.str_STATUT = 'is_Closed'`
+    + ` AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID IN ('1', '2', '3') AND COALESCE(p.completion_date, p.dt_UPDATED) >= '${D}'`
+    + ` AND COALESCE(p.completion_date, p.dt_UPDATED) < '${F}' AND NOT ${MODIF}` + (emp ? ` AND p.lg_USER_CAISSIER_ID = '${emp}'` : ''))) {
+    if (c === 'NULL') { continue; }
+    if (typ === '1') { de(c).ventesComptant++; } else { de(c).ventesCredit++; }
+  }
   for (const [c, typ, prix, modif] of lignesSql(`SELECT p.lg_USER_CAISSIER_ID, p.lg_TYPE_VENTE_ID, p.int_PRICE, ${MODIF} FROM t_preenregistrement p`
     + ` WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 1 AND p.dt_ANNULER >= '${D}' AND p.dt_ANNULER < '${F}'`
     + (emp ? ` AND p.lg_USER_CAISSIER_ID = '${emp}'` : ''))) {
@@ -50,11 +59,18 @@ function caissieres(emp) {
     if (c === 'NULL') { continue; }
     if (typ === '1') { de(c).modificationsComptant++; } else if (typ === '2' || typ === '3') { de(c).modificationsCredit++; }
   }
+  const taux = (n, sur) => (sur > 0 ? arrondi(100 * n / sur) : null);
   return Object.values(m).map((x) => Object.assign(x, { total: x.annulationsComptant + x.modificationsComptant + x.modificationsCredit }))
-    .filter((x) => x.total > 0);
+    .filter((x) => x.total > 0).map((x) => Object.assign(x, { tauxAnnulationsComptant: taux(x.annulationsComptant, x.ventesComptant),
+      tauxModificationsComptant: taux(x.modificationsComptant, x.ventesComptant), tauxModificationsCredit: taux(x.modificationsCredit, x.ventesCredit),
+      taux: taux(x.total, x.ventesComptant + x.ventesCredit) }));
 }
 const cleV = (x) => [x.id, x.ventes, x.annulees, x.taux].join('|');
-const cleC = (x) => [x.id, x.annulationsComptant, x.modificationsComptant, x.modificationsCredit, x.total].join('|');
+const cleC = (x) => [x.id, x.annulationsComptant, x.modificationsComptant, x.modificationsCredit, x.total, x.ventesComptant, x.ventesCredit,
+  x.tauxAnnulationsComptant, x.tauxModificationsComptant, x.tauxModificationsCredit, x.taux].join('|');
+/* une ligne du tableau des caissieres a l'ecran : nombres et taux lus dans les cellules */
+const ligneC = (x) => [x.id, x.ventesComptant, x.annulationsComptant, x.tauxAnnulationsComptant, x.modificationsComptant, x.tauxModificationsComptant,
+  x.ventesCredit, x.modificationsCredit, x.tauxModificationsCredit, x.taux].map((v) => (v === null || v === undefined ? '' : v)).join('|');
 const trier = (l, k) => l.map(k).sort();
 
 (async () => {
@@ -71,7 +87,13 @@ const trier = (l, k) => l.map(k).sort();
     const cadre = c ? c.body.dom.getBoundingClientRect() : null;
     const dedans = (sel) => { const t = document.querySelector(sel); if (!t || !cadre) { return false; } const r = t.getBoundingClientRect();
       return r.left >= cadre.left - 1 && r.right <= cadre.right + 1; };
-    return { present: !!c && c.isVisible(true), titre: c ? c.title : '', aide: c ? c.query('tool[type=help]').length : 0,
+    const nb = (td) => Number(((td.querySelector('.ae-nb') || td).innerText).replace(/[^\d]/g, ''));
+    const tx = (el) => (el && el.getAttribute('data-taux') !== '' ? Number(el.getAttribute('data-taux')) : '');
+    const tc = document.querySelector('table.ae-ann-caissiers');
+    const lc = tc ? Array.from(tc.tBodies[0].rows).map((tr) => { const td = tr.children;
+      return [tr.getAttribute('data-id'), nb(td[1]), nb(td[2]), tx(td[2].querySelector('.ae-pct')), nb(td[3]), tx(td[3].querySelector('.ae-pct')), nb(td[4]),
+        nb(td[5]), tx(td[5].querySelector('.ae-pct')), tx(td[6])].join('|'); }) : [];
+    return { lc, present: !!c && c.isVisible(true), titre: c ? c.title : '', aide: c ? c.query('tool[type=help]').length : 0,
       v: table('table.ae-ann-vendeurs'), c: table('table.ae-ann-caissiers'), dansLeCadre: dedans('table.ae-ann-vendeurs') && dedans('table.ae-ann-caissiers') }; });
   const nombre = (s) => Number(String(s).replace(/[^\d,]/g, '').replace(',', '.'));
   const fenetres = () => p.evaluate(() => Ext.ComponentQuery.query('window').filter((w) => w.isVisible()).length);
@@ -90,7 +112,7 @@ const trier = (l, k) => l.map(k).sort();
     let e = await ecran();
     const bv = vendeurs(null), bc = caissieres(null);
     ok('Carte « Annulations par auteur de la vente », avec son aide « ? » et ses deux tableaux', e.present && e.titre === 'Annulations par auteur de la vente' && e.aide === 1
-      && e.v.entete.join('|') === 'Vendeur|Ventes|Annulées ensuite|Taux' && e.c.entete.join('|') === 'Caissière|Annul. comptant|Modif. comptant|Modif. crédit',
+      && e.v.entete.join('|') === 'Vendeur|Ventes|Annulées ensuite|Taux' && e.c.entete.join('|') === 'Caissière|Ventes comptant|Annul. comptant|Modif. comptant|Ventes crédit|Modif. crédit|Taux',
     JSON.stringify({ present: e.present, titre: e.titre, aide: e.aide, v: e.v.entete, c: e.c.entete }));
     ok('Cas variés : plusieurs vendeurs avec annulées, plusieurs caissières, modifications au comptant et à crédit',
       bv.filter((x) => x.annulees > 0).length >= 2 && bc.length >= 2 && bc.some((x) => x.modificationsComptant > 0) && bc.some((x) => x.modificationsCredit > 0),
@@ -98,18 +120,23 @@ const trier = (l, k) => l.map(k).sort();
     const av = api.parVendeur || [], ac = api.parCaissier || [];
     ok('Rapprochement vendeurs : API = base (ventes, annulées ensuite, taux)', JSON.stringify(trier(av, cleV)) === JSON.stringify(trier(bv, cleV)),
       JSON.stringify({ api: trier(av, cleV).slice(0, 3), base: trier(bv, cleV).slice(0, 3) }));
-    ok('Rapprochement caissières : API = base (annulations comptant, modifications comptant et crédit)', JSON.stringify(trier(ac, cleC)) === JSON.stringify(trier(bc, cleC)),
+    ok('Rapprochement caissières : API = base (annulations, modifications, ventes encaissées par type, taux par type et global)', JSON.stringify(trier(ac, cleC)) === JSON.stringify(trier(bc, cleC)),
       JSON.stringify({ api: trier(ac, cleC).slice(0, 3), base: trier(bc, cleC).slice(0, 3) }));
     ok('Somme : annulées des vendeurs = ventes annulées de la base sur la période (hors modifications)',
       av.reduce((s, x) => s + x.annulees, 0) === Number(q(`SELECT COUNT(*) FROM t_preenregistrement p WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 1`
         + ` AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5' AND p.lg_USER_VENDEUR_ID IS NOT NULL AND p.dt_CREATED >= '${D}' AND p.dt_CREATED < '${F}' AND NOT ${MODIF}`)));
     const ev = e.v.lignes.map((l) => [l.id, ...l.cellules.slice(1).map(nombre)].join('|'));
-    const ec = e.c.lignes.map((l) => [l.id, ...l.cellules.slice(1).map(nombre)].join('|'));
+    const ec = e.lc;
     ok('Écran = API, ligne par ligne, dans l\'ordre (12 premiers de chaque tableau)',
       JSON.stringify(ev) === JSON.stringify(av.slice(0, 12).map((x) => [x.id, x.ventes, x.annulees, x.taux].join('|')))
-      && JSON.stringify(ec) === JSON.stringify(ac.slice(0, 12).map((x) => [x.id, x.annulationsComptant, x.modificationsComptant, x.modificationsCredit].join('|'))),
+      && JSON.stringify(ec) === JSON.stringify(ac.slice(0, 12).map(ligneC)),
     JSON.stringify({ ev: ev.slice(0, 2), ec: ec.slice(0, 2) }));
     ok('Ergonomie : les deux tableaux tiennent dans leur cadre (1366 × 768)', e.dansLeCadre);
+    ok('Cohérence : taux = opérations ÷ ventes du type, jamais négatif ; sans vente du type, pas de taux ; cas variés (taux comptant et crédit présents)',
+      ac.every((x) => [[x.annulationsComptant, x.ventesComptant, x.tauxAnnulationsComptant], [x.modificationsComptant, x.ventesComptant, x.tauxModificationsComptant],
+        [x.modificationsCredit, x.ventesCredit, x.tauxModificationsCredit], [x.total, x.ventesComptant + x.ventesCredit, x.taux]]
+        .every(([n, sur, t]) => (sur > 0 ? t === arrondi(100 * n / sur) && t >= 0 : t === null || t === undefined)))
+      && ac.some((x) => x.tauxAnnulationsComptant > 0) && ac.some((x) => x.tauxModificationsCredit > 0), JSON.stringify(ac.slice(0, 2)));
 
     /* detail d'un vendeur : clic sur sa ligne */
     const vId = av.find((x) => x.annulees > 0).id;
@@ -136,6 +163,12 @@ const trier = (l, k) => l.map(k).sort();
     ok('Détail d\'une caissière : nombre de lignes = annulations + modifications comptant et crédit ; écran = API',
       dc.length === cx.total && re.length === dc.length && dc.filter((x) => x.operation === 'Annulation').length === cx.annulationsComptant,
       JSON.stringify({ ecran: re.length, api: dc.length, attendu: cx }));
+    const encEcran = await p.evaluate(() => { const t = document.querySelector('table.ae-ann-liste'); if (!t) { return null; }
+      const i = Array.from(t.tHead.rows[0].children).map((x) => x.innerText.trim()).indexOf('Encaissé par');
+      return i < 0 ? null : Array.from(t.tBodies[0].rows).map((tr) => tr.children[i].innerText.trim()); });
+    ok('Détail : colonne « Encaissé par » ; pour une caissière, toujours elle ; écran = API, ligne par ligne',
+      encEcran !== null && JSON.stringify(encEcran) === JSON.stringify(dc.map((x) => x.encaissePar)) && dc.every((x) => x.encaissePar === cx.nom),
+      JSON.stringify({ ecran: (encEcran || []).slice(0, 3), nom: cx.nom }));
     ok('Consultation en place : aucune fenêtre ouverte', (await fenetres()) === fenetresAvant);
 
     /* un employe seul */

@@ -32,6 +32,8 @@ public class ActiviteAnalysesDTO {
     private String seuilOperateur;
     private int seuilMinutes;
     private String seuilLibelle;
+    /** plan du 09/11, point 10 : garde choisie (libelle, debut, fin) ; absente pour une periode en jours */
+    private java.util.Map<String, String> garde;
     @Builder.Default
     private List<Indicateur> indicateurs = new ArrayList<>();
     @Builder.Default
@@ -194,8 +196,10 @@ public class ActiviteAnalysesDTO {
         private long ventes;
         private double ventesParJour;
         private double lignesParVente;
-        /** saisie par ligne, en secondes */
+        /** saisie par ligne, en secondes (operateurs : mediane des ventes mesurees, plan du 09/11, point 10) */
         private double secondesParLigne;
+        /** plan du 09/11, point 10 : ventes saisies par l'operateur lui-meme et retenues pour sa vitesse */
+        private long ventesMesurees;
         private long chiffreAffaires;
         private long panierMoyen;
         /** ventes de plus de 10 minutes */

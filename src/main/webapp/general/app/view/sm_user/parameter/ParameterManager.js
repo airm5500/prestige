@@ -349,19 +349,31 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                     singleSelect: true, trackOver: true, overItemCls: 'param-rubrique-survol', selectedItemCls: 'param-rubrique-choisie',
                     itemSelector: 'div.param-rubrique',
                     store: new Ext.data.Store({
-                        fields: ['code', 'libelle', 'couleur', {name: 'nombre', type: 'int'}], autoLoad: true,
-                        proxy: {type: 'ajax', url: '../api/v1/app-params/rubriques', reader: {type: 'json', root: 'results', totalProperty: 'total'}}
+                        fields: ['code', 'libelle', 'couleur', {name: 'nombre', type: 'int'}, {name: 'sansNombre', type: 'boolean'}], autoLoad: true,
+                        proxy: {type: 'ajax', url: '../api/v1/app-params/rubriques', reader: {type: 'json', root: 'results', totalProperty: 'total'}},
+                        listeners: {
+                            /* plan du 09/11, point 7 : rubrique « Poste » (reglage de CE poste, garde dans le navigateur, et
+                               postes connus de l'officine) ; elle ne regroupe aucun parametre de la base */
+                            load: function (st) {
+                                if (st.findExact('code', 'POSTE') < 0) {
+                                    st.add({code: 'POSTE', libelle: 'Poste (ce poste et postes connus)', couleur: '#34495e', nombre: 0, sansNombre: true});
+                                }
+                            }
+                        }
                     }),
                     tpl: new Ext.XTemplate('<div class="param-rubriques-titre">Rubriques</div><tpl for=".">'
                             + '<div class="param-rubrique" data-code="{code}" style="border-left-color:{couleur}">'
-                            + '<span class="param-rubrique-libelle">{libelle}</span><span class="param-rubrique-nombre" style="background:{couleur}">{nombre}</span></div></tpl>'),
+                            + '<span class="param-rubrique-libelle">{libelle}</span><tpl if="!sansNombre"><span class="param-rubrique-nombre" style="background:{couleur}">{nombre}</span></tpl></div></tpl>'),
                     listeners: {
                         /* premier argument : le modele de selection, pas la vue ; « this » est la vue */
                         selectionchange: function (modele, choix) {
                             var ecran = ecranDuComposant(this);
                             if (ecran) {
                                 ecran.rubrique = choix && choix[0] ? choix[0].get('code') : '';
-                                ecran.onRechClick();
+                                ecran.afficherPoste(ecran.rubrique === 'POSTE');
+                                if (ecran.rubrique !== 'POSTE') {
+                                    ecran.onRechClick();
+                                }
                             }
                         },
                         viewready: function (vue) {
@@ -372,6 +384,83 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                             }, null, {single: true});
                         }
                     }
+                }, {
+                    /* plan du 09/11, point 7 : nom de CE poste (garde dans le navigateur, meme apres la deconnexion, et
+                       envoye a chaque connexion) et postes connus de l'officine (journal des connexions) */
+                    xtype: 'panel', dock: 'top', weight: 10, itemId: 'rubriquePoste', hidden: true, border: false, bodyPadding: 10,
+                    layout: {type: 'vbox', align: 'stretch'},
+                    items: [{
+                            xtype: 'component', cls: 'param-poste-aide',
+                            html: '<b>Nom de ce poste</b> : gardé sur ce poste, même après la déconnexion, et envoyé à chaque connexion. '
+                                    + 'Il figure dans le fichier journal, dans « Ventes terminées » et dans la liste ci-dessous. '
+                                    + 'Sans nom, le serveur prend le nom réseau du poste.'
+                        }, {
+                            xtype: 'container', layout: 'hbox', margin: '8 0 6 0',
+                            items: [{
+                                    xtype: 'textfield', itemId: 'nomPosteParam', fieldLabel: 'Ce poste', labelWidth: 60, width: 330, maxLength: 60,
+                                    enforceMaxLength: true, emptyText: 'Ex. : Caisse 1'
+                                }, {
+                                    xtype: 'button', itemId: 'btnPosteEnregistrer', text: 'Enregistrer', margin: '0 0 0 8',
+                                    tooltip: 'Garder ce nom sur ce poste (confirmation dans le bouton)',
+                                    handler: function (b) {
+                                        var ecran = ecranDuComposant(b), v = Ext.String.trim(ecran.down('#nomPosteParam').getValue() || '');
+                                        if (!v) {
+                                            ecran.etatPoste('Saisissez un nom (lettres, chiffres, espace, point, tiret).', true);
+                                            return;
+                                        }
+                                        PrestigeConfirmation.bouton(b, 'Confirmer : enregistrer ?', function () {
+                                            /* valeur du champ au moment de la confirmation */
+                                            var nom = window.PrestigePoste.ecrire(Ext.String.trim(ecran.down('#nomPosteParam').getValue() || ''));
+                                            ecran.down('#nomPosteParam').setValue(window.PrestigePoste.lire());
+                                            ecran.etatPoste(nom ? 'Enregistré : « ' + nom + ' ». Il partira avec la prochaine connexion.'
+                                                    : 'Nom refusé : lettres, chiffres, espace, point, tiret.', !nom);
+                                            ecran.chargerPostes();
+                                        });
+                                    }
+                                }, {
+                                    xtype: 'button', itemId: 'btnPosteEffacer', text: 'Effacer', margin: '0 0 0 6',
+                                    tooltip: 'Retirer le nom de ce poste : le nom réseau sera utilisé (confirmation dans le bouton)',
+                                    handler: function (b) {
+                                        var ecran = ecranDuComposant(b);
+                                        PrestigeConfirmation.bouton(b, 'Confirmer : effacer ?', function () {
+                                            window.PrestigePoste.ecrire('');
+                                            ecran.down('#nomPosteParam').setValue('');
+                                            ecran.etatPoste('Nom effacé : le nom réseau sera utilisé à la prochaine connexion.', false);
+                                            ecran.chargerPostes();
+                                        });
+                                    }
+                                }, {
+                                    xtype: 'component', itemId: 'etatPoste', margin: '4 0 0 12', html: ''
+                                }]
+                        }, {
+                            xtype: 'component', margin: '6 0 4 0',
+                            html: '<b>Postes connus</b> : connexions des 365 derniers jours, la plus récente en tête.'
+                        }, {
+                            xtype: 'grid', itemId: 'postesConnus', flex: 1, border: true, columnLines: true,
+                            store: new Ext.data.Store({
+                                fields: ['poste', 'derniere', 'utilisateur', 'ip', {name: 'connexions', type: 'int'}],
+                                proxy: {type: 'ajax', url: '../api/v1/postes/connus', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+                            }),
+                            viewConfig: {emptyText: 'Aucune connexion enregistrée.', deferEmptyText: false},
+                            columns: [{
+                                    header: 'Poste', dataIndex: 'poste', flex: 1,
+                                    renderer: function (v) {
+                                        var ici = window.PrestigePoste ? window.PrestigePoste.lire() : '';
+                                        return Ext.String.htmlEncode(v) + (ici && String(v).toLowerCase() === ici.toLowerCase() ? ' <b>(ce poste)</b>' : '');
+                                    }
+                                }, {
+                                    header: 'Dernière connexion', dataIndex: 'derniere', width: 170,
+                                    renderer: function (v) {
+                                        return v ? v.substring(8, 10) + '/' + v.substring(5, 7) + '/' + v.substring(0, 4) + ' ' + v.substring(11, 16) : '';
+                                    }
+                                }, {
+                                    header: 'Utilisateur', dataIndex: 'utilisateur', flex: 1, renderer: Ext.String.htmlEncode
+                                }, {
+                                    header: 'Adresse', dataIndex: 'ip', width: 130, renderer: Ext.String.htmlEncode
+                                }, {
+                                    header: 'Connexions', dataIndex: 'connexions', width: 95, align: 'right'
+                                }]
+                        }]
                 }]
         });
         if (!Ext.get('param-rubriques-style')) {
@@ -405,6 +494,61 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
         })
 
 
+    },
+    /** Plan du 09/11, point 7 : rubrique « Poste » a la place de la liste des parametres. */
+    afficherPoste: function (oui) {
+        var me = this, panneau = me.down('#rubriquePoste'), haut = me.getDockedItems('toolbar[dock="top"]')[0],
+                bas = me.getDockedItems('pagingtoolbar')[0], vue = me.getView(), entetes = me.headerCt;
+        if (!panneau || panneau.isVisible() === oui) {
+            return;
+        }
+        if (oui) {
+            var h = (vue.getHeight() || 400) + (haut ? haut.getHeight() : 0) + (bas ? bas.getHeight() : 0) + (entetes ? entetes.getHeight() : 0);
+            Ext.each([haut, bas, entetes, vue], function (c) {
+                if (c) {
+                    c.hide();
+                }
+            });
+            panneau.setHeight(Math.max(320, h));
+            panneau.show();
+            /* un bouton reste arme si l'on a quitte la rubrique avant de confirmer : il revient a son etat */
+            Ext.each(['#btnPosteEnregistrer', '#btnPosteEffacer'], function (s) {
+                var b = me.down(s), e = b && b.prestigeConfirmation;
+                if (e) {
+                    clearTimeout(e.minuterie);
+                    b.prestigeConfirmation = null;
+                    b.setText(e.texte);
+                    if (e.infobulle && b.setTooltip) {
+                        b.setTooltip(e.infobulle);
+                    }
+                    PrestigeConfirmation.desarmer(b);
+                }
+            });
+            me.down('#nomPosteParam').setValue(window.PrestigePoste ? window.PrestigePoste.lire() : '');
+            me.etatPoste('', false);
+            me.chargerPostes();
+        } else {
+            panneau.hide();
+            Ext.each([haut, bas, entetes, vue], function (c) {
+                if (c) {
+                    c.show();
+                }
+            });
+        }
+    },
+    chargerPostes: function () {
+        var panneau = this.down('#rubriquePoste');
+        this.down('#postesConnus').getStore().load({
+            callback: function () {
+                panneau.__charge = true;
+            }
+        });
+    },
+    etatPoste: function (texte, alerte) {
+        var c = this.down('#etatPoste');
+        if (c) {
+            c.update(texte ? '<span style="color:' + (alerte ? '#c0392b' : '#1e8449') + '">' + Ext.String.htmlEncode(texte) + '</span>' : '');
+        }
     },
     loadStore: function () {
         this.getStore().load({

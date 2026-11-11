@@ -42,7 +42,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
     return p.evaluate(() => Array.from(document.querySelectorAll('#notif-center-win .pn-label')).map((e) => e.textContent.trim()));
   };
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.PrestigeNotif && Ext.ComponentQuery.query('navigation').length && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 90000 });

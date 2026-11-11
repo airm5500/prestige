@@ -22,9 +22,13 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         odatasource: ''
     },
 
-    ONGLETS: [{cle: 'donnees', texte: 'Données & recherches', aide: 'Journal de tout ce que fait chaque employé, filtres et recherche'},
-        {cle: 'analyses', texte: 'Analyses', aide: 'Productivité, affluence, saisie des BL, actions sensibles et aide à la décision'},
-        {cle: 'anomalies', texte: 'Anomalies', aide: 'Par employé : refus affichés, opérations à risque, erreurs du logiciel ; et ce qu\'il a fait juste avant'}],
+    /* plan du 09/11, point 10 : une couleur par onglet, celles des cartes du tableau de bord */
+    ONGLETS: [{cle: 'donnees', texte: 'Données & recherches', couleur: '#1d4ed8', doux: '#e6eeff',
+            aide: 'Journal de tout ce que fait chaque employé, filtres et recherche'},
+        {cle: 'analyses', texte: 'Analyses', couleur: '#7c3aed', doux: '#efe7ff',
+            aide: 'Productivité, affluence, saisie des BL, actions sensibles et aide à la décision'},
+        {cle: 'anomalies', texte: 'Anomalies', couleur: '#e11d48', doux: '#fde7ec',
+            aide: 'Par employé : refus affichés, opérations à risque, erreurs du logiciel ; et ce qu\'il a fait juste avant'}],
 
     /* couleur de chaque type d'action (pastilles, colonne Action, graphiques) */
     COULEURS: {VENTE: '#1b7f3b', VENDEUR: '#2563eb', ANNULATION: '#c62828', MODIFICATION: '#e67e22', BL: '#7c3aed',
@@ -86,7 +90,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         : 'aucun op\u00e9rateur avec 5 ventes ou plus'
             };
         },
-        /* bandeau des reperes : 4 chiffres et le repere d'alerte (menu, fenetre et carte du tableau de bord) */
+        /* bandeau des reperes : 4 chiffres (menu, fenetre et carte du tableau de bord) ; plan du 09/11, point 10 : la ligne
+         * d'alerte est retiree (elle redisait un constat deja visible dans les analyses) */
         htmlResume: function (r) {
             var e = Ext.String.htmlEncode, T = this.resumeTextes(r);
             r = r || {};
@@ -94,14 +99,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 return '<div class="ae-rep' + (mauvais ? ' ae-rep-mal' : '') + '" data-rep="' + code + '"><div class="l">' + e(libelle) + '</div>'
                         + '<div class="v">' + e(valeur) + '</div><div class="d">' + e(detail) + '</div></div>';
             };
-            var alerte = r.alertes > 0
-                    ? '<div class="ae-rep-alerte mal" data-alertes="' + r.alertes + '">\u26a0 ' + r.alertes + ' alerte' + (r.alertes > 1 ? 's' : '') + ' : '
-                    + e(r.premiereAlerte || '') + '</div>'
-                    : '<div class="ae-rep-alerte bon" data-alertes="0">\u2713 Aucune alerte</div>';
             return '<div class="ae-reps">' + tuile('LONGUES', r.seuilLibelle || 'Ventes de plus de 10 min', T.longues, 'vente laiss\u00e9e ouverte', r.ventesLongues > 0)
                     + tuile('SENSIBLES', 'Actions sensibles', T.sensibles, T.sensiblesDetail, r.actionsSensibles > 0)
                     + tuile('DELAI_BL', 'D\u00e9lai moyen de saisie des BL', T.delaiBl, T.delaiBlDetail, r.delaiMoyenBl >= 2)
-                    + tuile('RAPIDE', 'Op\u00e9rateur le plus rapide', T.rapide, T.rapideDetail, false) + '</div>' + alerte;
+                    + tuile('RAPIDE', 'Op\u00e9rateur le plus rapide', T.rapide, T.rapideDetail, false) + '</div>';
         },
         styles: function () {
             if (Ext.get('activite-equipes-styles')) {
@@ -126,10 +127,14 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-tuile .v{font-size:22px;font-weight:700;color:#0f172a;margin-top:2px;font-variant-numeric:tabular-nums}'
                     + '.ae-tuile .e{font-size:12px;margin-top:2px}.ae-tuile .e.bon{color:#1b7f3b}.ae-tuile .e.mal{color:#c62828}.ae-tuile .e.neutre{color:#94a3b8}'
                     + '.ae-constats{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;margin-bottom:14px}'
-                    + '.ae-constat{border-radius:10px;padding:10px 12px 10px 14px;border-left:5px solid;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06);'
+                    /* plan du 09/11, point 10 : pas de filet de couleur a gauche ; fond doux, bordure fine et pastille */
+                    + '.ae-constat{border-radius:10px;padding:10px 12px;border:1px solid #e2e8f0;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06);'
                     + 'animation:ae-entree .45s ease both}'
-                    + '.ae-constat b{display:block;margin-bottom:3px}.ae-constat.ALERTE{border-color:#c62828;background:#fef2f2}'
-                    + '.ae-constat.CONSEIL{border-color:#e67e22;background:#fff7ed}.ae-constat.INFO{border-color:#1e3a5f;background:#f1f5f9}'
+                    + '.ae-constat b{display:block;margin-bottom:3px}.ae-constat b::before{content:"";display:inline-block;width:8px;height:8px;'
+                    + 'border-radius:50%;margin-right:6px;vertical-align:middle;background:#1e3a5f}'
+                    + '.ae-constat.ALERTE{border-color:#f5c6c6;background:#fef2f2}.ae-constat.ALERTE b::before{background:#c62828}'
+                    + '.ae-constat.CONSEIL{border-color:#fbd9b5;background:#fff7ed}.ae-constat.CONSEIL b::before{background:#e67e22}'
+                    + '.ae-constat.INFO{border-color:#dbe3ec;background:#f1f5f9}'
                     + '.ae-titre-bloc{font-weight:700;color:#1e3a5f;margin:4px 0 8px;font-size:13px}'
                     + '.ae-carte{border-collapse:separate;border-spacing:2px;width:100%;font-size:11px}'
                     + '.ae-carte td{height:22px;text-align:center;border-radius:3px;color:#0f172a;transition:transform .12s}'
@@ -157,8 +162,27 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-rep .v{font-size:18px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
                     + '.ae-rep .d{font-size:11px;color:#64748b;white-space:normal}'
                     + '.ae-rep-alerte{border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;margin-bottom:12px}'
-                    + '.ae-rep-alerte.mal{background:#fef2f2;color:#b91c1c}.ae-rep-alerte.bon{background:#f0fdf4;color:#15803d}',
+                    + '.ae-rep-alerte.mal{background:#fef2f2;color:#b91c1c}.ae-rep-alerte.bon{background:#f0fdf4;color:#15803d}'
+                    /* plan du 09/11, point 10 : tableaux des sept indicateurs */
+                    + '.ae-ind{border-collapse:collapse;width:100%;font-size:12px}.ae-ind th{background:#e8eef7;color:#1a3d6d;text-align:left;'
+                    + 'padding:4px 6px;white-space:nowrap;position:sticky;top:0}.ae-ind td{padding:3px 6px;border-bottom:1px solid #eef1f5;white-space:nowrap}'
+                    + '.ae-ind .n{text-align:right;font-variant-numeric:tabular-nums}.ae-ind small{display:block;color:#7c3aed;font-size:11px}'
+                    + '.ae-ind tfoot td{font-weight:bold;background:#f8fafc;border-top:2px solid #dbe3ec}.ae-ind tbody tr:hover{background:#f3f7fc}'
+                    + '.ae-ind-pied{margin:6px 2px;color:#334155;font-size:12px}'
+                    + testextjs.view.activiteequipes.ActiviteEquipes.cssOnglets(),
                     'activite-equipes-styles');
+        },
+        /* plan du 09/11, point 10 : chaque onglet porte sa couleur (texte et fond doux), plein quand il est choisi */
+        cssOnglets: function () {
+            return Ext.Array.map(testextjs.view.activiteequipes.ActiviteEquipes.prototype.ONGLETS, function (o) {
+                /* classe triplee : passe devant les regles .cec-hub de vente-theme.css */
+                var k = '.ae-onglet-' + o.cle, b = '.cec-onglets .x-btn.cec-onglet' + k + k + k, c = o.couleur;
+                return b + '{background:' + o.doux + '!important;background-image:none!important;border-color:' + c + '!important}'
+                        + b + ':hover{background:' + o.doux + '!important;filter:brightness(.96)}'
+                        + b + ' .x-btn-inner{color:' + c + '!important}'
+                        + b + '.x-btn-pressed,' + b + '.x-btn-pressed:hover{background:' + c + '!important;border-color:' + c + '!important}'
+                        + b + '.x-btn-pressed .x-btn-inner{color:#fff!important}';
+            }).join('');
         }
     },
 
@@ -188,12 +212,13 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         xtype: 'toolbar', dock: 'top', itemId: 'aeFiltres', items: me.boutonsPeriode().concat([
                             {xtype: 'tbseparator'},
                             {xtype: 'datefield', itemId: 'aeDebut', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y', submitFormat: 'Y-m-d',
-                                value: aujourdhui, maxValue: aujourdhui},
+                                value: aujourdhui, maxValue: aujourdhui, listeners: {change: me.dateChangee, scope: me}},
                             {xtype: 'datefield', itemId: 'aeFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y', submitFormat: 'Y-m-d',
                                 value: aujourdhui, maxValue: aujourdhui, listeners: {select: function () {
                                         me.marquerBoutonPeriode(null);
-                                    }}},
+                                    }, change: me.dateChangee, scope: me}},
                             me.choixEmploye(),
+                            me.choixGardePeriode(),
                             {text: 'Actualiser', itemId: 'aeActualiser', iconCls: 'refresh', tooltip: 'Relire la période', handler: function () {
                                     me.marquerBoutonPeriode(null);
                                     me.actualiser();
@@ -213,7 +238,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsAe', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         /* plan du 08/11, point 15.6 : l'onglet Anomalies reste cache tant que le droit n'est pas confirme */
-                        return {xtype: 'button', itemId: 'ae-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'ae-onglets-' + me.id,
+                        return {xtype: 'button', itemId: 'ae-' + o.cle, text: o.texte, cls: 'cec-onglet ae-onglet-' + o.cle, toggleGroup: 'ae-onglets-' + me.id,
                             hidden: o.cle === 'anomalies',
                             allowDepress: false, pressed: o.cle === 'donnees', tooltip: o.aide, handler: function () {
                                 me.afficher(o.cle);
@@ -222,10 +247,12 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 }, {
                     xtype: 'toolbar', dock: 'top', itemId: 'aeFiltres', items: [
                         {xtype: 'datefield', itemId: 'aeDebut', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y', submitFormat: 'Y-m-d',
-                            value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui},
+                            value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui, listeners: {change: me.dateChangee, scope: me}},
                         {xtype: 'datefield', itemId: 'aeFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y', submitFormat: 'Y-m-d',
-                            value: aujourdhui, maxValue: aujourdhui, plugins: [{ptype: 'raccourcisperiode', debut: 'aeDebut', declencher: 'aeActualiser'}]},
+                            value: aujourdhui, maxValue: aujourdhui, plugins: [{ptype: 'raccourcisperiode', debut: 'aeDebut', declencher: 'aeActualiser'}],
+                            listeners: {change: me.dateChangee, scope: me}},
                         me.choixEmploye(),
+                        me.choixGardePeriode(),
                         {text: 'Actualiser', itemId: 'aeActualiser', iconCls: 'refresh', tooltip: 'Relire la période', handler: function () {
                                 me.actualiser();
                             }},
@@ -261,7 +288,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
 
     /* plan avoir du 08/11, point 1 : boutons de la fenetre ; les periodes sont celles du selecteur commun
        (RaccourcisPeriode), calculees depuis le jour de reference */
-    PERIODES_FENETRE: [['aeHier', 'Hier', 'Hier'], ['ae3Jours', '3 jours', '3 derniers jours'], ['aeSemaine', '1 semaine', '7 derniers jours']],
+    /* plan du 09/11, point 10 : « 1 mois » (30 derniers jours) apres « 1 semaine » */
+    PERIODES_FENETRE: [['aeHier', 'Hier', 'Hier'], ['ae3Jours', '3 jours', '3 derniers jours'], ['aeSemaine', '1 semaine', '7 derniers jours'],
+        ['aeMois', '1 mois', '30 derniers jours']],
 
     boutonsPeriode: function () {
         var me = this, toutes = testextjs.view.commun.RaccourcisPeriode.periodes();
@@ -272,6 +301,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return {xtype: 'button', itemId: b[0], text: b[1], enableToggle: true, toggleGroup: 'ae-periode-' + me.id, allowDepress: false,
                 cls: 'ordo-btn', margin: '0 4 0 0', tooltip: b[2], handler: function () {
                     var d = calcul(Ext.Date.clearTime(me.dateReference || new Date()));
+                    me.quitterGarde();
                     me.down('#aeDebut').setValue(d[0]);
                     me.down('#aeFin').setValue(d[1]);
                     me.actualiser();
@@ -304,8 +334,51 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
     },
 
     /* filtres communs, au format des routes */
+    /* plan du 09/11, point 10 : selecteur de garde de la periode. La garde choisie fixe le debut et la fin a l'heure
+       pres (ventes de la nuit ou du dimanche) ; un bouton de periode ou une date changee a la main la quitte. */
+    choixGardePeriode: function () {
+        var me = this;
+        var gardes = Ext.create('Ext.data.Store', {
+            fields: ['id', 'libelle', 'dateDebut', 'dateFin', {name: 'libelleComplet', convert: function (v, r) {
+                        return r.get('libelle') + '  (' + r.get('dateDebut') + ' → ' + r.get('dateFin') + ')';
+                    }}],
+            autoLoad: true, proxy: {type: 'ajax', url: '../api/v1/gardes', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        return {xtype: 'combobox', itemId: 'aeGardePeriode', fieldLabel: 'Garde', labelWidth: 40, width: 260, store: gardes, queryMode: 'local',
+            editable: false, valueField: 'id', displayField: 'libelleComplet', emptyText: 'Suivre une garde…', matchFieldWidth: false,
+            listConfig: {minWidth: 380}, tooltip: 'Limite les analyses aux heures de la garde choisie',
+            listeners: {select: function (c, r) {
+                    var g = r[0], de = Ext.Date.parse(g.get('dateDebut'), 'Y-m-d H:i:s'), a = Ext.Date.parse(g.get('dateFin'), 'Y-m-d H:i:s');
+                    if (!de || !a) {
+                        return;
+                    }
+                    me.gardeId = g.get('id');
+                    me.gardeEnCours = true;
+                    me.down('#aeDebut').setValue(Ext.Date.clearTime(de));
+                    me.down('#aeFin').setValue(Ext.Date.clearTime(new Date(a.getTime() - 1000)));
+                    me.gardeEnCours = false;
+                    me.marquerBoutonPeriode(null);
+                    me.actualiser();
+                }}};
+    },
+
+    dateChangee: function () {
+        if (!this.gardeEnCours) {
+            this.quitterGarde();
+        }
+    },
+
+    quitterGarde: function () {
+        var me = this, c = me.down('#aeGardePeriode');
+        me.gardeId = null;
+        if (c && c.getValue()) {
+            c.clearValue();
+        }
+    },
+
     viderChamps: function () {
         var me = this, aujourdhui = Ext.Date.clearTime(new Date());
+        me.quitterGarde();
         me.down('#aeDebut').setValue(Ext.Date.getFirstDateOfMonth(aujourdhui));
         me.down('#aeFin').setValue(aujourdhui);
         me.down('#aeEmploye').clearValue();
@@ -317,7 +390,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
 
     filtres: function () {
         var me = this, e = me.down('#aeEmploye').getValue();
-        return {debut: me.down('#aeDebut').getSubmitValue(), fin: me.down('#aeFin').getSubmitValue(), employeId: e || ''};
+        var f = {debut: me.down('#aeDebut').getSubmitValue(), fin: me.down('#aeFin').getSubmitValue(), employeId: e || ''};
+        if (me.gardeId) {
+            f.gardeId = me.gardeId;
+        }
+        return f;
     },
 
     creerDonnees: function () {
@@ -478,6 +555,241 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         return me.donnees;
     },
 
+    /* ------------------------------------------------------------------ INDICATEURS (plan du 09/11, point 10) */
+
+    /*
+     * Sept indicateurs par employe. Colonnes : [libelle, cle, format] ; format n = nombre, m = montant, d = decimal,
+     * p = pourcentage, s = duree en secondes, h = heures ; [cle, cle2] = valeur et son pourcentage en dessous.
+     */
+    INDICATEURS: [
+        {code: 'REMISES', titre: 'Remises accordées', qui: 'Caissière',
+            aide: '<b>Mesure</b> : remises accordées par chaque caissière sur les ventes qu\'elle a encaissées ; taux = remises ÷ CA, '
+                    + 'part des ventes remisées.<br><b>Pertinence</b> : une remise est de la marge donnée ; un taux qui s\'écarte de '
+                    + 'celui des collègues signale une habitude ou un oubli de règle.<br><b>Gain</b> : de la marge préservée, des remises '
+                    + 'accordées selon la même règle par tous.',
+            colonnes: [['Ventes', 'ventes', 'n'], ['Remisées', ['ventesRemisees', 'partRemisees'], 'n'], ['CA', 'ca', 'm'],
+                ['Remises', 'remise', 'm'], ['Taux', 'tauxRemise', 'p']]},
+        {code: 'MODIFS_ECARTS', titre: 'Ventes modifiées et écarts de caisse', qui: 'Employé',
+            aide: '<b>Mesure</b> : ventes modifiées par l\'employé (nombre, montant déplacé = somme des écarts avant / après) ; '
+                    + 'caisses fermées de la période : billetées, en manquant (billetage inférieur au solde attendu), montants manquants '
+                    + 'et surplus, caisses sans billetage (même règle que l\'analyse des écarts de caisse).<br><b>Pertinence</b> : '
+                    + 'modifications et manquants qui reviennent chez la même personne sont le premier signe d\'une erreur de méthode '
+                    + 'ou d\'un risque.<br><b>Gain</b> : une caisse juste, des écarts expliqués le jour même, moins de pertes.',
+            colonnes: [['Ventes modifiées', 'modifications', 'n'], ['Montant déplacé', 'montantModifie', 'm'],
+                ['Caisses billetées', 'caisses', 'n'], ['En manquant', ['manquants', 'recurrence'], 'n'], ['Manquant', 'montantManquant', 'm'],
+                ['Surplus', 'montantSurplus', 'm'], ['Sans billetage', 'sansBilletage', 'n']]},
+        {code: 'PANIER', titre: 'Panier et produits par vente', qui: 'Caissière',
+            aide: '<b>Mesure</b> : panier moyen (CA ÷ ventes), lignes et produits (quantités) par vente encaissée.<br>'
+                    + '<b>Pertinence</b> : à fréquentation égale, le panier dit qui propose le complément utile (conseil associé, '
+                    + 'quantité adaptée).<br><b>Gain</b> : du CA en plus sans un client de plus ; repérer les bonnes pratiques à partager.',
+            colonnes: [['Ventes', 'ventes', 'n'], ['CA', 'ca', 'm'], ['Panier moyen', 'panierMoyen', 'm'],
+                ['Lignes / vente', 'lignesParVente', 'd'], ['Produits / vente', 'produitsParVente', 'd']]},
+        {code: 'CONSEIL', titre: 'Taux de conseil', qui: 'Employé',
+            aide: '<b>Mesure</b> : part des ventes encaissées où un employé est noté dans « Conseil » ; conseils donnés par chacun et '
+                    + 'CA des ventes conseillées. Sous le tableau : panier moyen avec et sans conseil.<br><b>Pertinence</b> : le conseil '
+                    + 'fait la différence d\'une officine ; l\'écart de panier mesure ce qu\'il rapporte.<br><b>Gain</b> : savoir qui '
+                    + 'conseille, encourager la saisie du conseil, et chiffrer son effet sur le CA.',
+            colonnes: [['Ventes encaissées', 'ventes', 'n'], ['Avec conseil', 'ventesConseillees', 'n'], ['Taux', 'tauxConseil', 'p'],
+                ['Conseils donnés', 'conseils', 'n'], ['CA conseillé', 'caConseille', 'm'], ['Panier conseillé', 'panierConseille', 'm']]},
+        {code: 'ATTENTE', titre: 'Attente client en caisse', qui: 'Caissière',
+            aide: '<b>Mesure</b> : pour les préventes (vendeur différent de la caissière), temps entre le dernier produit saisi par '
+                    + 'le vendeur et l\'encaissement ; médiane des attentes de 0 à 1 h, part des attentes de plus de 5 min.<br>'
+                    + '<b>Pertinence</b> : c\'est le temps que le client passe debout entre le comptoir et la caisse.<br><b>Gain</b> : '
+                    + 'ouvrir une caisse de plus aux bonnes heures, des clients qui ne repartent pas.',
+            colonnes: [['Préventes', 'preventes', 'n'], ['Mesurées', 'mesurees', 'n'], ['Attente médiane', 'attenteMediane', 's'],
+                ['Plus de 5 min', ['longues', 'partLongues'], 'n']]},
+        {code: 'AVOIRS', titre: 'Avoirs et retours', qui: 'Caissière',
+            aide: '<b>Mesure</b> : ventes encaissées avec un avoir (vente en avoir ou produit dû au client), lignes en avoir, taux ; '
+                    + 'retours de produits = modifications de vente de type « produits » faites par l\'employé.<br><b>Pertinence</b> : '
+                    + 'un avoir est un produit promis et non servi ; trop d\'avoirs révèlent des ruptures, trop de retours des erreurs '
+                    + 'de délivrance.<br><b>Gain</b> : moins de clients revenus pour rien, un stock et des commandes ajustés.',
+            colonnes: [['Ventes', 'ventes', 'n'], ['Avec avoir', 'ventesAvoir', 'n'], ['Taux', 'tauxAvoir', 'p'],
+                ['Lignes en avoir', 'lignesAvoir', 'n'], ['Retours de produits', 'retoursProduits', 'n']]},
+        {code: 'PRESENCE', titre: 'Activité par heure de présence', qui: 'Employé',
+            aide: '<b>Mesure</b> : temps connecté à Prestige (sessions fusionnées, limitées à la période ; une session restée ouverte '
+                    + 'compte 12 h au plus), ventes et CA encaissés par heure de présence. Connexions enregistrées depuis le 25/10/2026.'
+                    + '<br><b>Pertinence</b> : rapporte l\'activité au temps passé, pour comparer un temps plein et un temps partiel.<br>'
+                    + '<b>Gain</b> : un planning (RH) fondé sur la charge réelle ; une aide pour accompagner, pas un classement.',
+            colonnes: [['Heures connectées', 'heures', 'h'], ['Ventes', 'ventes', 'n'], ['CA', 'ca', 'm'],
+                ['Ventes / heure', 'ventesParHeure', 'd'], ['CA / heure', 'caParHeure', 'm']]}
+    ],
+
+    cadresIndicateurs: function () {
+        var me = this;
+        return Ext.Array.map(me.INDICATEURS, function (i) {
+            return me.cadre('cInd' + i.code, i.titre, i.aide, {xtype: 'component', itemId: 'aeInd' + i.code, autoScroll: true, html: ''});
+        });
+    },
+
+    chargerIndicateurs: function (f) {
+        var me = this;
+        var version = me.versionIndicateurs = (me.versionIndicateurs || 0) + 1;
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/indicateurs', method: 'GET', params: f, timeout: 180000,
+            success: function (r) {
+                if (me.isDestroyed || version !== me.versionIndicateurs) {
+                    return;
+                }
+                var o = Ext.decode(r.responseText, true) || {};
+                me.donneesIndicateurs = o.data;
+                Ext.each(me.INDICATEURS, function (i) {
+                    var z = me.down('#aeInd' + i.code);
+                    if (z) {
+                        z.update(o.success ? me.htmlIndicateur(i, o.data[i.code])
+                                : '<div class="ae-vide">' + Ext.String.htmlEncode(o.msg || 'Indisponible') + '</div>');
+                    }
+                });
+            },
+            failure: function (r) {
+                if (!me.isDestroyed && version === me.versionIndicateurs) {
+                    Ext.each(me.INDICATEURS, function (i) {
+                        var z = me.down('#aeInd' + i.code);
+                        if (z) {
+                            z.update('<div class="ae-vide">Le serveur n\'a pas répondu (' + r.status + ').</div>');
+                        }
+                    });
+                }
+            }});
+    },
+
+    /* une valeur affichee selon son format ; absente : tiret */
+    valeurIndicateur: function (v, format) {
+        var N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
+        if (v === null || v === undefined) {
+            return '—';
+        }
+        if (format === 'p') {
+            return N(v, true) + ' %';
+        }
+        if (format === 'd' || format === 'h') {
+            return N(v, true) + (format === 'h' ? ' h' : '');
+        }
+        if (format === 's') {
+            var s = Math.round(v);
+            return s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + (s % 60 < 10 ? '0' : '') + (s % 60) + ' s';
+        }
+        return N(v);
+    },
+
+    htmlIndicateur: function (i, b) {
+        var me = this, e = Ext.String.htmlEncode;
+        if (!b || !b.lignes || !b.lignes.length) {
+            return '<div class="ae-vide">Aucune donnée sur la période.</div>';
+        }
+        var cellule = function (x, c) {
+            var cle = Ext.isArray(c[1]) ? c[1][0] : c[1], pct = Ext.isArray(c[1]) ? c[1][1] : null;
+            return '<td class="n" data-cle="' + cle + '" data-v="' + (x[cle] === null || x[cle] === undefined ? '' : x[cle]) + '">'
+                    + me.valeurIndicateur(x[cle], c[2])
+                    + (pct ? '<small data-cle="' + pct + '" data-v="' + (x[pct] === null || x[pct] === undefined ? '' : x[pct]) + '">'
+                            + me.valeurIndicateur(x[pct], 'p') + '</small>' : '') + '</td>';
+        };
+        var pied = '';
+        if (i.code === 'CONSEIL') {
+            pied = '<div class="ae-ind-pied">Panier moyen avec conseil : <b data-cle="panierAvecConseil">' + me.valeurIndicateur(b.total.panierAvecConseil, 'm')
+                    + '</b> · sans conseil : <b data-cle="panierSansConseil">' + me.valeurIndicateur(b.total.panierSansConseil, 'm') + '</b></div>';
+        }
+        if (i.code === 'ATTENTE') {
+            pied = '<div class="ae-ind-pied">Attente médiane de l\'équipe : <b data-cle="attenteMediane">' + me.valeurIndicateur(b.total.attenteMediane, 's') + '</b></div>';
+        }
+        return '<table class="ae-ind" data-code="' + i.code + '"><thead><tr><th>' + e(i.qui) + '</th>'
+                + Ext.Array.map(i.colonnes, function (c) {
+                    return '<th class="n">' + e(c[0]) + '</th>';
+                }).join('') + '</tr></thead><tbody>'
+                + Ext.Array.map(b.lignes, function (x) {
+                    return '<tr data-id="' + e(x.id) + '"><td class="ae-ind-nom">' + e(x.nom) + '</td>' + Ext.Array.map(i.colonnes, function (c) {
+                        return cellule(x, c);
+                    }).join('') + '</tr>';
+                }).join('') + '</tbody><tfoot><tr><td>Total</td>' + Ext.Array.map(i.colonnes, function (c) {
+                    return cellule(b.total, c);
+                }).join('') + '</tr></tfoot></table>' + pied;
+    },
+
+    /* ---- masquer / ramener une carte (toutes les cartes des Analyses), memorise pour l'utilisateur */
+    CLE_MASQUES: 'activite-indicateurs',
+
+    barreMasques: function () {
+        var me = this;
+        return {xtype: 'toolbar', dock: 'top', itemId: 'aeBarreMasques', cls: 'ae-seuil', items: [
+                {xtype: 'tbtext', text: 'Une carte inutile se masque par sa croix ; le bouton à droite la ramène.'}, '->',
+                {xtype: 'button', itemId: 'aeMasques', text: 'Indicateurs masqués (0)', iconCls: 'fa fa-eye', disabled: true,
+                    tooltip: 'Ramener une carte masquée, une par une, ou toutes', menu: {itemId: 'aeMenuMasques', items: []}}]};
+    },
+
+    cadresMasquables: function () {
+        return Ext.Array.filter(this.analyses ? this.analyses.query('panel') : [], function (p) {
+            return p.aeCadre;
+        });
+    },
+
+    masquer: function (id) {
+        var me = this;
+        if (Ext.Array.indexOf(me.masques || [], id) < 0) {
+            me.masques = (me.masques || []).concat([id]);
+        }
+        me.appliquerMasques();
+        me.sauverMasques();
+    },
+
+    ramener: function (id) {
+        var me = this;
+        me.masques = id ? Ext.Array.remove((me.masques || []).slice(), id) : [];
+        me.appliquerMasques();
+        me.sauverMasques();
+    },
+
+    appliquerMasques: function () {
+        var me = this, m = me.masques || [], b = me.down('#aeMasques');
+        if (!b) {
+            return;
+        }
+        var cadres = me.cadresMasquables(), caches = [];
+        Ext.suspendLayouts();
+        Ext.each(cadres, function (p) {
+            var cache = Ext.Array.indexOf(m, p.itemId) >= 0;
+            p.setVisible(!cache);
+            if (cache) {
+                caches.push(p);
+            }
+        });
+        Ext.resumeLayouts(true);
+        b.setText('Indicateurs masqués (' + caches.length + ')');
+        b.setDisabled(!caches.length);
+        var menu = b.menu;
+        menu.removeAll();
+        Ext.each(caches, function (p) {
+            menu.add({text: p.title, itemId: 'aeRamener-' + p.itemId, iconCls: 'fa fa-eye', handler: function () {
+                    me.ramener(p.itemId);
+                }});
+        });
+        if (caches.length > 1) {
+            menu.add('-');
+            menu.add({text: 'Tout réafficher', itemId: 'aeRamenerTout', handler: function () {
+                    me.ramener(null);
+                }});
+        }
+    },
+
+    lireMasques: function () {
+        var me = this;
+        Ext.Ajax.request({url: '../api/v1/preferences/' + me.CLE_MASQUES, method: 'GET', success: function (r) {
+                var v = (Ext.decode(r.responseText, true) || {}).valeur;
+                if (!me.isDestroyed && v && Ext.isArray(v.masques)) {
+                    me.masques = Ext.Array.filter(v.masques, function (x) {
+                        return Ext.isString(x);
+                    });
+                    me.appliquerMasques();
+                }
+            }});
+    },
+
+    sauverMasques: function () {
+        var me = this;
+        Ext.Ajax.request({url: '../api/v1/preferences/' + me.CLE_MASQUES, method: 'PUT', headers: {'Content-Type': 'application/json'},
+            jsonData: {masques: me.masques || []},
+            failure: function (r) {
+                PrestigeToast.afficher('Le choix des cartes n\'a pas été enregistré (' + r.status + ').', {niveau: 'alerte'});
+            }});
+    },
+
     /* ------------------------------------------------------------------ ANALYSES */
 
     TACHES: ['VENTE', 'VENDEUR', 'BL', 'COMMANDE', 'AJUSTEMENT', 'INVENTAIRE', 'RETOUR', 'ANNULATION', 'MODIFICATION'],
@@ -486,8 +798,12 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
     /* cadre d'un graphique : titre, aide au survol du « ? », hauteur fixe */
     cadre: function (itemId, titre, aide, contenu, largeur) {
         return {xtype: 'panel', itemId: itemId, title: titre, columnWidth: largeur || 0.5, height: 340, margin: '0 10 12 0', layout: 'fit',
-            cls: 'ae-graphe', frame: false, bodyStyle: 'background:#fff', animCollapse: false,
-            tools: [{type: 'help', tooltip: aide}], items: [contenu]};
+            cls: 'ae-graphe', frame: false, bodyStyle: 'background:#fff', animCollapse: false, aeCadre: true,
+            /* plan du 09/11, point 10 : chaque carte se masque ; le bouton « Indicateurs masques » la ramene */
+            tools: [{type: 'help', tooltip: aide}, {type: 'close', itemId: 'aeMasquer', tooltip: 'Masquer cette carte (bouton « Indicateurs masqués » pour la ramener)',
+                    handler: function () {
+                        this.masquer(itemId);
+                    }, scope: this}], items: [contenu]};
     },
 
     creerAnalyses: function () {
@@ -499,6 +815,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     {name: 'bl', type: 'float'}, {name: 'secondesParLigne', type: 'float'}, {name: 'ventesParJour', type: 'float'},
                     {name: 'lignesParVente', type: 'float'}, {name: 'panierMoyen', type: 'float'}, {name: 'chiffreAffaires', type: 'float'},
                     {name: 'ventesLongues', type: 'float'}, {name: 'jours', type: 'float'}, {name: 'lignesParBl', type: 'float'},
+                    {name: 'ventesMesurees', type: 'float'},
                     {name: 'nombre', type: 'float'}, {name: 'annulations', type: 'float'}, {name: 'modifications', type: 'float'},
                     {name: 'remises', type: 'float'}, {name: 'tauxAnnulation', type: 'float'}, {name: 'total', type: 'float'}, {name: 'grossistes'}, {name: 'code'}]
                         .concat(Ext.Array.map(me.TACHES, function (t) {
@@ -525,6 +842,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var heures = {xtype: 'chart', itemId: 'gHeures', animate: true, shadow: false, store: me.st.heures, legend: {position: 'bottom'},
             axes: [axeNum(['ventes'], 'left', 'Ventes'), axeNum(['saisieMoyenne'], 'right', 'Saisie (s)'), axeCat()],
             series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'ventes', title: 'Ventes', highlight: true, renderer: couleur('#2563eb'),
+                    style: {fill: '#2563eb'},
                     tips: AE.infobulle(function (r) {
                         return '<b>' + r.get('libelle') + '</b><br>' + N(r.get('ventes')) + ' ventes<br>Saisie moyenne : ' + D(r.get('saisieMoyenne'));
                     })},
@@ -550,7 +868,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             return N(v, true) + ' s';
                         }},
                     tips: AE.infobulle(function (r) {
-                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne<br>'
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne : temps entre deux produits (médiane de '
+                                + N(r.get('ventesMesurees')) + ' ventes de 2 lignes ou plus saisies par lui, préventes reprises écartées)<br>'
                                 + N(r.get('ventes')) + ' ventes sur ' + N(r.get('jours')) + ' jours (' + N(r.get('ventesParJour'), true) + ' par jour)<br>'
                                 + N(r.get('lignesParVente'), true) + ' lignes par vente, panier ' + N(r.get('panierMoyen')) + '<br>'
                                 + N(r.get('ventesLongues')) + ' ' + (me.seuilLibelle || 'Ventes de plus de 10 min').toLowerCase()
@@ -570,7 +889,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             return N(v, true) + ' s';
                         }},
                     tips: AE.infobulle(function (r) {
-                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne<br>'
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne : temps entre deux produits (médiane de '
+                                + N(r.get('ventesMesurees')) + ' ventes de 2 lignes ou plus)<br>'
                                 + N(r.get('ventes')) + ' ventes, ' + N(r.get('lignesParVente'), true) + ' lignes par vente, panier ' + N(r.get('panierMoyen')) + '<br>'
                                 + N(r.get('ventesLongues')) + ' ' + (me.seuilLibelle || 'Ventes de plus de 10 min').toLowerCase();
                     })}]};
@@ -634,6 +954,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
 
         return Ext.create('Ext.panel.Panel', {
             itemId: 'aeAnalyses', autoScroll: true, bodyPadding: '12 2 12 12', bodyStyle: 'background:#f8fafc',
+            dockedItems: [me.barreMasques()],
+            listeners: {afterrender: function () {
+                    me.lireMasques();
+                }},
             items: [
                 {xtype: 'component', itemId: 'aeTuiles', html: ''},
                 /* plan avoir du 08/11, point 1 : memes reperes que la carte du tableau de bord */
@@ -645,11 +969,23 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         me.cadre('cCarte', 'Carte d\'affluence (jour × heure)', 'Plus la case est foncée, plus il y a de ventes : pour placer les présences '
                                 + 'et les pauses. Toujours de 0 h à 23 h, cases grises sans activité, nuit (21 h - 6 h) repérée. Le sélecteur de garde affiche '
                                 + 'la carte d\'une garde ; sous la carte, le contrôle des gardes de la période.', me.contenuCarte()),
-                        me.cadre('cJours', 'Charge au clavier par jour', 'Temps cumulé passé à saisir les ventes et les BL, jour par jour : base du planning.', jours, 1),
-                        me.cadre('cOperateurs', 'Vitesse par opérateur', 'Secondes par ligne scannée ou cherchée. C\'est une aide pour accompagner '
-                                + '(douchette, formation), pas un classement. Cliquer une barre filtre sur l\'employé.', operateurs),
-                        me.cadre('cTypesVente', 'Vitesse par type de vente', 'Secondes par ligne selon le type de vente : comptant, assurance, carnet, '
-                                + 'dépôt, avoir. Une vente à l\'assurance demande plus de saisie (organisme, bon) : à comparer entre types, pas entre personnes.', typesVente),
+                        me.cadre('cJours', 'Charge au clavier par jour', '<b>Mesure</b> : temps passé à saisir, jour par jour. Ventes : de l\'ouverture '
+                                + 'à la dernière ligne, 15 min au plus par vente (une vente restée ouverte ne compte pas comme du travail). BL : de l\'ouverture '
+                                + 'du BL à sa dernière ligne, BL de plus de 4 h écartés.<br><b>Ce que cela apprend</b> : les jours où le comptoir est chargé '
+                                + 'et la part prise par les BL.<br><b>Gain</b> : placer les présences et la saisie des BL sur les jours calmes '
+                                + '(planning des équipes).', jours, 1),
+                        me.cadre('cOperateurs', 'Vitesse par opérateur', '<b>Mesure</b> : temps médian entre deux produits saisis (scan ou recherche) '
+                                + 'dans une même vente, sur les ventes de 2 lignes ou plus que l\'employé a saisies lui-même ; les préventes reprises en '
+                                + 'caisse sont écartées et une vente aberrante ne compte pas. Exemple : 9 s par ligne = il faut 9 s pour passer au produit '
+                                + 'suivant ; « 1,4 ligne par vente » = la plupart des clients prennent un seul produit.<br>'
+                                + '<b>Ce que cela apprend</b> : qui cherche les produits au lieu de les scanner.<br><b>Gain</b> : former ou équiper '
+                                + '(douchette) la bonne personne, et des clients servis plus vite. Une aide pour accompagner, pas un classement. '
+                                + 'Cliquer une barre filtre sur l\'employé.', operateurs),
+                        me.cadre('cTypesVente', 'Vitesse par type de vente', '<b>Mesure</b> : temps médian entre deux produits saisis selon le type de vente '
+                                + '(comptant, assurance, carnet, dépôt, avoir), même calcul que par opérateur. 11 s par ligne = 11 s pour passer au '
+                                + 'produit suivant, organisme et bon compris.<br><b>Ce que cela apprend</b> : le temps en plus d\'une vente à l\'assurance par '
+                                + 'rapport au comptant.<br><b>Gain</b> : prévoir plus de monde en caisse aux heures des assurés, ou préparer les bons '
+                                + 'à l\'avance. À comparer entre types, pas entre personnes.', typesVente),
                         /* plan du 08/11, point 15.4 : classement des vendeurs en preventes */
                         me.cadre('cPreventes', 'Préventes par vendeur', 'Prévente : vente saisie par un vendeur et encaissée par un autre. Classement par '
                                 + 'préventes encaissées, avec le CA et les lignes ; « annulées » hors modifications, « abandonnées » : restées en attente après '
@@ -659,7 +995,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                                 + 'Temps : de la prise en caisse (ouverture de la prévente à l\'écran de vente) à l\'encaissement ; le temps de saisie reste '
                                 + 'au vendeur. « Mesurées » : préventes dont la prise en caisse est connue (enregistrée depuis la mise à jour du 08/11), '
                                 + 'durées de plus d\'une heure écartées.', {xtype: 'component', itemId: 'aeCaissieres', autoScroll: true, html: ''}),
-                        me.cadre('cGrossistes', 'Saisie des BL par grossiste', 'Temps par ligne de BL, de la commande à la clôture du BL (BL de plus de 4 h écartés). '
+                        me.cadre('cGrossistes', 'Saisie des BL par grossiste', 'Temps par ligne de BL, de l\'ouverture du BL à sa dernière ligne (BL de plus de 4 h écartés). '
                                 + 'Un grossiste lent justifie de demander des BL électroniques.', grossistes),
                         me.cadre('cRetard', 'Délai de saisie des BL', 'Écart entre la date de livraison et l\'entrée du BL. Tant qu\'un BL n\'est pas saisi, '
                                 + 'le stock est faux.', retard),
@@ -674,8 +1010,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         /* plan du 08/11, point 15.1 : annulations rattachees a l'auteur de la vente, suivi des caissieres */
                         Ext.apply(me.cadre('cAnnulAuteurs', 'Annulations par auteur de la vente', 'Par vendeur : ses ventes de la période et celles '
                                 + 'annulées ensuite (hors modifications), quel que soit celui qui annule. Par caissière (celle qui a encaissé) : annulations '
-                                + 'et modifications de ventes au comptant, modifications de ventes à crédit. Cliquer une ligne : le détail (vente, motif, '
-                                + 'par qui, quand).', {xtype: 'component', itemId: 'aeAnnulAuteurs', autoScroll: true, html: '',
+                                + 'et modifications de ventes au comptant, modifications de ventes à crédit, chacune avec son taux sur les ventes encaissées '
+                                + 'du même type ; à droite, le taux global (opérations ÷ ventes encaissées). Cliquer une ligne : le détail (vente, motif, '
+                                + 'par qui, quand, encaissé par).', {xtype: 'component', itemId: 'aeAnnulAuteurs', autoScroll: true, html: '',
                                     listeners: {afterrender: function (c) {
                                             c.getEl().on('click', function (ev, t) {
                                                 me.detailAnnulations(t.getAttribute('data-role'), t.getAttribute('data-id'), t.getAttribute('data-nom'));
@@ -690,7 +1027,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                                 + 'Chaque vente compte une seule fois : le total est le même dans les deux cas. Totaux par employé et par tranche ; '
                                 + '« Export CSV » pour Excel.', {xtype: 'component', itemId: 'aeCaTranches', autoScroll: true, html: ''}, 1),
                                 {height: 420, dockedItems: [me.barreCaTranches()]})
-                    ]}
+                    ].concat(me.cadresIndicateurs())}
             ]
         });
     },
@@ -700,6 +1037,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var me = this, relancer = function () {
             var m = me.down('#aeSeuilMin');
             if (m && m.isValid() && m.getValue()) {
+                me.majSeuilModifie();
                 me.chargerAnalyses();
             }
         };
@@ -722,7 +1060,134 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             }
                         }
                     }},
-                {xtype: 'tbtext', text: 'min'}]};
+                {xtype: 'tbtext', text: 'min'},
+                {xtype: 'tbtext', itemId: 'aeSeuilEtat', text: ''},
+                '->',
+                {text: 'Enregistrer pour tous', itemId: 'aeSeuilEnregistrer', disabled: true, iconCls: 'save',
+                    tooltip: 'Le critère essayé devient celui de tous les postes : cet onglet, l\'onglet Anomalies et la carte du tableau de bord',
+                    handler: function (b) {
+                        me.confirmerDansBouton(b, 'Confirmer pour tous ?', function () {
+                            me.enregistrerSeuil(b);
+                        });
+                    }}]};
+    },
+
+    /*
+     * Plan du 09/11, point 10 : le critere de duree est enregistre pour tous (parametre). L'ecran l'essaie sans
+     * l'enregistrer tant qu'il differe ; le bouton « Enregistrer pour tous » le rend persistant partout.
+     */
+    seuilAffiche: function () {
+        var o = this.down('#aeSeuilOp'), m = this.down('#aeSeuilMin');
+        return o && m ? {op: o.getValue(), min: m.getValue()} : null;
+    },
+
+    majSeuilModifie: function () {
+        var me = this, a = me.seuilAffiche(), e = me.seuilEnregistre, b = me.down('#aeSeuilEnregistrer'), t = me.down('#aeSeuilEtat');
+        me.seuilModifie = !!(a && e && (a.op !== e.op || a.min !== e.min));
+        if (b) {
+            b.setDisabled(!me.seuilModifie);
+        }
+        if (t) {
+            t.setText(me.seuilModifie ? '<span style="color:#b45309">essai, non enregistré</span>' : '');
+        }
+    },
+
+    /* apres une reponse sans critere demande : les champs montrent le critere enregistre */
+    afficherSeuilEnregistre: function (op, min) {
+        var me = this, o = me.down('#aeSeuilOp'), m = me.down('#aeSeuilMin');
+        me.seuilEnregistre = {op: op, min: min};
+        if (o && m && !me.seuilModifie) {
+            o.suspendEvents(false);
+            m.suspendEvents(false);
+            o.setValue(op);
+            m.setValue(min);
+            o.resumeEvents();
+            m.resumeEvents();
+        }
+        me.majSeuilModifie();
+    },
+
+    ajouterSeuil: function (f) {
+        var a = this.seuilAffiche();
+        if (this.seuilModifie && a) {
+            f.seuilOperateur = a.op;
+            f.seuilMinutes = a.min;
+        }
+        return f;
+    },
+
+    enregistrerSeuil: function (b) {
+        var me = this, a = me.seuilAffiche();
+        if (!a) {
+            return;
+        }
+        b.disable();
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/seuil', method: 'POST', params: {seuilOperateur: a.op, seuilMinutes: a.min},
+            success: function (r) {
+                if (me.isDestroyed) {
+                    return;
+                }
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    me.majSeuilModifie();
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher(o.msg || 'Le critère n\'a pas été enregistré.', {niveau: 'alerte'});
+                    }
+                    return;
+                }
+                me.seuilModifie = false;
+                me.afficherSeuilEnregistre(o.seuilOperateur, o.seuilMinutes);
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher(o.msg);
+                }
+                me.chargerAnalyses();
+            },
+            failure: function (r) {
+                if (!me.isDestroyed) {
+                    me.majSeuilModifie();
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher('Le critère n\'a pas été enregistré (' + r.status + ').', {niveau: 'alerte'});
+                    }
+                }
+            }});
+    },
+
+    /** Premier clic : le bouton demande confirmation ; second clic dans les 6 s : l'action (pas de fenetre). */
+    confirmerDansBouton: function (b, texteConfirmation, action) {
+        var maintenant = Date.now();
+        if (!b.arme) {
+            b.arme = maintenant;
+            b.texteNormal = b.texteNormal || b.getText();
+            b.setText(texteConfirmation);
+            if (window.PrestigeConfirmation) {
+                PrestigeConfirmation.armer(b);
+            }
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed) {
+                    b.arme = false;
+                    if (window.PrestigeConfirmation) {
+                        PrestigeConfirmation.desarmer(b);
+                    }
+                    b.setText(b.texteNormal);
+                }
+            }, 6000);
+            return;
+        }
+        if (maintenant - b.arme < 400) {
+            return; /* un double-clic ne vaut pas confirmation */
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        if (window.PrestigeConfirmation) {
+            PrestigeConfirmation.desarmer(b);
+        }
+        b.setText(b.texteNormal);
+        action();
+    },
+
+    /* « Ventes > 10 min » : en-tete court de la colonne des anomalies */
+    enteteSeuil: function (op, min) {
+        return 'Ventes ' + ({GT: '>', GE: '≥', LT: '<', LE: '≤'}[op] || '>') + ' ' + min + ' min';
     },
 
     /* ------------------------------------------------------------------ CA PAR EMPLOYE ET TRANCHE (plan avoir du 08/11, point 1) */
@@ -737,7 +1202,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     listeners: {select: relire}},
                 {xtype: 'combo', itemId: 'aeTrancheAttribution', fieldLabel: 'CA attribué à', labelWidth: 85, width: 290, editable: false,
                     queryMode: 'local', forceSelection: true, value: 'CAISSIER',
-                    store: [['CAISSIER', 'Caissière (encaissement)'], ['VENDEUR', 'Vendeur (prévente)']], listeners: {select: relire}},
+                    store: [['CAISSIER', 'Caissière (encaissement)'], ['VENDEUR', 'Vendeur (prévente)'], ['CONSEIL', 'Conseil (qui a conseillé le client)']],
+                    listeners: {select: relire}},
                 '->',
                 {text: 'Export CSV', itemId: 'aeTrancheExport', iconCls: 'excel', tooltip: 'Le tableau affiché, totaux compris (ouvert par Excel)',
                     handler: function (b) {
@@ -771,6 +1237,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 var o = Ext.decode(r.responseText, true) || {};
                 me.donneesCaTranches = o.data;
                 z.update(o.success ? me.htmlCaTranches(o.data) : '<div class="ae-vide">' + Ext.String.htmlEncode(o.msg || 'Tableau indisponible') + '</div>');
+                me.ecouterTriCaTranches(z);
             },
             failure: function (r) {
                 if (!me.isDestroyed && version === me.versionCaTranches) {
@@ -780,11 +1247,57 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             }});
     },
 
+    /*
+     * Plan du 09/11, point 10 : tri du tableau du CA par un clic sur l'en-tete (employe, une tranche, total, ventes) ;
+     * un second clic inverse le sens. Le pied (totaux) ne bouge pas.
+     */
+    ecouterTriCaTranches: function (z) {
+        var me = this;
+        if (!z.getEl() || z.triEcoute) {
+            return;
+        }
+        z.triEcoute = true;
+        z.getEl().on('click', function (ev, t) {
+            var col = t.getAttribute('data-tri');
+            if (!me.donneesCaTranches) {
+                return;
+            }
+            var tri = me.triCaTranches || {};
+            me.triCaTranches = {col: col, sens: tri.col === col ? -tri.sens : (col === 'nom' ? 1 : -1)};
+            z.update(me.htmlCaTranches(me.donneesCaTranches));
+        }, null, {delegate: 'th[data-tri]'});
+    },
+
+    trierCaTranches: function (lignes) {
+        var tri = this.triCaTranches;
+        if (!tri || !tri.col) {
+            return lignes;
+        }
+        var valeur = function (l) {
+            if (tri.col === 'nom') {
+                return String(l.nom || '').toLowerCase();
+            }
+            if (tri.col === 'total') {
+                return l.ca;
+            }
+            var c = l.cellules[Number(tri.col)];
+            return c ? c.ca : 0;
+        };
+        return Ext.Array.sort(lignes.slice(), function (a, b) {
+            var x = valeur(a), y = valeur(b);
+            return (x < y ? -1 : x > y ? 1 : 0) * tri.sens;
+        });
+    },
+
     htmlCaTranches: function (d) {
-        var e = Ext.String.htmlEncode, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
+        var me = this, e = Ext.String.htmlEncode, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
         if (!d || !d.lignes || !d.lignes.length) {
             return '<div class="ae-vide">Aucune vente sur la période.</div>';
         }
+        var tri = me.triCaTranches || {};
+        var fleche = function (col) {
+            return tri.col === col ? (tri.sens > 0 ? ' ▲' : ' ▼') : '';
+        };
         var max = 1;
         Ext.each(d.lignes, function (l) {
             Ext.each(l.cellules, function (c) {
@@ -796,24 +1309,28 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 return '<td class="n ae-ct-vide">·</td>';
             }
             var fond = total ? '' : ' style="background:rgba(37,99,235,' + (0.06 + 0.34 * c.ca / max).toFixed(2) + ')"';
-            return '<td class="n"' + fond + '><b>' + N(c.ca) + '</b><small>' + N(c.ventes) + ' v.</small></td>';
+            return '<td class="n"' + fond + '><b>' + N(c.ca) + '</b><small class="ae-ct-nb">' + N(c.ventes) + ' v.</small></td>';
         };
         var ligne = function (l, total) {
             return '<td class="ae-ct-nom">' + e(l.nom) + '</td>' + Ext.Array.map(l.cellules, function (c) {
                 return cellule(c, total);
-            }).join('') + '<td class="n ae-ct-total"><b>' + N(l.ca) + '</b><small>' + N(l.ventes) + ' v.</small></td>';
+            }).join('') + '<td class="n ae-ct-total"><b>' + N(l.ca) + '</b><small class="ae-ct-nb">' + N(l.ventes) + ' v.</small></td>';
         };
         return '<style>.ae-ct{border-collapse:collapse;font-size:12px;margin:4px 0;min-width:100%}.ae-ct th{background:#e8eef7;color:#1a3d6d;'
                 + 'padding:4px 6px;white-space:nowrap;text-align:right}.ae-ct th:first-child{text-align:left}.ae-ct td{padding:3px 6px;border-bottom:1px solid #eef1f5;'
-                + 'white-space:nowrap}.ae-ct .n{text-align:right}.ae-ct small{display:block;color:#64748b;font-size:10px}.ae-ct .ae-ct-vide{color:#cbd5e1}'
+                + 'white-space:nowrap}.ae-ct .n{text-align:right}.ae-ct small{display:block;color:#64748b;font-size:10px}'
+                + '.ae-ct small.ae-ct-nb{color:#7c3aed;font-size:12px;font-weight:bold}.ae-ct .ae-ct-ventes{color:#7c3aed;font-weight:bold;font-size:13px}'
+                + '.ae-ct th[data-tri]{cursor:pointer;user-select:none}.ae-ct th[data-tri]:hover{background:#dbe5f3}'
+                + '.ae-ct .ae-ct-vide{color:#cbd5e1}'
                 + '.ae-ct .ae-ct-total{background:#f1f5f9}.ae-ct tfoot th,.ae-ct tfoot td{background:#e8eef7;font-weight:bold}.ae-ct .ae-ct-nom{max-width:190px;'
                 + 'overflow:hidden;text-overflow:ellipsis}</style>'
-                + '<table class="ae-ct" data-taille="' + d.taille + '" data-attribution="' + d.attribution + '"><thead><tr><th>'
-                + (d.attribution === 'VENDEUR' ? 'Vendeur' : 'Caissière') + '</th>'
-                + Ext.Array.map(d.tranches, function (t) {
-                    return '<th data-t="' + t.index + '">' + e(t.libelle) + '</th>';
-                }).join('') + '<th>Total</th></tr></thead><tbody>'
-                + Ext.Array.map(d.lignes, function (l) {
+                + '<table class="ae-ct" data-taille="' + d.taille + '" data-attribution="' + d.attribution + '"><thead><tr><th data-tri="nom" data-qtip="Cliquer pour trier">'
+                + ({VENDEUR: 'Vendeur', CONSEIL: 'Conseil'}[d.attribution] || 'Caissière') + fleche('nom') + '</th>'
+                + Ext.Array.map(d.tranches, function (t, i) {
+                    return '<th data-t="' + t.index + '" data-tri="' + i + '" data-qtip="Cliquer pour trier">' + e(t.libelle) + fleche(String(i)) + '</th>';
+                }).join('') + '<th data-tri="total" data-qtip="Cliquer pour trier">Total' + fleche('total') + '</th>'
+                + '</tr></thead><tbody>'
+                + Ext.Array.map(me.trierCaTranches(d.lignes), function (l) {
                     return '<tr data-id="' + e(l.id) + '">' + ligne(l, false) + '</tr>';
                 }).join('') + '</tbody><tfoot><tr>' + ligne(Ext.apply({nom: 'Total (' + d.lignes.length + ' employé' + (d.lignes.length > 1 ? 's' : '') + ')'}, d.totaux), true)
                 + '</tr></tfoot></table>';
@@ -862,7 +1379,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         {header: 'Remises (F)', dataIndex: 'remises', width: 105, align: 'right', renderer: function (v) {
                                 return v ? N(v) : '<span style="color:#94a3b8">0</span>';
                             }},
-                        {header: 'Ventes longues', dataIndex: 'ventesLongues', width: 115, align: 'right', renderer: nb},
+                        {header: 'Ventes longues', itemId: 'anoColLongues', dataIndex: 'ventesLongues', width: 115, align: 'right', renderer: nb},
                         {header: 'Pour 100 ventes', dataIndex: 'pour100', width: 120, align: 'right', renderer: function (v) {
                                 return '<span data-qtip="(refus + annulations + modifications) pour 100 ventes">' + N(v, true) + '</span>';
                             }},
@@ -919,6 +1436,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return;
         }
         f.famille = me.down('#anoFamille').getValue() || '';
+        me.ajouterSeuil(f);
         me.anoEmployeChoisi = f.employeId || null;
         a.setLoading('Lecture des anomalies…');
         Ext.Ajax.request({url: '../api/v1/activite-equipes/anomalies', method: 'GET', params: f, timeout: 180000,
@@ -931,6 +1449,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 var d = o.data || {};
                 me.anoEmployes.loadData(d.employes || []);
                 me.anoListe.loadData(d.anomalies || []);
+                var col = me.down('#anoColLongues');
+                if (col && d.seuilLibelle) {
+                    col.setText(me.enteteSeuil(d.seuilOperateur, d.seuilMinutes));
+                    col.tooltip = d.seuilLibelle;
+                }
                 me.down('#anoFil').update('<div style="color:#64748b">Cliquez une anomalie pour voir les dernières actions de l\'employé.</div>');
             },
             failure: function (r) {
@@ -990,7 +1513,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 }).join('');
                 p.update('<div style="margin-bottom:8px"><span class="ae-type" style="background:' + f[1] + '">' + enc(f[0]) + '</span> <b>' + enc(a.employe) + '</b> — ' + enc(a.date)
                         + '<br><span style="color:#475569">Écran : ' + enc(a.ecran || '-') + ' · Poste : ' + enc(a.poste || '-') + '</span>'
-                        + '<div style="margin-top:6px;padding:8px 10px;background:#fff7ed;border-left:4px solid ' + f[1] + ';border-radius:6px">' + enc(a.message) + '</div></div>'
+                        + '<div style="margin-top:6px;padding:8px 10px;background:#fff7ed;border:1px solid #fbd9b5;border-radius:6px">' + enc(a.message) + '</div></div>'
                         + '<div style="font-weight:700;color:#1e3a5f;margin:6px 0">Dernières actions (la plus récente en bas)</div>'
                         + (lignes ? '<ol style="padding-left:18px;margin:0">' + lignes + '</ol>' : '<div style="color:#64748b">Aucune action enregistrée.</div>')
                         + '<div style="margin-top:6px;color:#b45309;font-weight:700">↳ anomalie</div>');
@@ -1017,10 +1540,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return;
         }
         a.setLoading('Calcul des analyses…');
-        if (me.down('#aeSeuilOp')) {
-            f.seuilOperateur = me.down('#aeSeuilOp').getValue();
-            f.seuilMinutes = me.down('#aeSeuilMin').getValue();
-        }
+        me.ajouterSeuil(f);
         Ext.Ajax.request({url: '../api/v1/activite-equipes/analyses', method: 'GET', params: f, timeout: 180000,
             success: function (r) {
                 if (a.isDestroyed) {
@@ -1038,6 +1558,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 me.chargerAnnulations(f);
                 me.chargerGardes(f);
                 me.chargerCaTranches(f);
+                me.chargerIndicateurs(f);
             },
             failure: function (r) {
                 if (!a.isDestroyed) {
@@ -1221,6 +1742,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var style = '<style>.ae-ann{border-collapse:collapse;width:100%;font-size:12px;margin:2px 0 8px}.ae-ann th{background:#e8eef7;color:#1a3d6d;'
                 + 'text-align:left;padding:4px 6px;white-space:nowrap}.ae-ann td{padding:3px 6px;border-bottom:1px solid #eef1f5}.ae-ann .n{text-align:right}'
                 + '.ae-ann tbody tr{cursor:pointer}.ae-ann tbody tr:hover{background:#f3f7fc}.ae-ann .ae-taux-haut{color:#c0392b;font-weight:bold}'
+                + '.ae-ann .ae-pct{color:#64748b;font-size:11px}'
                 + '.ae-ann-titre{font-weight:bold;color:#1a3d6d;margin:4px 0 2px}.ae-ann-cols{display:flex;gap:14px}.ae-ann-cols>div{flex:1;min-width:0}'
                 + '.ae-ann-detail{margin-top:6px}</style>';
         var vendeurs = d.parVendeur || [], caissiers = d.parCaissier || [];
@@ -1230,11 +1752,21 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             + '</td><td class="n">' + N(x.ventes) + '</td><td class="n"><b>' + N(x.annulees) + '</b></td><td class="n'
                             + (x.taux >= 2 ? ' ae-taux-haut' : '') + '">' + N(x.taux, true) + ' %</td></tr>';
                 }).join('') + '</tbody></table>' : '<div class="ae-vide">Aucune vente sur la période.</div>';
-        var tc = caissiers.length ? '<table class="ae-ann ae-ann-caissiers"><thead><tr><th>Caissière</th><th class="n">Annul. comptant</th>'
-                + '<th class="n">Modif. comptant</th><th class="n">Modif. crédit</th></tr></thead><tbody>' + Ext.Array.map(caissiers.slice(0, 12), function (x) {
+        /* plan du 09/11, point 10 : chaque operation et son taux sur les ventes de son type ; taux global a droite */
+        var pct = function (t, sur) {
+            return '<span class="ae-pct" data-taux="' + (t === null || t === undefined ? '' : t) + '" data-qtip="sur ' + N(sur) + ' ventes encaissées">'
+                    + (t === null || t === undefined ? '—' : N(t, true) + ' %') + '</span>';
+        };
+        var tc = caissiers.length ? '<table class="ae-ann ae-ann-caissiers"><thead><tr><th>Caissière</th><th class="n">Ventes comptant</th>'
+                + '<th class="n">Annul. comptant</th><th class="n">Modif. comptant</th><th class="n">Ventes crédit</th><th class="n">Modif. crédit</th>'
+                + '<th class="n">Taux</th></tr></thead><tbody>' + Ext.Array.map(caissiers.slice(0, 12), function (x) {
                     return '<tr data-role="CAISSIER" data-id="' + e(x.id) + '" data-nom="' + e(x.nom) + '" data-qtip="Cliquer : le détail des opérations"><td>' + e(x.nom)
-                            + '</td><td class="n">' + N(x.annulationsComptant) + '</td><td class="n">' + N(x.modificationsComptant) + '</td><td class="n">'
-                            + N(x.modificationsCredit) + '</td></tr>';
+                            + '</td><td class="n">' + N(x.ventesComptant) + '</td><td class="n"><span class="ae-nb">' + N(x.annulationsComptant) + '</span> '
+                            + pct(x.tauxAnnulationsComptant, x.ventesComptant) + '</td><td class="n"><span class="ae-nb">' + N(x.modificationsComptant) + '</span> '
+                            + pct(x.tauxModificationsComptant, x.ventesComptant) + '</td><td class="n">' + N(x.ventesCredit) + '</td><td class="n"><span class="ae-nb">'
+                            + N(x.modificationsCredit) + '</span> ' + pct(x.tauxModificationsCredit, x.ventesCredit) + '</td><td class="n ae-taux'
+                            + (x.taux >= 2 ? ' ae-taux-haut' : '') + '" data-taux="' + (x.taux === null || x.taux === undefined ? '' : x.taux) + '">'
+                            + (x.taux === null || x.taux === undefined ? '—' : '<b>' + N(x.taux, true) + ' %</b>') + '</td></tr>';
                 }).join('') + '</tbody></table>' : '<div class="ae-vide">Aucune annulation ni modification sur la période.</div>';
         return style + '<div class="ae-ann-cols"><div><div class="ae-ann-titre">Par auteur de la vente (vendeur)</div>' + tv + '</div>'
                 + '<div><div class="ae-ann-titre">Par caissière (qui a encaissé)</div>' + tc + '</div></div><div class="ae-ann-detail"></div>';
@@ -1254,11 +1786,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 var o = Ext.decode(r.responseText, true) || {}, l = o.data || [];
                 zone.innerHTML = '<div class="ae-ann-titre">' + (role === 'CAISSIER' ? 'Opérations sur les ventes encaissées par ' : 'Ventes annulées de ') + e(nom || '')
                         + ' (' + l.length + ')</div>' + (l.length ? '<table class="ae-ann ae-ann-liste"><thead><tr><th>Vente</th><th>Type</th><th>Date de la vente</th>'
-                        + '<th class="n">Montant</th><th>Opération</th><th>Motif</th><th>Par qui</th><th>Quand</th></tr></thead><tbody>'
+                        + '<th class="n">Montant</th><th>Opération</th><th>Motif</th><th>Par qui</th><th>Quand</th><th>Encaissé par</th></tr></thead><tbody>'
                         + Ext.Array.map(l, function (x) {
                             return '<tr><td>' + e(x.reference) + '</td><td>' + e(x.typeVente) + '</td><td>' + e(x.dateVente) + '</td><td class="n">' + N(x.montant)
                                     + '</td><td>' + e(x.operation) + '</td><td>' + e(x.motif || '—') + (x.commentaire ? ' : ' + e(x.commentaire) : '') + '</td><td>'
-                                    + e(x.parQui) + '</td><td>' + e(x.quand) + '</td></tr>';
+                                    + e(x.parQui) + '</td><td>' + e(x.quand) + '</td><td>' + e(x.encaissePar || '') + '</td></tr>';
                         }).join('') + '</tbody></table>' : '<div class="ae-vide">Aucune opération.</div>');
                 c.getEl().dom.scrollTop = zone.offsetTop;
             },
@@ -1323,6 +1855,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var me = this, AE = testextjs.view.activiteequipes.ActiviteEquipes, N = AE.nombre, D = AE.duree, a = me.analyses;
         var periode = 'Comparé au ' + Ext.Date.format(Ext.Date.parse(d.debutPrecedent, 'Y-m-d'), 'd/m/Y') + ' – '
                 + Ext.Date.format(Ext.Date.parse(d.finPrecedent, 'Y-m-d'), 'd/m/Y');
+        if (d.garde) {
+            periode = Ext.String.htmlEncode(d.garde.libelle) + ' : du ' + d.garde.debut + ' au ' + d.garde.fin + ', comparée à la même plage 7 jours plus tôt';
+        }
         var valeur = function (i, v) {
             return i.format === 'DUREE' ? D(v) : i.format === 'POURCENT' ? N(v, true) + ' %' : i.format === 'MONTANT' ? N(v) + ' F' : N(v, v % 1 !== 0);
         };
@@ -1390,6 +1925,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             a.down('#aeCartePeriode').disable();
         }
         a.down('#aeCarte').update(me.htmlCarte(d.carte, ''));
+        if (d.seuilOperateur && !me.seuilModifie) {
+            me.afficherSeuilEnregistre(d.seuilOperateur, d.seuilMinutes);
+        }
         if (d.seuilLibelle) {
             me.seuilLibelle = d.seuilLibelle;
             a.down('#cLongues').setTitle(d.seuilLibelle);

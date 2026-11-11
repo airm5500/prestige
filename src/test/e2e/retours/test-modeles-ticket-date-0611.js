@@ -34,7 +34,7 @@ const SECOURS = require('path').join(require('os').tmpdir(), 'ticket_modele_avan
 require('fs').writeFileSync(SECOURS, AVANT);
 const remettre = () => {
   q('DELETE FROM ticket_modele');
-  AVANT.split('\n').filter(Boolean).forEach((l) => {
+  AVANT.split(/\r?\n/).filter(Boolean).forEach((l) => {
     const [t, lg, r, maj, u] = l.split('|');
     q(`INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('${t}', ${Number(lg)}, UNHEX('${r}'), '${maj}', ${u === 'NULL' ? 'NULL' : `UNHEX('${u}')`})`);
   });

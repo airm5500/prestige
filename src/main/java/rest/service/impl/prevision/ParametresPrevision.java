@@ -70,6 +70,17 @@ public final class ParametresPrevision {
         ajouter(new Definition("KEY_PREVISION_SEUIL_PEU_FIABLE", "Prévision peu fiable sous",
                 "Fiabilité (100 − erreur de la méthode retenue) en dessous de laquelle la prévision est signalée.", "%",
                 50, 0, 100, PREVISIONS));
+        /* plan du 09/11, points 5 et 6 : taux de rupture, un seul reglage pour la prevision et le tableau de bord */
+        ajouter(new Definition("KEY_PREVISION_RUPTURE_MOIS", "Taux de rupture : mois observés",
+                "Derniers mois complets regardés pour dire si un produit se vend fréquemment.", "mois", 3, 1, 24,
+                PREVISIONS));
+        ajouter(new Definition("KEY_PREVISION_RUPTURE_MOIS_VENTE", "Taux de rupture : vendu au moins N mois",
+                "Un produit fréquent est vendu dans au moins ce nombre de mois de la période (au plus la période).",
+                "mois", 2, 1, 24, PREVISIONS));
+        ajouter(new Definition("KEY_PREVISION_RUPTURE_QTE_MIN", "Taux de rupture : quantité minimale vendue",
+                "Et au moins cette quantité vendue sur la période. Taux = produits fréquents à stock nul (rayon + réserve, "
+                        + "stock actuel) ÷ produits fréquents ; même chiffre sur le tableau de bord.",
+                "unités", 3, 1, 100000, PREVISIONS));
         ajouter(new Definition("KEY_RISQUE_SECURITE_JOURS", "Marge de sécurité",
                 "Jours ajoutés au délai de livraison : en dessous, le produit est « critique ».", "jours", 2, 0, 60,
                 RISQUE));

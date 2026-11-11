@@ -1611,6 +1611,25 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         }
     }
 
+    /** Filtre « avec / sans reponse » d'une ligne de retour (inchange, sorti pour servir deux sous-requetes). */
+    private static List<Predicate> filtreReponses(CriteriaBuilder cb, Root<TRetourFournisseurDetail> pr,
+            String filtre) {
+        List<Predicate> l = new ArrayList<>();
+        if (StringUtils.isNotEmpty(filtre)) {
+            switch (filtre) {
+            case NOT:
+                l.add(cb.equal(pr.get(TRetourFournisseurDetail_.intNUMBERANSWER), 0));
+                break;
+            case WITH:
+                l.add(cb.greaterThan(pr.get(TRetourFournisseurDetail_.intNUMBERANSWER), 0));
+                break;
+            default:
+                break;
+            }
+        }
+        return l;
+    }
+
     /**
      * Transmission du 07/11 : filtre par etat de la liste des retours (ATTENTE, REFUSE, VALIDE, ABANDONNE ; vide ou
      * TOUS = tous). Les retours en attente et refuses restent visibles quelle que soit leur date ; les retours valides
@@ -1639,31 +1658,39 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                         cb.equal(root.get(TRetourFournisseur_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), fourId));
             }
             if (StringUtils.isNotEmpty(query) || (StringUtils.isNotEmpty(filtre) && !filtre.equals(ALL))) {
-                List<Predicate> subpr = new ArrayList<>();
+                /*
+                 * plan du 09/11, point 4 : recherche « contient » (et non plus « commence par ») sur le CIP, le nom et
+                 * l'EAN des produits du retour ; un retour se trouve aussi par son n° de BL ou sa reference.
+                 */
+                String motif = StringUtils.isNotEmpty(query) ? CommandeServiceImpl.motifContient(query.trim()) : null;
                 Subquery<TRetourFournisseur> sub = cq.subquery(TRetourFournisseur.class);
                 Root<TRetourFournisseurDetail> pr = sub.from(TRetourFournisseurDetail.class);
-                if (StringUtils.isNotEmpty(query)) {
-                    subpr.add(cb.or(
-                            cb.like(pr.get(TRetourFournisseurDetail_.lgFAMILLEID).get(TFamille_.intCIP), query + "%"),
-                            cb.like(pr.get(TRetourFournisseurDetail_.lgFAMILLEID).get(TFamille_.strNAME), query + "%"),
-                            cb.like(pr.get(TRetourFournisseurDetail_.lgFAMILLEID).get(TFamille_.intEAN13),
-                                    query + "%")));
-                }
-                if (StringUtils.isNotEmpty(filtre)) {
-                    switch (filtre) {
-                    case NOT:
-                        subpr.add(cb.equal(pr.get(TRetourFournisseurDetail_.intNUMBERANSWER), 0));
-                        break;
-                    case WITH:
-                        subpr.add(cb.greaterThan(pr.get(TRetourFournisseurDetail_.intNUMBERANSWER), 0));
-                        break;
-                    default:
-                        break;
-                    }
+                List<Predicate> subpr = new ArrayList<>(filtreReponses(cb, pr, filtre));
+                if (motif != null) {
+                    subpr.add(cb.or(cb.like(pr.get(TRetourFournisseurDetail_.lgFAMILLEID).get(TFamille_.intCIP), motif),
+                            cb.like(pr.get(TRetourFournisseurDetail_.lgFAMILLEID).get(TFamille_.strNAME), motif),
+                            cb.like(pr.get(TRetourFournisseurDetail_.lgFAMILLEID).get(TFamille_.intEAN13), motif)));
                 }
                 sub.select(pr.get(TRetourFournisseurDetail_.lgRETOURFRSID))
                         .where(cb.and(subpr.toArray(Predicate[]::new)));
-                predicates.add(cb.in(root).value(sub));
+                Predicate condition = cb.in(root).value(sub);
+                if (motif != null) {
+                    Join<TRetourFournisseur, TBonLivraison> bl = root.join(TRetourFournisseur_.lgBONLIVRAISONID,
+                            JoinType.LEFT);
+                    Predicate parPiece = cb.or(cb.like(bl.get(TBonLivraison_.strREFLIVRAISON), motif),
+                            cb.like(root.get(TRetourFournisseur_.strREFRETOURFRS), motif));
+                    List<Predicate> filtreSeul = new ArrayList<>();
+                    Subquery<TRetourFournisseur> sub2 = cq.subquery(TRetourFournisseur.class);
+                    Root<TRetourFournisseurDetail> pr2 = sub2.from(TRetourFournisseurDetail.class);
+                    filtreSeul.addAll(filtreReponses(cb, pr2, filtre));
+                    if (!filtreSeul.isEmpty()) {
+                        sub2.select(pr2.get(TRetourFournisseurDetail_.lgRETOURFRSID))
+                                .where(cb.and(filtreSeul.toArray(Predicate[]::new)));
+                        parPiece = cb.and(parPiece, cb.in(root).value(sub2));
+                    }
+                    condition = cb.or(condition, parPiece);
+                }
+                predicates.add(condition);
             }
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TRetourFournisseur> q = getEmg().createQuery(cq);

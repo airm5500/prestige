@@ -58,6 +58,19 @@
     transition: transform 0.2s;
 }
 
+/* plan du 09/11, point 16 : icone Prestige 3 (elle porte son propre fond violet) */
+#app-header-title .hdr-brand-ico--image {
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+#app-header-title .hdr-brand-ico--image img {
+    width: 34px;
+    height: 34px;
+    display: block;
+}
+
 #app-header-title .hdr-brand:hover .hdr-brand-ico {
     transform: rotate(8deg) scale(1.08);
 }

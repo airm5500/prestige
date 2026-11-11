@@ -1562,7 +1562,7 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     /** Motif LIKE « contient » : jokers du texte neutralises, puis % de part et d'autre. */
-    static String motifContient(String texte) {
+    public static String motifContient(String texte) {
         return "%" + texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
     }
 

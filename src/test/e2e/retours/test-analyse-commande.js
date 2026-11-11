@@ -49,8 +49,21 @@ const SUG = 'e2e-l12-' + Date.now();
 
     /* ------------------------------------------------ 2. recoupements */
     const t = (await get('../api/v1/analyse-commande/tableau')).o;
-    const rupt = q("SELECT CONCAT(SUM(prevu_mois >= 1), '|', SUM(prevu_mois >= 1 AND stock <= 0)) FROM t_prevision_produit WHERE lg_EMPLACEMENT_ID = '1'").split('|').map(Number);
-    ok('Taux de rupture = produits vendus ≥ 1/mois sans stock / produits vendus ≥ 1/mois', t.ruptures === rupt[1] && Math.abs(t.tauxRupture - Math.round(rupt[1] * 1000 / rupt[0]) / 10) < 0.01, JSON.stringify([t.tauxRupture, t.ruptures, rupt]));
+    /* plan du 09/11, points 5 et 6 : produit frequent = vendu au moins N mois des M derniers et au moins Q unites ;
+       taux = produits frequents a stock actuel nul (rayon + reserve) / produits frequents (reglage en parametres) */
+    const prm = (c, d) => Number(q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + c + "'), '" + d + "')"));
+    const [rm, rn, rq] = [prm('KEY_PREVISION_RUPTURE_MOIS', 3), prm('KEY_PREVISION_RUPTURE_MOIS_VENTE', 2), prm('KEY_PREVISION_RUPTURE_QTE_MIN', 3)];
+    const rupt = [0, 0];
+    execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e',
+      "SELECT p.historique, COALESCE((SELECT SUM(int_NUMBER_AVAILABLE) FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'), 0),"
+      + " COALESCE((SELECT SUM(int_NUMBER) FROM t_type_stock_famille t WHERE t.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND t.lg_EMPLACEMENT_ID = '1' AND t.lg_TYPE_STOCK_ID = '2'), 0)"
+      + " FROM t_prevision_produit p JOIN t_famille f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND f.str_STATUT = 'enable' WHERE p.lg_EMPLACEMENT_ID = '1' AND p.historique <> ''"],
+      { encoding: 'utf8', maxBuffer: 1 << 28 }).split(/\r?\n/).filter(Boolean).forEach((l) => {
+      const [h, ra, re] = l.split('\t'); const v = h.split(',').map((x) => Number(x) || 0).slice(-rm);
+      if (v.filter((x) => x > 0).length >= Math.min(rn, rm) && v.reduce((a, x) => a + x, 0) >= rq) { rupt[0]++; if (Math.max(0, Number(ra)) + Math.max(0, Number(re)) <= 0) { rupt[1]++; } }
+    });
+    ok('Taux de rupture = produits vendus fréquemment (' + [rm, rn, rq].join(', ') + ') à stock nul / produits vendus fréquemment', t.ruptures === rupt[1] && t.produitsReguliers === rupt[0]
+      && Math.abs(t.tauxRupture - (rupt[0] ? Math.round(rupt[1] * 1000 / rupt[0]) / 10 : 0)) < 0.01, JSON.stringify([t.tauxRupture, t.ruptures, rupt]));
     ok('Tuile taux de rupture affichée = API', tuiles[0].includes(String(t.tauxRupture).replace('.', ',')), tuiles[0]);
     const inv = Number(q("SELECT COALESCE(SUM(p.stock * f.int_PAF), 0) FROM t_prevision_produit p JOIN t_famille f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = '1' AND p.stock > 0 AND (p.derniere_vente IS NULL OR p.derniere_vente < CURDATE() - INTERVAL " + t.joursLente + ' DAY)'));
     ok('Valeur des invendus = stock × prix d\'achat des produits sans vente depuis ' + t.joursLente + ' j', t.valeurInvendus === inv, t.valeurInvendus + ' / ' + inv);

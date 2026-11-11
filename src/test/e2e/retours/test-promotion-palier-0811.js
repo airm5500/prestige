@@ -278,8 +278,7 @@ const ligneBase = (v, f) => {
     const rang = await p.evaluate((id) => { const g = Ext.ComponentQuery.query('ventemanager gridpanel')[0], s = g.getStore();
       return g.getView().getNode(s.getAt(s.findExact('lgPREENREGISTREMENTID', id))).id; }, vente);
     await p.locator(`#${rang} img[data-qtip="Annuler.Vente"]`).filter({ visible: true }).first().click();
-    await p.waitForTimeout(800);
-    await vues.repondre(p, 'yes');
+    await vues.confirmerAnnulation(p);
     for (let k = 0; k < 60 && !/impression/i.test(await vues.texteMessage(p)); k++) { await p.waitForTimeout(1000); }
     await vues.repondre(p, 'no').catch(() => {});
     await p.waitForTimeout(1000);

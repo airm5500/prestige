@@ -1272,6 +1272,133 @@ public class ReglementServiceImpl implements ReglementService {
             + " WHERE m.typeMvtCaisseId = '" + Constant.MVT_REGLE_DIFF + "' AND m.checked = 1"
             + " AND m.lg_EMPLACEMENT_ID = ?1 AND (?2 = '' OR m.organisme = ?2)";
 
+    /**
+     * Plan du 10/11, point 4 : solde de chaque client au debut de la periode, par identifiant de client (deux clients
+     * de meme nom restent separes), calcule exactement comme le solde global (ventes : part differee moins l'acompte,
+     * DETTE_DIFFEREE) : la somme des soldes des clients est le solde au debut du releve. Remplit aussi les noms.
+     */
+    @SuppressWarnings("unchecked")
+    private static java.util.Map<String, Long> soldesDebutParIdClient(EntityManager em, String emplacement,
+            String client, java.sql.Timestamp debut, java.util.Map<String, String> noms) {
+        java.util.Map<String, Long> soldes = new java.util.HashMap<>();
+        String nom = "CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME)";
+        java.util.function.BiConsumer<String, Integer> cumuler = (sql, signe) -> {
+            for (Object[] r : (List<Object[]>) em.createNativeQuery(sql).setParameter(1, emplacement)
+                    .setParameter(2, client).setParameter(3, debut).getResultList()) {
+                String id = r[0] == null ? "" : (String) r[0];
+                soldes.merge(id, signe * ((Number) r[2]).longValue(), Long::sum);
+                if (r[1] != null) {
+                    noms.putIfAbsent(id, (String) r[1]);
+                }
+            }
+        };
+        cumuler.accept("SELECT c.lg_CLIENT_ID, " + nom + ", COALESCE(SUM(" + DETTE_DIFFEREE + "), 0)" + VENTES_DIFFEREES
+                + " AND p.dt_UPDATED < ?3 GROUP BY c.lg_CLIENT_ID", 1);
+        cumuler.accept("SELECT c.lg_CLIENT_ID, " + nom + ", COALESCE(SUM(" + PART_DIFFEREE + "), 0)" + VENTES_ANNULEES
+                + " AND p.dt_UPDATED < ?3 GROUP BY c.lg_CLIENT_ID", 1);
+        cumuler.accept("SELECT c.lg_CLIENT_ID, " + nom + ", COALESCE(SUM(" + PART_DIFFEREE + "), 0)" + VENTES_ANNULEES
+                + " AND p.dt_ANNULER < ?3 GROUP BY c.lg_CLIENT_ID", -1);
+        cumuler.accept("SELECT m.organisme, MAX(" + nom + "), COALESCE(SUM(m.montantRegle), 0)" + REGLEMENTS
+                + " AND m.createdAt < ?3 GROUP BY m.organisme", -1);
+        return soldes;
+    }
+
+    private static long nombre(Object o) {
+        return o == null ? 0 : Math.round(((Number) o).doubleValue());
+    }
+
+    /**
+     * Plan du 10/11, point 4 : produits d'une vente differee (ou annulee) du releve, pour le volet de droite. Limite a
+     * l'emplacement de l'utilisateur, comme le releve.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject detailVenteReleve(String venteId) {
+        try {
+            String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            EntityManager em = getEmg();
+            List<Object[]> v = em.createNativeQuery("SELECT p.str_REF, DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y %H:%i'),"
+                    + " p.int_PRICE AS montant_vente, p.int_PRICE_REMISE AS remise, p.b_IS_CANCEL AS annulee, tp.int_PRICE AS part_differee,"
+                    + " tp.int_PRICE_RESTE AS reste," + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME)"
+                    + " FROM t_preenregistrement p JOIN t_preenregistrement_compte_client tp"
+                    + " ON tp.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                    + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = tp.lg_COMPTE_CLIENT_ID"
+                    + " JOIN t_client c ON c.lg_CLIENT_ID = cc.lg_CLIENT_ID JOIN t_user u ON u.lg_USER_ID = tp.lg_USER_ID"
+                    + " WHERE p.lg_PREENREGISTREMENT_ID = ?1 AND u.lg_EMPLACEMENT_ID = ?2").setParameter(1, venteId)
+                    .setParameter(2, emplacement).setMaxResults(1).getResultList();
+            if (v.isEmpty()) {
+                return new JSONObject().put("success", false).put("msg", "Vente introuvable.");
+            }
+            Object[] e = v.get(0);
+            JSONArray produits = new JSONArray();
+            long total = 0;
+            for (Object[] l : (List<Object[]>) em
+                    .createNativeQuery("SELECT f.int_CIP, f.str_NAME, d.int_QUANTITY, d.int_PRICE_UNITAIR, d.int_PRICE"
+                            + " FROM t_preenregistrement_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                            + " WHERE d.lg_PREENREGISTREMENT_ID = ?1 ORDER BY d.dt_CREATED, d.lg_PREENREGISTREMENT_DETAIL_ID")
+                    .setParameter(1, venteId).getResultList()) {
+                produits.put(new JSONObject().put("cip", l[0] == null ? "" : l[0])
+                        .put("libelle", l[1] == null ? "" : l[1]).put("quantite", nombre(l[2]))
+                        .put("prixUnitaire", nombre(l[3])).put("montant", nombre(l[4])));
+                total += nombre(l[4]);
+            }
+            return new JSONObject().put("success", true).put("type", "VENTE").put("reference", e[0]).put("date", e[1])
+                    .put("montant", nombre(e[2])).put("remise", nombre(e[3]))
+                    .put("annulee", e[4] instanceof Boolean ? (Boolean) e[4] : nombre(e[4]) != 0)
+                    .put("partDifferee", nombre(e[5])).put("reste", nombre(e[6]))
+                    .put("client", e[7] == null ? "" : e[7]).put("totalProduits", total).put("produits", produits);
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, "detail de vente du releve", ex);
+            return new JSONObject().put("success", false).put("msg", "Le détail n'a pas pu être lu.");
+        }
+    }
+
+    /**
+     * Plan du 10/11, point 4 : detail d'un reglement de differe du releve (dossier de reglement) : montant, date, mode,
+     * operateur, et une ligne par vente reglee (numero, date, part reglee). Limite a l'emplacement de l'utilisateur.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject detailReglementReleve(String dossierId) {
+        try {
+            String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            EntityManager em = getEmg();
+            List<Object[]> v = em
+                    .createNativeQuery("SELECT dr.dbl_AMOUNT, DATE_FORMAT(dr.dt_CREATED, '%d/%m/%Y %H:%i'),"
+                            + " CONCAT_WS(' ', u.str_FIRST_NAME, u.str_LAST_NAME),"
+                            + " (SELECT mr.str_NAME FROM t_reglement r JOIN t_mode_reglement mr ON mr.lg_MODE_REGLEMENT_ID = r.lg_MODE_REGLEMENT_ID"
+                            + " WHERE r.str_REF_RESSOURCE = dr.lg_DOSSIER_REGLEMENT_ID LIMIT 1), m.montantRegle, m.reference"
+                            + " FROM t_dossier_reglement dr JOIN mvttransaction m ON m.pkey = dr.lg_DOSSIER_REGLEMENT_ID"
+                            + " LEFT JOIN t_user u ON u.lg_USER_ID = dr.lg_USER_ID"
+                            + " WHERE dr.lg_DOSSIER_REGLEMENT_ID = ?1 AND m.lg_EMPLACEMENT_ID = ?2")
+                    .setParameter(1, dossierId).setParameter(2, emplacement).setMaxResults(1).getResultList();
+            if (v.isEmpty()) {
+                return new JSONObject().put("success", false).put("msg", "Règlement introuvable.");
+            }
+            Object[] e = v.get(0);
+            JSONArray ventes = new JSONArray();
+            long total = 0;
+            for (Object[] l : (List<Object[]>) em.createNativeQuery(
+                    "SELECT p.str_REF, DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), d.dbl_AMOUNT, tp.int_PRICE_RESTE,"
+                            + " p.lg_PREENREGISTREMENT_ID FROM t_dossier_reglement_detail d"
+                            + " JOIN t_preenregistrement_compte_client tp ON tp.lg_PREENREGISTREMENT_COMPTE_CLIENT_ID = d.str_REF"
+                            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tp.lg_PREENREGISTREMENT_ID"
+                            + " WHERE d.lg_DOSSIER_REGLEMENT_ID = ?1 ORDER BY p.dt_UPDATED, p.str_REF")
+                    .setParameter(1, dossierId).getResultList()) {
+                ventes.put(new JSONObject().put("reference", l[0]).put("date", l[1]).put("montant", nombre(l[2]))
+                        .put("resteActuel", nombre(l[3])).put("venteId", l[4]));
+                total += nombre(l[2]);
+            }
+            return new JSONObject().put("success", true).put("type", "REGLEMENT").put("montant", nombre(e[0]))
+                    .put("date", e[1]).put("operateur", e[2] == null ? "" : e[2]).put("mode", e[3] == null ? "" : e[3])
+                    .put("montantRegle", nombre(e[4])).put("reference", e[5] == null ? "" : e[5])
+                    .put("totalVentes", total).put("ventes", ventes);
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, "detail de reglement du releve", ex);
+            return new JSONObject().put("success", false).put("msg", "Le détail n'a pas pu être lu.");
+        }
+    }
+
     /** Point 16 : solde de chaque client au debut de la periode (ventes, annulations, reglements anterieurs). */
     @SuppressWarnings("unchecked")
     private static java.util.Map<String, Long> soldesDebutParClient(EntityManager em, String emplacement, String client,
@@ -1313,22 +1440,24 @@ public class ReglementServiceImpl implements ReglementService {
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
             List<ReleveDifferes.Operation> ops = new ArrayList<>();
             for (Object[] r : (List<Object[]>) em
-                    .createNativeQuery("SELECT p.dt_UPDATED, p.str_REF,"
-                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), " + DETTE_DIFFEREE + VENTES_DIFFEREES
-                            + " AND p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4")
+                    .createNativeQuery(
+                            "SELECT p.dt_UPDATED, p.str_REF," + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), "
+                                    + DETTE_DIFFEREE + ", c.lg_CLIENT_ID, p.lg_PREENREGISTREMENT_ID" + VENTES_DIFFEREES
+                                    + " AND p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
                     .setMaxResults(20000).getResultList()) {
                 ops.add(new ReleveDifferes.Operation(((java.sql.Timestamp) r[0]).toLocalDateTime(), "Vente différée",
-                        (String) r[1], (String) r[2], ((Number) r[3]).longValue(), 0));
+                        (String) r[1], (String) r[2], ((Number) r[3]).longValue(), 0).de((String) r[4], (String) r[5]));
             }
             for (Object[] r : (List<Object[]>) em
                     .createNativeQuery("SELECT m.createdAt, m.reference,"
-                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), m.montantRegle" + REGLEMENTS
-                            + " AND m.createdAt >= ?3 AND m.createdAt < ?4")
+                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), m.montantRegle, m.organisme, m.pkey"
+                            + REGLEMENTS + " AND m.createdAt >= ?3 AND m.createdAt < ?4")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
                     .setMaxResults(20000).getResultList()) {
                 ops.add(new ReleveDifferes.Operation(((java.sql.Timestamp) r[0]).toLocalDateTime(), "Règlement",
-                        (String) r[1], (String) r[2], 0, r[3] == null ? 0 : ((Number) r[3]).longValue()));
+                        (String) r[1], (String) r[2], 0, r[3] == null ? 0 : ((Number) r[3]).longValue())
+                                .de((String) r[4], (String) r[5]));
             }
             /* point 16 : ventes annulees, vente puis annulation */
             Number annuleesAvant = (Number) em
@@ -1340,7 +1469,8 @@ public class ReglementServiceImpl implements ReglementService {
                             + " AND p.dt_ANNULER < ?3")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
             for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT p.dt_UPDATED, p.dt_ANNULER, p.str_REF,"
-                    + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), " + PART_DIFFEREE + VENTES_ANNULEES
+                    + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), " + PART_DIFFEREE
+                    + ", c.lg_CLIENT_ID, p.lg_PREENREGISTREMENT_ID" + VENTES_ANNULEES
                     + " AND ((p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4) OR (p.dt_ANNULER >= ?3 AND p.dt_ANNULER < ?4))")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
                     .setMaxResults(20000).getResultList()) {
@@ -1349,18 +1479,27 @@ public class ReglementServiceImpl implements ReglementService {
                 long montant = ((Number) r[4]).longValue();
                 if (!vente.isBefore(debut.toLocalDateTime()) && vente.isBefore(fin.toLocalDateTime())) {
                     ops.add(new ReleveDifferes.Operation(vente, "Vente différée (annulée ensuite)", (String) r[2],
-                            (String) r[3], montant, 0, "VENTE"));
+                            (String) r[3], montant, 0, "VENTE").de((String) r[5], (String) r[6]));
                 }
                 if (!annulation.isBefore(debut.toLocalDateTime()) && annulation.isBefore(fin.toLocalDateTime())) {
                     ops.add(new ReleveDifferes.Operation(annulation, "Annulation de la vente", (String) r[2],
-                            (String) r[3], 0, montant, "ANNULATION"));
+                            (String) r[3], 0, montant, "ANNULATION").de((String) r[5], (String) r[6]));
                 }
             }
             long soldeInitial = ventesAvant.longValue() + annuleesAvant.longValue() - annulationsAvant.longValue()
                     - reglesAvant.longValue();
-            JSONObject releve = ReleveDifferes.releve(soldeInitial, ops);
-            releve.put("parClient",
-                    ReleveDifferes.soldesParClient(soldesDebutParClient(em, emplacement, client, debut), ops));
+            /*
+             * plan du 10/11, point 4 : releve groupe par client (ecran, PDF et Excel) ; le solde au debut reste le
+             * solde global, la somme des soldes des clients doit lui etre egale
+             */
+            java.util.Map<String, String> noms = new java.util.HashMap<>();
+            JSONObject releve = ReleveDifferes
+                    .releveParClient(soldesDebutParIdClient(em, emplacement, client, debut, noms), noms, ops);
+            if (releve.getLong("soldeInitial") != soldeInitial) {
+                LOG.log(Level.WARNING, "releve des differes : somme des soldes des clients {0} <> solde global {1}",
+                        new Object[] { releve.getLong("soldeInitial"), soldeInitial });
+            }
+            releve.put("soldeGlobalDebut", soldeInitial);
             return releve;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "releve des differes", e);

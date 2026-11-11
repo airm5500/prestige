@@ -69,6 +69,20 @@ function authenticate(str_LOGIN, Str_PASSWORD) {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
+                },
+                /* plan du 09/11, point 7 : le nom du poste (garde sur ce poste) part avec la connexion, pour le
+                   journal et la liste des postes connus ; sinon le serveur prend le nom reseau. beforeSend : jQuery
+                   1.4 de cette page ignore l'option « headers ». */
+                beforeSend: function (xhr) {
+                    var nom = '';
+                    try {
+                        nom = window.localStorage.getItem('prestige.poste') || '';
+                    } catch (e) {
+                        nom = '';
+                    }
+                    if (nom) {
+                        xhr.setRequestHeader('X-Poste', encodeURIComponent(nom));
+                    }
                 }, success: function (data) {
                     console.log(data.success);
                     if (data.success) {

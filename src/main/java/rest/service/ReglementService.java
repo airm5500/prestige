@@ -51,4 +51,10 @@ public interface ReglementService {
      * (credit) de la periode, solde apres chaque operation et solde de fin de chaque mois.
      */
     JSONObject releveDifferes(LocalDate du, LocalDate au, String clientId);
+
+    /** Plan du 10/11, point 4 : volet de droite de l'onglet « Solde », produits d'une vente differee. */
+    JSONObject detailVenteReleve(String venteId);
+
+    /** Plan du 10/11, point 4 : volet de droite de l'onglet « Solde », detail d'un reglement de differe. */
+    JSONObject detailReglementReleve(String dossierId);
 }

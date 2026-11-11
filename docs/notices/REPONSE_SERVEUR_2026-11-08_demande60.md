@@ -24,7 +24,9 @@ Pour Prestige Mobile. Demande d'origine : `TRANSMISSION_SERVEUR_2026-11-08_deman
 { "success": true, "traiter": true, "annulerMouvement": false, "voirSuggestions": true }
 ```
 
-- `voirSuggestions` vaut exactement la présence du droit dans la session (test de rapprochement).
+- `voirSuggestions` vaut la présence du droit dans la session (test de rapprochement).
+- Mise à jour du 11/11 (demande 61) : si le droit n'existe pas (actif) en base, `voirSuggestions` vaut `true` et
+  aucune route ne le contrôle. C'est le comportement d'avant la demande 60, le même que la clôture d'un BL.
 - Champ absent (serveur plus ancien) : garder le comportement actuel.
 - Les droits sont lus à la connexion. Un droit retiré prend effet à la connexion suivante.
 
@@ -81,7 +83,9 @@ Sans le droit :
 
 Un profil qui a le droit ne voit aucun changement.
 
-## Non traité ici
+## Fenêtre « Réserve après entrée » (mise à jour du 11/11, demande 61)
 
-La fenêtre « Réserve après entrée », à la clôture d'un BL, propose encore d'ouvrir les suggestions. Elle fait partie de
-la réception, qu'une autre session modifie : ce point reste à reprendre.
+Cette notice disait, le 08/11, que la fenêtre n'était pas traitée. Ce n'est plus vrai depuis la fusion : c'est le code
+qui fait foi. À la clôture d'un BL, le champ `reserve` est vide (`[]`) pour un profil sans le droit ; la suggestion est
+créée quand même. Si le droit n'existe pas en base, tout le monde voit les lignes, comme avant.
+Test : `test-reserve-apres-entree-droit-suggestions`.

@@ -59,7 +59,7 @@ const PAF_ORIGINE = SUP[0] ? SUP[0][2] : null;
     await grille();
     await p.waitForTimeout(800);
     const libelles = await p.evaluate(() => Ext.getCmp('str_TYPE').getStore().collect('str_desc'));
-    ok('Le filtre propose « Prix achat > prix vente », les filtres existants restent', libelles.includes('Prix achat > prix vente') && libelles.includes('Articles encore négatifs') && libelles.length === 9, libelles.join(', '));
+    ok('Le filtre propose « Prix achat > prix vente », les filtres existants restent', libelles.includes('Prix achat > prix vente') && libelles.includes('Articles encore négatifs') && libelles.includes("Vendus après la création de l'inventaire") && libelles.length === 10, libelles.join(', '));
     const lire = () => p.evaluate(() => { const s = Ext.getCmp('gridpanelInventaireID').getStore(); return { total: s.getTotalCount(), lignes: s.getRange().map((r) => [String(r.get('int_CIP')), Number(r.get('int_PAF')), Number(r.get('int_PRICE'))]) }; });
     const choisirFiltre = async (libelle) => { await V.choisir(p, '#str_TYPE', libelle); await p.waitForTimeout(600); await grille(); return lire(); };
 

@@ -258,7 +258,11 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
             items: [{xtype: 'component', itemId: 'tuiles', html: '<div style="color:#7f8c8d">Chargement…</div>'},
                 /* retours du 10/10 : definition de chaque methode, puis parametres modifiables dans l'ecran */
                 {xtype: 'component', itemId: 'methodesDef', margin: '12 0 0 0', html: me.htmlMethodes()},
-                {xtype: 'parametrescalcul', itemId: 'parametresCalcul', ecran: 'PREVISIONS', margin: '12 0 0 0'}]
+                {xtype: 'parametrescalcul', itemId: 'parametresCalcul', ecran: 'PREVISIONS', margin: '12 0 0 0',
+                    /* plan du 09/11, point 5 : le taux de rupture est calcule a la volee, la tuile suit tout de suite le reglage */
+                    apresEnregistrement: function () {
+                        me.chargerTableau();
+                    }}]
         };
     },
 
@@ -302,12 +306,17 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                         + '</div><div class="ac-d">' + detail + '</div></div>';
             };
             var html = '<div class="ac-tuiles">'
+                    /* plan du 09/11, points 5 et 6 : produits vendus frequemment selon les parametres, stock actuel ; meme chiffre
+                       sur le tableau de bord */
                     + tuile('t-rouge', 'Taux de rupture', (o.tauxRupture || 0).toLocaleString('fr-FR') + ' %',
-                            me.nombre(o.ruptures) + ' produits vendus régulièrement sans stock', 'RUPTURE',
-                            'Parmi les produits dont la prévision est d\'au moins 1 par mois, part de ceux dont le stock est nul',
-                            'Produits suivis dont la prévision est d\'au moins 1 vente par mois (vendus régulièrement) : <b>'
-                            + me.nombre(o.ruptures) + '</b> ont un stock nul (rayon + réserve), soit <b>' + (o.tauxRupture || 0).toLocaleString('fr-FR')
-                            + ' %</b>. Chaque jour en rupture d\'un produit régulier est une vente perdue ou reportée.')
+                            me.nombre(o.ruptures) + ' sur ' + me.nombre(o.produitsReguliers) + ' produits vendus fréquemment sont à zéro', 'RUPTURE',
+                            'Produits vendus au moins ' + o.ruptureMoisVente + ' mois sur les ' + o.ruptureMois + ' derniers et au moins '
+                            + o.ruptureQuantiteMin + ' unités : part de ceux dont le stock actuel est nul',
+                            'Produit vendu fréquemment : vendu dans au moins <b>' + o.ruptureMoisVente + ' mois</b> des <b>' + o.ruptureMois
+                            + ' derniers mois complets</b> et au moins <b>' + me.nombre(o.ruptureQuantiteMin) + ' unités</b> au total '
+                            + '(paramètres « Taux de rupture » ci-dessous). Sur <b>' + me.nombre(o.produitsReguliers) + '</b> produits fréquents, <b>'
+                            + me.nombre(o.ruptures) + '</b> ont un stock nul maintenant (rayon + réserve), soit <b>' + (o.tauxRupture || 0).toLocaleString('fr-FR')
+                            + ' %</b>. Le tableau de bord affiche le même taux. Chaque jour en rupture d\'un produit fréquent est une vente perdue ou reportée.')
                     + tuile('t-violet', 'Invendus', me.nombre(o.valeurInvendus) + ' F',
                             me.nombre(o.invendus) + ' produits sans vente depuis ' + o.joursLente + ' j (valeur d\'achat)', 'LENTE',
                             'Valeur au prix d\'achat du stock des produits sans vente depuis ' + o.joursLente + ' jours',
@@ -322,8 +331,8 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                             + ' jours</b> (paramètre KEY_PREVISION_SURSTOCK_JOURS) : surstock.')
                     + tuile('t-vert', 'Fiabilité des prévisions', o.fiabilite === null ? '—' : o.fiabilite + ' %',
                             'pondérée par les ventes des 12 derniers mois', 'PEU_FIABLE',
-                            '100 − erreur moyenne de la méthode retenue, mesurée sur les 6 derniers mois connus',
-                            'Pour chaque produit, chaque méthode (moyenne, saison, tendance…) prévoit les 6 derniers mois comme si on ne les '
+                            '100 − erreur moyenne de la méthode retenue, mesurée sur les ' + (o.moisTest || 6) + ' derniers mois connus',
+                            'Pour chaque produit, chaque méthode (moyenne, saison, tendance…) prévoit les ' + (o.moisTest || 6) + ' derniers mois comme si on ne les '
                             + 'connaissait pas ; on compare à ce qui a été vendu. Fiabilité = 100 − erreur moyenne (en %). La moyenne affichée '
                             + 'est pondérée par les ventes : un produit qui se vend beaucoup compte plus. En dessous de ' + (o.seuilPeuFiable === undefined ? 50 : o.seuilPeuFiable) + ' %, la prévision est peu fiable.')
                     + tuile('t-orange', 'À commander', me.nombre(o.aCommander) + ' produits',
@@ -339,7 +348,7 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
             }).join('');
             html += '<div class="ac-bloc"><div class="ac-bloc-t">Méthodes retenues (produits vendus sur 12 mois)</div>'
                     + '<table class="ac-table"><tr><th>Méthode</th><th class="n">Produits</th><th>Fiabilité moyenne</th></tr>' + lignes + '</table>'
-                    + '<div class="ac-note">Pour chaque produit, chaque méthode est essayée sur les 6 derniers mois connus ; la plus juste est retenue.'
+                    + '<div class="ac-note">Pour chaque produit, chaque méthode est essayée sur les ' + (o.moisTest || 6) + ' derniers mois connus ; la plus juste est retenue.'
                     + ' Quantité recommandée = ventes prévues pendant le délai de livraison et la couverture voulue + stock de sécurité'
                     + ' − stock (rayon et réserve) − commandes en cours − équivalents DCI directs en stock.</div></div>';
             t.update(html);
@@ -537,7 +546,7 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
             ],
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         combo('filtre', 205, [{v: 'ACOMMANDER', l: 'À commander'},
-                            {v: 'RUPTURE', l: 'En rupture (vendus régulièrement)'}, {v: 'SURSTOCK', l: 'En surstock'},
+                            {v: 'RUPTURE', l: 'En rupture (vendus fréquemment)'}, {v: 'SURSTOCK', l: 'En surstock'},
                             {v: 'LENTE', l: 'Rotation lente (invendus)'}, {v: 'PEU_FIABLE', l: 'Prévision peu fiable'}], 'Tous les produits suivis'),
                         combo('methode', 150, [{v: 'MOYENNE', l: 'Moyenne 3 mois'}, {v: 'SAISON', l: 'Saisonnière'},
                             {v: 'HOLT', l: 'Tendance (Holt)'}, {v: 'HOLT_WINTERS', l: 'Tendance + saison'}], 'Toutes méthodes'),
@@ -545,6 +554,19 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                         {xtype: 'checkbox', itemId: 'equivalent', boxLabel: 'Avec équivalent en stock', listeners: {change: function () {
                                     store.loadPage(1);
                                 }}},
+                        /* plan du 09/11, point 5 : fiabilite au moins X % (vide = pas de filtre) */
+                        {xtype: 'numberfield', itemId: 'fiabiliteMin', fieldLabel: 'Fiabilité ≥', labelWidth: 62, width: 122, minValue: 0, maxValue: 100,
+                            allowDecimals: false, hideTrigger: true, emptyText: '%', tooltip: 'Seulement les prévisions d\'au moins ce pourcentage de fiabilité',
+                            listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        store.loadPage(1);
+                                    }
+                                }, change: {fn: function (f) {
+                                        if (f.isValid()) {
+                                            store.loadPage(1);
+                                        }
+                                    }, buffer: 600}}},
+                        {xtype: 'tbtext', text: '%'},
                         {xtype: 'textfield', itemId: 'query', width: 170, emptyText: 'Nom ou CIP…', maxLength: 100, enforceMaxLength: true,
                             listeners: entree},
                         {text: 'Rechercher', iconCls: 'searchicon', handler: function () {
@@ -599,7 +621,8 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
     criteres: function () {
         var g = this.down('#ongletPrevisions');
         return {filtre: g.down('#filtre').getValue() || '', query: g.down('#query').getValue() || '', methode: g.down('#methode').getValue() || '',
-            stock: g.down('#stock').getValue() || '', equivalent: g.down('#equivalent').getValue() ? '1' : ''};
+            stock: g.down('#stock').getValue() || '', equivalent: g.down('#equivalent').getValue() ? '1' : '',
+            fiabiliteMin: g.down('#fiabiliteMin').isValid() && g.down('#fiabiliteMin').getValue() !== null ? String(g.down('#fiabiliteMin').getValue()) : ''};
     },
 
     /** Infobulle « Recommande » : le calcul de la ligne, chiffre par chiffre (meme formule que le serveur). */

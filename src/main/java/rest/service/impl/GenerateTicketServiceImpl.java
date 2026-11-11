@@ -161,6 +161,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return apercu(() -> lunchPrinterForTicket(id));
     }
 
+    /** Plan du 10/11, point 1 : recu de reglement d'un differe, construit sans impression (rapprochement). */
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketReglementDiffere(String idDossier)
+            throws JSONException {
+        return apercu(() -> ticketReglementDiffere(idDossier));
+    }
+
     private interface Reimpression {
         JSONObject lancer() throws JSONException;
     }
@@ -577,12 +584,21 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return "";
     }
 
-    /** Pieces reglees par un dossier de reglement : reference et montant ; rien au-dela de 10 lignes. */
+    /**
+     * Pieces reglees par un dossier de reglement : reference et montant ; rien au-dela de 10 lignes. Plan du 10/11,
+     * point 1 : la reference d'un differe est l'identifiant interne de la dette (inconnu de l'utilisateur) ; le recu
+     * imprime a sa place le numero de la vente (le meme que les autres tickets, selon KEY_SHOW_NUMERO_TICKET) et sa
+     * date.
+     */
     private List<String[]> piecesReglees(List<TDossierReglementDetail> details, String prefixe) {
         List<String[]> res = new ArrayList<>();
         try {
+            boolean voirNumTicket = voirNumeroTicket();
             for (TDossierReglementDetail d : details) {
-                res.add(new String[] { prefixe + (d.getStrREF() != null ? d.getStrREF() : ""),
+                TPreenregistrement vente = venteDeLaDette(d.getStrREF());
+                String numero = vente == null ? null : voirNumTicket ? vente.getStrREF() : vente.getStrREFTICKET();
+                res.add(new String[] {
+                        libellePiece(prefixe, d.getStrREF(), numero, vente == null ? null : vente.getDtCREATED()),
                         String.valueOf(d.getDblAMOUNT() == null ? 0 : d.getDblAMOUNT().longValue()) });
             }
         } catch (Exception e) {
@@ -590,6 +606,66 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             return new ArrayList<>();
         }
         return res.size() > 10 ? new ArrayList<>() : res;
+    }
+
+    /**
+     * Plan du 10/11, point 1 (accord du 11/11) : « VENTES;du;reste » des seules ventes reglees par ce dossier, a la
+     * date du dossier. reste = reste actuel de la dette + versements posterieurs sur cette dette (une reimpression
+     * apres un autre reglement redonne les montants du jour du recu) ; du = reste + part reglee. Null si une dette est
+     * introuvable (le recu garde alors l'ancienne presentation).
+     */
+    private String ligneVentesReglees(TDossierReglement dossier, List<TDossierReglementDetail> details) {
+        long[] du = new long[details.size()];
+        long[] reste = new long[details.size()];
+        for (int i = 0; i < details.size(); i++) {
+            TDossierReglementDetail d = details.get(i);
+            TPreenregistrementCompteClient dette = d.getStrREF() == null ? null
+                    : getEntityManager().find(TPreenregistrementCompteClient.class, d.getStrREF());
+            if (dette == null) {
+                return null;
+            }
+            reste[i] = (dette.getIntPRICERESTE() == null ? 0 : dette.getIntPRICERESTE())
+                    + versementsPosterieurs(d.getStrREF(), dossier);
+            du[i] = reste[i] + (d.getDblAMOUNT() == null ? 0 : d.getDblAMOUNT().longValue());
+        }
+        return ConversionTicket.ligneVentes(du, reste);
+    }
+
+    /** Somme versee sur une dette par les dossiers de reglement crees apres celui-ci. */
+    private long versementsPosterieurs(String dette, TDossierReglement dossier) {
+        if (dossier == null || dossier.getDtCREATED() == null) {
+            return 0;
+        }
+        Double s = getEntityManager()
+                .createQuery("SELECT SUM(d.dblAMOUNT) FROM TDossierReglementDetail d WHERE d.strREF = :dette"
+                        + " AND d.lgDOSSIERREGLEMENTID.dtCREATED > :date AND d.lgDOSSIERREGLEMENTID <> :dossier",
+                        Double.class)
+                .setParameter("dette", dette).setParameter("date", dossier.getDtCREATED())
+                .setParameter("dossier", dossier).getSingleResult();
+        return s == null ? 0 : Math.round(s);
+    }
+
+    /** Vente d'une dette de differe (t_preenregistrement_compte_client) ; null si la reference n'en est pas une. */
+    private TPreenregistrement venteDeLaDette(String ref) {
+        if (ref == null || ref.isEmpty()) {
+            return null;
+        }
+        TPreenregistrementCompteClient dette = getEntityManager().find(TPreenregistrementCompteClient.class, ref);
+        return dette != null ? dette.getLgPREENREGISTREMENTID()
+                : getEntityManager().find(TPreenregistrement.class, ref);
+    }
+
+    /**
+     * Plan du 10/11, point 1 : « Vente N° 1234 du 08/11/2026 ». Sans vente retrouvee, la reference d'origine (jamais
+     * une ligne vide) ; sans date, le numero seul.
+     */
+    static String libellePiece(String prefixe, String refBrute, String numero, Date date) {
+        String p = prefixe == null ? "" : prefixe;
+        if (numero == null || numero.trim().isEmpty()) {
+            return p + (refBrute == null ? "" : refBrute);
+        }
+        return p + "N° " + numero.trim()
+                + (date == null ? "" : " du " + new java.text.SimpleDateFormat("dd/MM/yyyy").format(date));
     }
 
     private int tailleNomOfficine() {
@@ -612,6 +688,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private SessionHelperService sessionHelperService;
     @EJB
     private SmsService smsService;
+    /* plan du 09/11, point 13 : envoi du ticket Z trace dans le journal des evenements */
+    @EJB
+    private rest.service.LogService logService;
     @EJB
     private rest.service.WhatsAppService whatsAppService;
 
@@ -1811,6 +1890,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             brancherModele(imp, ModeleTicket.REGLEMENT_DIFFERE, printService);
             imp.setReferencePied(num);
             imp.setPiecesReglees(piecesReglees(lstTDossierReglementDetail, "Vente "));
+            imp.setVentesReglees(ligneVentesReglees(dossierReglement, lstTDossierReglementDetail));
             imp.setShowCodeBar(true);
             imp.setOperation(dossierReglement.getDtCREATED());
             imp.setIntBegin(0);
@@ -3952,8 +4032,30 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     // @Asynchronous
     @Override
     public void sendToSms(Params params) throws JSONException {
-        params.setOperateur(this.sessionHelperService.getCurrentUser());
-        this.smsService.sendSMS(texteTicketZ(buildTicketZ(params)));
+        TUser u = this.sessionHelperService.getCurrentUser();
+        params.setOperateur(u);
+        String statut = this.smsService.sendSMSStatut(texteTicketZ(buildTicketZ(params)));
+        /* plan du 09/11, point 13 : envoi trace dans le journal des evenements (jamais le texte) */
+        tracerTicketZ(u, "SMS", statut);
+    }
+
+    /**
+     * Plan du 09/11, point 13 : texte de la trace (canal et etat, jamais le texte du ticket), 255 caracteres au plus.
+     */
+    static String traceTicketZ(String canal, String etat) {
+        String t = "Ticket Z envoyé au pharmacien (" + canal + ") : " + StringUtils.defaultIfBlank(etat, "Échec");
+        return t.length() > 255 ? t.substring(0, 255) : t;
+    }
+
+    /** Plan du 09/11, point 13 : « Ticket Z envoye au pharmacien (canal) : etat », avec l'utilisateur. */
+    private void tracerTicketZ(TUser u, String canal, String etat) {
+        try {
+            String desc = traceTicketZ(canal, etat);
+            logService.journaliserSansRisque(u, "TICKET_Z", desc, dal.enumeration.TypeLog.ENVOI_MESSAGE,
+                    "whatsapp_message", desc);
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "journal de l'envoi du ticket Z", e);
+        }
     }
 
     /**
@@ -3964,11 +4066,17 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     public JSONObject sendToWhatsApp(Params params) {
         String numero = util.AppParameters.getInstance().mobile;
         if (StringUtils.isBlank(numero)) {
+            tracerTicketZ(this.sessionHelperService.getCurrentUser(), "WhatsApp",
+                    "Non envoyé : aucun numéro d'administration");
             return new JSONObject().put("success", false).put("statut", "ECHEC").put("message",
                     "Aucun numéro d'administration (celui du SMS) n'est réglé.");
         }
-        params.setOperateur(this.sessionHelperService.getCurrentUser());
-        return whatsAppService.envoyerTexte(numero, texteTicketZ(buildTicketZ(params)));
+        TUser u = this.sessionHelperService.getCurrentUser();
+        params.setOperateur(u);
+        JSONObject r = whatsAppService.envoyerTexte(numero, texteTicketZ(buildTicketZ(params)),
+                rest.service.impl.whatsapp.OrigineEnvoi.TICKET_Z, u == null ? null : u.getLgUSERID());
+        tracerTicketZ(u, "WhatsApp", rest.service.impl.whatsapp.OrigineEnvoi.etat(r.optString("statut", "ECHEC")));
+        return r;
     }
 
     /** Texte du ticket Z envoye au numero d'administration (SMS et WhatsApp) : par caissier, puis total general. */

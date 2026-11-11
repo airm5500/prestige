@@ -30,6 +30,10 @@ import util.Constant;
 @Produces(MediaType.APPLICATION_JSON)
 public class NotificationsCentreRessource {
 
+    /* demande 61 : droit controle seulement s'il existe en base */
+    @javax.ejb.EJB
+    private rest.service.impl.PrivilegesEnBase privilegesEnBase;
+
     @EJB
     private NotificationsCentreService service;
     @Context
@@ -48,7 +52,7 @@ public class NotificationsCentreRessource {
         }
         /* demande 60 : la categorie des suggestions de reserve n'est proposee qu'a ceux qui peuvent les voir */
         org.json.JSONArray catalogue = service.catalogue();
-        if (!Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+        if (!privilegesEnBase.voitSuggestionsReserve(servletRequest)) {
             org.json.JSONArray filtre = new org.json.JSONArray();
             for (int i = 0; i < catalogue.length(); i++) {
                 if (!"reserve".equals(catalogue.getJSONObject(i).optString("cle"))) {
@@ -74,8 +78,7 @@ public class NotificationsCentreRessource {
         for (String c : StringUtils.defaultString(cles).split(",")) {
             if (StringUtils.isNotBlank(c) && l.size() < 20) {
                 /* demande 60 : sans le droit de voir les suggestions de reserve, la cloche ne les compte pas */
-                if ("reserve".equals(c.trim())
-                        && !Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+                if ("reserve".equals(c.trim()) && !privilegesEnBase.voitSuggestionsReserve(servletRequest)) {
                     continue;
                 }
                 l.add(c.trim());

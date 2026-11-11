@@ -75,9 +75,18 @@ Ext.define('testextjs.view.commandemanagement.ReserveApresEntreeFenetre', {
         /* retours du 25/10 (point 10) : sans le menu Reserve, la suggestion ne s'ouvrait pas (« Erreur / Chargement
            impossible ») : message clair, et la liste reste imprimable pour la personne chargee de la reserve */
         me.droitReserve = me.self.aLeMenuReserve();
+        /* plan du 10/11, point 2 : fenetre agrandie, a la taille de l'ecran */
+        var vue = Ext.getBody().getViewSize();
+        me.width = Math.max(820, Math.min(1180, Math.round(vue.width * 0.86)));
+        me.height = Math.max(440, Math.min(680, Math.round(vue.height * 0.78)));
+        var gras = function (couleur) {
+            return function (v) {
+                return '<b style="color:' + couleur + '">' + Ext.String.htmlEncode(v === null || v === undefined ? '' : String(v)) + '</b>';
+            };
+        };
         me.items = [{
                 xtype: 'grid', itemId: 'grilleReserve', border: false,
-                store: Ext.create('Ext.data.Store', {fields: ['suggestionId', 'ref', 'categorie', 'cip', 'nom', 'stockRayon', 'stockReserve', 'seuil', 'quantite'],
+                store: Ext.create('Ext.data.Store', {fields: ['suggestionId', 'ref', 'categorie', 'cip', 'nom', 'stockRayon', 'stockReserve', 'seuil', 'seuilMini', 'seuilMaxi', 'quantite'],
                     data: me.lignes}),
                 dockedItems: [{xtype: 'component', dock: 'top', padding: '10 12',
                         html: '<div style="font-size:13px">' + me.lignes.length + ' produit(s) de ce bon ont atteint leur seuil de réserve. Ils ont été ajoutés à la suggestion de réserve <b>'
@@ -91,12 +100,11 @@ Ext.define('testextjs.view.commandemanagement.ReserveApresEntreeFenetre', {
                     {text: 'Sens', dataIndex: 'categorie', width: 130, renderer: function (v) {
                             return v === 'RESERVE' ? '<b style="color:#8a5a00">Rayon → réserve</b>' : '<b style="color:#1a5f9e">Réserve → rayon</b>';
                         }},
-                    {text: 'Rayon', dataIndex: 'stockRayon', width: 70, align: 'right'},
-                    {text: 'Réserve', dataIndex: 'stockReserve', width: 75, align: 'right'},
-                    {text: 'Seuil', dataIndex: 'seuil', width: 65, align: 'right'},
-                    {text: 'À déplacer', dataIndex: 'quantite', width: 90, align: 'right', renderer: function (v) {
-                            return '<b>' + v + '</b>';
-                        }}
+                    {text: 'Rayon', dataIndex: 'stockRayon', width: 75, align: 'right'},
+                    {text: 'Réserve', dataIndex: 'stockReserve', width: 80, align: 'right'},
+                    {text: 'Seuil mini rayon', dataIndex: 'seuilMini', itemId: 'colSeuilMini', width: 120, align: 'right', renderer: gras('#c62828')},
+                    {text: 'Seuil maxi rayon', dataIndex: 'seuilMaxi', itemId: 'colSeuilMaxi', width: 120, align: 'right', renderer: gras('#1a5f9e')},
+                    {text: 'Quantité proposée', dataIndex: 'quantite', itemId: 'colQuantite', width: 130, align: 'right', renderer: gras('#2e7d32')}
                 ]
             }];
         me.buttons = [

@@ -702,9 +702,14 @@ public final class ConversionTicket {
         String nombre = "";
         String verse = "";
         String reste = "";
+        String duVentes = "";
+        String resteVentes = "";
         for (String l : s.datas) {
             String[] p = l.split(";", -1);
-            if (p.length >= 3 && p[0].trim().matches("\\d+")) {
+            if (p.length >= 3 && VENTES.equals(p[0].trim())) {
+                duVentes = p[1].trim();
+                resteVentes = p[2].trim();
+            } else if (p.length >= 3 && p[0].trim().matches("\\d+")) {
                 nombre = p[0].trim();
                 verse = p[1].replace("F CFA", "").trim();
                 reste = p[2].replace("F CFA", "").trim();
@@ -733,7 +738,15 @@ public final class ConversionTicket {
         }
         String quoi = s.ticket == ModeleTicket.REGLEMENT_FACTURE ? "facture" : "dossier";
         int n = entier(nombre);
-        if (!vide(du)) {
+        boolean parVente = s.ticket == ModeleTicket.REGLEMENT_DIFFERE && !vide(duVentes);
+        if (parVente) {
+            /*
+             * plan du 10/11, point 1 (accord du 11/11) : le montant du et le reste portent sur les ventes reglees ; le
+             * solde du client (toutes ses dettes apres ce versement) est sur sa propre ligne
+             */
+            doc.bloc(TicketDocument.TOTAUX).paire("Montant dû (" + n + " vente" + (n > 1 ? "s" : "") + ")",
+                    montantF(duVentes), Style.NORMAL);
+        } else if (!vide(du)) {
             doc.bloc(TicketDocument.TOTAUX).paire(
                     "Montant dû" + (n > 0 ? " (" + n + " " + quoi + (n > 1 ? "s" : "") + ")" : ""), montantF(du),
                     Style.NORMAL);
@@ -741,9 +754,28 @@ public final class ConversionTicket {
         if (!vide(verse)) {
             net("RÉGLÉ", montant(verse) + " F CFA");
         }
-        if (!vide(reste)) {
+        if (parVente) {
+            reglement.paire(n > 1 ? "Reste sur ces ventes" : "Reste sur cette vente", montantF(resteVentes),
+                    Style.GRAS);
+            if (!vide(reste)) {
+                reglement.paire("Solde restant du client", montantF(reste), Style.GRAS);
+            }
+        } else if (!vide(reste)) {
             reglement.paire("Reste dû", montantF(reste), Style.GRAS);
         }
+    }
+
+    /** Ligne des ventes reglees par un recu de differe, lue par {@link #reglement()} : « VENTES;du;reste ». */
+    public static final String VENTES = "VENTES";
+
+    public static String ligneVentes(long[] du, long[] reste) {
+        long d = 0;
+        long r = 0;
+        for (int i = 0; i < du.length; i++) {
+            d += du[i];
+            r += reste[i];
+        }
+        return VENTES + ";" + d + ";" + r;
     }
 
     /* ---------- pied ---------- */

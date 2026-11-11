@@ -28,6 +28,8 @@ public class CampagneClientRessource {
 
     @EJB
     private CampagneClientService campagneClientService;
+    @EJB
+    private rest.service.WhatsAppService whatsAppService;
     @Context
     private HttpServletRequest servletRequest;
 
@@ -97,6 +99,20 @@ public class CampagneClientRessource {
         }
         return Response.ok().entity(campagneClientService.liensWhatsapp(CampagneRequete.depuisJson(corps)).toString())
                 .build();
+    }
+
+    /** Plan du 09/11, point 13 : clic sur un lien wa.me (l'envoi reel n'est pas visible de Prestige). */
+    @POST
+    @Path("whatsapp-lien-ouvert")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response lienOuvert(String corps) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        JSONObject o = corps == null || corps.trim().isEmpty() ? new JSONObject() : new JSONObject(corps);
+        return Response.ok()
+                .entity(whatsAppService.lienOuvert(o.optString("clientId", null), u.getLgUSERID()).toString()).build();
     }
 
     private TUser utilisateur() {

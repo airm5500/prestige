@@ -124,9 +124,10 @@ public class RetourFournisseur extends HttpServlet {
                 predicate = cb.and(predicate,
                         cb.equal(root.get(TBonLivraison_.strSTATUT), commonparameter.statut_is_Closed));
 
+                /* plan du 09/11, point 4 : recherche « contient » (et non plus « commence par ») */
                 if (!"".equals(search)) {
-                    predicate = cb.and(predicate,
-                            cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON), search + "%")));
+                    predicate = cb.and(predicate, cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON),
+                            rest.service.impl.CommandeServiceImpl.motifContient(search))));
 
                 }
 
@@ -168,8 +169,10 @@ public class RetourFournisseur extends HttpServlet {
 
         predicate = cb.and(predicate, cb.equal(root.get(TBonLivraison_.strSTATUT), commonparameter.statut_is_Closed));
 
+        /* plan du 09/11, point 4 : recherche « contient » (et non plus « commence par ») */
         if (!"".equals(search)) {
-            predicate = cb.and(predicate, cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON), search + "%")));
+            predicate = cb.and(predicate, cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON),
+                    rest.service.impl.CommandeServiceImpl.motifContient(search))));
 
         }
         cq.where(predicate);

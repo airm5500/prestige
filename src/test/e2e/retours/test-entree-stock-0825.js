@@ -83,7 +83,7 @@ function remettre() {
   const connexion = async (ctx) => {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => err.push(e.message));
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length, null, { timeout: 90000 });
@@ -122,6 +122,25 @@ function remettre() {
     const f = await p.evaluate(() => { const w = Ext.ComponentQuery.query('reserveapresentree')[0];
       return { imprimer: !!w.down('#btnImprimer') && w.down('#btnImprimer').isVisible(), ouvrir: w.down('#btnOuvrirSuggestion').isVisible(), sansDroit: !!w.getEl().dom.querySelector('.rae-sans-droit') }; });
     ok('Fenêtre « Seuil de réserve atteint » : Imprimer et Ouvrir la suggestion', f.imprimer && f.ouvrir && !f.sansDroit, JSON.stringify(f));
+    /* plan du 10/11, point 2 : fenetre agrandie ; seuil mini rayon rouge gras, seuil maxi rayon bleu gras, quantite
+       proposee vert gras ; valeurs = fiche du produit (t_famille) et ligne de suggestion (t_suggestion_reserve_detail) */
+    const p2a = await p.evaluate(() => { const w = Ext.ComponentQuery.query('reserveapresentree')[0], g = w.down('#grilleReserve');
+      const n = g.getView().getNodes()[0];
+      const cell = (id) => { const c = g.down('#' + id), td = n.querySelector('.x-grid-cell-' + c.getItemId() + ' .x-grid-cell-inner'), b = td.querySelector('b');
+        return { texte: td.innerText.trim(), couleur: b ? getComputedStyle(b).color : '', gras: b ? Number(getComputedStyle(b).fontWeight) >= 600 : false }; };
+      return { suggestion: g.getStore().getAt(0).get('suggestionId'), largeur: w.getWidth(), hauteur: w.getHeight(), entetes: g.columns.filter((c) => !c.hidden).map((c) => c.text),
+        mini: cell('colSeuilMini'), maxi: cell('colSeuilMaxi'), qte: cell('colQuantite') }; });
+    const baseP = q(`SELECT CONCAT_WS('|', IFNULL(f.int_SEUIL_MINI_RAYON, ''), IFNULL(f.int_SEUIL_RESERVE, ''), d.int_QTE_PROPOSEE) FROM t_famille f`
+      + ` JOIN t_suggestion_reserve_detail d ON d.lg_FAMILLE_ID = f.lg_FAMILLE_ID JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID`
+      + ` WHERE f.lg_FAMILLE_ID = '${P}' AND s.lg_SUGGESTION_RESERVE_ID = '${p2a.suggestion}' LIMIT 1`).split('|');
+    ok('Point 2 : fenêtre agrandie (au moins 1 100 × 600 sur un écran de 1 600 × 950)', p2a.largeur >= 1100 && p2a.hauteur >= 600, p2a.largeur + ' × ' + p2a.hauteur);
+    ok('Point 2 : colonnes « Seuil mini rayon », « Seuil maxi rayon », « Quantité proposée » (plus de « Seuil » ni « À déplacer »)',
+      JSON.stringify(p2a.entetes) === JSON.stringify(['CIP', 'Produit', 'Sens', 'Rayon', 'Réserve', 'Seuil mini rayon', 'Seuil maxi rayon', 'Quantité proposée']), JSON.stringify(p2a.entetes));
+    ok('Point 2 : seuil mini rouge gras, seuil maxi bleu gras, quantité verte grasse',
+      p2a.mini.couleur === 'rgb(198, 40, 40)' && p2a.maxi.couleur === 'rgb(26, 95, 158)' && p2a.qte.couleur === 'rgb(46, 125, 50)' && p2a.mini.gras && p2a.maxi.gras && p2a.qte.gras, JSON.stringify(p2a));
+    ok('Point 2 : fenêtre = base (seuil mini et maxi de la fiche, quantité proposée de la suggestion du bon)',
+      baseP.length === 3 && p2a.mini.texte === baseP[0] && p2a.maxi.texte === baseP[1] && p2a.qte.texte === baseP[2] && baseP[0] === '1' && baseP[1] === String(STOCK),
+      JSON.stringify({ base: baseP, ecran: [p2a.mini.texte, p2a.maxi.texte, p2a.qte.texte] }));
     const avant = pages;
     const fenetre = await p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #grilleReserve')[0].getView().getNodes()
       .map((n) => Array.from(n.querySelectorAll('td')).map((td) => td.innerText.trim())));
@@ -138,8 +157,9 @@ function remettre() {
     /* rapprochement fenetre / PDF : chaque ligne de la fenetre, cellule par cellule, dans l'ordre */
     /* seule difference admise : la fleche de l'ecran devient « » » dans le PDF (police WinAnsi sans fleche) */
     const manquantes = fenetre.map((cellules) => cellules.map((c) => c.replace(/ → /g, ' » '))).filter((cellules) => { let k = 0; return !cellules.every((c) => { const x = pdf.indexOf(c, k); if (x < 0) { return false; } k = x + c.length; return true; }); });
-    ok(`PDF = fenêtre : ${fenetre.length} ligne(s), cellule par cellule (CIP, produit, sens, rayon, réserve, seuil, à déplacer), en-tête et titre`,
-      fenetre.length >= 1 && o.lignes === fenetre.length && manquantes.length === 0 && pdf.includes(nomP) && /À déplacer/.test(pdf)
+    ok(`PDF = fenêtre : ${fenetre.length} ligne(s), cellule par cellule (CIP, produit, sens, rayon, réserve, seuil mini, seuil maxi, quantité proposée), en-tête et titre`,
+      fenetre.length >= 1 && o.lignes === fenetre.length && manquantes.length === 0 && pdf.includes(nomP)
+      && /Seuil mini rayon/.test(pdf) && /Seuil maxi rayon/.test(pdf) && /Quantité proposée/.test(pdf) && !/À déplacer/.test(pdf)
       && /SEUIL DE RÉSERVE ATTEINT/.test(pdf) && pdf.includes(fenetre.length + ' produit(s)'), JSON.stringify({ manquantes, debut: pdf.slice(0, 300) }));
 
     await p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #btnOuvrirSuggestion')[0].btnEl.dom.click());

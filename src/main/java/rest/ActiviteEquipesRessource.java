@@ -50,7 +50,7 @@ public class ActiviteEquipesRessource {
     @GET
     @Path("annulations")
     public Response annulations(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
-            @QueryParam("employeId") String employeId) {
+            @QueryParam("employeId") String employeId, @QueryParam("gardeId") String gardeId) {
         Response r = refus();
         if (r != null) {
             return r;
@@ -58,6 +58,9 @@ public class ActiviteEquipesRessource {
         ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
         if (f == null) {
             return dateInvalide();
+        }
+        if (appliquerGarde(f, gardeId) == GARDE_INTROUVABLE) {
+            return gardeIntrouvable();
         }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("success", true);
@@ -73,7 +76,7 @@ public class ActiviteEquipesRessource {
     @Path("ca-tranches")
     public Response caTranches(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
             @QueryParam("employeId") String employeId, @QueryParam("taille") Integer taille,
-            @QueryParam("attribution") String attribution) {
+            @QueryParam("attribution") String attribution, @QueryParam("gardeId") String gardeId) {
         Response r = refus();
         if (r != null) {
             return r;
@@ -82,9 +85,37 @@ public class ActiviteEquipesRessource {
         if (f == null) {
             return dateInvalide();
         }
+        if (appliquerGarde(f, gardeId) == GARDE_INTROUVABLE) {
+            return gardeIntrouvable();
+        }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("success", true);
         m.put("data", service.caTranches(f, taille, attribution));
+        return Response.ok(m).build();
+    }
+
+    /**
+     * Plan du 09/11, point 10 : sept indicateurs d'equipe par employe, sur la periode (ou la garde) et l'employe
+     * choisis.
+     */
+    @GET
+    @Path("indicateurs")
+    public Response indicateurs(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("employeId") String employeId, @QueryParam("gardeId") String gardeId) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        if (appliquerGarde(f, gardeId) == GARDE_INTROUVABLE) {
+            return gardeIntrouvable();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.indicateurs(f));
         return Response.ok(m).build();
     }
 
@@ -108,7 +139,8 @@ public class ActiviteEquipesRessource {
         java.util.List<Map<String, Object>> tranches = (java.util.List<Map<String, Object>>) d.get("tranches");
         StringBuilder csv = new StringBuilder("﻿")
                 .append(champ(rest.service.impl.activite.CaTranchesEmploye.VENDEUR.equals(d.get("attribution"))
-                        ? "Vendeur" : "Caissière"));
+                        ? "Vendeur" : rest.service.impl.activite.CaTranchesEmploye.CONSEIL.equals(d.get("attribution"))
+                                ? "Conseil" : "Caissière"));
         for (Map<String, Object> t : tranches) {
             csv.append(';').append(champ(t.get("libelle") + " CA")).append(';')
                     .append(champ(t.get("libelle") + " ventes"));
@@ -151,6 +183,22 @@ public class ActiviteEquipesRessource {
         m.put("data", service.detailAnnulations(f.getDebut(), f.getFin(),
                 "CAISSIER".equals(role) ? "CAISSIER" : "VENDEUR", id));
         return Response.ok(m).build();
+    }
+
+    /**
+     * Plan du 09/11, point 10 : enregistre pour tous le critere de duree des ventes (onglet principal, Anomalies, carte
+     * du tableau de bord). Le bouton de l'ecran demande la confirmation dans le bouton lui-meme.
+     */
+    @javax.ws.rs.POST
+    @Path("seuil")
+    @javax.ws.rs.Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response enregistrerSeuil(@javax.ws.rs.FormParam("seuilOperateur") String seuilOperateur,
+            @javax.ws.rs.FormParam("seuilMinutes") Integer seuilMinutes) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        return Response.ok(service.enregistrerSeuil(seuilOperateur, seuilMinutes)).build();
     }
 
     /** Plan du 08/11, point 15.6 : onglets permis a l'utilisateur connecte (l'ecran cache les autres). */
@@ -210,7 +258,7 @@ public class ActiviteEquipesRessource {
     @Path("analyses")
     public Response analyses(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
             @QueryParam("employeId") String employeId, @QueryParam("seuilOperateur") String seuilOperateur,
-            @QueryParam("seuilMinutes") Integer seuilMinutes) {
+            @QueryParam("seuilMinutes") Integer seuilMinutes, @QueryParam("gardeId") String gardeId) {
         Response r = refus();
         if (r != null) {
             return r;
@@ -221,9 +269,53 @@ public class ActiviteEquipesRessource {
         }
         f.setSeuilOperateur(seuilOperateur);
         f.setSeuilMinutes(seuilMinutes);
+        Map<String, String> garde = appliquerGarde(f, gardeId);
+        if (garde == GARDE_INTROUVABLE) {
+            return gardeIntrouvable();
+        }
+        rest.service.dto.ActiviteAnalysesDTO d = service.analyses(f);
+        d.setGarde(garde);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("success", true);
-        m.put("data", service.analyses(f));
+        m.put("data", d);
+        return Response.ok(m).build();
+    }
+
+    private static final Map<String, String> GARDE_INTROUVABLE = java.util.Collections
+            .unmodifiableMap(new LinkedHashMap<>());
+
+    /**
+     * Plan du 09/11, point 10 : une garde choisie fixe la plage lue a l'heure pres (et les jours). Rend null sans
+     * garde, GARDE_INTROUVABLE si l'identifiant ne correspond a aucune garde, sinon id, libelle, debut et fin
+     * affichables.
+     */
+    private Map<String, String> appliquerGarde(ActiviteFiltreDTO f, String gardeId) {
+        if (gardeId == null || gardeId.trim().isEmpty()) {
+            return null;
+        }
+        Map<String, Object> g = service.fenetreGarde(gardeId.trim());
+        if (g == null) {
+            return GARDE_INTROUVABLE;
+        }
+        java.time.LocalDateTime de = (java.time.LocalDateTime) g.get("debut");
+        java.time.LocalDateTime a = (java.time.LocalDateTime) g.get("fin");
+        f.setDe(de);
+        f.setA(a);
+        f.setDebut(de.toLocalDate());
+        f.setFin(a.minusSeconds(1).toLocalDate());
+        java.time.format.DateTimeFormatter h = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        Map<String, String> garde = new LinkedHashMap<>();
+        garde.put("id", gardeId.trim());
+        garde.put("libelle", String.valueOf(g.get("libelle")));
+        garde.put("debut", de.format(h));
+        garde.put("fin", a.format(h));
+        return garde;
+    }
+
+    private Response gardeIntrouvable() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", false);
+        m.put("msg", "Garde introuvable.");
         return Response.ok(m).build();
     }
 
@@ -267,7 +359,8 @@ public class ActiviteEquipesRessource {
     @GET
     @Path("anomalies")
     public Response anomalies(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
-            @QueryParam("employeId") String employeId, @QueryParam("famille") String famille) {
+            @QueryParam("employeId") String employeId, @QueryParam("famille") String famille,
+            @QueryParam("seuilOperateur") String seuilOperateur, @QueryParam("seuilMinutes") Integer seuilMinutes) {
         Response r = refusAnomalies();
         if (r != null) {
             return r;
@@ -276,6 +369,8 @@ public class ActiviteEquipesRessource {
         if (f == null) {
             return dateInvalide();
         }
+        f.setSeuilOperateur(seuilOperateur);
+        f.setSeuilMinutes(seuilMinutes);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("success", true);
         m.put("data", service.anomalies(f, famille));

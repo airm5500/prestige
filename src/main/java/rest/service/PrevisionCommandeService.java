@@ -21,6 +21,12 @@ public interface PrevisionCommandeService {
     JSONObject tableau(String emplacementId);
 
     /**
+     * Plan du 09/11, points 5 et 6 : taux de rupture (produits frequents a stock nul / produits frequents) et liste des
+     * produits comptes (au plus {@code limite}) ; le meme calcul sert au tableau de bord.
+     */
+    JSONObject tauxRupture(String emplacementId, int limite);
+
+    /**
      * Previsions paginees. filtre : vide (tous), ACOMMANDER, RUPTURE, SURSTOCK, LENTE, PEU_FIABLE ; recherche sur le
      * nom ou le CIP.
      */

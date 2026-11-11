@@ -5,7 +5,8 @@
  * vente d'un troisieme employe.
  *
  * Par les vues (compte de test, 1600 x 900) :
- *  - tableau de bord : carte « Activite des equipes (jour) » avec ses 4 reperes et le repere d'alerte ;
+ *  - tableau de bord : carte « Activite des equipes (jour) » avec ses 4 reperes ; plus de ligne d'alerte (plan du 09/11,
+ *    point 10), le nombre d'alertes de l'API reste egal aux constats « ALERTE » ;
  *  - clic sur la carte : fenetre de consultation = le composant du menu (onglet Analyses), boutons Hier, 3 jours,
  *    1 semaine (chacun relit la bonne periode), Du / au ; toutes les cartes du menu presentes ; fermeture ;
  *  - menu ANALYSE DE GESTION > Activite des equipes > Analyses, meme jour ;
@@ -118,7 +119,7 @@ function resumeBase(d, f) {
 /* ------------------------------------------------------------ lecture des ecrans */
 const lireReperes = (p, racine) => p.evaluate((r) => { const el = r === 'tb' ? document.querySelector('[data-carte="activite"]') : Ext.ComponentQuery.query(r)[0].getEl().dom;
   if (!el) { return null; }
-  const v = {}; el.querySelectorAll('.ae-rep').forEach((x) => { v[x.getAttribute('data-rep')] = x.querySelector('.v').textContent + ' | ' + x.querySelector('.d').textContent; });
+  const v = {}; el.querySelectorAll('.ae-rep').forEach((x) => { if (!x.closest('.tb-activite-plus')) { v[x.getAttribute('data-rep')] = x.querySelector('.v').textContent + ' | ' + x.querySelector('.d').textContent; } }); /* plan du 09/11, point 6 : tuiles de plus testees a part */
   const a = el.querySelector('.ae-rep-alerte'); v.ALERTES = a ? a.getAttribute('data-alertes') + ' | ' + a.textContent : null; return v; }, racine);
 const lireTableau = (p, racine) => p.evaluate((r) => { const t = Ext.ComponentQuery.query(r)[0].getEl().dom.querySelector('table.ae-ct');
   if (!t) { return null; }
@@ -151,8 +152,8 @@ const N = (v, dec) => { const x = (Number(v) || 0).toFixed(dec ? 1 : 0).split('.
     await p.waitForFunction(() => document.querySelector('[data-carte="activite"] .ae-rep'), null, { timeout: 120000 }).catch(() => {});
     const carte = await lireReperes(p, 'tb');
     const entete = await p.evaluate(() => { const c = document.querySelector('[data-carte="activite"]'); return c ? { titre: c.querySelector('.tb-tete').textContent, icone: !!c.querySelector('.tb-tete > .fa-solid') } : null; });
-    ok('Tableau de bord : carte « Activité des équipes (jour) » avec icône, 4 repères et le repère d\'alerte', !!carte && /Activité des équipes \(jour\)/.test(entete.titre) && entete.icone
-      && ['LONGUES', 'SENSIBLES', 'DELAI_BL', 'RAPIDE'].every((k) => carte[k]) && carte.ALERTES !== null, JSON.stringify({ entete, carte }));
+    ok('Tableau de bord : carte « Activité des équipes (jour) » avec icône, 4 repères, sans ligne d\'alerte', !!carte && /Activité des équipes \(jour\)/.test(entete.titre) && entete.icone
+      && ['LONGUES', 'SENSIBLES', 'DELAI_BL', 'RAPIDE'].every((k) => carte[k]) && carte.ALERTES === null, JSON.stringify({ entete, carte }));
     const apiJour = await p.evaluate(async (j) => (await (await fetch('../api/v1/activite-equipes/analyses?debut=' + j + '&fin=' + j)).json()).data, J);
     const r = apiJour.resume, base = resumeBase(J, J);
     ok('Repères : API = base (ventes de plus de 10 min, actions sensibles, BL datés, délai moyen des BL)', r.ventesLongues === base.ventesLongues && r.actionsSensibles === base.actionsSensibles
@@ -161,7 +162,7 @@ const N = (v, dec) => { const x = (Number(v) || 0).toFixed(dec ? 1 : 0).split('.
     const min = eligibles.length ? Math.min(...eligibles.map((o) => o.secondesParLigne)) : null;
     ok('Opérateur le plus rapide = plus petit temps par ligne de la carte « Vitesse par opérateur » (5 ventes ou plus)', min === null ? r.plusRapideId == null
       : r.plusRapideSecondesParLigne === min && eligibles.some((o) => o.id === r.plusRapideId && o.secondesParLigne === min), JSON.stringify({ min, r }));
-    ok('Repère d\'alerte = constats « ALERTE » de l\'API', r.alertes === apiJour.constats.filter((c) => c.niveau === 'ALERTE').length && carte.ALERTES.split(' | ')[0] === String(r.alertes), carte.ALERTES);
+    ok('Nombre d\'alertes de l\'API = constats « ALERTE »', r.alertes === apiJour.constats.filter((c) => c.niveau === 'ALERTE').length, r.alertes);
     const attenduCarte = { LONGUES: N(r.ventesLongues), SENSIBLES: N(r.actionsSensibles), DELAI_BL: r.delaiMoyenBl == null ? '—' : N(r.delaiMoyenBl, true) + ' j', RAPIDE: r.plusRapideNom || '—' };
     ok('Carte du tableau de bord = API (valeurs affichées)', Object.keys(attenduCarte).every((k) => carte[k].split(' | ')[0] === attenduCarte[k]), JSON.stringify({ carte, attenduCarte }));
 

@@ -49,6 +49,10 @@ public class TableauBordServiceImpl implements TableauBordService {
     @EJB
     private OrdonnanceRenouvellementService renouvellementService;
 
+    /* plan du 09/11, point 6 : le taux de rupture du menu Prevision, memes parametres, meme calcul */
+    @EJB
+    private rest.service.PrevisionCommandeService prevision;
+
     /* ------------------------------------------------------------------ outils */
 
     private static Timestamp ts(LocalDate d) {
@@ -162,6 +166,10 @@ public class TableauBordServiceImpl implements TableauBordService {
                     .put("bl", n(at(a, 3))).put("mode", achatsDateBl ? "bl" : "saisie"));
 
             o.put("ruptures", ruptures(joursRupture, emplacementId));
+            JSONObject tr = prevision.tauxRupture(emplacementId, 0);
+            o.getJSONObject("ruptures").put("taux", tr.getDouble("taux")).put("frequents", tr.getInt("frequents"))
+                    .put("frequentsAZero", tr.getInt("ruptures")).put("mois", tr.getInt("mois"))
+                    .put("moisVente", tr.getInt("moisVente")).put("quantiteMin", tr.getInt("quantiteMin"));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "tableau de bord : tuiles", e);
             o.put("erreur", true);
@@ -510,6 +518,15 @@ public class TableauBordServiceImpl implements TableauBordService {
                                     dv != null && !dv.toLocalDateTime().toLocalDate()
                                             .isBefore(LocalDate.now().minusDays(Math.max(1, joursRupture))))
                             .put("grossiste", t(r[3])));
+                }
+            } else if ("tauxRupture".equals(type)) {
+                /* plan du 09/11, point 6 : les produits comptes par le taux de rupture (meme liste que la Prevision) */
+                JSONArray l = prevision.tauxRupture(emplacementId, max).getJSONArray("liste");
+                for (int i = 0; i < l.length(); i++) {
+                    JSONObject x = l.getJSONObject(i);
+                    a.put(new JSONObject().put("libelle", x.optString("nom")).put("cip", x.optString("cip"))
+                            .put("vendus", x.optLong("vendus")).put("moisVendus", x.optInt("moisVendus"))
+                            .put("rayon", x.optInt("rayon")));
                 }
             } else if ("peremptions".equals(type)) {
                 for (Object[] r : lignes(

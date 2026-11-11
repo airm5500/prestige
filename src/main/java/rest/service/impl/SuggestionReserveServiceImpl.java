@@ -708,17 +708,25 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 .put("str_ETAT", TSuggestionReserveDetail.ETAT_SUPPRIMEE).put("message", "Ligne retiree.");
     }
 
+    /** Motif enregistre quand une suggestion manuelle est supprimee sans motif saisi (plan du 10/11, point 3). */
+    public static final String MOTIF_SUPPRESSION_MANUELLE = "Suggestion manuelle supprimée sans motif";
+
     @Override
     public JSONObject supprimerSuggestion(TUser user, String suggestionId, String motif) {
         // Motif obligatoire, controle aussi cote serveur : l'ecran le demande deja, mais une fois la
         // suggestion supprimee ce motif reste le SEUL element expliquant sa disparition. Le rendre
         // facultatif ici laisserait passer les suppressions non motivees venues d'un autre appelant.
-        if (!notBlank(motif)) {
-            return echec("Le motif de la suppression est obligatoire.");
-        }
         TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
         if (s == null) {
             return echec("Suggestion introuvable.");
+        }
+        // Plan du 10/11, point 3 : une suggestion MANUELLE se supprime sans motif (celui qui l'a creee la retire) ; la
+        // trace dit alors qui et quand, avec un motif fixe. Les suggestions automatiques gardent le motif obligatoire.
+        if (!notBlank(motif)) {
+            if (!TSuggestionReserve.ORIGINE_MANUELLE.equals(s.getStrORIGINE())) {
+                return echec("Le motif de la suppression est obligatoire.");
+            }
+            motif = MOTIF_SUPPRESSION_MANUELLE;
         }
         if (TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())) {
             return echec("Cette suggestion est deja supprimee.");
@@ -1721,7 +1729,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         List<Object[]> r = em.createNativeQuery(
                 "SELECT s.lg_SUGGESTION_RESERVE_ID, s.str_REF, s.str_CATEGORIE, f.int_CIP, f.str_NAME,"
                         + " d.int_STOCK_RAYON, d.int_STOCK_RESERVE, d.int_SEUIL_DECLENCHEUR, d.int_QTE_PROPOSEE, f.lg_FAMILLE_ID,"
-                        + " s.str_COMMENTAIRE"
+                        + " s.str_COMMENTAIRE, f.int_SEUIL_RESERVE, f.int_SEUIL_MINI_RAYON"
                         + " FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID"
                         + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
                         + " WHERE s.str_ORIGINE = ?1 AND s.str_STATUT IN (?2, ?3) AND s.lg_EMPLACEMENT_ID = ?4"
@@ -1737,7 +1745,15 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                     .put("stockReserve", l[6] == null ? 0 : ((Number) l[6]).intValue())
                     .put("seuil", l[7] == null ? 0 : ((Number) l[7]).intValue())
                     .put("quantite", l[8] == null ? 0 : ((Number) l[8]).intValue()).put("produitId", l[9])
-                    .put("bon", numeroDuBon((String) l[10])));
+                    .put("bon", numeroDuBon((String) l[10]))
+                    /*
+                     * plan du 10/11, point 2 : seuils de la fiche, vides s'ils ne sont pas renseignes (un seuil maxi a
+                     * 0 n'est pas pris en compte par evaluer(), il est donc vide aussi)
+                     */
+                    .put("seuilMaxi",
+                            l[11] == null || ((Number) l[11]).intValue() <= 0 ? ""
+                                    : String.valueOf(((Number) l[11]).intValue()))
+                    .put("seuilMini", l[12] == null ? "" : String.valueOf(((Number) l[12]).intValue())));
         }
         return a;
     }
@@ -1887,9 +1903,40 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 : TSuggestionReserve.CATEGORIE_RAYON;
     }
 
-    private static String genererReference(String categorie) {
+    /**
+     * Plan du 10/11, point 3 : reference courte, le prefixe du sens suivi de 5 caracteres (« SR-RAY-7KQ2M »), au lieu
+     * de la date et l'heure (« SR-RAY-261110-142233 »), trop longue pour les ecrans. Les caracteres qui se confondent a
+     * la lecture (0/O, 1/I/L) sont exclus. Unique : une reference deja prise est tiree de nouveau. Les anciennes
+     * references ne changent pas.
+     */
+    private String genererReference(String categorie) {
         String prefixe = TSuggestionReserve.CATEGORIE_RESERVE.equals(categorie) ? "SR-RES-" : "SR-RAY-";
-        return prefixe + new SimpleDateFormat("yyMMdd-HHmmss").format(new Date());
+        String ref = referenceCourte(prefixe, ALEA_REFERENCE);
+        for (int i = 0; i < 50 && referenceExiste(ref); i++) {
+            ref = referenceCourte(prefixe, ALEA_REFERENCE);
+        }
+        return ref;
+    }
+
+    static final String CARACTERES_REFERENCE = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    private static final java.security.SecureRandom ALEA_REFERENCE = new java.security.SecureRandom();
+
+    static String referenceCourte(String prefixe, java.util.Random alea) {
+        StringBuilder sb = new StringBuilder(prefixe);
+        for (int i = 0; i < 5; i++) {
+            sb.append(CARACTERES_REFERENCE.charAt(alea.nextInt(CARACTERES_REFERENCE.length())));
+        }
+        return sb.toString();
+    }
+
+    private boolean referenceExiste(String ref) {
+        try {
+            return em.createQuery("SELECT COUNT(s) FROM TSuggestionReserve s WHERE s.strREF = :ref", Long.class)
+                    .setParameter("ref", ref).getSingleResult() > 0;
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "referenceExiste", e);
+            return false;
+        }
     }
 
     private static Date debutDeJournee(String iso) {

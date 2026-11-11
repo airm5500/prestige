@@ -5,7 +5,8 @@
  *    debit / credit, solde apres l'operation), ligne « Solde fin Octobre 2026 » ; solde final = somme des restes dus ;
  *  - filtre « État » de la liste : non reglee / partielle / reglee / non soldes / tous, coherents avec les restes ;
  *  - par l'ecran : onglet SOLDE, client choisi, lignes et resume ; aucune erreur JavaScript ;
- *  - retours du 09/10 (1) : impression PDF (jrxml releve_differes) et export Excel du releve, memes chiffres.
+ *  - retours du 09/10 (1) : impression PDF et export Excel du releve, memes chiffres ;
+ *  - plan du 10/11, point 4 : releve groupe par client (ligne CLIENT en tete), PDF par le modele releve_differes_clients.
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -55,7 +56,7 @@ function reglement(id, quand, montant) {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length, null, { timeout: 120000 });
@@ -65,10 +66,10 @@ function reglement(id, quand, montant) {
     const r = await api('../api/v1/reglement/releve?dtStart=2026-10-01&dtEnd=2026-10-31&clientId=' + CLIENT);
     const l = (r.data || []).map((x) => x.type + ':' + x.debit + '/' + x.credit + '=' + x.solde).join(' | ');
     ok('Solde au début d\'octobre = ventes − règlements d\'avant (10 000 − 6 000)', r.soldeInitial === 4000, r.soldeInitial);
-    ok('Une ligne par opération, solde après chacune, dans l\'ordre (vente avant son règlement)',
-      l === 'VENTE:6000/0=10000 | VENTE:2000/0=12000 | REGLEMENT:0/2000=10000 | MOIS:8000/2000=10000', l);
-    ok('Ligne « Solde fin Octobre 2026 » (totaux du mois)', (r.data || []).some((x) => x.type === 'MOIS' && x.libelle === 'Solde fin Octobre 2026'), JSON.stringify(r.data && r.data[3]));
-    ok('Date et heure sur chaque opération', (r.data || [])[0] && r.data[0].date === '03/10/2026 09:00', r.data && r.data[0].date);
+    ok('Une ligne par client (plan du 10/11, point 4), puis une ligne par opération, solde après chacune, dans l\'ordre (vente avant son règlement)',
+      l === 'CLIENT:8000/2000=10000 | VENTE:6000/0=10000 | VENTE:2000/0=12000 | REGLEMENT:0/2000=10000 | MOIS:8000/2000=10000', l);
+    ok('Ligne « Solde fin Octobre 2026 » (totaux du mois)', (r.data || []).some((x) => x.type === 'MOIS' && x.libelle === 'Solde fin Octobre 2026'), JSON.stringify(r.data && r.data[4]));
+    ok('Date et heure sur chaque opération', (r.data || [])[1] && r.data[1].date === '03/10/2026 09:00', r.data && r.data[1].date);
     const restes = Number(q("SELECT SUM(int_PRICE_RESTE) FROM t_preenregistrement_compte_client WHERE lg_COMPTE_CLIENT_ID = '" + COMPTE + "'"));
     ok('Cohérence : solde final = somme des restes dus des ventes différées', r.soldeFinal === restes, r.soldeFinal + ' / ' + restes);
     const s2 = await api('../api/v1/reglement/releve?dtStart=2026-09-01&dtEnd=2026-10-31&clientId=' + CLIENT);
@@ -88,16 +89,16 @@ function reglement(id, quand, montant) {
     /* ------------------------------------------------ ecran */
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('delayed', 'Gestion des différés', ''));
     await p.waitForFunction(() => Ext.ComponentQuery.query('delayed #grilleSolde').length > 0, null, { timeout: 30000 });
-    await p.evaluate(() => { const t = Ext.ComponentQuery.query('delayed')[0]; t.setActiveTab(t.down('#grilleSolde')); });
-    await p.evaluate((c) => { const g = Ext.ComponentQuery.query('delayed #grilleSolde')[0]; g.down('#soldeDu').setValue(new Date(2026, 9, 1)); g.down('#soldeAu').setValue(new Date(2026, 9, 31));
+    await p.evaluate(() => { const t = Ext.ComponentQuery.query('delayed')[0]; t.setActiveTab(t.down('#ongletSolde')); });
+    await p.evaluate((c) => { const g = Ext.ComponentQuery.query('delayed #ongletSolde')[0]; g.down('#soldeDu').setValue(new Date(2026, 9, 1)); g.down('#soldeAu').setValue(new Date(2026, 9, 31));
       const cb = g.down('#soldeClient'); cb.getStore().add({ lgCLIENTID: c, fullName: 'ZZDIFFERE Essai' }); cb.setValue(c); }, CLIENT);
-    await p.evaluate(() => Ext.ComponentQuery.query('delayed #grilleSolde button[text=Rechercher]')[0].btnEl.dom.click());
-    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('delayed #grilleSolde')[0]; return !g.getStore().isLoading() && g.getStore().getCount() === 4; }, null, { timeout: 20000 });
+    await p.evaluate(() => Ext.ComponentQuery.query('delayed #soldeRechercher')[0].btnEl.dom.click());
+    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('delayed #grilleSolde')[0]; return !g.getStore().isLoading() && g.getStore().getCount() === 5; }, null, { timeout: 20000 });
     await p.waitForTimeout(600);
-    const ecran = await p.evaluate(() => { const g = Ext.ComponentQuery.query('delayed #grilleSolde')[0]; return { resume: g.down('#soldeResume').getEl().dom.textContent,
+    const ecran = await p.evaluate(() => { const g = Ext.ComponentQuery.query('delayed #grilleSolde')[0]; return { resume: Ext.ComponentQuery.query('delayed #soldeResume')[0].getEl().dom.textContent,
       mois: g.getView().getEl().dom.querySelectorAll('.differe-ligne-mois').length, entetes: g.headerCt.getGridColumns().map((c) => c.text).join('|') }; });
-    ok('Écran : onglet SOLDE, colonnes date et heure / débit / crédit / solde, ligne de fin de mois, résumé',
-      ecran.entetes === 'Date et heure|Opération|Client|Débit|Crédit|Solde' && ecran.mois === 1 && /Solde au début : 4 000/.test(ecran.resume) && /Solde à la fin : 10 000/.test(ecran.resume), JSON.stringify(ecran));
+    ok('Écran : onglet SOLDE, colonnes date et heure / opération / débit / crédit / solde (client en ligne de groupe), ligne de fin de mois, résumé',
+      ecran.entetes === 'Date et heure|Opération|Débit|Crédit|Solde' && ecran.mois === 1 && /Solde au début : 4 000/.test(ecran.resume) && /Solde à la fin : 10 000/.test(ecran.resume), JSON.stringify(ecran));
     await p.screenshot({ path: SORTIE + '/differes-solde.png' });
 
     /* ------------------------------------------------ impression et export (retours du 09/10 (1)) */
@@ -105,7 +106,7 @@ function reglement(id, quand, montant) {
        demandee par l'onglet */
     const demande = p.context().waitForEvent('request', { predicate: (r) => /releve\/pdf\?/.test(r.url()), timeout: 20000 });
     const [popup] = await Promise.all([p.waitForEvent('popup', { timeout: 20000 }),
-      p.evaluate(() => Ext.ComponentQuery.query('delayed #grilleSolde #soldePdf')[0].btnEl.dom.click())]);
+      p.evaluate(() => Ext.ComponentQuery.query('delayed #soldePdf')[0].btnEl.dom.click())]);
     const urlPdf = (await demande).url(); await popup.close();
     ok('Bouton « Imprimer (PDF) » : ouvre le relevé avec la période et le client de l\'écran', /releve\/pdf\?/.test(urlPdf) && /dtStart=2026-10-01/.test(urlPdf) && /dtEnd=2026-10-31/.test(urlPdf) && urlPdf.includes('clientId=' + CLIENT), urlPdf);
     const pdf = await p.evaluate(async (u) => { const r = await fetch(u); return { s: r.status, t: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, urlPdf);
@@ -116,7 +117,7 @@ function reglement(id, quand, montant) {
       && /Solde fin Octobre 2026/.test(texte) && /Solde au début : 4 000/.test(texte) && /Solde à la fin : 10 000/.test(texte), texte.slice(0, 600));
     /* un telechargement ne navigue pas la fenetre ouverte : on releve l'adresse demandee par le bouton */
     const urlX = await p.evaluate(() => { const o = window.open, vus = []; window.open = (u) => { vus.push(u); return null; };
-      try { Ext.ComponentQuery.query('delayed #grilleSolde #soldeExcel')[0].btnEl.dom.click(); } finally { window.open = o; } return vus[0] || ''; });
+      try { Ext.ComponentQuery.query('delayed #soldeExcel')[0].btnEl.dom.click(); } finally { window.open = o; } return vus[0] || ''; });
     const xls = await p.evaluate(async (u) => { const r = await fetch(u); const b = new Uint8Array(await r.arrayBuffer()); return { s: r.status, d: r.headers.get('content-disposition'), n: b.length, txt: Array.from(b).map((c) => (c >= 32 && c < 127 ? String.fromCharCode(c) : ' ')).join('') }; }, urlX);
     ok('Export Excel : fichier .xls avec les opérations du relevé', xls.s === 200 && /releve_differes_2026-10-01_2026-10-31\.xls/.test(xls.d) && /E2E-B/.test(xls.txt) && /REG-R2/.test(xls.txt), JSON.stringify({ s: xls.s, d: xls.d, n: xls.n }));
     const inverse = await p.evaluate(async () => { const r = await fetch('../api/v1/reglement/releve/pdf?dtStart=2026-10-31&dtEnd=2026-10-01'); return { s: r.status, t: await r.text() }; });

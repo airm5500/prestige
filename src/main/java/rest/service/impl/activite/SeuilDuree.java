@@ -31,6 +31,27 @@ public final class SeuilDuree {
         return new SeuilDuree(op, m);
     }
 
+    /**
+     * Plan du 09/11, point 10 : critere enregistre pour tous, lu dans les parametres (textes). Un texte vide ou
+     * illisible reprend le defaut (plus de 10 min).
+     */
+    public static SeuilDuree lu(String operateur, String minutes) {
+        String m = minutes == null ? "" : minutes.trim();
+        return de(operateur, m.matches("\\d{1,4}") ? Integer.valueOf(m) : null);
+    }
+
+    /**
+     * Critere retenu pour un calcul : celui que l'ecran essaie (operateur et/ou minutes), complete par le critere
+     * enregistre ; sans essai, le critere enregistre.
+     */
+    public static SeuilDuree retenu(String operateur, Integer minutes, SeuilDuree enregistre) {
+        boolean op = operateur != null && !operateur.trim().isEmpty();
+        if (!op && minutes == null) {
+            return enregistre;
+        }
+        return de(op ? operateur : enregistre.getOperateur(), minutes != null ? minutes : enregistre.getMinutes());
+    }
+
     public String getOperateur() {
         return operateur;
     }

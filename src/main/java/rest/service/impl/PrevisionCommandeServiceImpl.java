@@ -462,12 +462,14 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                 + " WHERE p.lg_EMPLACEMENT_ID = ?1", emplacementId,
                 Timestamp.valueOf(LocalDate.now().minusDays(s.rotationLenteJours).atStartOfDay()), s.surstockJours)
                         .get(0);
-        int vendus = entier(r[2]);
         long poids = (long) reel(r[8]);
-        o.put("produits", entier(r[0])).put("produitsVendus", entier(r[1]))
-                .put("tauxRupture", vendus > 0 ? Math.round(entier(r[3]) * 1000.0 / vendus) / 10.0 : 0)
-                .put("ruptures", entier(r[3])).put("produitsReguliers", vendus).put("valeurInvendus", (long) reel(r[4]))
-                .put("invendus", entier(r[5]))
+        /* plan du 09/11, points 5 et 6 : taux de rupture selon les parametres, stock actuel (meme calcul partout) */
+        JSONObject tr = tauxRupture(emplacementId, 0);
+        o.put("produits", entier(r[0])).put("produitsVendus", entier(r[1])).put("tauxRupture", tr.getDouble("taux"))
+                .put("ruptures", tr.getInt("ruptures")).put("produitsReguliers", tr.getInt("frequents"))
+                .put("ruptureMois", tr.getInt("mois")).put("ruptureMoisVente", tr.getInt("moisVente"))
+                .put("ruptureQuantiteMin", tr.getInt("quantiteMin")).put("moisTest", param("KEY_PREVISION_MOIS_TEST"))
+                .put("valeurInvendus", (long) reel(r[4])).put("invendus", entier(r[5]))
                 .put("couvertureMoyenne", r[6] == null ? JSONObject.NULL : Math.round(reel(r[6])))
                 .put("fiabilite", poids > 0 ? Math.round(reel(r[7]) / poids) : JSONObject.NULL)
                 .put("aCommander", entier(r[9])).put("valeurACommander", (long) reel(r[10]))
@@ -535,7 +537,18 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
             c.tri = " ORDER BY p.recommande * f.int_PAF DESC, f.str_NAME";
             break;
         case "RUPTURE":
-            c.where.append(" AND p.prevu_mois >= 1 AND p.stock <= 0");
+            /* plan du 09/11, point 5 : exactement les produits comptes par le taux de rupture */
+            List<?> ids = (List<?>) calculRupture(emplacementId, 0).get("ids");
+            if (ids.isEmpty()) {
+                c.where.append(" AND 1 = 0");
+            } else {
+                c.where.append(" AND p.lg_FAMILLE_ID IN (");
+                for (int i = 0; i < ids.size(); i++) {
+                    c.params.add(ids.get(i));
+                    c.where.append(i == 0 ? "?" : ", ?").append(c.params.size());
+                }
+                c.where.append(')');
+            }
             break;
         case "SURSTOCK":
             c.where.append(" AND p.couverture_jours > ").append(s.surstockJours);
@@ -561,6 +574,12 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         }
         if ("1".equals(critere(criteres, "equivalent"))) {
             c.where.append(" AND p.equivalents > 0");
+        }
+        /* plan du 09/11, point 5 : fiabilite au moins X % (vide = pas de filtre) */
+        String fm = critere(criteres, "fiabiliteMin");
+        if (fm.matches("\\d{1,3}")) {
+            c.params.add(Math.min(100, Integer.parseInt(fm)));
+            c.where.append(" AND p.fiabilite >= ?").append(c.params.size());
         }
         switch (critere(criteres, "stock")) {
         case "RUPTURE":
@@ -866,6 +885,39 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
     /** Pour les messages : une date au format de l'ecran. */
     static String jour(LocalDate d) {
         return d == null ? "" : d.format(JOUR);
+    }
+
+    /** Produits suivis de l'emplacement : historique et stock actuel (rayon, reserve). */
+    static final String SQL_RUPTURE = "SELECT p.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, p.historique,"
+            + " COALESCE(s.n, 0), COALESCE(t.n, 0) FROM t_prevision_produit p"
+            + " JOIN t_famille f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND f.str_STATUT = 'enable'"
+            + " LEFT JOIN (SELECT lg_FAMILLE_ID, SUM(int_NUMBER_AVAILABLE) AS n FROM t_famille_stock"
+            + "   WHERE lg_EMPLACEMENT_ID = ?1 GROUP BY lg_FAMILLE_ID) s ON s.lg_FAMILLE_ID = p.lg_FAMILLE_ID"
+            + " LEFT JOIN (SELECT lg_FAMILLE_ID, SUM(int_NUMBER) AS n FROM t_type_stock_famille"
+            + "   WHERE lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = ?1 GROUP BY lg_FAMILLE_ID) t ON t.lg_FAMILLE_ID = p.lg_FAMILLE_ID"
+            + " WHERE p.lg_EMPLACEMENT_ID = ?1 AND p.historique IS NOT NULL AND p.historique <> ''";
+
+    Map<String, Object> calculRupture(String emplacementId, int limite) {
+        List<rest.service.impl.prevision.TauxRupture.Produit> l = new ArrayList<>();
+        for (Object[] r : lignes(SQL_RUPTURE, emplacementId)) {
+            l.add(new rest.service.impl.prevision.TauxRupture.Produit(texte(r[0]), texte(r[1]), texte(r[2]),
+                    texte(r[3]), entier(r[4]), entier(r[5])));
+        }
+        return rest.service.impl.prevision.TauxRupture.calculer(l, param(rest.service.impl.prevision.TauxRupture.MOIS),
+                param(rest.service.impl.prevision.TauxRupture.MOIS_VENTE),
+                param(rest.service.impl.prevision.TauxRupture.QTE_MIN), limite);
+    }
+
+    @Override
+    public JSONObject tauxRupture(String emplacementId, int limite) {
+        Map<String, Object> m = calculRupture(emplacementId, Math.max(0, limite));
+        JSONObject o = new JSONObject().put("success", true);
+        for (Map.Entry<String, Object> e : m.entrySet()) {
+            if (!"ids".equals(e.getKey())) {
+                o.put(e.getKey(), "liste".equals(e.getKey()) ? new JSONArray((List<?>) e.getValue()) : e.getValue());
+            }
+        }
+        return o;
     }
 
     @Override

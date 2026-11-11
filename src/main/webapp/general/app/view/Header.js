@@ -24,7 +24,8 @@ Ext.define('testextjs.view.Header', {
                 xtype: 'component',
                 id: 'app-header-title',
                 html: '<a href="#" onclick="loadMainMenu();" class="hdr-brand" title="Retour au menu principal">'
-                        + '<span class="hdr-brand-ico"><i class="fa fa-plus"></i></span>'
+                        /* plan du 09/11, point 16 : icone Prestige 3 a la place de la croix */
+                        + '<span class="hdr-brand-ico hdr-brand-ico--image"><img src="../resources/images/icone-prestige/icone-prestige-64.png?v=3" alt=""></span>'
                         + '<span class="hdr-brand-txt hdr-animated-text--brand">PRESTIGE 3</span>'
                         + '</a>'
             }
@@ -135,8 +136,8 @@ Ext.define('testextjs.view.Header', {
                         text: mkOptionItem('fa-info-circle', 'A propos'),
                         cls: 'pft-item',
                         handler: function () {
-                            // testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos","");
-                            testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos", "");
+                            /* plan du 09/11, point 8 : volet a droite, l'ecran en cours reste ouvert derriere */
+                            testextjs.view.sm_user.about.AboutManager.ouvrir();
                         }
                     }]
             })
@@ -298,7 +299,12 @@ Ext.define('testextjs.view.Header', {
                     Ext.MessageBox.alert('Error Message', result.errors);
                     return;
                 }
-                localStorage.clear();
+                /* plan du 09/11, point 7 : la deconnexion vide les donnees de la session, pas le nom du poste */
+                if (window.PrestigePoste && window.PrestigePoste.viderSession) {
+                    window.PrestigePoste.viderSession();
+                } else {
+                    localStorage.clear();
+                }
                 window.location.replace("../index.jsp?content=panelInfos.jsp&lng=fr&action=logout");
 
             },

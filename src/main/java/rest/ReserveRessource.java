@@ -39,6 +39,9 @@ public class ReserveRessource {
     private @EJB ReserveService reserveService;
     private @EJB rest.service.mobile.MobileClientRefService mobileClientRefService;
 
+    /* demande 61 : droit controle seulement s'il existe en base */
+    private @EJB rest.service.impl.PrivilegesEnBase privilegesEnBase;
+
     private TUser currentUser() {
         HttpSession hs = servletRequest.getSession();
         return (TUser) hs.getAttribute(Constant.AIRTIME_USER);
@@ -238,8 +241,7 @@ public class ReserveRessource {
                         .put("traiter", Droits.a(servletRequest, "P_TRAITER_RESERVE", "P_SM_RESERVE"))
                         .put("annulerMouvement", Droits.a(servletRequest, "P_ANNULER_MOUVEMENT_RESERVE"))
                         /* demande 60 : voir et ouvrir les suggestions de reserve (onglet SUGGESTIONS, mobile) */
-                        .put("voirSuggestions", Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS))
-                        .toString())
+                        .put("voirSuggestions", privilegesEnBase.voitSuggestionsReserve(servletRequest)).toString())
                 .build();
     }
 

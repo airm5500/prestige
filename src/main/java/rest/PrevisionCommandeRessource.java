@@ -126,14 +126,31 @@ public class PrevisionCommandeRessource {
         return r != null ? r : reponse(service.tableau(emplacement()));
     }
 
+    /** Plan du 09/11, points 5 et 6 : taux de rupture et liste des produits comptes (500 au plus). */
+    @GET
+    @Path("rupture")
+    public Response rupture() {
+        Response r = controle();
+        return r != null ? r : reponse(service.tauxRupture(emplacement(), 500));
+    }
+
     @GET
     @Path("previsions")
     public Response previsions(@QueryParam("filtre") String filtre, @QueryParam("query") String query,
             @QueryParam("methode") String methode, @QueryParam("equivalent") String equivalent,
-            @QueryParam("stock") String stock, @QueryParam("start") String start, @QueryParam("limit") String limit) {
+            @QueryParam("stock") String stock, @QueryParam("start") String start, @QueryParam("limit") String limit,
+            @QueryParam("fiabiliteMin") String fiabiliteMin) {
         Response r = controle();
-        return r != null ? r : reponse(service.previsions(emplacement(),
-                criteres(filtre, query, methode, equivalent, stock), nombre(start, 0), nombre(limit, 25)));
+        return r != null ? r
+                : reponse(service.previsions(emplacement(),
+                        fiabilite(criteres(filtre, query, methode, equivalent, stock), fiabiliteMin), nombre(start, 0),
+                        nombre(limit, 25)));
+    }
+
+    /** Plan du 09/11, point 5 : filtre « Fiabilite au moins X % » (liste, exports, inventaire, suggestion). */
+    static java.util.Map<String, String> fiabilite(java.util.Map<String, String> c, String fiabiliteMin) {
+        c.put("fiabiliteMin", fiabiliteMin == null ? "" : fiabiliteMin.trim());
+        return c;
     }
 
     static java.util.Map<String, String> criteres(String filtre, String query, String methode, String equivalent,
@@ -149,8 +166,8 @@ public class PrevisionCommandeRessource {
 
     private static java.util.Map<String, String> criteres(JSONObject o) {
         JSONObject c = o == null ? new JSONObject() : o;
-        return criteres(c.optString("filtre", ""), c.optString("query", ""), c.optString("methode", ""),
-                c.optString("equivalent", ""), c.optString("stock", ""));
+        return fiabilite(criteres(c.optString("filtre", ""), c.optString("query", ""), c.optString("methode", ""),
+                c.optString("equivalent", ""), c.optString("stock", "")), c.optString("fiabiliteMin", ""));
     }
 
     private static final String[] ENTETES = { "CIP", "Désignation", "Grossiste", "Méthode", "Fiabilité %",
@@ -188,6 +205,8 @@ public class PrevisionCommandeRessource {
         ajout.accept("Équivalent", "1".equals(c.get("equivalent")) ? "en stock" : null);
         ajout.accept("Stock", c.get("stock"));
         ajout.accept("Recherche", c.get("query"));
+        String fm = c.get("fiabiliteMin");
+        ajout.accept("Fiabilité", fm == null || fm.trim().isEmpty() ? null : "au moins " + fm.trim() + " %");
         return s.length() == 0 ? "Tous les produits suivis" : s.toString();
     }
 
@@ -201,11 +220,13 @@ public class PrevisionCommandeRessource {
     @Produces("application/vnd.ms-excel")
     public Response excel(@QueryParam("filtre") String filtre, @QueryParam("query") String query,
             @QueryParam("methode") String methode, @QueryParam("equivalent") String equivalent,
-            @QueryParam("stock") String stock) throws java.io.IOException {
+            @QueryParam("stock") String stock, @QueryParam("fiabiliteMin") String fiabiliteMin)
+            throws java.io.IOException {
         if (controle() != null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-        List<JSONObject> lignes = service.toutes(emplacement(), criteres(filtre, query, methode, equivalent, stock));
+        List<JSONObject> lignes = service.toutes(emplacement(),
+                fiabilite(criteres(filtre, query, methode, equivalent, stock), fiabiliteMin));
         byte[] data = excel.createExcelReport("Prévisions", ENTETES, lignes, (row, l) -> {
             String[] v = valeurs(l);
             for (int i = 0; i < v.length; i++) {
@@ -226,11 +247,11 @@ public class PrevisionCommandeRessource {
     @Produces("application/pdf")
     public Response pdf(@QueryParam("filtre") String filtre, @QueryParam("query") String query,
             @QueryParam("methode") String methode, @QueryParam("equivalent") String equivalent,
-            @QueryParam("stock") String stock) {
+            @QueryParam("stock") String stock, @QueryParam("fiabiliteMin") String fiabiliteMin) {
         if (controle() != null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-        java.util.Map<String, String> c = criteres(filtre, query, methode, equivalent, stock);
+        java.util.Map<String, String> c = fiabilite(criteres(filtre, query, methode, equivalent, stock), fiabiliteMin);
         List<String[]> lignes = new java.util.ArrayList<>();
         for (JSONObject l : service.toutes(emplacement(), c)) {
             lignes.add(valeurs(l));

@@ -232,6 +232,10 @@ Ext.define('testextjs.view.configmanagement.client.action.CampagneClient', {
                                                 const rec = grid.getStore().getAt(rowIndex);
                                                 window.open(rec.get('lien'), '_blank');
                                                 rec.set('ouvert', true);
+                                                /* plan du 09/11, point 13 : le clic est garde dans le journal des envois
+                                                   WhatsApp (l'envoi reel part du telephone : Prestige ne le voit pas) */
+                                                Ext.Ajax.request({method: 'POST', url: '../api/v1/notifications/clients/whatsapp-lien-ouvert',
+                                                    headers: {'Content-Type': 'application/json'}, jsonData: {clientId: rec.get('clientId')}});
                                             }
                                         }]
                                 },
