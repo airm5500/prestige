@@ -32,6 +32,21 @@ cas de plafond. Avec la règle 1, la ligne à 0 disparaît.
 Les anciens tickets réimprimés sont corrigés aussi (aucune donnée nouvelle n'est nécessaire).
 Code : `CreditLigne.partsBornees`.
 
+## 2 bis. Ticket : le taux de chaque ligne (retour du 11/11, ticket 2226656188)
+
+Sur un ticket où deux produits affichaient leur calcul (un prix de référence, un taux saisi) et le troisième rien, le
+taux de ce troisième produit n'était écrit nulle part : le récapitulatif n'affiche plus le taux dès qu'une ligne a un
+prix ou un taux propre. Il fallait le déduire à la main.
+
+Règle : **dès qu'une ligne du ticket imprime son détail, toutes les lignes prises en charge impriment le leur**
+(« Taux 80 % : 1 460 »). Le haut du ticket ne change pas. Un ticket où aucune ligne n'a rien de propre reste sans
+détail sous les produits, avec le taux au récapitulatif. Une ligne au comptant n'a jamais de détail, et une assurance
+à part nulle sur une ligne reste masquée. Cette règle remplace, pour les tickets qui ont au moins une ligne propre, le
+point 5.2 du plan du 06/11 (« rien sous le produit quand la ligne suit le taux de l'assurance »).
+
+Code : `CreditLigne.afficherLignes`. Tests : `CreditLigneToutesLesLignesTest` (rouge avant le code), et les tests
+d'écran `test-rapprochement-ticket.js`, `test-saisie-validee-cloture-0611.js`, `test-prise-en-charge-totale.js`.
+
 ## 3. Prise en charge totale d'une ligne
 
 ### Paramètre
