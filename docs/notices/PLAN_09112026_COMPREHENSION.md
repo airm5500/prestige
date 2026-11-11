@@ -934,3 +934,27 @@ Votre réponse : on garde « Ajouter des clients » au-dessus de « Clients de l
 **Cas couverts :** ticket Z sans numéro, essai simulé, lien ouvert, passage à distribué, à lu et en échec, envois antérieurs sans origine, plusieurs origines dans la même grille.
 
 **Non-régression (8080) :** WhatsApp 28 / 28 ; ticket Z WhatsApp 9 / 9 ; journal des campagnes 13 / 13. Tests Java : campagnes, indicateur d'envoi, webhook, WhatsApp Web et discussions, tous verts.
+
+## Point 14 bis : fait le 11/11 (branche `plan/09112026`), seule l'icône change
+
+**Retour du 11/11 :** « je n'ai pas demandé à passer au violet, juste changer l'icône ». La maquette violette est abandonnée ; les couleurs de l'écran de connexion ne changent pas.
+
+**Ce qui change :**
+- l'icône de la pastille « PRESTIGE » n'a plus de carré blanc derrière elle ;
+- la grande illustration (l'ancien mortier) devient l'icône Prestige 3.
+
+**Test :** `test-icone-prestige3-1011` passe de 16 à 19 contrôles : pas de carré blanc, grande illustration = nouvelle icône, dégradé d'origine du panneau inchangé. 19 / 19 sur 8080 ; rouge sur le code précédent (17 / 19).
+
+## Point 8 : maquette « À propos » (proposition C), en attente d'avis
+
+Fichier [MAQUETTE_POINT_8_A_PROPOS_2026-11-11.html](MAQUETTE_POINT_8_A_PROPOS_2026-11-11.html). Elle garde les couleurs de l'application (bandeau bleu nuit, accents vert d'eau) ; seule l'icône est nouvelle.
+
+Le volet s'ouvre à droite et a trois onglets :
+- **Version** : version, date de construction, base, officine, poste, utilisateur ; « Copier pour l'assistance », confirmé dans le bouton ;
+- **Nouveautés** : par domaine, chacune avec l'écran où la trouver ;
+- **Assistance** : serveur, base, dernière sauvegarde, espace disque, envois, contact.
+
+**Questions :**
+1. Volet à droite, ou fenêtre centrée ?
+2. Quels domaines dans « Nouveautés » ?
+3. Pour un utilisateur qui n'est pas administrateur, l'onglet Assistance montre-t-il tout, ou seulement le contact ?
