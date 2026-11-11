@@ -161,6 +161,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return apercu(() -> lunchPrinterForTicket(id));
     }
 
+    /** Plan du 10/11, point 1 : recu de reglement d'un differe, construit sans impression (rapprochement). */
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketReglementDiffere(String idDossier)
+            throws JSONException {
+        return apercu(() -> ticketReglementDiffere(idDossier));
+    }
+
     private interface Reimpression {
         JSONObject lancer() throws JSONException;
     }
@@ -537,12 +544,21 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return "";
     }
 
-    /** Pieces reglees par un dossier de reglement : reference et montant ; rien au-dela de 10 lignes. */
+    /**
+     * Pieces reglees par un dossier de reglement : reference et montant ; rien au-dela de 10 lignes. Plan du 10/11,
+     * point 1 : la reference d'un differe est l'identifiant interne de la dette (inconnu de l'utilisateur) ; le recu
+     * imprime a sa place le numero de la vente (le meme que les autres tickets, selon KEY_SHOW_NUMERO_TICKET) et sa
+     * date.
+     */
     private List<String[]> piecesReglees(List<TDossierReglementDetail> details, String prefixe) {
         List<String[]> res = new ArrayList<>();
         try {
+            boolean voirNumTicket = voirNumeroTicket();
             for (TDossierReglementDetail d : details) {
-                res.add(new String[] { prefixe + (d.getStrREF() != null ? d.getStrREF() : ""),
+                TPreenregistrement vente = venteDeLaDette(d.getStrREF());
+                String numero = vente == null ? null : voirNumTicket ? vente.getStrREF() : vente.getStrREFTICKET();
+                res.add(new String[] {
+                        libellePiece(prefixe, d.getStrREF(), numero, vente == null ? null : vente.getDtCREATED()),
                         String.valueOf(d.getDblAMOUNT() == null ? 0 : d.getDblAMOUNT().longValue()) });
             }
         } catch (Exception e) {
@@ -550,6 +566,29 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             return new ArrayList<>();
         }
         return res.size() > 10 ? new ArrayList<>() : res;
+    }
+
+    /** Vente d'une dette de differe (t_preenregistrement_compte_client) ; null si la reference n'en est pas une. */
+    private TPreenregistrement venteDeLaDette(String ref) {
+        if (ref == null || ref.isEmpty()) {
+            return null;
+        }
+        TPreenregistrementCompteClient dette = getEntityManager().find(TPreenregistrementCompteClient.class, ref);
+        return dette != null ? dette.getLgPREENREGISTREMENTID()
+                : getEntityManager().find(TPreenregistrement.class, ref);
+    }
+
+    /**
+     * Plan du 10/11, point 1 : « Vente N° 1234 du 08/11/2026 ». Sans vente retrouvee, la reference d'origine (jamais
+     * une ligne vide) ; sans date, le numero seul.
+     */
+    static String libellePiece(String prefixe, String refBrute, String numero, Date date) {
+        String p = prefixe == null ? "" : prefixe;
+        if (numero == null || numero.trim().isEmpty()) {
+            return p + (refBrute == null ? "" : refBrute);
+        }
+        return p + "N° " + numero.trim()
+                + (date == null ? "" : " du " + new java.text.SimpleDateFormat("dd/MM/yyyy").format(date));
     }
 
     private int tailleNomOfficine() {

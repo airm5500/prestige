@@ -179,11 +179,11 @@ public class SalesRessource {
         return apercuTickets(() -> generateTicketService.apercuTicketVno(id));
     }
 
-    private interface Documents {
+    interface Documents {
         List<rest.service.ticket.TicketDocument> lire() throws JSONException;
     }
 
-    private static Response apercuTickets(Documents documents) throws JSONException {
+    static Response apercuTickets(Documents documents) throws JSONException {
         JSONObject json = new JSONObject();
         try {
             org.json.JSONArray tickets = new org.json.JSONArray();

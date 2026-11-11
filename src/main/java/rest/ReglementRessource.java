@@ -299,6 +299,19 @@ public class ReglementRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Plan du 10/11, point 1 : contenu du recu de reglement d'un differe, bloc par bloc, sans impression (tests de
+     * rapprochement ecran / recu / base). Lecture seule.
+     */
+    @GET
+    @Path("ticket/{id}/apercu")
+    public Response apercuTicket(@PathParam("id") String ref) throws JSONException {
+        if (servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return SalesRessource.apercuTickets(() -> generateTicketService.apercuTicketReglementDiffere(ref));
+    }
+
     @PUT
     @Path("ticket-carnet/{id}")
     public Response print(@PathParam("id") String ref) throws JSONException {

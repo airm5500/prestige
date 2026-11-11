@@ -72,6 +72,8 @@ public interface GenerateTicketService {
     /** Idem pour une vente au comptant (tests de rapprochement des promotions, audit 05 PR-01). */
     List<rest.service.ticket.TicketDocument> apercuTicketVno(String id) throws JSONException;
 
+    List<rest.service.ticket.TicketDocument> apercuTicketReglementDiffere(String idDossier) throws JSONException;
+
     List<String> generateDataVenteSupprime(TPreenregistrement p);
 
     List<String> generateDataTiersPayant(TPreenregistrement p);
