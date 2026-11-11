@@ -86,7 +86,7 @@ const nbCaisse = () => Number(q("SELECT COUNT(*) FROM t_mvt_caisse WHERE str_NUM
     /* comme l'ecran : restes vus au moment de l'ouverture */
     restesAttendus: JSON.stringify(Object.fromEntries(lignes.map((k) => ['e2e-rgd-' + k, reste(k)]))) });
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

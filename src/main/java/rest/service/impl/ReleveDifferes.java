@@ -29,9 +29,18 @@ public final class ReleveDifferes {
         final String libelle, reference, client;
         final long debit, credit;
         final String type;
+        /** plan du 10/11, point 4 : client (identifiant) et piece (vente ou dossier de reglement) de l'operation */
+        String clientId = "", id = "";
 
         public Operation(LocalDateTime date, String libelle, String reference, String client, long debit, long credit) {
             this(date, libelle, reference, client, debit, credit, null);
+        }
+
+        /** Rattache l'operation a son client et a sa piece (vente pour une vente ou une annulation, dossier sinon). */
+        public Operation de(String clientId, String id) {
+            this.clientId = clientId == null ? "" : clientId;
+            this.id = id == null ? "" : id;
+            return this;
         }
 
         /** type : VENTE, REGLEMENT ou ANNULATION ; null : deduit du sens (debit -> VENTE, sinon REGLEMENT) */
@@ -118,6 +127,81 @@ public final class ReleveDifferes {
         return new JSONObject().put("success", true).put("soldeInitial", soldeInitial).put("soldeFinal", solde)
                 .put("totalDebit", totalDebit).put("totalCredit", totalCredit).put("data", lignes)
                 .put("total", lignes.length());
+    }
+
+    /**
+     * Plan du 10/11, point 4 : le meme releve, groupe par client. Pour chaque client (tri par nom, puis identifiant) :
+     * une ligne CLIENT (solde au debut, debit, credit et solde a la fin du client), puis ses operations dans l'ordre
+     * chronologique avec SON solde apres chaque operation, et sa ligne « Solde fin <mois> » a la fin de chaque mois. Un
+     * client sans solde au debut ni operation n'apparait pas ; un client qui doit sans operation sur la periode
+     * apparait avec sa seule ligne CLIENT. Totaux : solde initial = somme des soldes au debut, solde final = somme des
+     * soldes a la fin, debit et credit = sommes des operations.
+     *
+     * @param soldesDebut
+     *            solde au debut de la periode par identifiant de client
+     * @param noms
+     *            nom affiche par identifiant de client (sinon le nom porte par les operations)
+     */
+    public static JSONObject releveParClient(java.util.Map<String, Long> soldesDebut,
+            java.util.Map<String, String> noms, List<Operation> operations) {
+        java.util.Map<String, List<Operation>> parClient = new java.util.HashMap<>();
+        java.util.Map<String, String> nom = new java.util.HashMap<>(
+                noms == null ? java.util.Collections.emptyMap() : noms);
+        for (Operation o : operations) {
+            parClient.computeIfAbsent(o.clientId, k -> new ArrayList<>()).add(o);
+            nom.putIfAbsent(o.clientId, o.client == null ? "" : o.client);
+        }
+        java.util.Set<String> clients = new java.util.HashSet<>(parClient.keySet());
+        soldesDebut.forEach((c, s) -> {
+            if (s != null && s != 0) {
+                clients.add(c);
+            }
+        });
+        List<String> ordre = new ArrayList<>(clients);
+        ordre.sort(Comparator.comparing((String c) -> nom.getOrDefault(c, ""), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(c -> c));
+        JSONArray lignes = new JSONArray();
+        long soldeInitial = 0, soldeFinal = 0, totalDebit = 0, totalCredit = 0;
+        int nbClients = 0;
+        for (String c : ordre) {
+            long debut = soldesDebut.getOrDefault(c, 0L);
+            List<Operation> ops = parClient.getOrDefault(c, new ArrayList<>());
+            JSONObject r = releve(debut, ops);
+            long debit = r.getLong("totalDebit"), credit = r.getLong("totalCredit");
+            if (debut == 0 && ops.isEmpty()) {
+                continue;
+            }
+            nbClients++;
+            String n = nom.getOrDefault(c, "");
+            lignes.put(new JSONObject().put("type", "CLIENT").put("clientId", c).put("client", n).put("date", "")
+                    .put("libelle", n).put("reference", "").put("piece", "").put("soldeDebut", debut)
+                    .put("debit", debit).put("credit", credit).put("solde", r.getLong("soldeFinal")));
+            JSONArray d = r.getJSONArray("data");
+            /*
+             * releve() trie les operations de la meme facon : on rattache chaque ligne a sa piece dans le meme ordre.
+             * Cle « piece » et non « id » : une vente et son annulation ont la meme piece, et l'ecran (magasin ExtJS)
+             * ne garde qu'une ligne par « id »
+             */
+            List<Operation> triees = new ArrayList<>(ops);
+            triees.sort(Comparator.comparing((Operation o) -> o.date).thenComparing(o -> o.credit > 0 ? 1 : 0));
+            int k = 0;
+            for (int i = 0; i < d.length(); i++) {
+                JSONObject l = d.getJSONObject(i).put("clientId", c);
+                if ("MOIS".equals(l.getString("type"))) {
+                    l.put("client", n).put("piece", "");
+                } else {
+                    l.put("piece", triees.get(k++).id);
+                }
+                lignes.put(l);
+            }
+            soldeInitial += debut;
+            soldeFinal += r.getLong("soldeFinal");
+            totalDebit += debit;
+            totalCredit += credit;
+        }
+        return new JSONObject().put("success", true).put("soldeInitial", soldeInitial).put("soldeFinal", soldeFinal)
+                .put("totalDebit", totalDebit).put("totalCredit", totalCredit).put("clients", nbClients)
+                .put("data", lignes).put("total", lignes.length());
     }
 
     private static String cle(LocalDateTime d) {
