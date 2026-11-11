@@ -52,7 +52,7 @@ const ilYa = (jours) => new Date(Date.now() - jours * 86400000);
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     p.on('pageerror', (e) => err.push(String(e.message)));
     p.on('response', async (r) => { if (/api\/v1\/support\/sauvegardes/.test(r.url())) { try { reponses.push(await r.text()); } catch (e) { /* */ } } });
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

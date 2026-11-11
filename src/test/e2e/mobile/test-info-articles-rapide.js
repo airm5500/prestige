@@ -15,7 +15,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const API = 'http://localhost:8080/prestige/api/';
+const API = (process.env.BASE || 'http://localhost:8080/prestige') + '/api/';
 const esc = (v) => String(v).replace(/'/g, "''");
 const fr = (d) => (d && d !== 'NULL' ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : null);
 

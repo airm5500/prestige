@@ -5,14 +5,14 @@ const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const API = 'http://localhost:8080/prestige/api/v1/preferences/';
+const API = (process.env.BASE || 'http://localhost:8080/prestige') + '/api/v1/preferences/';
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   try {
     const anonyme = await (await p.request.get(API + 'e2e_test')).text();
     ok('Hors session : refusé (filtre d\'authentification)', !/"valeur"/.test(anonyme), anonyme.slice(0, 80));
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const f = (m, c, corps) => p.evaluate(async (a) => { const r = await fetch(a.u, { method: a.m, headers: { 'Content-Type': 'application/json' }, body: a.corps }); return r.json(); }, { u: API + c, m, corps });

@@ -25,7 +25,7 @@ const SUG = 'e2e-l12-' + Date.now();
   const calculAvant = Number(q('SELECT COALESCE(MAX(id), 0) FROM t_prevision_calcul'));
   const get = (u) => p.evaluate(async (u) => { const r = await fetch(u); return { s: r.status, o: JSON.parse(await r.text()) }; }, u);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length
@@ -143,7 +143,7 @@ const SUG = 'e2e-l12-' + Date.now();
       'produit/' + encodeURIComponent("l'inexistant"), 'previsions?query=' + 'x'.repeat(3000)].map((u) => get('../api/v1/analyse-commande/' + u)));
     ok('Paramètres absurdes : réponses propres (jamais d\'erreur interne)', absurdes.every((r) => r.s === 200) && absurdes[1].o.success === false && absurdes[2].o.success === false && absurdes[3].o.success === false && absurdes[0].o.success === true,
       JSON.stringify(absurdes.map((r) => [r.s, r.o.success, r.o.message])));
-    const anonyme = await (await b.newContext()).request.get('http://localhost:8080/prestige/api/v1/analyse-commande/tableau', { failOnStatusCode: false });
+    const anonyme = await (await b.newContext()).request.get((process.env.BASE || 'http://localhost:8080/prestige') + '/api/v1/analyse-commande/tableau', { failOnStatusCode: false });
     ok('Sans connexion : refusé', anonyme.status() === 401 || /connect/i.test(await anonyme.text()), anonyme.status());
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {

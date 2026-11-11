@@ -15,7 +15,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const URL = 'http://localhost:8080/prestige/';
+const URL = (process.env.BASE || 'http://localhost:8080/prestige') + '/';
 const FAUX = 'e2e_inconnu_' + Date.now();
 
 (async () => {

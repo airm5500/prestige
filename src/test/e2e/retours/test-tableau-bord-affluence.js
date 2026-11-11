@@ -45,7 +45,7 @@ const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
   p.on('response', async (r) => { if (/tableau-bord\/affluence/.test(r.url())) { try { const o = await r.json(); const d = o.data || o;
     reponses.push(new URL(r.url()).searchParams.get('date') + '>' + d.debut + ':' + (d.cases || []).reduce((x, c) => x + c.ventes, 0) + '@' + Date.now() % 100000); } catch (e) { /* ignoree */ } } });
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('tableaubord').length, null, { timeout: 120000 });

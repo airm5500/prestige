@@ -70,7 +70,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
   const p = await b.newPage();
   const envoyer = () => p.evaluate(async (id) => { const t0 = Date.now(); const r = await (await fetch('../api/v1/pharma/' + id, { method: 'PUT' })).text(); return { r, ms: Date.now() - t0 }; }, CMD);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     for (const [n, G] of Object.entries(GROSSISTES)) {

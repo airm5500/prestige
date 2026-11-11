@@ -23,7 +23,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
   const lire = (s) => p.evaluate(async (s) => { const t0 = performance.now(); const r = await fetch('../api/v1/info?search=' + encodeURIComponent(s[0]) + '&dtStart=' + s[1].split('-').reverse().join('/')); const j = await r.json(); return { ms: performance.now() - t0, j }; }, [s, DEBUT]);
   const mediane = async (s) => { const t = []; let j; for (let i = 0; i < 3; i++) { const r = await lire(s); t.push(r.ms); j = r.j; } t.sort((a, b) => a - b); return { ms: t[1], j, t }; };
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await lire('doli');

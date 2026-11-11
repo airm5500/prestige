@@ -17,7 +17,7 @@ const path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 
-const URL_PRESTIGE = process.env.E2E_URL || 'http://localhost:8080/prestige';
+const URL_PRESTIGE = process.env.E2E_URL || (process.env.BASE || 'http://localhost:8080/prestige');
 const WEB_INF = process.env.E2E_WEB_INF || 'D:\\payara5\\payara5\\glassfish\\domains\\domain1\\applications\\prestige\\WEB-INF';
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '--raw', '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 1 << 28 }).replace(/\r\n/g, '\n').trim();

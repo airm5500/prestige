@@ -96,7 +96,7 @@ const JEUX = {
   const ctx = await b.newContext();
   const p = await ctx.newPage();
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const supportAvant = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
@@ -112,7 +112,7 @@ const JEUX = {
     const appeler = async (e, jeu) => {
       let chemin = e.chemin.replace(/\{(\w+)(?::[^}]*)?\}/g, (_, n) => encodeURIComponent(JEUX[jeu]({ nom: n, type: 'String' }) || 'zz'));
       const qs = new URLSearchParams(); e.qp.forEach((x) => qs.append(x.nom, JEUX[jeu](x)));
-      const url = 'http://localhost:8080/prestige/api/' + chemin + (e.qp.length ? '?' + qs.toString() : '');
+      const url = (process.env.BASE || 'http://localhost:8080/prestige') + '/api/' + chemin + (e.qp.length ? '?' + qs.toString() : '');
       const t0 = Date.now(); appels++;
       try {
         /* une connexion gardee ouverte que le serveur vient de fermer (« socket hang up » immediat) : on reessaie une fois */
@@ -130,7 +130,7 @@ const JEUX = {
     await Promise.all([travailleur(), travailleur()]);
     console.log(appels + ' appels');
     /* la session est toujours ouverte : aucune lecture n'a deconnecte l'utilisateur */
-    const session = await ctx.request.get('http://localhost:8080/prestige/api/v1/preferences/essai-saisie', { failOnStatusCode: false });
+    const session = await ctx.request.get((process.env.BASE || 'http://localhost:8080/prestige') + '/api/v1/preferences/essai-saisie', { failOnStatusCode: false });
     ok('la session est toujours ouverte après tous les appels', session.status() < 400, session.status());
     ok('aucune erreur interne (HTTP 500) quelle que soit la saisie', erreurs.length === 0, erreurs.length + ' : ' + erreurs.slice(0, 15).join(' | '));
     ok('aucune lecture ne dépasse 30 s', lents.length === 0, lents.slice(0, 10).join(' | '));

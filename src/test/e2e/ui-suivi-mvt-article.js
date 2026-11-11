@@ -37,7 +37,7 @@ function ok(name, cond, detail) {
     const browser = await ENV_E2E.lancer(chromium);
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
-    await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await page.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await page.fill('#str_login', ENV_E2E.LOGIN);
     await page.fill('#str_password', 'e2etest');
     await page.click('#login');

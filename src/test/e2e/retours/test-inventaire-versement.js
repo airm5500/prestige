@@ -34,7 +34,7 @@ const CLE = 'e2e-versement-';
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
   const verser = (corps, inv) => p.evaluate(async ([c, inv]) => { const r = await fetch('../api/v1/inventaire/' + inv + '/versement', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: typeof c === 'string' ? c : JSON.stringify(c) }); return { s: r.status, j: await r.json().catch(() => null) }; }, [corps, inv || INV]);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     const sans = await verser({ cle: CLE + '0', mode: 'ajouter', lignes: [] });
     ok('Sans session : 401', sans.s === 401, sans.s);
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

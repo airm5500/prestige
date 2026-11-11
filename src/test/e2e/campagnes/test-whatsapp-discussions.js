@@ -25,7 +25,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const WEBHOOK = 'http://localhost:8080/prestige/api/v1/whatsapp/webhook-web';
+const WEBHOOK = (process.env.BASE || 'http://localhost:8080/prestige') + '/api/v1/whatsapp/webhook-web';
 const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const JETON = 'jeton-essai-disc-' + Date.now();
 const IDS = "('E2E-DISC-A','E2E-DISC-B')";
@@ -127,7 +127,7 @@ const envoyer = (entrants) => fetch(WEBHOOK, { method: 'POST', headers: { Author
     await p.waitForTimeout(1500);
     const nonLues = await p.evaluate(() => Array.from(document.querySelectorAll('.wad .wad-item')).map((e) => e.getAttribute('data-numero')));
     ok('« Non lues » : A (lu) n\'y est plus', !nonLues.includes('0708771122'), nonLues.join(','));
-    const sansSession = await fetch('http://localhost:8080/prestige/api/v1/whatsapp-discussions').then((r) => r.status);
+    const sansSession = await fetch((process.env.BASE || 'http://localhost:8080/prestige') + '/api/v1/whatsapp-discussions').then((r) => r.status);
     ok('Sans session : refusé (401)', sansSession === 401, sansSession);
     const log = fs.readFileSync(LOG, 'utf8').slice(tailleLog);
     ok('Journal du serveur : ni le texte des messages, ni les numéros, ni le jeton', !/Doliprane|Merci beaucoup|nous l'avons|08771122|08773344/.test(log) && !log.includes(JETON));

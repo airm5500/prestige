@@ -30,7 +30,7 @@ function remettre() {
     q(`DELETE FROM t_client WHERE lg_CLIENT_ID = '${CLIENT}';
       INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_TELEPHONE, str_ADRESSE, str_STATUT, dt_CREATED, dt_UPDATED)
       VALUES ('${CLIENT}', 'INOUSSA', 'E2E', '0700000099', 'RUE DES TESTS', 'enable', NOW(), NOW());`);
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

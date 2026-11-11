@@ -29,7 +29,7 @@ const reference = (id) => q("SELECT IFNULL(DATE_FORMAT(MAX(p.dt_UPDATED), '%d/%m
   const p = await b.newPage();
   const lire = (id) => p.evaluate(async (id) => { const t0 = performance.now(); const r = await fetch('../api/v1/produit-search/produits/' + id); const j = await r.json(); return { ms: performance.now() - t0, d: (j.data || {}).dt_LAST_VENTE }; }, id);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     for (const [nom, id] of [['gros vendeur', GROS], ['peu vendu', PEU], ['jamais vendu', JAMAIS]]) {

@@ -27,7 +27,7 @@ const MARQUE = 'E2E-2209';
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const envoisPosos = []; p.on('request', (r) => { if (/posos\/analyse/.test(r.url())) { envoisPosos.push(r.postData() || ''); } });
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

@@ -50,7 +50,7 @@ const stylesPrestige = (p) => p.evaluate(() => {
   const erreurs = [], dialogues = [];
   try {
     const anonyme = await (await b.newContext()).newPage();
-    await anonyme.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await anonyme.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const sans = await anonyme.evaluate(async () => (await fetch('../api/v1/metro')).status);
     ok('Route v1/metro sans session : 401', sans === 401, sans);
 

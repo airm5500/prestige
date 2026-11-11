@@ -116,7 +116,7 @@ const API = '../api/v1/';
     const r5 = await appel(vendeur, API + 'roles/est-admin');
     ok('NR-13 vendeur : clé ordinaire lisible, « est-admin » répond (non)', r.status === 200 && JSON.stringify(r.j).includes(STOCK) && r5.status === 200 && r5.j.authorize === false, JSON.stringify([r.j, r5.j]));
     const anonyme = await (await b.newContext()).newPage();
-    await anonyme.goto(ENV.BASE_URL || 'http://localhost:8080/prestige/security/index.html');
+    await anonyme.goto(ENV.BASE_URL || (process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html');
     r = await appel(anonyme, '/prestige/api/v1/app-params/value/' + P_SECRET);
     const r6 = await appel(anonyme, '/prestige/api/v1/roles/update', { lg_ROLE_ID: RV, str_NAME: 'x' });
     ok('NR-14 sans session : 401', r.status === 401 && r6.status === 401, JSON.stringify([r.status, r6.status]));

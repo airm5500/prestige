@@ -30,7 +30,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
   const lire = (url, m, corps) => p.evaluate(async ([url, m, corps]) => { const t0 = performance.now(); const r = await fetch(url, { method: m || 'GET', headers: { 'Content-Type': 'application/json' }, body: corps ? JSON.stringify(corps) : undefined }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) { /* texte */ } return { s: r.status, j, ms: performance.now() - t0 }; }, [url, m, corps]);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     const sans = await lire('../api/v1/ws/inventaires/' + INV + '/rayons/etat');
     ok('Sans session : 401', sans.s === 401, sans.s);
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

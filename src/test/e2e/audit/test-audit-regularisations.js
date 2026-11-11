@@ -90,7 +90,7 @@ function poser() {
     const ctx = await b.newContext({ viewport: { width: 1500, height: 950 } });
     const p = await ctx.newPage();
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
@@ -170,7 +170,7 @@ function poser() {
     /* sans le droit de valider (droits lus a la connexion) */
     droit.retirer();
     const p2 = await (await b.newContext()).newPage();
-    await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p2.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p2.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
     await p2.waitForURL('**/general/**', { timeout: 60000 });
     const sans = await p2.evaluate(async () => ({

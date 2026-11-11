@@ -33,7 +33,7 @@ const ligne = () => q(`SELECT CONCAT_WS('|', int_NUMBER, IFNULL(str_UPDATED_ID, 
   const post = (corps) => p.evaluate(async (c) => { const r = await fetch('../api/v1/inventaire/ligne/quantite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
     return Object.assign({ http: r.status }, await r.json()); }, corps);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const inconnue = await put({ id: 999999999, quantite: 1 });

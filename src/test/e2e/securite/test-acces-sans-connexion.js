@@ -17,7 +17,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const PARAM_AVANT = q("SELECT COALESCE((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_ENTETES_X_USER_INFO'), '__absent__')");
-const API = 'http://localhost:8080/prestige/api/';
+const API = (process.env.BASE || 'http://localhost:8080/prestige') + '/api/';
 const FAUX = { 'X-User-Info': JSON.stringify({ id: ADMIN }), 'X-Token-Exp': '2099-01-01T00:00:00Z', 'X-client': 'x' };
 const PERIODE = 'dtStart=2026-09-01&dtEnd=2026-09-30';
 const FERMEES = ['v1/ca-comptant?' + PERIODE, 'v1/ca-all?' + PERIODE, 'v1/ca-credit?' + PERIODE, 'v1/reglements?' + PERIODE,
@@ -27,7 +27,7 @@ const FERMEES = ['v1/ca-comptant?' + PERIODE, 'v1/ca-all?' + PERIODE, 'v1/ca-cre
 const JSP = ['webservices/MOBILES/configurationmanager/inventaire/ws_emplacement_inventaire.jsp', 'webservices/sm_user/famille/ws_data_other.jsp',
   'webservices/sm_user/diffclient/ws_customer_last_transction_compte_client_data.jsp', 'webservices/tierspayantmanagement/tierspayant/ws_client_data.jsp',
   'webservices/Report/RuptureStock/ws_data.jsp', 'webservices/usermanagement/ws_login.jsp', 'ListBonsServlet', 'myBean', 'UserCtr'];
-const APP = 'http://localhost:8080/prestige/';
+const APP = (process.env.BASE || 'http://localhost:8080/prestige') + '/';
 const brut = async (url, h) => { const r = await fetch(API + url, { headers: h || {} }); const t = await r.text(); return { s: r.status, t }; };
 const ouvert = (r) => r.s === 200 && !/connecter/i.test(r.t) && !/^</.test(r.t);
 
@@ -62,13 +62,13 @@ const ouvert = (r) => r.s === 200 && !/connecter/i.test(r.t) && !/^</.test(r.t);
     r = await brut('v1/avis-public/contexte?t=faux');
     ok('Public : avis (jeton faux → 403 du service, pas 401 du filtre)', r.s === 403, r.s);
     const p0 = await (await b.newContext()).newPage();
-    await p0.goto('http://localhost:8080/prestige/security/index.jsp', { waitUntil: 'networkidle' });
+    await p0.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp', { waitUntil: 'networkidle' });
     const nom = await p0.evaluate(() => (document.querySelector('.pl-officine, #officineName, [data-officine]') || {}).textContent || document.body.innerText);
     ok('Page de connexion : nom de la pharmacie affiché', nom.indexOf(q("SELECT str_NOM_COMPLET FROM t_officine LIMIT 1").split(' ')[0]) >= 0, nom.slice(0, 120));
 
     /* connecte : les ecrans recoivent toujours leurs donnees */
     const p = await (await b.newContext()).newPage();
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 }); await p.waitForLoadState('networkidle'); await p.waitForTimeout(2000);
     const connecte = await p.evaluate(async ([urls]) => {

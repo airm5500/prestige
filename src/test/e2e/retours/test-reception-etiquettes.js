@@ -69,7 +69,7 @@ function nettoyer() {
     ok('Préconditions : grossiste, deux produits au CIP unique', GROSSISTE && P.length === 2, JSON.stringify(P));
     eanOrigine = q(`SELECT IFNULL(int_EAN13, '') FROM t_famille WHERE lg_FAMILLE_ID = '${P[1][0]}'`);
     q(`UPDATE t_famille SET int_EAN13 = '${EAN_P2}' WHERE lg_FAMILLE_ID = '${P[1][0]}'`);
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

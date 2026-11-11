@@ -33,7 +33,7 @@ const poser = (v) => {
   const p = await b.newPage({ viewport: { width: 1366, height: 768 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'networkidle' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'networkidle' });
     await p.waitForSelector('#pl-pointage', { state: 'visible', timeout: 10000 }).catch(() => null);
     const pos = await p.evaluate(() => {
       const bt = document.getElementById('pl-pointage'); if (!bt) { return null; }
@@ -58,7 +58,7 @@ const poser = (v) => {
 
     /* meme code que l'onglet RH (connecte) */
     const p2 = await (await b.newContext()).newPage();
-    await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p2.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p2.fill('#str_login', ENV_E2E.LOGIN); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
     await p2.waitForURL('**/general/**', { timeout: 60000 });
     ok('La connexion par mot de passe fonctionne toujours', /general/.test(p2.url()));

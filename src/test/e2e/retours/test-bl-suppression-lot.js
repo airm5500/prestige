@@ -42,7 +42,7 @@ const ligne = () => q(`SELECT CONCAT(int_QTE_RECUE, '/', int_QTE_UG) FROM t_bon_
   const api = (corps) => p.evaluate(async (c) => { const r = await fetch('../api/v1/commande/remove-lots', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
     return r.status; }, corps);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     const r1 = await api({ idBonDetail: DET, idProduit: PROD, refBon: REF, numLot: 'E2ELOTX', removeLot: true });

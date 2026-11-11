@@ -46,7 +46,7 @@ function nettoyer() {
   const creer = (value, h) => api('POST', '../api/v1/ajustement/creeation', { refParent: null, value, description: 'E2E integrite', refTwo: produit, valueTwo: stock(), valueFour: '1', zone: 'RAYON' }, h);
   const lignes = (id) => q("SELECT COUNT(*) FROM t_ajustement_detail WHERE lg_AJUSTEMENT_ID = '" + id + "'");
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
 

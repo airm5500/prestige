@@ -62,7 +62,7 @@ function nettoyer() {
   const b = await ENV_E2E.lancer(chromium);
   const err = [];
   const page = async () => { const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage(); p.on('pageerror', (e) => err.push(String(e.message)));
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'networkidle' }); return p; };
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'networkidle' }); return p; };
   const connecte = (p) => p.evaluate(async () => { try { return !!(await (await fetch('../api/v1/app/info', { cache: 'no-store' })).json()).connecte; } catch (e) { return false; } });
   const zone = (p) => p.evaluate(() => { const z = document.getElementById('pl-badge-zone'), pin = document.getElementById('pl-bz-pin'), c = document.getElementById('pl-badge-pin');
     return { etat: z.getAttribute('data-etat'), titre: document.getElementById('pl-bz-titre').textContent, texte: document.getElementById('pl-bz-texte').innerText.replace(/\s+/g, ' '),

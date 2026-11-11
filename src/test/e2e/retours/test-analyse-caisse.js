@@ -53,7 +53,7 @@ function nettoyer() {
     ok('Précondition : deux caissiers du même dépôt, aucune caisse du banc en mars-avril 2025', U1 && U2
       && q("SELECT COUNT(*) FROM t_resume_caisse WHERE dt_CREATED BETWEEN '2025-03-01' AND '2025-05-01' AND ld_CAISSE_ID NOT LIKE 'E2E-GC-%'") === '0', NOM1 + ' / ' + NOM2);
     nettoyer(); semer();
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

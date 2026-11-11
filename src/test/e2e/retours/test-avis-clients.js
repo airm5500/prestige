@@ -65,7 +65,7 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
        (comptes gardes en base, sans que leurs jetons passent par le test, remis a la fin) */
     q('DROP TABLE IF EXISTS zz_e2e_avis_compte; CREATE TABLE zz_e2e_avis_compte AS SELECT mode, mode_test FROM whatsapp_compte;'
       + 'UPDATE whatsapp_compte SET mode_test = 1;');
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
@@ -146,7 +146,7 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     const pageRep = await fetch(PUBLIC + '/prestige/avis/?t=' + jeton);
     ok('Port public : page d\'avis servie avec CSP stricte, anti-iframe, nosniff', pageRep.status === 200 && /default-src 'none'/.test(pageRep.headers.get('content-security-policy'))
       && pageRep.headers.get('x-frame-options') === 'DENY' && pageRep.headers.get('x-content-type-options') === 'nosniff');
-    ok('Port habituel (8080) : Prestige inchangé', (await fetch('http://localhost:8080/prestige/security/index.jsp')).status === 200);
+    ok('Port habituel du serveur testé : Prestige inchangé', (await fetch((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp')).status === 200);
 
     /* ---------------------------------------------------------------- page publique sur telephone */
     const t = await tel.newPage(); t.on('pageerror', (e) => errTel.push(String(e.message)));
@@ -337,7 +337,7 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     const session = async () => {
       const c = await b.newContext({ viewport: { width: 1500, height: 950 } });
       const x = await c.newPage(); x.on('pageerror', (e) => err.push('session : ' + e.message));
-      await x.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+      await x.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
       await x.fill('#str_login', ENV_E2E.LOGIN); await x.fill('#str_password', 'e2etest'); await x.click('#login');
       await x.waitForURL('**/general/**', { timeout: 60000 });
       await x.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

@@ -57,7 +57,7 @@ function poser() {
     return r.json(); }, [m, u, c]);
   const lignes = (id) => q(`SELECT IFNULL(GROUP_CONCAT(CONCAT(lg_MOTIF_RETOUR, ':', int_NUMBER_RETURN) ORDER BY lg_MOTIF_RETOUR SEPARATOR ' '), '') FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID = '${id}'`);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const r = await api('POST', '../api/v1/retourfournisseur/new', { lgBONLIVRAISONID: REF, strCOMMENTAIRE: NOTE, items: [{ produitId: PRODUIT, lgMOTIFRETOUR: MA, intNUMBERRETURN: 2 }] });

@@ -55,7 +55,7 @@ const faux = http.createServer((req, rep) => {
   const cap = () => p.evaluate(async () => (await fetch('../api/v1/app-vente/capacites')).json());
   try {
     if (avant !== null) { fs.unlinkSync(CONF); }
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const sans = await lire('image/jpeg', 50);
     ok('Sans session : 401', sans.s === 401, sans.s);
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

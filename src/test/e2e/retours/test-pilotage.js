@@ -68,7 +68,7 @@ function caDeLaBase(debut, finExclue) {
     ok('Libellé et description restent courts (règle de l officine : 25 et 30)',
       Number(libelles[0]) <= 25 && Number(libelles[1]) <= 30, libelles.join('/'));
 
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
@@ -313,7 +313,7 @@ function caDeLaBase(debut, finExclue) {
         + " AND lg_PRIVILEGE_ID='" + priv + "';");
       const ctx2 = await b.newContext({ viewport: { width: 1400, height: 900 } });
       const p2 = await ctx2.newPage();
-      await p2.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+      await p2.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
       await p2.fill('#str_login', ENV_E2E.LOGIN); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
       await p2.waitForURL('**/general/**', { timeout: 40000 });
       await p2.waitForFunction(() => window.Ext && window.testextjs, null, { timeout: 90000 });

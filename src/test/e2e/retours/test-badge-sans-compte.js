@@ -50,7 +50,7 @@ const qwertySurAzerty = (t) => t.replace(/[aqzwAQZW\-|]/g, (c) => ({ a: 'q', q: 
     const message = await p.evaluate(() => Ext.ComponentQuery.query('#badgeMessage')[0].getEl().dom.textContent);
     ok('Impression en QR depuis l\'écran : avertissement (le QR ne permettra pas de se connecter)', /sans compte utilisateur/i.test(message) && /connecter/i.test(message), message);
 
-    const page = async () => { const x = await (await b.newContext()).newPage(); await x.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'networkidle' }); return x; };
+    const page = async () => { const x = await (await b.newContext()).newPage(); await x.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'networkidle' }); return x; };
     const scanner = async (x, lu) => { const appels = []; x.on('request', (r) => { if (/auth-badge/.test(r.url())) { appels.push(1); } });
       await x.click('#pl-badge'); await x.keyboard.type(lu, { delay: 2 }); await x.keyboard.press('Enter'); await x.waitForTimeout(1500);
       return { titre: (await x.textContent('#pl-bz-titre')).trim(), texte: (await x.textContent('#pl-bz-texte')).replace(/\s+/g, ' ').trim(), page: await x.content(), appels: appels.length }; };

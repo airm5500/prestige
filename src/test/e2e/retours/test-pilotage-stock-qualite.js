@@ -64,7 +64,7 @@ function texteDuPdf(octets) {
     const vides = historiques.every((h) => h.endsWith('=0'));
     console.log('INFO  Tables d historique de mouvements ' + (vides ? 'vides (banc)' : 'remplies : constat du banc sans objet') + '  [' + historiques.join(' ') + ']');
 
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });

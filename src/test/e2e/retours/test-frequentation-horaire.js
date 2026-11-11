@@ -24,7 +24,7 @@ const [CA, NB, MONTANT_10H] = q(`SELECT SUM(int_PRICE), COUNT(*), SUM(IF(HOUR(dt
   const somme = (l, c) => Math.round(l.reduce((s, x) => s + x[c], 0) * 10) / 10;
   try {
     ok('Précondition : des ventes en septembre 2026 sur le banc', NB > 0, NB);
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

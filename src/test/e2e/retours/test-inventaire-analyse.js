@@ -68,7 +68,7 @@ function section(texte, titre) {
     const attendu = q("SELECT COUNT(*), SUM(int_NUMBER<>int_NUMBER_INIT), COUNT(DISTINCT z.str_LIBELLEE) FROM t_inventaire_famille i JOIN t_famille f ON f.lg_FAMILLE_ID=i.lg_FAMILLE_ID JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID=f.lg_ZONE_GEO_ID WHERE i.lg_INVENTAIRE_ID='" + ID + "'").split('\t').map(Number);
     ok('Jeu d essai : produits sur plusieurs emplacements, ecarts en plus et en moins', attendu[0] >= 60 && attendu[1] > 10 && attendu[2] >= 7, attendu.join('/'));
 
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });

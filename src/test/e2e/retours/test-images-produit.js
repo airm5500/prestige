@@ -47,7 +47,7 @@ function nettoyer() {
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
@@ -142,7 +142,7 @@ function nettoyer() {
     const f1 = await p.evaluate(async (a) => { const r = await fetch('../api/v1/produit-images/' + a.P + '/' + a.id + '/fichier'); const v = await fetch('../api/v1/produit-images/' + a.P + '/' + a.id + '/fichier?taille=vignette');
       return [r.status, r.headers.get('content-type'), r.headers.get('content-disposition'), r.headers.get('x-content-type-options'), v.headers.get('content-type')].join(' | '); }, { P, id });
     ok('Fichier en ligne, type réel, nosniff ; vignette en JPEG', /^200 \| image\/png \| inline \| nosniff \| image\/jpeg$/.test(f1), f1);
-    const anonyme = (await (await b.newContext()).request.get('http://localhost:8080/prestige/api/v1/produit-images/' + P + '/' + id + '/fichier')).status();
+    const anonyme = (await (await b.newContext()).request.get((process.env.BASE || 'http://localhost:8080/prestige') + '/api/v1/produit-images/' + P + '/' + id + '/fichier')).status();
     ok('Sans session : refusé', anonyme !== 200, anonyme);
 
     /* Retirer */

@@ -27,7 +27,7 @@ const crypto = require('crypto');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const URL = (process.env.E2E_URL || 'http://localhost:8080/prestige').replace(/\/$/, '');
+const URL = (process.env.E2E_URL || (process.env.BASE || 'http://localhost:8080/prestige')).replace(/\/$/, '');
 const DOMAINE = ENV_E2E.PAYARA_DOMAINE.replace(/\\/g, '/').replace(/\/$/, '');
 const NOM = path.basename(DOMAINE), DOSSIERS = path.dirname(DOMAINE).replace(/\\/g, '/');
 const XML = DOMAINE + '/config/domain.xml';

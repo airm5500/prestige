@@ -29,7 +29,7 @@ const nettoyer = () => q("DELETE FROM t_appareil_nom WHERE empreinte = '" + EMP 
       const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });
       const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 100) }; } j.http = r.status; return j; }, [m, u, c]);
     const anonyme = await (await b.newContext()).newPage();
-    await anonyme.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await anonyme.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const inv = await api(anonyme, 'GET', '../api/v1/appareil/nom?empreinte=abc123');
     ok('Lecture sans session, empreinte invalide : 400', inv.http === 400, JSON.stringify(inv));
     const inconnue = await api(anonyme, 'GET', '../api/v1/appareil/nom?empreinte=' + EMP);
@@ -38,7 +38,7 @@ const nettoyer = () => q("DELETE FROM t_appareil_nom WHERE empreinte = '" + EMP 
     ok('Enregistrement sans session : 401, rien d\'enregistré', sansSession.http === 401 && q("SELECT COUNT(*) FROM t_appareil_nom WHERE empreinte = '" + EMP + "'") === '0', JSON.stringify(sansSession));
 
     const p = await (await b.newContext()).newPage();
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.evaluate(async (login) => fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login, password: 'e2etest' }) }), ENV_E2E.LOGIN);
     const vide = await api(p, 'PUT', '../api/v1/appareil/nom', { empreinte: EMP, nom: ' !!! ' });
     ok('Connecté, nom vide (après nettoyage) : 400', vide.http === 400, JSON.stringify(vide));
@@ -47,7 +47,7 @@ const nettoyer = () => q("DELETE FROM t_appareil_nom WHERE empreinte = '" + EMP 
     ok('Connecté : nom nettoyé comme X-Poste, enregistré et rendu', enr.http === 200 && enr.nom === 'E2E Caisse mobile 56 b' && ligne === 'E2E Caisse mobile 56 b|1', JSON.stringify(enr) + ' / ' + ligne);
 
     const reinstalle = await (await b.newContext()).newPage();
-    await reinstalle.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await reinstalle.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const relu = await api(reinstalle, 'GET', '../api/v1/appareil/nom?empreinte=' + EMP);
     ok('« Réinstallation » (sans session) : le nom est retrouvé', relu.http === 200 && relu.nom === 'E2E Caisse mobile 56 b', JSON.stringify(relu));
     const rempl = await api(p, 'PUT', '../api/v1/appareil/nom', { empreinte: EMP, nom: 'E2E Caisse comptoir 2' });

@@ -38,11 +38,11 @@ const pause = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
     /* sans session (page hors application, meme origine) */
     const anonyme = await (await b.newContext()).newPage();
-    await anonyme.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await anonyme.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     const sans = await appel('/prestige/api/v1/app-vente/catalogue/changements?depuis=' + enc('2026-01-01 00:00:00'), anonyme);
     ok('Sans session : refusé (401)', sans.s === 401, sans.s + ' ' + sans.t.slice(0, 80));
 
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 }); await p.waitForLoadState('networkidle'); await p.waitForTimeout(2000);
 

@@ -58,7 +58,7 @@ function retirerDci() {
   const poser = async (itemId, v) => { await p.evaluate((a) => { const e = Ext.ComponentQuery.query('suiviequivalence')[0]; e.down('#' + a.i).setValue(a.v); }, { i: itemId, v }); await p.waitForTimeout(1200); return charger(); };
   const parGroupe = (lignes) => { const g = {}; lignes.forEach((l) => { (g[l.groupe] = g[l.groupe] || []).push(l); }); return g; };
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });

@@ -54,7 +54,7 @@ const ecriture = (req) => {
   p.on('pageerror', (e) => { erreursJs.push(ecranCourant + ' : ' + String(e.message).slice(0, 160)); if (process.env.PILE) { console.log('PILE ' + ecranCourant + ' : ' + String(e.stack).split(/\r?\n/).slice(0, 6).join(' <- ')); } });
   p.on('response', (r) => { if (r.status() >= 500) { erreurs500.push(ecranCourant + ' : ' + r.request().method() + ' ' + r.url().replace(/^.*\/prestige\//, '').slice(0, 140) + ' -> ' + r.status()); } });
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length

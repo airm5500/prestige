@@ -82,7 +82,7 @@ async function okButtonSelector(page) {
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
     // connexion au clavier
-    await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await page.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await page.click('#str_login'); await page.keyboard.type(ENV_E2E.LOGIN, { delay: 30 });
     await page.click('#str_password'); await page.keyboard.type('e2etest', { delay: 30 });
     await page.click('#login');

@@ -19,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const URL = 'http://localhost:8080/prestige';
+const URL = (process.env.BASE || 'http://localhost:8080/prestige');
 const JETON = 'jeton-essai-e2e-' + Date.now();
 const PORT = 3011;
 const DOSSIER = fs.mkdtempSync(ENV_E2E.TMP + '/wa-e2e-');

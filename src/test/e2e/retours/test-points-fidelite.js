@@ -83,7 +83,7 @@ const gains = () => q(`SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', 
       + "DELETE FROM t_fidelite_exclusion; DELETE FROM t_fidelite_exclusion_zone;"
       + "DELETE FROM t_fidelite_palier; INSERT INTO t_fidelite_palier VALUES ('FID-PALIER-1', 'Standard', 0, 1.00, NOW()), ('FID-PALIER-2', 'Argent', 300, 1.25, NOW()), ('FID-PALIER-3', 'Or', 1000, 1.50, NOW());"
       + `INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_TELEPHONE, str_STATUT, dt_CREATED, dt_UPDATED) VALUES ('${C}', '${NOM}', 'Analyse', '0700000098', 'enable', NOW(), NOW());`);
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

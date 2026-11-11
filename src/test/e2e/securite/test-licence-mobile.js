@@ -12,7 +12,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const API = 'http://localhost:8080/prestige/api/';
+const API = (process.env.BASE || 'http://localhost:8080/prestige') + '/api/';
 const LICENCE = () => q('SELECT CONCAT(id, \'|\', date_start, \'|\', date_end, \'|\', type_licence) FROM licence WHERE type_licence = 1 LIMIT 1');
 const brut = async (url, h) => { const r = await fetch(API + url, { headers: h || {} }); const t = await r.text(); return { s: r.status, t }; };
 

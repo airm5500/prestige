@@ -34,7 +34,7 @@ const PREF = q("SELECT COALESCE((SELECT txt_VALEUR FROM t_preference_utilisateur
   const lignesTableau = () => p.evaluate(() => { const g = Ext.ComponentQuery.query('cazonegeomanager grid')[0]; return g.getStore().getRange().map((r) => r.get('zoneId')).filter((z) => z !== undefined); });
   const attendreRecherche = () => p.waitForFunction(() => { const e = Ext.ComponentQuery.query('cazonegeomanager')[0]; return e && !(e.getEl().isMasked && e.getEl().isMasked()); }, null, { timeout: 30000 }).then(() => p.waitForTimeout(600));
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

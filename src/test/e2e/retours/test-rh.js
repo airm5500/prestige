@@ -22,7 +22,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const URL = 'http://localhost:8080/prestige';
+const URL = (process.env.BASE || 'http://localhost:8080/prestige');
 const SEM = '2026-11-02', PREC = '2026-10-26';
 
 /* deux utilisateurs d'essai, sans employe, pour la creation a partir d'un utilisateur (retours du 10/10) */

@@ -35,7 +35,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     const produits = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.str_STATUT='enable' AND s.lg_EMPLACEMENT_ID='1'"
       + " WHERE f.str_STATUT='enable' AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID=f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 5").split(/\r?\n/).filter(Boolean);
     const admin = await (await b.newContext()).newPage();
-    await admin.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await admin.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await admin.fill('#str_login', ENV_E2E.LOGIN); await admin.fill('#str_password', 'e2etest'); await admin.click('#login');
     await admin.waitForURL('**/general/**', { timeout: 60000 });
     const avant = q("SELECT COALESCE(GROUP_CONCAT(lg_FAMILLE_DCI_ID), '') FROM t_famille_dci");
@@ -55,7 +55,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
       + " WHERE d.str_STATUT='enable' GROUP BY d.lg_DCI_ID, d.str_NAME ORDER BY d.str_NAME").split(/\r?\n/).filter(Boolean).map((l) => l.split('|'));
     ok('Précondition : le banc porte des DCI rattachées à des produits', attendues.length >= 2, attendues.length + ' DCI');
 
-    await p.goto('http://localhost:8080/prestige/security/espace-produit.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/espace-produit.html', { waitUntil: 'domcontentloaded' });
     await p.waitForSelector('#ep-dci');
     const sousLaRecherche = await p.evaluate(() => document.getElementById('ep-dci').getBoundingClientRect().top > document.getElementById('ep-q').getBoundingClientRect().bottom);
     ok('Le champ de DCI est un champ de SAISIE, placé sous la zone de recherche', sousLaRecherche && await p.evaluate(() => document.getElementById('ep-dci').tagName === 'INPUT'));

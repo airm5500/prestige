@@ -25,7 +25,7 @@ function nettoyer() {
   const b = await ENV_E2E.lancer(chromium);
   try {
     const p = await (await b.newContext()).newPage();
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const auth = await p.evaluate(async ([poste, login]) => (await fetch('../api/v1/user/auth', { method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Poste': encodeURIComponent(poste) }, body: JSON.stringify({ login, password: 'e2etest' }) })).json(), [POSTE, ENV_E2E.LOGIN]);
     ok('Précondition : connexion acceptée', auth.success === true, JSON.stringify(auth).slice(0, 120));
@@ -41,7 +41,7 @@ function nettoyer() {
     ok('53 · Déconnexion : la ligne porte le nom de l\'appareil', ligneDeco === POSTE, deco + ' ' + ligneDeco);
 
     const p2 = await (await b.newContext()).newPage();
-    await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p2.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const avant = q('SELECT NOW()');
     await p2.evaluate(async (login) => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login, password: 'e2etest' }) })).json(), ENV_E2E.LOGIN);
     await p2.waitForTimeout(1500);

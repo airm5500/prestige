@@ -42,7 +42,7 @@ function retablir() {
     const ecarts = Number(q("SELECT COUNT(*) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + IDS[1] + "' AND int_NUMBER<>int_NUMBER_INIT"));
     ok('Jeu d essai : deux inventaires identiques de 40 lignes avec des ecarts', ecarts > 0 && q("SELECT COUNT(*) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + IDS[0] + "' AND int_NUMBER<>int_NUMBER_INIT") === String(ecarts), ecarts);
 
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     const cloturer = async (id) => { const t = Date.now(); const r = await p.evaluate(async (u) => { const x = await fetch(u, { method: 'PUT', headers: { 'Content-Type': 'application/json' } }); return { statut: x.status, corps: await x.text() }; }, '../api/v1/commande/clotureinventaire/' + id); r.ms = Date.now() - t; return r; };

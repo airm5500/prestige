@@ -45,7 +45,7 @@ const n = (v) => Number(v || 0);
   suivre(p);
   const api = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
   const ouvrir = async (forcer) => {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('dashboard').length, null, { timeout: 90000 });
@@ -382,7 +382,7 @@ const n = (v) => Number(v || 0);
        s'affiche plus ; le nouveau tableau de bord reste, sans iframe */
     exec("UPDATE t_parameters SET str_VALUE = 'ANCIEN' WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
     connecte = false;
-    await p.goto('http://localhost:8080/prestige/general/', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/general/', { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => window.Ext && Ext.ComponentQuery && Ext.ComponentQuery.query('dashboard').length && Ext.ComponentQuery.query('tableaubord').length, null, { timeout: 90000 });
     connecte = true;
     await p.waitForTimeout(7000);

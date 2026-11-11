@@ -53,7 +53,7 @@ function nettoyer() {
     + crypto.createHash('sha256').update(SECRET).digest('hex') + "', NOW())");
   const tailleLog = fs.existsSync(LOG) ? fs.statSync(LOG).size : 0;
   const b = await ENV_E2E.lancer(chromium);
-  const page = async () => { const p = await (await b.newContext()).newPage(); await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'networkidle' }); return p; };
+  const page = async () => { const p = await (await b.newContext()).newPage(); await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'networkidle' }); return p; };
   const connecte = (p) => p.evaluate(async () => !!(await (await fetch('../api/v1/app/info', { cache: 'no-store' })).json()).connecte);
   const scanner = async (p, lu) => {
     await p.click('#pl-badge');

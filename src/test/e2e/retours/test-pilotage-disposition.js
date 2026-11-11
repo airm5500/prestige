@@ -36,7 +36,7 @@ const nettoyer = () => { if (AVANT === '0') { q("DELETE FROM t_preference_utilis
   const cartes = () => p.evaluate(() => [...document.querySelectorAll('.sv-carte')].map((c) => c.getAttribute('data-carte')).join(','));
   const dispo = async () => (await api('../api/v1/preferences/pilotage.disposition')).valeur;
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForLoadState('networkidle'); await p.waitForTimeout(3000);

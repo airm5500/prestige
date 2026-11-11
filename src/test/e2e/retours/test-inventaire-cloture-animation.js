@@ -39,7 +39,7 @@ function retablir() {
     const attendu = q("SELECT COUNT(*), SUM(int_NUMBER<>int_NUMBER_INIT), SUM(IF(int_NUMBER>int_NUMBER_INIT, int_NUMBER-int_NUMBER_INIT, 0)), SUM(IF(int_NUMBER<int_NUMBER_INIT, int_NUMBER_INIT-int_NUMBER, 0)) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + ID + "'").split('\t').map(Number);
     ok('Jeu d essai : 200 lignes avec des ecarts en plus et en moins', attendu[0] === 200 && attendu[1] > 0 && attendu[2] > 0 && attendu[3] > 0, attendu.join('/'));
 
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });

@@ -17,7 +17,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const URL = 'http://localhost:8080/prestige';
+const URL = (process.env.BASE || 'http://localhost:8080/prestige');
 const ID = 'E2E-CNX-CAISSE', LOGIN = 'e2e.cnx.caisse', MDP = 'E2e-Caisse-14';
 const ROLE_CAISSE = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Caisse/Commande/Stock' LIMIT 1");
 const MAX = 70;

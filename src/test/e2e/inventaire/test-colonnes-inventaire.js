@@ -29,7 +29,7 @@ function rendreMotDePasse() {
 
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 200) + ']' : '')); }
 
-const URL = 'http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr';
+const URL = (process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr';
 
 async function session(b, login) {
   const ctx = await b.newContext({ viewport: { width: 1700, height: 950 } });

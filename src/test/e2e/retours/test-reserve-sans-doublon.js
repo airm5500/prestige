@@ -50,7 +50,7 @@ const retirerReserve = () => exec("DELETE FROM t_type_stock_famille WHERE lg_TYP
   const post = (u, c, ref) => p.evaluate(async ([u, c, ref]) => { const h = { 'Content-Type': 'application/json' }; if (ref) { h['X-Client-Ref'] = ref; }
     const r = await fetch(u, { method: 'POST', headers: h, body: JSON.stringify(c) }); return r.json(); }, [u, c, ref]);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const MOTIF = Number(q('SELECT id FROM motif_suggestion_reserve ORDER BY id LIMIT 1'));

@@ -59,7 +59,7 @@ const HAUT_CARTE = (297 - 5 * 54 - 4 * 4) / 2, BANDEAU = 9, PX_MM = 300 / 25.4;
   const pdf = (u) => p.evaluate(async (u) => { const r = await fetch(u); const a = new Uint8Array(await r.arrayBuffer()); let s = ''; a.forEach((x) => { s += String.fromCharCode(x); }); return { type: r.headers.get('content-type'), b64: btoa(s) }; }, u);
   const empreinte = () => q("SELECT IFNULL(secret_hash, 'NULL') FROM t_rh_badge WHERE employe_id = '" + E + "' AND statut = 'ACTIF'");
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
@@ -113,7 +113,7 @@ const HAUT_CARTE = (297 - 5 * 54 - 4 * 4) / 2, BANDEAU = 9, PX_MM = 300 / 25.4;
     const c4 = lireQr(Buffer.from(d4.b64, 'base64'));
     ok('Impression après régénération : nouveau QR, conforme à la nouvelle empreinte', c4 && c4 !== c1 && crypto.createHash('sha256').update(c4.split('|')[4]).digest('hex') === empreinte());
     const p2 = await b.newPage();
-    await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p2.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const essai = (c) => p2.evaluate(async (c) => (await (await fetch('../api/v1/user/auth-badge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contenu: c }) })).json()).success === true, c);
     const ancien = await essai(c1);
     const nouveau = await essai(c4);

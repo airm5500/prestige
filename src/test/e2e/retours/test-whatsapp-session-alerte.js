@@ -30,7 +30,7 @@ const PORT = 3012;
 const DOSSIER = fs.mkdtempSync(ENV_E2E.TMP + '/wa-alerte-');
 const RAISON = 'Messages entrants illisibles (chiffrement désynchronisé) : reconnectez le téléphone.';
 const lit = (s) => (s === 'NULL' ? 'NULL' : "'" + s.replace(/'/g, "''") + "'");
-const sante = (etat) => fetch('http://localhost:8080/prestige/api/v1/whatsapp/webhook-web', { method: 'POST',
+const sante = (etat) => fetch((process.env.BASE || 'http://localhost:8080/prestige') + '/api/v1/whatsapp/webhook-web', { method: 'POST',
   headers: { Authorization: 'Bearer ' + JETON, 'Content-Type': 'application/json' },
   body: JSON.stringify({ sante: { sante: etat, raisonSante: etat === 'DEGRADE' ? RAISON : null, illisibles: etat === 'DEGRADE' ? 5 : 0 } }) }).then((r) => r.status);
 

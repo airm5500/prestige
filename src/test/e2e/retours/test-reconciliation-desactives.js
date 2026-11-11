@@ -28,7 +28,7 @@ const remettre = () => q(`UPDATE t_famille SET str_STATUT = 'enable' WHERE lg_FA
   try {
     ok('Précondition : produit actif du dépôt', !!ID, NOM);
     q(`UPDATE t_famille SET str_STATUT = 'disable' WHERE lg_FAMILLE_ID = '${ID}'`);
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

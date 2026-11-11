@@ -25,7 +25,7 @@ const P = 'dtStart=' + D + '&dtEnd=' + F + '&search=&categorieId=&fabricantId=&r
     catch (e) { return { s: 0, ms: Math.round(performance.now() - t), e: String(e) }; } finally { clearTimeout(m); }
   }, [u, json, MAX_MS]);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const articles = Number(q("SELECT COUNT(DISTINCT lg_FAMILLE_ID) FROM hmvtproduit WHERE mvtdate BETWEEN '" + D + "' AND '" + F + "' AND lg_EMPLACEMENT_ID = '1'"));

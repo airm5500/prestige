@@ -48,7 +48,7 @@ const menu = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_INVENTAIRE');
   const b = await ENV_E2E.lancer(chromium);
   const session = async () => {
     const p = await (await b.newContext()).newPage();
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     return p;
   };
   const connecter = async (p) => {

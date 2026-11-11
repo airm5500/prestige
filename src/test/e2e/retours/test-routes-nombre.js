@@ -20,7 +20,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
   const lire = (url) => p.evaluate(async (url) => { const r = await fetch(url); return { s: r.status, j: await r.json().catch(() => null) }; }, url);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     const sansSession = await lire('../api/v1/etat-control-bon/nombre?dtStart=2026-01-01&dtEnd=2026-01-31');
     const listeSansSession = await lire('../api/v1/etat-control-bon/list?dtStart=2026-01-01&dtEnd=2026-01-31&limit=1');
     ok('Sans session : même réponse que la liste', sansSession.s === listeSansSession.s, sansSession.s + ' / ' + listeSansSession.s);

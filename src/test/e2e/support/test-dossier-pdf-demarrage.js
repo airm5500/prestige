@@ -21,7 +21,7 @@ const APP = process.env.PRESTIGE_APP_DIR || (ENV_E2E.WINDOWS ? 'D:/payara5/payar
 const ASADMIN = process.env.PAYARA_ASADMIN || (ENV_E2E.WINDOWS ? 'D:/payara5/payara5/bin/asadmin.bat' : 'asadmin');
 const PORT = process.env.PAYARA_ADMIN_PORT || '4848';
 const DOSSIER = path.join(APP, 'data', 'reports', 'pdf');
-const URL = 'http://localhost:8080/prestige/';
+const URL = (process.env.BASE || 'http://localhost:8080/prestige') + '/';
 const asadmin = (...a) => execFileSync(ASADMIN, ['--port', PORT, ...a], { encoding: 'utf8', shell: ENV_E2E.WINDOWS });
 
 async function attendreApplication() {
