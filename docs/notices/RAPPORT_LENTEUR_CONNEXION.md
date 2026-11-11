@@ -663,3 +663,43 @@ Contrôles :
 - second rejeu : 184/184 ventes, 1 scan perdu, 0 interblocage, tas Java ≤ 2,1 Go, 2 sauvegardes réussies ;
 - scan perdu : reproduit par test (avant 33/46), corrigé (après 51/51), non-régression clavier 6/6 ;
 - vente en dépôt : reproduit (35/52), corrigé (53/53), non-régression 51/51, 6/6, 13/13.
+
+## Plantages au relevé de nuit, à la sauvegarde et aux SMS : appaul (11/11)
+
+**Demande** : « Serveur arrêté » et « caisses figées » chez appaul, réglée en `KEY_VALORISATION_ECRITURE_JSON = 0`,
+`KEY_VALORISATION_SOURCE = TABLE`, `KEY_VALORISATION_JOURNALIERE = 1`, souvent aux heures des SMS ou des sauvegardes.
+
+**Méthode** : copie `appaul_perf` (20 Go, données du 27/10) passée aux réglages d'appaul, plus `KEY_SMS_CLOTURE_CAISSE
+= 1` et SMS récapitulatif à 0, 9, 13, 18, 19 et 20 h. Domaine Payara à part (version d'intégration 66cadaf0d, 5 fils
+HTTP), horloge de la JVM décalée (`-Duser.timezone`) pour amener 00:05 et 13:05/13:20 sans toucher au poste. Pendant
+chaque essai : rejeu de l'heure de pointe réelle d'appaul (`charge-officine.js`, 15/11/2025 11 h, 5 caissiers, vitesse
+réelle) et `perf/surveiller-serveur.js` (sonde HTTP toutes les 2 s, JVM vivante, tas, requêtes en cours dans la base,
+journal ; verdict ECHEC si la JVM disparaît, si le serveur ne répond pas 10 s, en cas d'OutOfMemoryError, d'arrêt ou
+d'erreur du relevé).
+
+| Essai | Ce qui coïncide | Ventes | Article ajouté (méd. / 90 %) | Pire sonde | Verdict |
+|---|---|---|---|---|---|
+| nuit, 3 Go | SMS récap 0 h ; à 00:05 relevé (95 s, 33 s à vide) + valorisation + sauvegarde (594 s, 1,66 Go) | 184 | 0,68 / 1,15 s ; pendant le relevé 1,10 / 1,70 s | 6 s (poste de test à 0,8 Go libre) | OK |
+| jour, 3 Go | sauvegarde de 13:05 (213 s), SMS de 13:20 | 184 | 0,49 / 0,71 s | < 2 s | OK |
+| SMS, 3 Go | 20 SMS réellement envoyés à un fournisseur qui accepte la connexion et ne répond jamais, sauvegarde de 17:05 | 119 | 0,48 / 0,70 s | < 2 s | OK |
+| nuit, 512 Mo | comme l'essai de nuit, mémoire Java d'un Payara neuf | 132 | 0,47 / 0,70 s | 2 s | OK (5 GC complets) |
+
+- **Le défaut n'est pas reproduit** : ni arrêt, ni gel, ni attente de verrou, ni erreur grave (hors SLF4J au
+  démarrage). Pas de correction sans reproduction.
+- Relevé de 00:05 sous charge : 95 s au lieu de 33 s, caisses ralenties d'environ 0,4 s pendant ce temps.
+- Sauvegarde : lecture de la base sans verrou (`--single-transaction`), 1 à 2 requêtes de lecture de 2 à 3 min.
+- SMS : chaque envoi reste bloqué 30 s (délai de lecture) en gardant une transaction, sur un seul fil asynchrone ; après
+  7 échecs le coupe-circuit suspend les envois. Aucun effet sur les caisses.
+- Un scan perdu dans l'écran (1 sur 439, nuit, pendant la sauvegarde) : aucune requête d'ajout envoyée, serveur au
+  repos à ce moment. Non reproduit ensuite (0 sur 717). L'essai relève désormais, pour un geste en échec, toutes les
+  requêtes parties (même sans réponse) et le parcours du scan dans l'écran.
+- La copie n'a pas l'historique de vie du serveur d'appaul (`t_serveur_vie` est postérieure au 27/10) : la mémoire Java
+  et la cause des arrêts chez eux restent inconnues.
+
+**Pour aller plus loin, il faut chez appaul** : le `server.log` d'une nuit de plantage, la table `t_serveur_vie`
+(démarrages, arrêts et leur cause, options de la JVM : aucune donnée de patient) et la mémoire Java configurée.
+
+**Rejouer** (domaine d'essai, copie aux réglages d'appaul) :
+`BASE=… SERVEUR_PID=… PAYARA_DOMAINE=… DB_TEST=appaul_perf MARIADB_OPTIONS=… DUREE_MIN=75 node perf/surveiller-serveur.js`
+en même temps que `ROLES=caisse PALIERS=5 REJOUER='2025-11-15 11:00' node perf/charge-officine.js` ; code de sortie 1 si
+le verdict est ECHEC.
