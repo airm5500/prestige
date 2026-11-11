@@ -55,6 +55,17 @@ const taillesIco = (buf) => {
     ok('Connexion : logo chargé et visible', logo && logo.l > 0 && logo.vue > 0, JSON.stringify(logo));
     const vLogo = violet(await pixels(p, logo.src));
     ok('Connexion : le logo est la nouvelle icône (fond violet)', vLogo.ok, vLogo.rvba);
+    /* point 14 bis (retour du 11/11 : « juste changer l'icône », couleurs de l'écran inchangées) : pas de carre blanc
+       derriere l'icone de la pastille « PRESTIGE », et la grande illustration (ancien mortier) devient l'icone */
+    const pastille = await p.evaluate(() => { const s = getComputedStyle(document.querySelector('.pl-brand__mark--icone'));
+      return { fond: s.backgroundColor, ombre: s.boxShadow }; });
+    ok('Connexion : icône de la pastille sans carré blanc derrière', /rgba\(0, 0, 0, 0\)|transparent/.test(pastille.fond), JSON.stringify(pastille));
+    const grand = await p.evaluate(() => { const i = document.querySelector('.pl-pharmacy-logo'); return i && { src: i.src, l: i.naturalWidth, vue: i.getBoundingClientRect().width }; });
+    const vGrand = grand && grand.l > 0 && violet(await pixels(p, grand.src));
+    ok('Connexion : la grande illustration est la nouvelle icône (plus le mortier)', grand && grand.vue > 0 && vGrand && vGrand.ok && !/logo_accueil/.test(grand.src),
+      JSON.stringify({ grand, v: vGrand && vGrand.rvba }));
+    const fondEcran = await p.evaluate(() => getComputedStyle(document.querySelector('.pl-hero')).backgroundImage.slice(0, 120));
+    ok('Connexion : couleurs de l\'écran inchangées (dégradé d\'origine du panneau)', /linear-gradient/.test(fondEcran) && !/45, 26, 143|2d1a8f/i.test(fondEcran), fondEcran);
 
     /* 2. fichier .ico et PNG : memes images, taille par taille */
     const ico = await p.request.get(BASE + '/resources/images/favicon.ico?v=3');

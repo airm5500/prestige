@@ -485,6 +485,17 @@ input:focus {
   height: 28px;
 }
 
+/* plan du 09/11, point 14 bis : l'icone Prestige 3 porte son propre fond, sans carre blanc derriere */
+.pl-brand__mark--icone {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pl-brand__mark--icone img {
+  width: 34px;
+  height: 34px;
+}
+
 .pl-brand:hover .pl-brand__mark--icone {
   transform: scale(1.12);
 }
