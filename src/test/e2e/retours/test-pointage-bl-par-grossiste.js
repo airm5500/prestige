@@ -26,7 +26,7 @@ const DU = '2026-09-01', AU = '2026-10-15';
   const p = await b.newPage();
   const lire = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const tous = await lire('../api/v1/pointage-bl?groupe=' + GROUPE + '&du=' + DU + '&au=' + AU + '&etat=TOUS');

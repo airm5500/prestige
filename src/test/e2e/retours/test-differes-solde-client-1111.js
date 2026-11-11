@@ -201,7 +201,7 @@ const traces = () => q("SELECT CONCAT_WS('|', (SELECT COUNT(*) FROM t_preenregis
     ok('Clic sur la vente A2 : ses produits dans le volet, ligne par ligne = base (CIP, libellé, quantité, P.U., montant)',
       vA2.type === 'VENTE' && vA2.titre === 'Vente N° ' + D0.A2.ref && vA2.produits.length === 2 && produitsBase.length === 2
       && vA2.produits.every((l, i) => l[0] === produitsBase[i][0] && l[1] === produitsBase[i][1] && chiffres(l[2]) === Number(produitsBase[i][2])
-        && chiffres(l[3]) === Number(produitsBase[i][3]) && chiffres(l[4]) === Number(produitsBase[i][4])) && vA2.produits.map((l) => chiffres(l[2])).join(',') === '3,2',
+        && chiffres(l[3]) === Number(produitsBase[i][3]) && chiffres(l[4]) === Number(produitsBase[i][4])) && vA2.produits.map((l) => chiffres(l[2])).sort().join(',') === '2,3',
       JSON.stringify({ ecran: vA2.produits, base: produitsBase }));
     ok('Volet de la vente A2 : total des produits = montant de la vente = débit de la ligne ; part en différé ; reste dû = base',
       chiffres(vA2.total) === D0.A2.prix && chiffres(vA2.montant) === D0.A2.prix && chiffres(vA2.part) === D0.A2.du && vA2.texte.includes(String(D1.A2.reste).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')),

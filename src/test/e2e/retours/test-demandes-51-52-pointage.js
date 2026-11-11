@@ -47,7 +47,7 @@ const retirer = () => q(`DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-p51-%
   try {
     /* 51 */
     const anonyme = await (await b.newContext()).newPage();
-    await anonyme.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await anonyme.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const a0 = await appel(anonyme, 'GET', '../api/v1/rh/moi');
     ok('51 : sans session, rh/moi → 401', a0.status === 401, a0.status);
     const adm = await (await b.newContext()).newPage();
@@ -77,7 +77,7 @@ const retirer = () => q(`DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-p51-%
     /* 52 */
     /* le compte terminal n'ouvre aucun menu : il se connecte comme l'application, par v1/user/auth */
     const p2 = await (await b.newContext()).newPage();
-    await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    await p2.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const auth = await appel(p2, 'POST', '../api/v1/user/auth', { login: L2, password: M2 });
     ok('52 : compte terminal connecté par v1/user/auth', auth.j && auth.j.success === true, JSON.stringify(auth.j).slice(0, 120));
     const d2 = await appel(p2, 'GET', '../api/v1/rh/droits');
