@@ -115,6 +115,8 @@ function nettoyer(debut) {
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
     await ouvrir(p);
+    /* 11/11 : le menu se charge apres l'application ; le lire avant donnait parfois null */
+    await p.waitForFunction(() => Ext.ComponentQuery.query('navigation').length && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });
     const nav = await p.evaluate(() => { let t = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => {
       if (n.get('id') === 'campagnes') { const m = n.parentNode; t = m.get('text') + ' > ' + m.childNodes.map((x) => x.get('text')).join(', '); } }); return t; });
     /* 25/10 : « Discussions WhatsApp » ajoute au meme menu */
