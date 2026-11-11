@@ -958,3 +958,126 @@ Le volet s'ouvre à droite et a trois onglets :
 1. Volet à droite, ou fenêtre centrée ?
 2. Quels domaines dans « Nouveautés » ?
 3. Pour un utilisateur qui n'est pas administrateur, l'onglet Assistance montre-t-il tout, ou seulement le contact ?
+
+---
+
+# Plan du 10/11 : points 1 à 4, faits le 11/11 (branche `plan/09112026`, sur domain3)
+
+## Point 1 : reçu de règlement d'un différé (commit `2b8c89992`)
+
+**Ce qui change :**
+- le reçu montre le numéro de la vente, « Vente N° … du … », et non plus son identifiant interne ;
+- comme convenu, il montre aussi « Montant dû (n ventes) », « Reste sur ces ventes » et « Solde restant du client ».
+
+Une réimpression montre les montants du jour du règlement : les règlements faits après sont retirés.
+
+**Où la donnée apparaît :**
+- l'écran « Faire un réglement » ;
+- le reçu ;
+- la base (dossier, détails, dettes).
+
+**Tests :**
+- rapprochement et bilan : `test-recu-differe-numero-1111`, 44 / 44, rouge sur l'ancien code ;
+- cohérence : `RecuDiffereSoldeCoherenceTest`, 5 000 cas, graine fixe ;
+- rendu : `RenduTicketTest`.
+
+**Correction :** le « 160 F au lieu de 7 160 F » vu le 10/11 venait du test et non de Prestige. Le test tapait trop tôt après le clic, et la sélection différée du champ effaçait le premier chiffre. Le test attend désormais et relit le champ. Le rapport de fusion du lot Q2.5 est corrigé.
+
+## Points 2 et 3 : réserve (commit `52ceffa36`)
+
+### Point 2 : fenêtre « Seuil de réserve atteint »
+
+**Ce qui change :**
+- la fenêtre est agrandie selon l'écran (entre 820 × 440 et 1180 × 680) ;
+- « Seuil mini rayon » apparaît en rouge gras, « Seuil maxi rayon » en bleu gras et « Quantité proposée » en vert gras ;
+- l'impression passe par un modèle dédié, `rp_reserve_apres_entree` (A4 paysage). C'est un nouveau nom : les modèles copiés sur les postes ne sont pas touchés.
+
+**Tests :**
+- `test-entree-stock-0825` 16 / 16 ;
+- `test-reserve-apres-entree` 21 / 21 ;
+- `-sans-repetition` 9 / 9 ;
+- `-droit-suggestions` 9 / 9 ;
+- `EditionSectionsTest` : rouge sur l'ancien code, car le modèle n'existait pas.
+
+### Point 3 : onglet Suggestions
+
+**Ce qui change :**
+- une suggestion manuelle se supprime sans motif. Premier clic : l'icône passe au rouge pendant 5 s. Second clic : la suggestion est supprimée. En base, le motif est « Suggestion manuelle supprimée sans motif » ;
+- une suggestion automatique demande toujours un motif ;
+- la référence devient courte : `SR-RAY-` ou `SR-RES-` suivi de 5 caractères, sans caractère ambigu (0, O, 1, I, L). Elle est unique.
+
+**Hypothèse retenue :** les questions sur ce point sont restées sans réponse ; j'ai appliqué la règle ci-dessus (manuelle sans motif, automatique avec motif).
+
+**Pourquoi une suggestion « encore à traiter » s'affiche quelle que soit la période :** c'est le plan du 08/11, point 9b (retour du 03/11). Une suggestion pas encore traitée reste visible pour ne pas être oubliée. Si elle est antérieure à la période choisie, elle porte la mention « ancienne ».
+
+**Tests :**
+- `test-reserve-suggestion-manuelle-1011` 15 / 15, rouge sur l'ancien code (3 / 5) ;
+- `test-reserve-suppression-masse-0811` 18 / 18 ;
+- `ReferenceSuggestionCourteTest` : 100 000 tirages.
+
+## Point 4 : différés, onglet Solde (commit `bf68e8c1a`)
+
+**Ce qui change :**
+- **à l'ouverture**, rien n'est chargé ; la période proposée va du 01/01/2015 à ce jour ;
+- **regroupement par client** : une ligne par client (solde au début, débit, crédit, solde à la fin), puis ses opérations avec le solde après chacune, et ses soldes de fin de mois. Les clients sont triés par nom ;
+- **volet de droite** :
+  - clic sur une vente ou son annulation : ses produits (CIP, libellé, quantité, prix unitaire, montant) ;
+  - clic sur un règlement : montant, mode, opérateur et ventes réglées ;
+  - clic sur un client : son résumé ;
+- **couleurs** : débits en rouge, crédits en vert ;
+- **disposition** : le relevé prend 3/5 de la largeur, le volet 2/5 ;
+- **impression** : le PDF passe par un nouveau modèle, `releve_differes_clients`, groupé par client ; l'Excel aussi, avec une colonne « Solde au début ».
+
+**Correction en cours de route :** le solde au début de chaque client est maintenant calculé comme le solde global. Les deux se contrôlent : la somme des clients doit égaler le solde global, sinon un avertissement est écrit au journal du serveur.
+
+**Défauts trouvés par le nouveau test et corrigés avant le commit :**
+- le détail d'une vente était en erreur : deux colonnes portaient le même nom dans la requête ;
+- la ligne d'une vente annulée disparaissait de l'écran : elle avait le même identifiant que son annulation, et la grille n'en gardait qu'une. La clé s'appelle désormais « pièce ».
+
+**Où la donnée apparaît :**
+- la ligne du client et ses opérations à l'écran ;
+- le volet de détail ;
+- le PDF ;
+- l'Excel ;
+- la base (dettes, détails de vente, dossiers de règlement).
+
+**Rapprochement (`test-differes-solde-client-1111`, 30 / 30, rouge sur l'ancien code) :**
+- ligne CLIENT = base ;
+- produits de la vente = base, ligne par ligne ;
+- règlement (montant, mode, parts par vente, reste dû) = base ;
+- PDF et Excel groupés dans le même ordre, avec les mêmes montants.
+
+**Cohérence :**
+- `ReleveDifferesGroupeTest` : 3 000 relevés, graine fixe. Il couvre les homonymes et les annulations qui portent la pièce de leur vente. Il vérifie :
+  - solde courant = début + débits − crédits, ligne à ligne ;
+  - ligne client = ses totaux ;
+  - somme des clients = totaux du relevé ;
+- le test e2e refait ce contrôle sur les données du poste.
+
+**Bilan :** consulter, ouvrir le détail, imprimer et exporter n'écrivent rien en base. Le test le vérifie sur les ventes, les dettes, les règlements, les mouvements, la caisse et les restes.
+
+**Cas variés couverts :**
+- deux clients ;
+- une vente à deux produits (quantités 3 et 2) ;
+- des montants différents ;
+- un règlement partiel qui solde une vente et en entame une autre ;
+- une vente annulée ;
+- un client choisi dans la liste ;
+- des dates inversées.
+
+**Non-régression :**
+- `test-differes-solde` adapté : 16 / 16 ;
+- `test-differes-reglement` 14 / 14 ;
+- `test-differes-modification` 13 / 13 ;
+- `test-differe-nom-client` 14 / 14 ;
+- `repro-differes` 13 / 13.
+
+Ces tests prennent désormais l'adresse du serveur dans `BASE`.
+
+**Limite :** la copie `laborex_audit` contient peu de différés (3 clients sur la période testée). Le contrôle sur les données du poste est donc léger ; il serait à rejouer sur la copie `laborex_v1_db`.
+
+## Reste à faire
+
+- Point 8 du plan du 09/11 : la maquette « À propos » attend votre avis.
+- Quatre tests ont encore l'adresse 8080 en dur : `test-reserve-sans-doublon`, `parametres-rubriques`, `releve-modele` et `parametres-prevision`.
+- Aucune fusion sans votre accord.
