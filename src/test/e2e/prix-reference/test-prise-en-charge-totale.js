@@ -130,9 +130,11 @@ const tri = (a) => a.slice().sort().join(';');
     ok('Bilan : rien dans les prix de référence de la fiche ni dans leur journal (valable pour cette vente seulement)',
       C.references(P1.id) + ' | ' + C.references(P2.id) === avant.fiche && journal([P1.id, P2.id]) === avant.journal, C.references(P1.id) + ' / journal ' + journal([P1.id, P2.id]));
     let t = C.lireTicket((await C.apercuTicket(p, v1)).tickets[0]);
-    ok('Ticket : sous la ligne 1, seulement « B · Taux 100 % : ' + P1.pu + ' » (A, part nulle sur la ligne, n\'est pas imprimée) ; rien sous la ligne 2',
+    ok('Ticket : sous la ligne 1, seulement « B · Taux 100 % : ' + P1.pu + ' » (A, part nulle sur la ligne, n\'est pas imprimée) ; sous la ligne 2, A à 80 % et B à 20 % (retour du 11/11)',
       t.articles.length === 2 && t.articles[0].credits.length === 1 && t.articles[0].credits[0].nom === TB && t.articles[0].credits[0].taux === 100
-      && t.articles[0].credits[0].part === P1.pu && t.articles[1].credits.length === 0, JSON.stringify(t.articles.map((a) => a.credits.map((c) => c.texte))));
+      && t.articles[0].credits[0].part === P1.pu && t.articles[1].credits.length === 2
+      && t.articles[1].credits[0].nom === TA && t.articles[1].credits[0].taux === 80 && t.articles[1].credits[0].part === attA1
+      && t.articles[1].credits[1].nom === TB && t.articles[1].credits[1].taux === 20 && t.articles[1].credits[1].part === P2.pu * 2 - attA1, JSON.stringify(t.articles.map((a) => a.credits.map((c) => c.texte))));
     ok('Ticket : récapitulatif A = ' + attA1 + ' et B = ' + attB1 + ' (= base), part du client = net affiché (vente à terme si 0)', C.chiffres(t.paires[TA]) === attA1 && C.chiffres(t.paires[TB]) === attB1
       && (t.net === rail.net.valeur || (t.net === null && rail.net.valeur === 0 && C.chiffres(t.paires['Part du client']) === 0)), JSON.stringify(t.paires));
 

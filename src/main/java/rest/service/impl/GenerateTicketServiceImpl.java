@@ -347,6 +347,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         || CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR()).isEmpty()
                                 ? null : d.getCalculationBasePrice());
             }
+            // retour du 11/11 (ticket 2226656188) : des qu'une ligne imprime son detail, toutes les lignes prises en
+            // charge impriment le leur (le taux d'une ligne qui suit l'assurance n'etait ecrit nulle part)
+            List<Boolean> auComptant = new ArrayList<>();
+            for (TPreenregistrementDetail d : lignes) {
+                auComptant.add(d.isComptant());
+            }
+            afficher = CreditLigne.afficherLignes(afficher, auComptant);
             // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne ; retour du
             // 10/11 : dans l'ordre de passage de la ligne (l'organisme qui passe en premier garde son taux)
             List<List<Integer>> affichesParLigne = new ArrayList<>();

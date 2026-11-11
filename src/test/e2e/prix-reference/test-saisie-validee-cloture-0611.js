@@ -103,10 +103,13 @@ const refTp = (ligne, tp) => (ligne && ligne.refs ? ligne.refs.find((r) => r.tpI
     const t = ap.success ? C.lireTicket(ap.tickets[0]) : { articles: [] };
     const par = (cip, i) => t.articles.find((a) => a.designation === P[i].libelle) || t.articles[i];
     const a1 = par(CIP[0], 0), a2 = par(CIP[1], 1), a3 = par(CIP[2], 2);
-    ok('B. Ticket : « P[' + prixRef + '] * T[80%] » sous P1, « Taux 60 % » sous P2, rien sous P3',
+    /* retour du 11/11 : des qu'une ligne imprime son detail, toutes l'impriment ; P3 suit le taux de l'assurance */
+    ok('B. Ticket : « P[' + prixRef + '] * T[80%] » sous P1, « Taux 60 % » sous P2, « Taux 80 % » sous P3 (taux du contrat)',
       a1 && a1.credits.length === 1 && a1.credits[0].pref === prixRef && a1.credits[0].taux === 80
       && a2 && a2.credits.length === 1 && a2.credits[0].pref === null && a2.credits[0].taux === 60
-      && a3 && a3.credits.length === 0, JSON.stringify(t.articles));
+      && a3 && a3.credits.length === 1 && a3.credits[0].pref === null && a3.credits[0].taux === 80
+      && a1.credits[0].part + a2.credits[0].part + a3.credits[0].part === Object.keys(t.paires).filter((k) => k.indexOf(C.MARQUE + '-TP') === 0).map((k) => C.chiffres(t.paires[k]))[0],
+      JSON.stringify(t.articles) + ' ' + JSON.stringify(t.paires));
 
     /* ============ C. vente 2 : la fiche est reprise ============ */
     await C.nouvelleVente(p);
