@@ -18,7 +18,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 500) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim();
-const ACCUEIL = 'http://localhost:8080/prestige/security/index.html';
+const ACCUEIL = (process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.html';
 const POSTE = 'E2E Poste é 1011';
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const empreinteParams = () => q("SELECT CONCAT(COUNT(*), '|', IFNULL(MAX(dt_UPDATED), '')) FROM t_parameters");
