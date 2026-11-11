@@ -145,6 +145,34 @@ public final class CreditLigne {
     }
 
     /**
+     * Retour du 11/11 (ticket 2226656188) : des qu'une ligne du ticket a quelque chose de propre (voir
+     * {@link #afficherLigne}), TOUTES les lignes prises en charge impriment leur ligne prix/taux : sinon le taux d'une
+     * ligne qui suit l'assurance n'apparait nulle part et il faut le deduire. Aucune ligne propre : aucune ligne de
+     * detail (plan du 06/11, point 5.2). Une ligne au comptant n'en a jamais.
+     *
+     * @param propres
+     *            par ligne : la ligne a-t-elle quelque chose de propre ?
+     * @param comptant
+     *            par ligne : la ligne est-elle sortie au comptant (hors assurance) ? null : aucune
+     */
+    public static List<Boolean> afficherLignes(List<Boolean> propres, List<Boolean> comptant) {
+        List<Boolean> res = new ArrayList<>();
+        if (propres == null) {
+            return res;
+        }
+        boolean unePropre = false;
+        for (int i = 0; i < propres.size(); i++) {
+            boolean horsAssurance = comptant != null && i < comptant.size() && Boolean.TRUE.equals(comptant.get(i));
+            unePropre = unePropre || (Boolean.TRUE.equals(propres.get(i)) && !horsAssurance);
+        }
+        for (int i = 0; i < propres.size(); i++) {
+            boolean horsAssurance = comptant != null && i < comptant.size() && Boolean.TRUE.equals(comptant.get(i));
+            res.add(unePropre && !horsAssurance);
+        }
+        return res;
+    }
+
+    /**
      * Retour du 10/11 (ticket 1750418138) : sur une vente a plusieurs organismes, celui dont la part est nulle n'est
      * pas imprime (ni sous la ligne, ni dans le bloc du client). Un organisme seul reste imprime, meme a zero, et un
      * montant negatif (vente annulee) n'est jamais masque.

@@ -105,11 +105,12 @@ function lireTicket(t) {
     ok('Aperçu du ticket : le ticket de vente assurance est produit sans impression', apercu.success === true && apercu.tickets.length === 1
       && apercu.tickets[0].modele === 'VENTE_ASSURANCE', JSON.stringify(apercu).slice(0, 300));
     const t = lireTicket(apercu.tickets[0]);
-    ok('Le ticket porte les trois lignes ; une ligne prix/taux sous les lignes 2 et 3 seulement', t.articles.length === 3
-      && t.articles[1].credits.length === 1 && t.articles[2].credits.length === 1, JSON.stringify(t.articles));
+    ok('Le ticket porte les trois lignes, chacune avec sa ligne prix/taux', t.articles.length === 3
+      && t.articles.every((a) => a.credits.length === 1), JSON.stringify(t.articles));
     /* plan du 06/11, point 5.2 : ligne au taux de l'assurance, rien sous le produit */
-    ok('Point 5.2 : ligne 1 (taux de l\'assurance, rien de saisi) : aucune ligne « Taux » ni « P[…] » sous le produit',
-      t.articles[0] && t.articles[0].credits.length === 0 && t.articles[0].pref === null, JSON.stringify(t.articles[0]));
+    ok('Point 5.2 : ligne 1 (taux de l\'assurance, rien de saisi) : « Taux 80 % : part » sous le produit, sans prix (retour du 11/11, ticket 2226656188)',
+      t.articles[0] && t.articles[0].credits.length === 1 && t.articles[0].credits[0].taux === 80 && t.articles[0].credits[0].pref === null
+      && Math.abs(t.articles[0].credits[0].part - Math.round(P[0].pu * 0.8)) <= 3 && t.articles[0].pref === null, JSON.stringify(t.articles[0]));
 
     /* veracite : le taux des lignes 2 et 3 est celui de l'ecran */
     const tauxTicket = t.articles.map((a) => a.credits[0] ? a.credits[0].taux : null);
