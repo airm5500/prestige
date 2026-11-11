@@ -164,6 +164,42 @@ async function relever(palier) {
 /* ---------- un poste ---------- */
 const gestes = [];
 const erreurs = [];
+/* PARCOURS D'UN SCAN DANS L'ECRAN (scan perdu du 11/11, une fois sur 439, sans requete d'ajout) : execute dans la page,
+   une seule fois ; observe sans rien changer. Chaque evenement : heure, quoi, texte et valeur du champ de recherche, liste
+   ouverte ou non, nombre de lignes de la liste, element qui a le curseur. Garde les 80 derniers. */
+function installerParcoursScan() {
+  if (window.__parcoursScanPose || !window.testextjs || !testextjs.app) { return; }
+  const c = testextjs.app.getController('VenteCtr');
+  const combo = c && c.getVnoproduitCombo && c.getVnoproduitCombo();
+  if (!combo) { return; }
+  window.__parcoursScanPose = true;
+  window.__parcoursScan = [];
+  const noter = (quoi) => {
+    let etat = {};
+    try {
+      const st = combo.getStore();
+      etat = { brut: String(combo.getRawValue()).slice(0, 40), valeur: String(combo.getValue()).slice(0, 40), ouverte: !!combo.isExpanded,
+        lignes: st ? st.getCount() : null, chargement: st ? !!st.isLoading() : null,
+        curseur: document.activeElement ? (document.activeElement.id || document.activeElement.tagName) : null,
+        rechercheEnAttente: !!(combo.doQueryTask && combo.doQueryTask.id) };
+    } catch (e) { etat = { erreur: String(e.message).slice(0, 80) }; }
+    window.__parcoursScan.push(Object.assign({ t: Date.now(), quoi }, etat));
+    if (window.__parcoursScan.length > 80) { window.__parcoursScan.shift(); }
+  };
+  ['onProduitSpecialKey', 'checkDouchette', 'addProduitFromScan', 'addVenteVno', 'curseurDansRecherche'].forEach((m) => {
+    const f = c[m];
+    if (typeof f !== 'function') { return; }
+    c[m] = function () { noter(m + ' : debut'); try { return f.apply(this, arguments); } finally { noter(m + ' : fin'); } };
+  });
+  combo.on('specialkey', (cb, e) => { if (e.getKey() === e.ENTER) { noter('Entree (apres le controleur)'); } });
+  combo.on('expand', () => noter('liste ouverte'));
+  combo.on('collapse', () => noter('liste fermee'));
+  combo.on('select', () => noter('article choisi dans la liste'));
+  combo.on('beforequery', () => noter('recherche lancee'));
+  combo.getStore().on('load', () => noter('liste chargee'));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter') { noter('touche Entree (document)'); } }, true);
+}
+
 /* scans qui n'ajoutent pas l'article : l'ecran attend la quantite (seconde touche Entree de la caissiere) */
 const secondeEntree = [];
 let captureEnCours = false;
@@ -179,7 +215,15 @@ async function poste(b, i, fin, palier) {
      geste lent attendait le serveur ou le navigateur */
   const departs = new Map();
   const requetes = [];
-  p.on('request', (r) => { if (suivi(r)) { enVol++; derniere = Date.now(); departs.set(r, Date.now()); } });
+  /* chronologie de TOUTES les requetes parties, meme restees sans reponse (pour un geste en echec) */
+  const chrono = [];
+  const chronoDe = new Map();
+  p.on('request', (r) => { if (suivi(r)) { enVol++; derniere = Date.now(); departs.set(r, Date.now());
+    const c = { url: r.method() + ' ' + r.url().replace(/^.*\/prestige/, '').split('?')[0].slice(0, 90), depart: Date.now(), fin: null };
+    chrono.push(c); chronoDe.set(r, c); if (chrono.length > 600) { chrono.splice(0, 300); } } });
+  const finChrono = (r, etat) => { const c = chronoDe.get(r); if (c) { c.fin = Date.now(); c.etat = etat; chronoDe.delete(r); } };
+  p.on('requestfinished', (r) => { r.response().then((x) => finChrono(r, x ? x.status() : '?')).catch(() => finChrono(r, '?')); });
+  p.on('requestfailed', (r) => finChrono(r, 'echec ' + ((r.failure() || {}).errorText || '')));
   const finReq = (r) => { if (suivi(r)) { enVol = Math.max(0, enVol - 1); derniere = Date.now();
     const d = departs.get(r); departs.delete(r);
     if (d) { let serveur = null; try { const tm = r.timing(); if (tm.responseStart >= 0 && tm.requestStart >= 0) { serveur = Math.round(tm.responseStart - tm.requestStart); } } catch (e) { /* sans mesure */ }
@@ -241,7 +285,13 @@ async function poste(b, i, fin, palier) {
     const ecran = await vues.texteMessage(p).catch(() => '');
     const capture = path.join(path.dirname(SORTIE), 'echec-p' + palier + '-poste' + i + '-' + Date.now() + '.png');
     await p.screenshot({ path: capture }).catch(() => {});
-    erreurs.push({ t: Date.now(), palier, poste: i, role, type: 'geste en echec', detail: nom + ' : ' + detail + (ecran ? ' ; écran : ' + ecran.slice(0, 200) : ''), capture });
+    /* pour reproduire : requetes parties depuis 5 s avant le geste (avec celles restees sans reponse) et parcours du
+       scan dans l'ecran (touches traitees, chemin pris, etat du champ de recherche) */
+    const requetesDuGeste = chrono.filter((c) => c.depart >= t0 - 5000)
+      .map((c) => ({ url: c.url, depart: c.depart - t0, ms: c.fin ? c.fin - c.depart : null, etat: c.fin ? c.etat : 'SANS REPONSE' }));
+    const parcoursScan = await p.evaluate(() => window.__parcoursScan || []).catch(() => []);
+    erreurs.push({ t: Date.now(), palier, poste: i, role, type: 'geste en echec', detail: nom + ' : ' + detail + (ecran ? ' ; écran : ' + ecran.slice(0, 200) : ''), capture,
+      debutGeste: t0, requetesDuGeste, parcoursScan: parcoursScan.filter((x) => x.t >= t0 - 5000).map((x) => Object.assign({}, x, { t: x.t - t0 })) });
     await messageErreur(nom);
   }
   /* ecran par son xtype : libelles lus dans l'arbre du menu de l'utilisateur, puis clic dans le menu */
@@ -318,6 +368,7 @@ async function poste(b, i, fin, palier) {
         for (let k = 0; k < cips.length && Date.now() < fin; k++) {
           const cip = cips[k];
           await geste('caisse : article ajouté', async () => {
+            await p.evaluate(installerParcoursScan).catch(() => {});
             await vues.cliquer(p, CHAMP);
             await p.keyboard.press('Control+A');
             await p.keyboard.type(cip, { delay: 15 });
