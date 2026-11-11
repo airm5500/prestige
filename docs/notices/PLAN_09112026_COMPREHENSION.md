@@ -1079,5 +1079,5 @@ Ces tests prennent désormais l'adresse du serveur dans `BASE`.
 ## Reste à faire
 
 - Point 8 du plan du 09/11 : la maquette « À propos » attend votre avis.
-- Quatre tests ont encore l'adresse 8080 en dur : `test-reserve-sans-doublon`, `parametres-rubriques`, `releve-modele` et `parametres-prevision`.
+- 350 tests d'écran ont encore l'adresse 8080 en dur, dont `test-reserve-sans-doublon`. Sur un autre domaine (domain3), ils testent le serveur de 8080 au lieu de celui qu'on vient de déployer. Il faut les faire passer par `BASE`, comme ceux corrigés ici.
 - Aucune fusion sans votre accord.
