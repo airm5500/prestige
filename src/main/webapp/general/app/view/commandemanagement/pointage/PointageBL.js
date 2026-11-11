@@ -46,7 +46,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
             return s.cle;
         });
         me.pieces = Ext.create('Ext.data.Store', {
-            fields: ['type', 'id', 'cle', 'reference', 'referenceAvoir', 'sequence', 'statut', 'date', {name: 'montantHt', type: 'number'},
+            fields: ['type', 'id', 'cle', 'reference', 'referenceAvoir', 'sequence', 'statut', 'date', 'dateSaisie', {name: 'montantHt', type: 'number'},
                 {name: 'pointable', type: 'boolean'}, {name: 'pointe', type: 'boolean'}, 'pointeLe', 'pointePar', 'controle', {name: 'controleEcarts', type: 'int'}],
             proxy: {type: 'ajax', url: '../api/v1/pointage-bl', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
             listeners: {
@@ -98,6 +98,13 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                     }
                                     g.setDisabled(!!c.getValue());
                                     me.chargerTout();
+                                }}},
+                        /* plan du 09/11, point 3 : periode selon la date du BL (par defaut) ou selon la date d'entree */
+                        {xtype: 'combobox', itemId: 'selon', width: 130, editable: false, queryMode: 'local', value: 'BL',
+                            tooltip: 'La période porte sur la date du BL (date de l\'avoir pour un retour) ou sur la date d\'entrée dans Prestige',
+                            store: [['BL', 'Date du BL'], ['SAISIE', 'Date d\'entrée']],
+                            listeners: {select: function () {
+                                    me.charger();
                                 }}},
                         {xtype: 'datefield', itemId: 'du', fieldLabel: 'Du', labelWidth: 22, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: debutMois},
                         {xtype: 'datefield', itemId: 'au', fieldLabel: 'Au', labelWidth: 22, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: new Date()},
@@ -175,7 +182,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                 }
                                                 return enc(v);
                                             }},
-                                        {text: 'Date', dataIndex: 'date', width: 95},
+                                        {text: 'Date BL', dataIndex: 'date', width: 90, tooltip: 'Date du BL (date de l\'avoir pour un retour)'},
+                                        {text: 'Saisi le', dataIndex: 'dateSaisie', width: 90, tooltip: 'Date d\'entrée dans Prestige'},
                                         {text: 'Montant HT', dataIndex: 'montantHt', width: 115, align: 'right', renderer: montant},
                                         {text: 'Statut', dataIndex: 'statut', flex: 1, minWidth: 140, renderer: function (v) {
                                                 return enc(v);
@@ -289,7 +297,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                     maxLength: 60, enforceMaxLength: true, maskRe: /[A-Za-z0-9\/ ,;-]/,
                                                     listeners: {change: function () {
                                                             me.essayerBuffer();
-                                                        }}}])
+                                                        }}}, {xtype: 'checkbox', itemId: 'montantTtc', boxLabel: 'Montant du relevé en TTC (comparé au TTC des BL)',
+                                                    inputValue: true}])
                                         }, {
                                             xtype: 'toolbar', dock: 'bottom', items: ['->',
                                                 {text: 'Annuler', itemId: 'annulerReconnaissance', handler: function () {
@@ -313,7 +322,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
     criteres: function () {
         var me = this;
         return {grossiste: me.down('#grossiste').getValue() || '', du: me.down('#du').getSubmitValue() || '',
-            au: me.down('#au').getSubmitValue() || '', etat: me.down('#etat').getValue() || 'TOUS', groupe: me.down('#groupe').getValue() || ''};
+            au: me.down('#au').getSubmitValue() || '', etat: me.down('#etat').getValue() || 'TOUS', groupe: me.down('#groupe').getValue() || '',
+            selon: me.down('#selon').getValue() || 'BL'};
     },
 
     chargerTout: function () {
@@ -555,6 +565,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         me.down('#marqueursAvoir').suspendEvents();
         me.down('#marqueursAvoir').setValue(o.marqueursAvoir || 'AV');
         me.down('#marqueursAvoir').resumeEvents();
+        me.down('#montantTtc').setValue(!!o.montantTtc);
         Ext.Array.each(cols, function (c) {
             fields.push('c' + c.rang);
         });
@@ -604,7 +615,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                 champs[c.champ] = v;
             }
         });
-        return {jeton: me.jeton, champs: champs, marqueursAvoir: me.down('#marqueursAvoir').getValue()};
+        return {jeton: me.jeton, champs: champs, marqueursAvoir: me.down('#marqueursAvoir').getValue(),
+            montantTtc: !!me.down('#montantTtc').getValue()};
     },
 
     essayerBuffer: function () {

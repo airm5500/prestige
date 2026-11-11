@@ -92,9 +92,15 @@ public class PointageBLRessource {
         }
     }
 
+    /** Plan du 09/11, point 3 : « SAISIE » = periode selon la date d'entree ; sinon selon la date du BL. */
+    static boolean selonSaisie(String selon) {
+        return "SAISIE".equalsIgnoreCase(StringUtils.trimToEmpty(selon));
+    }
+
     @GET
     public Response liste(@QueryParam("grossiste") String grossiste, @QueryParam("du") String du,
-            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe) {
+            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe,
+            @QueryParam("selon") String selon) {
         JSONObject r = refus();
         if (r != null) {
             return json(r);
@@ -106,7 +112,8 @@ public class PointageBLRessource {
         Criteres c = (Criteres) crit;
         // demandes serveur (45) : total par grossiste quand on cherche par groupe seulement
         boolean parGroupe = StringUtils.isBlank(grossiste) && StringUtils.isNotBlank(groupe);
-        return json(service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat, parGroupe));
+        return json(service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat, parGroupe,
+                selonSaisie(selon)));
     }
 
     /**
@@ -116,7 +123,8 @@ public class PointageBLRessource {
     @GET
     @Path("nombre")
     public Response nombre(@QueryParam("grossiste") String grossiste, @QueryParam("du") String du,
-            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe) {
+            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe,
+            @QueryParam("selon") String selon) {
         JSONObject r = refus();
         if (r != null) {
             return json(r);
@@ -130,7 +138,8 @@ public class PointageBLRessource {
         if (tous) {
             c.grossistes = service.grossistesActifs();
         }
-        JSONObject l = service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat);
+        JSONObject l = service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat, false,
+                selonSaisie(selon));
         if (!l.optBoolean("success", false)) {
             return json(l);
         }
@@ -191,7 +200,8 @@ public class PointageBLRessource {
     @Path("pdf")
     @Produces("application/pdf")
     public Response pdf(@QueryParam("grossiste") String grossiste, @QueryParam("du") String du,
-            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe) {
+            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe,
+            @QueryParam("selon") String selon) {
         if (refus() != null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
@@ -201,7 +211,8 @@ public class PointageBLRessource {
                     .type("text/plain;charset=UTF-8").build();
         }
         Criteres c = (Criteres) crit;
-        JSONObject l = service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat);
+        boolean saisie = selonSaisie(selon);
+        JSONObject l = service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat, false, saisie);
         java.util.List<String[]> lignes = new java.util.ArrayList<>();
         org.json.JSONArray d = l.getJSONArray("data");
         for (int i = 0; i < d.length(); i++) {
@@ -212,24 +223,25 @@ public class PointageBLRessource {
                             : "RETOUR".equals(type) ? "Avoir (retour)"
                                     : "RECEPTION".equals(type) ? "Avoir (manquants)" : type,
                     p.optString("reference"), p.optString("sequence"), p.optString("referenceAvoir"),
-                    p.optString("date"), montant(p.opt("montantHt")), p.optString("statut"),
+                    p.optString("date"), p.optString("dateSaisie"), montant(p.opt("montantHt")), p.optString("statut"),
                     p.optBoolean("pointe") ? "Oui" : "Non",
                     (p.optString("pointeLe") + " " + p.optString("pointePar")).trim() });
         }
         rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
         e.officine = service.officine();
         e.titre = "POINTAGE DES BL ET AVOIRS — " + service.libelle(grossiste, groupe);
-        e.sousTitre = "Du " + c.debut.format(JJ) + " au " + c.fin.format(JJ) + " · "
+        e.sousTitre = "Du " + c.debut.format(JJ) + " au " + c.fin.format(JJ)
+                + (saisie ? " (date d'entrée)" : " (date du BL)") + " · "
                 + ("POINTES".equals(etat) ? "pièces pointées"
                         : "NON_POINTES".equals(etat) ? "pièces non pointées" : "toutes les pièces")
                 + " · BL " + montant(l.opt("totalBl")) + " · avoirs " + montant(l.opt("totalAvoirs")) + " · net "
                 + montant(l.opt("net")) + " · " + l.optInt("pointes") + " pointée(s), " + l.optInt("nonPointes")
                 + " non pointée(s)";
         e.imprimePar = imprimePar();
-        e.entetes = new String[] { "Type", "N° BL", "N° séq.", "Réf. avoir", "Date", "Montant HT", "Statut", "Pointé",
-                "Pointé le / par" };
-        e.largeurs = new float[] { 6f, 11f, 7f, 11f, 8f, 10f, 14f, 6f, 17f };
-        e.droite = new boolean[] { false, false, false, false, false, true, false, false, false };
+        e.entetes = new String[] { "Type", "N° BL", "N° séq.", "Réf. avoir", "Date BL", "Saisi le", "Montant HT",
+                "Statut", "Pointé", "Pointé le / par" };
+        e.largeurs = new float[] { 6f, 11f, 7f, 11f, 8f, 8f, 10f, 10f, 6f, 13f };
+        e.droite = new boolean[] { false, false, false, false, false, false, true, false, false, false };
         return Response.ok(rest.report.pdf.TableauPdf.generer(e, lignes), "application/pdf")
                 .header("Content-Disposition", "inline; filename=pointage_bl.pdf").build();
     }
@@ -502,8 +514,10 @@ public class PointageBLRessource {
             return json(echec(IMPORT_PERIME));
         }
         TUser u = utilisateur();
-        return json(service.appliquerModele(i.grossiste, emplacement(u), i.fichier, i.brutes, o.optJSONObject("champs"),
-                marqueurs(o), u.getLgUSERID()).put("jeton", o.optString("jeton")));
+        return json(service
+                .appliquerModele(i.grossiste, emplacement(u), i.fichier, i.brutes, o.optJSONObject("champs"),
+                        marqueurs(o), o.optBoolean("montantTtc", false), u.getLgUSERID())
+                .put("jeton", o.optString("jeton")));
     }
 
     @GET

@@ -181,6 +181,7 @@ public final class ReleveGrossistePdf {
             List<Cellule> cellules = new ArrayList<>();
             StringBuilder t = null;
             float x0 = 0, x1 = 0;
+            Glyphe garde = null;
             for (Glyphe g : r) {
                 float blanc = g.u0 - x1;
                 boolean filet = FILETS.indexOf(g.texte.charAt(0)) >= 0 && g.texte.trim().length() == 1;
@@ -198,9 +199,16 @@ public final class ReleveGrossistePdf {
                 } else if (blanc > 0.4f * g.espace) {
                     t.append(' ');
                 }
-                /* caractere repeint au meme endroit (gras simule) : garde une fois */
-                if (blanc > -0.5f || t.length() == 0) {
+                /*
+                 * caractere repeint au meme endroit (gras simule) : garde une fois. Plan du 09/11 : seul le meme
+                 * caractere pose a moins d'un tiers de sa largeur du precedent est un repeint ; des chiffres serres qui
+                 * se chevauchent un peu (« 11 » du releve TEDIS) sont deux caracteres.
+                 */
+                boolean repeint = garde != null && garde.texte.equals(g.texte)
+                        && g.u0 - garde.u0 < Math.max(0.3f, (garde.u1 - garde.u0) / 3f);
+                if (!repeint || t.length() == 0) {
                     t.append(g.texte);
+                    garde = g;
                 }
                 x1 = Math.max(x1, g.u1);
             }

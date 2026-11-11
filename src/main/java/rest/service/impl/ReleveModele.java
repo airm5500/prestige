@@ -81,11 +81,14 @@ public final class ReleveModele {
         public final Map<Champ, Float> positions = new EnumMap<>(Champ.class);
         /** textes de la colonne Type qui designent un avoir, separes par des virgules */
         public String marqueursAvoir = "AV";
+        /** le montant du releve est en TTC (Copharmed) : compare au TTC des BL */
+        public boolean montantTtc;
 
         public JSONObject json() {
             JSONObject c = new JSONObject();
             positions.forEach((k, v) -> c.put(k.name(), Math.round(v * 10) / 10.0));
-            return new JSONObject().put("version", 1).put("colonnes", c).put("marqueursAvoir", marqueursAvoir);
+            JSONObject o = new JSONObject().put("version", 1).put("colonnes", c).put("marqueursAvoir", marqueursAvoir);
+            return montantTtc ? o.put("montantTtc", true) : o;
         }
 
         public static Modele lire(String json) {
@@ -100,6 +103,7 @@ public final class ReleveModele {
                 }
             }
             m.marqueursAvoir = o.optString("marqueursAvoir", "AV");
+            m.montantTtc = o.optBoolean("montantTtc", false);
             return m;
         }
 
@@ -130,6 +134,8 @@ public final class ReleveModele {
     private static final Pattern NUMERO = Pattern
             .compile("^([A-Za-z]{1,6})?\\s*[-_]?\\s*0*(\\d{3,15})(?:\\s+(\\d{1,3}))?$");
     private static final Pattern CHIFFRES = Pattern.compile("\\d+");
+    /** plan du 09/11 : lignes TEDIS PR-ABO (abonnement), ni BL ni avoir */
+    private static final Pattern IGNOREE = Pattern.compile("(?i)(?<![A-Z])PR\\s*-?\\s*ABO(?![A-Z])");
 
     private ReleveModele() {
     }
@@ -554,6 +560,11 @@ public final class ReleveModele {
         if (d == null) {
             return null;
         }
+        for (String cellule : v) {
+            if (cellule != null && IGNOREE.matcher(cellule).find()) {
+                return null;
+            }
+        }
         String numeroBrut = valeur(v, rangs, Champ.NUMERO);
         String sequence = propre(valeur(v, rangs, Champ.SEQUENCE));
         if (!rangs.containsKey(Champ.SEQUENCE) && numeroBrut.contains("/")) {
@@ -568,6 +579,9 @@ public final class ReleveModele {
             agence = n.group(1) == null ? "" : n.group(1).toUpperCase(Locale.ROOT);
             numeroBl = n.group(2);
             indice = n.group(3) == null ? "" : n.group(3);
+        } else if (RapprochementBL.avecAgence(numeroBrut) != null) {
+            /* plan du 09/11 : Copharmed, l'agence (10-, 20-, 30-) fait partie du numero */
+            numeroBl = RapprochementBL.avecAgence(numeroBrut);
         } else {
             numeroBl = RapprochementBL.numero(numeroBrut);
         }

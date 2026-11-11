@@ -73,6 +73,8 @@ public final class RapprochementBL {
     }
 
     private static final Pattern CHIFFRES = Pattern.compile("\\d+");
+    /** Copharmed « 10-298560-00 » : agence, numero, suffixe */
+    private static final Pattern AGENCE_NUMERO = Pattern.compile("^\\s*(\\d{2})[-\\s]?(\\d{5,7})[-\\s](\\d{2})\\s*$");
 
     private RapprochementBL() {
     }
@@ -81,6 +83,11 @@ public final class RapprochementBL {
     static String numero(String reference) {
         if (reference == null) {
             return "";
+        }
+        /* plan du 09/11 : Copharmed « 10-298560-00 » (agence, numero, suffixe) : l'agence distingue deux BL */
+        Matcher c = AGENCE_NUMERO.matcher(reference);
+        if (c.matches()) {
+            return c.group(1) + c.group(2) + c.group(3);
         }
         Matcher m = CHIFFRES.matcher(reference);
         String meilleur = "";
@@ -91,6 +98,12 @@ public final class RapprochementBL {
         }
         String n = meilleur.replaceFirst("^0+(?=\\d)", "");
         return n;
+    }
+
+    /** Numero Copharmed avec son agence, ecrit « 10-298560-00 » ; null si la reference n'a pas cette forme. */
+    static String avecAgence(String reference) {
+        Matcher c = reference == null ? null : AGENCE_NUMERO.matcher(reference);
+        return c != null && c.matches() ? c.group(1) + "-" + c.group(2) + "-" + c.group(3) : null;
     }
 
     private static boolean memeSequence(String a, String b) {
@@ -151,7 +164,8 @@ public final class RapprochementBL {
         String num = numero(l.numeroBl);
         List<Piece> c = new ArrayList<>();
         for (Piece p : prestige) {
-            if (p.avoir == avoir && !utilisees.contains(p.id) && num.equals(numero(p.reference))) {
+            if (p.avoir == avoir && !utilisees.contains(p.id) && (num.equals(numero(p.reference))
+                    || avoir && !vide(p.referenceAvoir) && num.equals(numero(p.referenceAvoir)))) {
                 c.add(p);
             }
         }
@@ -167,7 +181,15 @@ public final class RapprochementBL {
             return 0;
         }
         String r = p.referenceAvoir.replaceAll("\\s", "");
-        return r.endsWith(l.numeroBl + l.indiceAvoir) ? 1 : -1;
+        if (r.endsWith(l.numeroBl + l.indiceAvoir)) {
+            return 1;
+        }
+        /* plan du 09/11 : avoir designe par son propre numero (DPCI « AVO R11409455 », TEDIS « AV-2627127450-BKE ») */
+        return l.indiceAvoir.isEmpty() && numero(l.numeroBl).equals(numero(r)) ? 1 : -1;
+    }
+
+    private static boolean vide(String s) {
+        return s == null || s.trim().isEmpty();
     }
 
     /** Deux pieces Prestige de meme numero : reference d'avoir, puis sequence, puis montant le plus proche. */
