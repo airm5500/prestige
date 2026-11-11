@@ -33,11 +33,14 @@ const S = [
   ['E2E-SUP-1', 'A_TRAITER', 'NOW()', null], ['E2E-SUP-2', 'EN_COURS', "'2026-09-15 09:30:00'", null], ['E2E-SUP-3', 'A_TRAITER', 'NOW()', null],
   ['E2E-SUP-4', 'TRAITEE', 'NOW()', null], ['E2E-SUP-5', 'A_TRAITER', 'NOW()', AUTRE], ['E2E-SUP-6', 'A_TRAITER', 'NOW()', null]
 ];
+/* plan du 10/11, point 3 : une suggestion manuelle se supprime sans motif ; S1 et S2 sont automatiques pour que le motif
+   reste obligatoire sur cette selection */
+const AUTO = ['E2E-SUP-1', 'E2E-SUP-2'];
 const nettoyer = () => q("DELETE FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_ID LIKE 'E2E-SUP-%'; DELETE FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID LIKE 'E2E-SUP-%';");
 function poser() {
   nettoyer();
   q(S.map(([id, st, dt, verrou]) => `INSERT INTO t_suggestion_reserve (lg_SUGGESTION_RESERVE_ID, str_REF, str_CATEGORIE, str_ORIGINE, str_STATUT, str_COMMENTAIRE, lg_EMPLACEMENT_ID,
-    lg_USER_CREATEUR_ID, dt_CREATED, dt_UPDATED, lg_USER_VERROU_ID, dt_VERROU) VALUES ('${id}', '${id}', 'RAYON', 'MANUELLE', '${st}', 'E2E commentaire', '${EMPL}', '${MOI}', ${dt}, ${dt},
+    lg_USER_CREATEUR_ID, dt_CREATED, dt_UPDATED, lg_USER_VERROU_ID, dt_VERROU) VALUES ('${id}', '${id}', 'RAYON', '${AUTO.includes(id) ? 'AUTOMATIQUE' : 'MANUELLE'}', '${st}', 'E2E commentaire', '${EMPL}', '${MOI}', ${dt}, ${dt},
     ${verrou ? `'${verrou}'` : 'NULL'}, ${verrou ? 'NOW()' : 'NULL'});`).join('')
     + PRODUITS.map((f, i) => `INSERT INTO t_suggestion_reserve_detail (lg_SUGGESTION_RESERVE_DETAIL_ID, lg_SUGGESTION_RESERVE_ID, lg_FAMILLE_ID, int_QTE_PROPOSEE, int_QTE_RETENUE, int_QTE_DEPLACEE,
     str_ETAT, dt_CREATED, dt_UPDATED) VALUES ('E2E-SUP-1-L${i}', 'E2E-SUP-1', '${f}', ${3 + i}, ${2 + i}, 0, 'PROPOSEE', NOW(), NOW());`).join(''));

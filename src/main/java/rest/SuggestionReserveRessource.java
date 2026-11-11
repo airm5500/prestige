@@ -75,8 +75,9 @@ public class SuggestionReserveRessource {
         params.put("P_H_CLT_INFOS", "SEUIL DE RÉSERVE ATTEINT : PRODUITS À DÉPLACER");
         params.put("P_PERIODE", rest.report.EditionSections.suggestionsReserve(lignes));
         params.put("P_INDICATEURS", rest.report.EditionSections.indicateursReserve(lignes));
-        String url = reportUtil.buildReport(params, "rp_edition_sections",
-                rest.report.EditionSections.reserveApresEntree(lignes), "rp_reserve_apres_entree");
+        /* plan du 10/11, point 2 : edition dediee, colonnes et couleurs de la fenetre */
+        String url = reportUtil.buildReport(params, "rp_reserve_apres_entree",
+                rest.report.EditionSections.reserveApresEntreeLignes(lignes));
         if (!reportUtil.editionEcrite(url)) {
             return Response.ok(
                     new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée.").toString())
@@ -414,11 +415,10 @@ public class SuggestionReserveRessource {
         String motif = in.optString("motif", "").trim();
         JSONArray ids = in.optJSONArray("ids");
         JSONObject res = new JSONObject();
-        if (motif.isEmpty()) {
-            return Response.ok().entity(
-                    res.put("success", false).put("message", "Le motif de la suppression est obligatoire.").toString())
-                    .build();
-        }
+        /*
+         * plan du 10/11, point 3 : sans motif, les suggestions manuelles sont supprimees et les automatiques refusees
+         * une a une (« motif obligatoire »), par la regle de supprimerSuggestion
+         */
         if (ids == null || ids.length() == 0) {
             return Response.ok()
                     .entity(res.put("success", false).put("message", "Aucune suggestion cochée.").toString()).build();

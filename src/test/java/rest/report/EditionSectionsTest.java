@@ -367,6 +367,101 @@ public class EditionSectionsTest {
         }
     }
 
+    /**
+     * Plan du 10/11, point 2 : edition dediee rp_reserve_apres_entree. 2 000 jeux tires au hasard (graine fixe) : une
+     * ligne par produit, colonnes = fenetre (CIP, produit, sens, rayon, reserve, seuil mini, seuil maxi, quantite
+     * proposee), seuils vides quand la fiche ne les renseigne pas. Puis le modele rempli : chaque ligne du document
+     * porte ses huit cellules dans l'ordre ; seuil mini en rouge gras, seuil maxi en bleu gras, quantite en vert gras,
+     * en-tetes compris ; A4 paysage ; plusieurs pages.
+     */
+    @Test
+    public void reserveApresEntreeEditionDediee() throws Exception {
+        Random r = new Random(GRAINE + 10);
+        for (int cas = 0; cas < 2000; cas++) {
+            JSONArray t = new JSONArray();
+            int n = r.nextInt(12);
+            for (int i = 0; i < n; i++) {
+                String mini = r.nextInt(4) == 0 ? "" : String.valueOf(r.nextInt(30));
+                String maxi = r.nextInt(4) == 0 ? "" : String.valueOf(1 + r.nextInt(300));
+                t.put(new JSONObject().put("cip", String.valueOf(1000000 + r.nextInt(9000000)))
+                        .put("nom", "PRODUIT " + i).put("categorie", r.nextBoolean() ? "RESERVE" : "RAYON")
+                        .put("stockRayon", r.nextInt(3000)).put("stockReserve", r.nextInt(3000)).put("seuilMini", mini)
+                        .put("seuilMaxi", maxi).put("quantite", r.nextInt(1500)));
+            }
+            List<commonTasks.dto.LigneReserveApresEntreeDTO> l = EditionSections.reserveApresEntreeLignes(t);
+            assertEquals(n, l.size(), "cas " + cas);
+            for (int i = 0; i < n; i++) {
+                JSONObject x = t.getJSONObject(i);
+                commonTasks.dto.LigneReserveApresEntreeDTO d = l.get(i);
+                assertArrayEquals(new String[] { x.getString("cip"), x.getString("nom"),
+                        EditionSections.sensReserve(x.getString("categorie")), String.valueOf(x.getInt("stockRayon")),
+                        String.valueOf(x.getInt("stockReserve")), x.getString("seuilMini"), x.getString("seuilMaxi"),
+                        String.valueOf(x.getInt("quantite")) },
+                        new String[] { d.getCip(), d.getNom(), d.getSens(), d.getRayon(), d.getReserve(),
+                                d.getSeuilMini(), d.getSeuilMaxi(), d.getQuantite() },
+                        "cas " + cas + " ligne " + i);
+            }
+        }
+        try (InputStream in = getClass().getResourceAsStream("/reports/rp_reserve_apres_entree.jrxml")) {
+            assertNotNull(in, "rp_reserve_apres_entree.jrxml embarque");
+            JasperReport rapport = JasperCompileManager.compileReport(in);
+            assertEquals(842, rapport.getPageWidth(), "A4 paysage");
+            JSONArray t = new JSONArray();
+            for (int i = 0; i < 60; i++) {
+                t.put(new JSONObject().put("cip", "88" + (10000 + i)).put("nom", "PRODUIT RESERVE " + i)
+                        .put("categorie", i % 3 == 0 ? "RAYON" : "RESERVE").put("stockRayon", 100 + i)
+                        .put("stockReserve", 2000 + i).put("seuilMini", i % 5 == 0 ? "" : String.valueOf(3 + i % 7))
+                        .put("seuilMaxi", String.valueOf(400 + i)).put("quantite", 300 + i));
+            }
+            Map<String, Object> parametres = new HashMap<>();
+            parametres.put("P_H_CLT_INFOS", "SEUIL DE RÉSERVE ATTEINT : PRODUITS À DÉPLACER");
+            parametres.put("P_INDICATEURS", EditionSections.indicateursReserve(t));
+            List<commonTasks.dto.LigneReserveApresEntreeDTO> lignes = EditionSections.reserveApresEntreeLignes(t);
+            JasperPrint impression = JasperFillManager.fillReport(rapport, parametres,
+                    new JRBeanCollectionDataSource(lignes));
+            assertTrue(impression.getPages().size() >= 2, "plusieurs pages");
+            /* cellules du document regroupees par ligne (page, y), triees par x */
+            java.util.TreeMap<String, java.util.TreeMap<Integer, JRPrintText>> parLigne = new java.util.TreeMap<>();
+            for (int pg = 0; pg < impression.getPages().size(); pg++) {
+                for (JRPrintElement e : impression.getPages().get(pg).getElements()) {
+                    if (e instanceof JRPrintText) {
+                        parLigne.computeIfAbsent(String.format("%03d-%05d", pg, e.getY()),
+                                k -> new java.util.TreeMap<>()).put(e.getX(), (JRPrintText) e);
+                    }
+                }
+            }
+            int trouvees = 0;
+            int entetes = 0;
+            for (java.util.TreeMap<Integer, JRPrintText> rang : parLigne.values()) {
+                /* positions du jrxml + marge gauche de 20 */
+                JRPrintText mini = rang.get(582), maxi = rang.get(662), qte = rang.get(742);
+                if (rang.size() != 8 || mini == null || maxi == null || qte == null) {
+                    continue;
+                }
+                for (Object[] c : new Object[][] { { mini, "#C62828" }, { maxi, "#1A5F9E" }, { qte, "#2E7D32" } }) {
+                    JRPrintText x = (JRPrintText) c[0];
+                    assertEquals(java.awt.Color.decode((String) c[1]), x.getForecolor(), x.getFullText());
+                    assertTrue(Boolean.TRUE.equals(x.isBold()), "gras : " + x.getFullText());
+                }
+                String[] cellules = rang.values().stream().map(JRPrintText::getFullText).toArray(String[]::new);
+                if ("CIP".equals(cellules[0])) {
+                    assertArrayEquals(new String[] { "CIP", "Produit", "Sens", "Rayon", "Réserve", "Seuil mini rayon",
+                            "Seuil maxi rayon", "Quantité proposée" }, cellules);
+                    entetes++;
+                    continue;
+                }
+                commonTasks.dto.LigneReserveApresEntreeDTO d = lignes.get(trouvees++);
+                assertArrayEquals(
+                        new String[] { d.getCip(), d.getNom(), d.getSens(), d.getRayon(), d.getReserve(),
+                                d.getSeuilMini(), d.getSeuilMaxi(), d.getQuantite() },
+                        java.util.Arrays.stream(cellules).map(s -> s == null ? "" : s).toArray(String[]::new),
+                        "ligne " + trouvees);
+            }
+            assertEquals(lignes.size(), trouvees, "chaque produit une fois, dans l'ordre");
+            assertEquals(impression.getPages().size(), entetes, "en-tete des colonnes sur chaque page");
+        }
+    }
+
     private static void ajouter(JRPrintElement e, StringBuilder sb) {
         if (e instanceof JRPrintText) {
             sb.append(((JRPrintText) e).getFullText()).append('\n');

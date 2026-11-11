@@ -269,14 +269,23 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             items: [
                 {
                     icon: 'resources/images/icons/fam/delete.png',
-                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Supprimer la suggestion</b><br>Impossible dès qu\'une ligne a été traitée.</div>',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Supprimer la suggestion</b><br>Suggestion manuelle : sans motif ; l\'icône passe au rouge, cliquez encore pour confirmer.<br>Impossible dès qu\'une ligne a été traitée.</div>',
                     getClass: function (v, m, rec) {
                         // Une suggestion cloturee ne peut plus etre supprimee : l'icone disparait.
                         var s = rec.get('str_STATUT');
-                        return (s === 'TRAITEE' || s === 'SUPPRIMEE' || s === 'ANNULEE') ? 'x-hidden' : '';
+                        if (s === 'TRAITEE' || s === 'SUPPRIMEE' || s === 'ANNULEE') {
+                            return 'x-hidden';
+                        }
+                        return me.aConfirmer === rec.get('lg_SUGGESTION_RESERVE_ID') ? 'sugg-suppr sugg-suppr-confirmer' : 'sugg-suppr';
                     },
                     handler: function (g, rowIndex) {
-                        me.onSupprimer(g.getStore().getAt(rowIndex));
+                        var rec = g.getStore().getAt(rowIndex);
+                        /* plan du 10/11, point 3 : une suggestion manuelle se supprime sans motif, confirmee sur l'icone */
+                        if (rec && rec.get('str_ORIGINE') === 'MANUELLE') {
+                            me.supprimerManuelle(rec);
+                        } else {
+                            me.onSupprimer(rec);
+                        }
                     }
                 }
             ]
@@ -422,8 +431,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         if (!lignes.length) {
             return;
         }
-        if (!motif) {
-            champ.markInvalid('Motif obligatoire : il restera le seul moyen de savoir pourquoi ces suggestions ont disparu.');
+        /* plan du 10/11, point 3 : le motif n'est plus demande quand toutes les suggestions cochees sont manuelles */
+        var automatiques = Ext.Array.filter(lignes, function (r) {
+            return r.get('str_ORIGINE') !== 'MANUELLE';
+        }).length;
+        if (!motif && automatiques > 0) {
+            champ.markInvalid('Motif obligatoire pour les suggestions automatiques (' + automatiques
+                    + ') : il restera le seul moyen de savoir pourquoi elles ont disparu.');
             champ.focus(false, 20);
             return;
         }
@@ -705,6 +719,63 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                         }
                     });
                 });
+    },
+
+    /**
+     * Plan du 10/11, point 3 : suppression d'une suggestion MANUELLE, sans motif ni fenetre. Premier clic : l'icone
+     * passe au rouge de confirmation (« Cliquez encore pour confirmer ») pendant 5 s ; second clic : suppression.
+     * Memes delais que PrestigeConfirmation.bouton (5 s, double clic accidentel de moins de 400 ms ignore).
+     */
+    supprimerManuelle: function (rec) {
+        var me = this, id = rec.get('lg_SUGGESTION_RESERVE_ID'), maintenant = Date.now();
+        if (!Ext.get('sugg-suppr-style')) {
+            Ext.util.CSS.createStyleSheet('.sugg-suppr-confirmer{background-color:#c0392b !important;border-radius:3px;'
+                    + 'box-shadow:0 0 0 3px #c0392b}', 'sugg-suppr-style');
+        }
+        var rafraichir = function () {
+            var i = me.getStore().indexOf(rec);
+            if (!me.isDestroyed && i >= 0) {
+                me.getView().refreshNode(i);
+            }
+        };
+        if (me.aConfirmer !== id) {
+            me.aConfirmer = id;
+            me.aConfirmerDepuis = maintenant;
+            rafraichir();
+            clearTimeout(me.aConfirmerMinuterie);
+            me.aConfirmerMinuterie = setTimeout(function () {
+                if (me.aConfirmer === id) {
+                    me.aConfirmer = null;
+                    rafraichir();
+                }
+            }, 5000);
+            return;
+        }
+        if (maintenant - me.aConfirmerDepuis < 400) {
+            return;
+        }
+        clearTimeout(me.aConfirmerMinuterie);
+        me.aConfirmer = null;
+        rafraichir();
+        Ext.Ajax.request({
+            method: 'DELETE',
+            url: '../api/v1/suggestion-reserve/' + encodeURIComponent(id),
+            success: function (response) {
+                var res = Ext.JSON.decode(response.responseText, true) || {};
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher(res.success === false ? (res.message || 'Suppression impossible.')
+                            : 'Suggestion ' + rec.get('str_REF') + ' supprimée.', {niveau: res.success === false ? 'alerte' : 'ok', titre: 'Suppression'});
+                }
+                if (res.success !== false) {
+                    me.reloadGrid();
+                }
+            },
+            failure: function () {
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher('Suppression impossible.', {niveau: 'alerte', titre: 'Suppression'});
+                }
+            }
+        });
     },
 
     /**
