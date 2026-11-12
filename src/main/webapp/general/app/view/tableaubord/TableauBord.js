@@ -191,21 +191,44 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         /* Priorite au menu de navigation (comme l'ancien tableau de bord) : on attend son chargement, 5 s au plus. */
         var nav = Ext.ComponentQuery.query('navigation')[0];
         var store = nav && nav.getStore ? nav.getStore() : null;
-        var lance = false;
+        var lance = false, construit = false;
         var lancer = function () {
             if (lance || me.isDestroyed) {
                 return;
             }
             lance = true;
             me.chargerPreferences(function () {
+                construit = true;
                 me.construire();
             });
         };
         if (store && !store._menuCharge) {
-            store.on('load', function () {
-                Ext.defer(lancer, 100);
-            }, null, {single: true});
-            Ext.defer(lancer, 5000);
+            /* Retour du 12/11 : menu lent (premiere connexion apres un deploiement, serveur charge) ou premiere lecture
+               en echec. Le tableau se construit au bout de 5 s sans attendre davantage, mais les cartes reservees a un
+               droit du menu (« Activite des equipes ») y manquaient pour toute la session : a l'arrivee du menu, le
+               tableau deja construit sans lui l'est une seconde fois. Une lecture en echec (menu non charge) attend la
+               tentative suivante au lieu de lancer le tableau sans menu. */
+            var sansMenu = false;
+            var surMenu = function () {
+                if (!store._menuCharge || me.isDestroyed) {
+                    return;
+                }
+                store.un('load', surMenu);
+                Ext.defer(function () {
+                    if (!lance) {
+                        lancer();
+                    } else if (sansMenu && construit && !me.isDestroyed) {
+                        me.construire();
+                    }
+                }, 100);
+            };
+            store.on('load', surMenu);
+            Ext.defer(function () {
+                if (!lance) {
+                    sansMenu = true;
+                    lancer();
+                }
+            }, 5000);
         } else {
             Ext.defer(lancer, 50);
         }
