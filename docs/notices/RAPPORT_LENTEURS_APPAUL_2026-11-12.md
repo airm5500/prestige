@@ -15,8 +15,9 @@ l'officine ni dans `laborex_v1_db`.**
 | « Détail sur l'article » | 10,5 s + 10,4 s | 0,1 à 0,2 s + 0,02 s | une seule demande | la fenêtre calculait la fiche deux fois (`produits/{id}`, puis `fiche?produitId=`) | double calcul **confirmé, corrigé** ; les 10 s **suspectées** (sauvegardes, § 3) |
 | Liste des articles, touche Entrée | — | 2 recherches | **1 recherche** | Entrée lance la recherche, puis la pause de frappe la relance | **confirmé, corrigé** |
 | Sauvegardes automatiques | 15 échecs de 23:05 à 01:05 ; requêtes de 10 à 52 s | — | une seule sauvegarde, sur le serveur, aux horaires choisis | chaque poste (Payara) lançait sa sauvegarde à hh:05 et marquait « interrompues » celles des autres | **confirmé, corrigé** |
-| Balance vente caisse, 1 mois | (signalée lente) | 1,0 s seule ; **4,2 à 5,0 s** juste après le tableau de bord | inchangé | mémoire tampon de MariaDB trop petite : le tableau de bord en chasse les ventes du mois | **confirmé, non corrigé** (réglage du serveur, § 5) |
-| Tableau de bord (`alertes`, `tuiles`) | 10,6 s et 7,1 s à 22:04 | alertes 1,9 à 6,6 s ; tuiles 0,3 à 3 s | inchangé | ruptures calculées deux fois ; « non vendus » relit tout l'historique ; démarrage plus contrôle de cohérence de 22:00 | **non corrigé** (pistes, § 5) |
+| Balance vente caisse, 1 mois | (signalée lente) | 1,0 s seule ; **4,2 à 5,0 s** juste après le tableau de bord ; 10 à 13 s par l'écran | **0,98 s** juste après le tableau de bord ; par l'écran : 1,1 s avec 5 Go de mémoire tampon, 5 à 10 s avec 2 Go | le tableau de bord chassait les ventes du mois de la mémoire ; un mois de ventes occupe environ 3,7 Go de pages (clés aléatoires) | **confirmé, corrigé côté code** ; reste un **réglage du serveur** (§ 5) |
+| Tableau de bord (`alertes`, `tuiles`) | 10,6 s et 7,1 s à 22:04 | alertes 1,2 à 4,6 s ; tuiles 0,4 à 2,8 s | **alertes 0,08 à 0,12 s ; tuiles 0,07 à 0,12 s** | « non vendus » relisait tout l'historique de chaque article ; ruptures calculées deux fois | **confirmé, corrigé** (§ 4 bis) |
+| Cloche (compteur des avoirs), sur chaque poste | — | 0,4 à 2 s par passage | **3 à 4 ms** | MariaDB partait des utilisateurs et relisait toutes leurs ventes | **confirmé, corrigé** (§ 4 bis) |
 | Connexion (`POST user/auth`) | > 5 s à 01:16 | rapide | — | en même temps que les sauvegardes en échec | **suspecté** |
 
 Demande de l'utilisateur, traitée ici (§ 3) : « la sauvegarde doit se faire uniquement sur le serveur pas sur chaque
@@ -89,18 +90,47 @@ ouvertures de la fenêtre ne changent pas.
 **Liste des articles** (`FamilleManager.js`) : la pause de frappe ne relance plus la recherche si les critères sont
 exactement ceux de la dernière liste demandée. Chaque recherche recalcule 20 fiches.
 
+## 4 bis. Tableau de bord, cloche et balance (suite du 12/11)
+
+**Articles entrés non vendus** (`TableauBordServiceImpl`, carte Alertes et sa liste).
+- Avant : pour chaque article entré dans la période, MariaDB cherchait une vente postérieure dans **tout son
+  historique**. Cela faisait 638 000 lignes lues, et des ventes de 3 ans lues au hasard sur le disque : 2,7 à 6,4 s.
+  Ces lectures chassaient aussi le reste de la mémoire tampon.
+- Après : la dernière vente de chaque article est prise parmi les ventes **de la période** seulement (index de date).
+- Le résultat est identique : l'entrée est toujours dans la période, donc une vente postérieure à l'entrée l'est aussi.
+  Le test le vérifie contre la formule d'origine, sur 5 périodes et 2 857 lignes.
+
+**Ruptures** : les tuiles et les alertes, demandées ensemble à l'ouverture et par « Actualiser », faisaient chacune le
+même calcul (jusqu'à 2,4 s). Le second appel reprend désormais le résultat du premier s'il a moins de 20 s, ou l'attend
+s'il est en cours (`CalculPartage`). Le cache d'une minute du tableau de bord existait déjà.
+
+**Cloche** (`NotificationsCentreServiceImpl`, compteur des avoirs, relu sur chaque poste) : l'index (avoir, date) de
+la migration V6.2.9 est imposé. Le compteur passe de 0,4 à 2 s à 3 ms, avec le même nombre. L'index n'est imposé que
+s'il existe ; sinon, la requête d'origine s'applique.
+
+**Balance vente caisse** : son code n'a pas changé. Ses trois requêtes (lignes, règlements, TVA) sont justes, avec des
+plans normaux. Elle était lente pour deux raisons :
+1. Le tableau de bord la chassait de la mémoire. C'est corrigé ci-dessus : sur la copie, la balance d'octobre reste à
+   0,98 s juste après le tableau de bord (avant : 4,2 à 5,0 s).
+2. **Un mois de ventes ne tient pas dans la mémoire tampon de MariaDB.** Les identifiants des ventes, des lignes, des
+   mouvements et des règlements sont des UUID aléatoires : chaque vente d'un mois est sur une page différente. Un mois
+   touche environ 235 000 pages, soit près de 3,7 Go, et la copie n'a que 2 Go de mémoire tampon.
+   - Mesure par l'écran (connexion, « Actualiser » du tableau de bord, puis balance d'octobre) : 1,1 s avec 5 Go, 5 à
+     10 s avec 2 Go.
+   - Avec 5 Go, seule la toute première balance après un redémarrage de MariaDB lit le disque (8,8 s).
+
 ## 5. Ce qui reste (non corrigé, à décider)
 
-1. **Balance vente caisse sur un mois : mémoire de MariaDB.** Seule, elle prend 1,0 s (100 requêtes). Juste après le
-   tableau de bord, elle prend 4,2 à 5,0 s, et 8 à 13 s quand la machine est chargée. Le tableau de bord parcourt de
-   grosses tables et chasse les ventes du mois de la mémoire tampon (2 Go sur le banc pour 20 Go de base). À froid,
-   la requête principale prend 6,4 s, la TVA 3,0 s et les règlements 2,0 s : les ventes du mois sont lues trois fois.
-   **Piste** : demander la valeur de `innodb_buffer_pool_size` et la mémoire du serveur d'appaul. Côté code, on
-   pourrait faire un seul passage sur les ventes du mois.
-2. **Tableau de bord.**
-   - La requête des ruptures (2,4 s) est exécutée deux fois, une par les tuiles et une par les alertes : on pourrait la
-     partager.
-   - « Non vendus » prend 6,4 s à froid. La réécriture en LEFT JOIN a été essayée : plus lente (3,1 s), abandonnée.
+1. **Mémoire de MariaDB chez appaul : réglage du serveur, à décider avec l'officine.** Il faut demander la mémoire du
+   serveur et la valeur actuelle de `innodb_buffer_pool_size`. Pour que la balance d'un mois reste rapide, il faut au
+   moins 4 à 5 Go, si le serveur a la mémoire nécessaire (par exemple 16 Go). Ce réglage se fait dans `my.ini` du
+   serveur, hors du code.
+2. **Balance à froid** (première ouverture après un redémarrage). Il faudrait lire les ventes du mois en un seul
+   passage au lieu de trois, ou faire les trois lectures en parallèle (gain estimé : environ un tiers). Ce n'est pas
+   fait : le gain est limité tant que la mémoire est insuffisante.
+3. **Tableau de bord.**
+   - La carte Valorisation (« dormants », 0,4 à 1,4 s) lit un index de 2,6 millions d'entrées. La réécriture avec
+     `MAX` a été essayée : pas plus rapide, abandonnée.
    - Le contrôle de cohérence de 22:00 pourrait être décalé hors des heures d'ouverture.
 
 ## 6. Tests
@@ -115,6 +145,10 @@ Chaque nouveau test a **d'abord échoué sur la version d'avant**.
 | `src/test/e2e/perf/test-erp-dates-indexees.js` | rapprochement + durée | 40/42 (durées 4,0 s et 4,4 s) | **42/42** |
 | `HorairesSauvegardeTest` | cohérence (3 000 cas, graine 20261112) | classe absente | **5/5** |
 | `PosteSauvegardeTest` | règle du poste serveur | classe absente | **3/3** |
+| `src/test/e2e/perf/test-tableau-bord-balance-appaul.js` | rapprochement + écran + durée | 14/18 (alertes 4,6 s, tuiles 2,6 s, balance 10 à 11,5 s, cloche 390 ms) | **18/18 avec 5 Go** de mémoire tampon ; 17/18 avec 2 Go (balance 5 s au 2e passage, § 4 bis) |
+| `CalculPartageTest` | cohérence (5 000 cas, graine 20261112) + 8 appels simultanés = 1 calcul | classe absente | **3/3** |
+| `retours/test-cloche.js` (non-régression) | écran + rapprochement | — | **18/18** |
+| `retours/test-tableau-bord.js` (non-régression) | écran + rapprochement | — | 32/35 : achats par grossiste et tiers payants vides sur le mois de novembre de la copie (ventes d'anciens essais seulement), routes non modifiées ; sa partie « non vendus » n'est pas atteinte, elle est couverte par le test ci-dessus |
 | `ConservationTest`, `PoolMariaDbTest` | non-régression | 3/3, 3/3 | 3/3, 3/3 |
 
 **Endroits où la donnée apparaît, et test de rapprochement qui les compare**
@@ -157,3 +191,10 @@ Les deux autres tests ne font que lire.
 | balance 27/10 | 670 / 315 / 190 | 335 / 168 / 165 |
 | balance 01 au 27/10, après le tableau de bord | 5 521 / 12 014 / 11 797 | 12 805 / 7 985 / 7 897 (inchangé, § 5) |
 | balance 01 au 27/10, seule | — | 1 001 / 975 / 987 |
+| **Suite du 12/11** | avant | après |
+| `tableau-bord/alertes` (Actualiser) | 1 175 / 4 571 ms | 82 / 84 / 88 / 89 ms |
+| `tableau-bord/tuiles` (Actualiser) | 386 / 2 621 ms | 76 / 78 / 166 ms (premier appel après déploiement : 2 136 ms) |
+| `notifications-centre/compteurs?cles=avoirs` | 390 ms (meilleur de 3) | 3 / 3 / 4 ms |
+| balance 01 au 27/10, juste après alertes + tuiles (2 Go) | 5 034 / 4 192 ms | 976 / 978 ms |
+| balance 01 au 29/10 par l'écran, après « Actualiser » (2 Go) | 11 536 / 10 104 ms | 9 702 / 5 088 ms |
+| balance 01 au 29/10 par l'écran, après « Actualiser » (5 Go) | — | 8 782 (première lecture) / 1 085 ms ; puis 1 087 / 1 092 ms |

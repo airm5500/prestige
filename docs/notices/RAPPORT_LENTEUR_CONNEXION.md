@@ -671,4 +671,5 @@ Rapport dédié : [RAPPORT_LENTEURS_APPAUL_2026-11-12.md](RAPPORT_LENTEURS_APPAU
 - `ca-all` passe de 6,4 s à 0,02 s, et `ca-achats-ventes` de 4,8 s à 0,45 s : la date est filtrée sans `DATE()`, l'index sert à nouveau.
 - La fiche article n'est plus calculée deux fois à l'ouverture du détail, et la touche Entrée ne lance plus deux recherches.
 - Les sauvegardes se font sur le serveur seul, aux horaires choisis, avec un verrou dans la base. Avant, chaque poste lançait un dump à hh:05 et marquait « interrompues » les sauvegardes des autres.
-- Restent la balance d'un mois après le tableau de bord (mémoire de MariaDB) et le tableau de bord lui-même : pistes à décider.
+- Tableau de bord : alertes de 4,6 s à 0,1 s, tuiles de 2,6 s à 0,1 s (« non vendus » limité aux ventes de la période, ruptures calculées une fois). Cloche : compteur des avoirs de 0,4–2 s à 3 ms.
+- Balance d'un mois : 0,98 s juste après le tableau de bord, au lieu de 4,2 à 5 s. Il reste une condition : un mois de ventes occupe environ 3,7 Go de pages (UUID aléatoires), donc la mémoire tampon de MariaDB d'appaul doit faire au moins 4 à 5 Go (réglage du serveur, à décider).

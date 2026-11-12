@@ -129,9 +129,14 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
     private long avoirs(TUser user, boolean voirTout, boolean toutesActivites) {
         LocalDate fin = LocalDate.now();
         LocalDate debut = fin.minusMonths(1).plusDays(1);
-        StringBuilder sql = new StringBuilder(
-                " FROM t_preenregistrement p WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_AVOIR = TRUE"
-                        + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2");
+        /*
+         * lenteurs d'appaul (12/11) : sans indication, MariaDB partait des utilisateurs de l'emplacement et relisait
+         * toutes leurs ventes (3 ans) : 1,2 a 2 s par passage de la cloche, sur chaque poste. Les avoirs du mois sont
+         * lus par l'index (avoir, date) de la migration V6.2.9 : moins d'une milliseconde, meme nombre.
+         */
+        StringBuilder sql = new StringBuilder(" FROM t_preenregistrement p " + indexAvoirs()
+                + "WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_AVOIR = TRUE"
+                + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2");
         boolean parUtilisateur = !voirTout && user != null;
         boolean parEmplacement = voirTout && !toutesActivites && user != null;
         if (parUtilisateur) {
@@ -143,13 +148,28 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
         }
         Timestamp d1 = Timestamp.valueOf(debut.atStartOfDay());
         Timestamp d2 = Timestamp.valueOf(fin.atTime(23, 59, 59));
-        if (parUtilisateur) {
-            return compter(sql.toString(), d1, d2, user.getLgUSERID());
+        Object[] params = parUtilisateur ? new Object[] { d1, d2, user.getLgUSERID() } : parEmplacement
+                ? new Object[] { d1, d2, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID() } : new Object[] { d1, d2 };
+        return compter(sql.toString(), params);
+    }
+
+    /** L'index est impose seulement s'il existe (base sans la migration V6.2.9 : requete d'origine, plus lente). */
+    private static volatile Boolean indexAvoirsPresent;
+
+    private String indexAvoirs() {
+        if (indexAvoirsPresent == null) {
+            try {
+                Object n = em.createNativeQuery(
+                        "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE()"
+                                + " AND TABLE_NAME = 't_preenregistrement' AND INDEX_NAME = 'idx_preenr_avoir_date'")
+                        .getSingleResult();
+                indexAvoirsPresent = n instanceof Number && ((Number) n).longValue() > 0;
+            } catch (RuntimeException e) {
+                LOG.log(Level.WARNING, "cloche : index des avoirs non verifie", e);
+                return "";
+            }
         }
-        if (parEmplacement) {
-            return compter(sql.toString(), d1, d2, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-        }
-        return compter(sql.toString(), d1, d2);
+        return indexAvoirsPresent ? "FORCE INDEX (idx_preenr_avoir_date) " : "";
     }
 
     @Override
