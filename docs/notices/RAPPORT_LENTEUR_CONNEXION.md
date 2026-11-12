@@ -663,3 +663,12 @@ Contrôles :
 - second rejeu : 184/184 ventes, 1 scan perdu, 0 interblocage, tas Java ≤ 2,1 Go, 2 sauvegardes réussies ;
 - scan perdu : reproduit par test (avant 33/46), corrigé (après 51/51), non-régression clavier 6/6 ;
 - vente en dépôt : reproduit (35/52), corrigé (53/53), non-régression 51/51, 6/6, 13/13.
+
+## Lenteurs chez appaul (journal du 12/11)
+
+Rapport dédié : [RAPPORT_LENTEURS_APPAUL_2026-11-12.md](RAPPORT_LENTEURS_APPAUL_2026-11-12.md).
+
+- `ca-all` passe de 6,4 s à 0,02 s, et `ca-achats-ventes` de 4,8 s à 0,45 s : la date est filtrée sans `DATE()`, l'index sert à nouveau.
+- La fiche article n'est plus calculée deux fois à l'ouverture du détail, et la touche Entrée ne lance plus deux recherches.
+- Les sauvegardes se font sur le serveur seul, aux horaires choisis, avec un verrou dans la base. Avant, chaque poste lançait un dump à hh:05 et marquait « interrompues » les sauvegardes des autres.
+- Restent la balance d'un mois après le tableau de bord (mémoire de MariaDB) et le tableau de bord lui-même : pistes à décider.

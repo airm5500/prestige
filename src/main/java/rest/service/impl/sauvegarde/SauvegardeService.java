@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -19,6 +20,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -65,7 +67,12 @@ public class SauvegardeService {
     static final String CLE_GARDER_HEURES = "KEY_SAUVEGARDE_GARDER_HEURES";
     static final String CLE_GARDER_JOURS = "KEY_SAUVEGARDE_GARDER_JOURS";
     static final String CLE_OUTIL = "KEY_SAUVEGARDE_OUTIL";
-    static final int FRAICHEUR_HEURES = 2;
+    /** Horaires de la sauvegarde automatique (vide : toutes les heures), voir {@link HorairesSauvegarde}. */
+    static final String CLE_HORAIRES = "KEY_SAUVEGARDE_HORAIRES";
+    /** Poste qui fait les sauvegardes (vide : celui qui heberge la base), voir {@link PosteSauvegarde}. */
+    static final String CLE_POSTE = "KEY_SAUVEGARDE_POSTE";
+    /** Nom du verrou de MariaDB : un par base (plusieurs officines peuvent partager un serveur MariaDB). */
+    private static final String VERROU = "CONCAT('prestige_sauvegarde_', DATABASE())";
     private static final String FIN_OUTIL = "-- Dump completed";
 
     @Resource(mappedName = PoolMariaDb.JNDI)
@@ -94,6 +101,58 @@ public class SauvegardeService {
         return !"0".equals(parametre(CLE_ACTIVE));
     }
 
+    public HorairesSauvegarde horaires() {
+        return HorairesSauvegarde.lire(parametre(CLE_HORAIRES));
+    }
+
+    /** Valeur de KEY_SAUVEGARDE_POSTE, vide si le serveur est celui qui heberge la base. */
+    public String posteImpose() {
+        return StringUtils.trimToEmpty(parametre(CLE_POSTE));
+    }
+
+    /** Ce poste fait-il les sauvegardes ? Seul le serveur les fait (retour du 12/11). */
+    public boolean posteServeur() {
+        String hote = null;
+        try {
+            PoolMariaDb pool = PoolMariaDb.lire(new String(Files.readAllBytes(domaineXml()), StandardCharsets.UTF_8));
+            hote = pool == null ? null : pool.hote;
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "Pool de Payara illisible : ce poste est pris pour le serveur", e);
+        }
+        return PosteSauvegarde.estServeur(posteImpose(), hote, nomPoste(), adressesPoste());
+    }
+
+    static String nomPoste() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static List<String> adressesPoste() {
+        List<String> l = new ArrayList<>();
+        try {
+            for (NetworkInterface i : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                for (InetAddress a : Collections.list(i.getInetAddresses())) {
+                    String t = a.getHostAddress();
+                    l.add(t.contains("%") ? t.substring(0, t.indexOf('%')) : t);
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "Adresses du poste", e);
+        }
+        return l;
+    }
+
+    /** Refus d'une sauvegarde demandee sur un poste qui n'est pas le serveur. */
+    private String refusPoste() {
+        String impose = posteImpose();
+        return "Les sauvegardes se font uniquement sur le serveur ("
+                + (impose.isEmpty() ? "le poste qui héberge la base" : "poste " + impose)
+                + ") : lancez-la depuis ce poste.";
+    }
+
     private int entier(String cle, int defaut) {
         String v = parametre(cle);
         return StringUtils.isNumeric(v) ? Integer.parseInt(v) : defaut;
@@ -101,6 +160,19 @@ public class SauvegardeService {
 
     /** Enregistre les reglages de l'ecran ; message d'erreur, ou null si tout est enregistre. */
     public String enregistrer(String dossier, String copie, Boolean active, Integer garderHeures, Integer garderJours) {
+        return enregistrer(dossier, copie, active, garderHeures, garderJours, null, null);
+    }
+
+    /** Idem, avec les horaires et le poste serveur (null : inchanges). */
+    public String enregistrer(String dossier, String copie, Boolean active, Integer garderHeures, Integer garderJours,
+            String horaires, String poste) {
+        String erreurHoraires = HorairesSauvegarde.erreur(horaires);
+        if (erreurHoraires != null) {
+            return erreurHoraires;
+        }
+        if (poste != null && !poste.trim().matches("[A-Za-z0-9._-]{0,100}")) {
+            return "Nom du poste serveur illisible : lettres, chiffres, point et tiret seulement (vide : le poste qui héberge la base).";
+        }
         dossier = StringUtils.trimToEmpty(dossier);
         copie = StringUtils.trimToEmpty(copie);
         if (dossier.isEmpty() || !Paths.get(dossier).isAbsolute()) {
@@ -119,7 +191,15 @@ public class SauvegardeService {
         ecrireParametre(CLE_DOSSIER, dossier, "Sauvegardes : dossier");
         ecrireParametre(CLE_COPIE, copie, "Sauvegardes : copie sur un second dossier (vide : aucune)");
         ecrireParametre(CLE_ACTIVE, Boolean.FALSE.equals(active) ? "0" : "1",
-                "Sauvegardes : automatique toutes les heures (1) ou non (0)");
+                "Sauvegardes : automatique (1) ou non (0), aux horaires de KEY_SAUVEGARDE_HORAIRES");
+        if (horaires != null) {
+            ecrireParametre(CLE_HORAIRES, HorairesSauvegarde.lire(horaires).texte(),
+                    "Sauvegardes : horaires (ex. 12:00, 20:00 ; vide : toutes les heures a hh:05)");
+        }
+        if (poste != null) {
+            ecrireParametre(CLE_POSTE, poste.trim(),
+                    "Sauvegardes : poste qui les fait (vide : le poste qui heberge la base)");
+        }
         ecrireParametre(CLE_GARDER_HEURES, String.valueOf(garderHeures),
                 "Sauvegardes : toutes gardees pendant (heures)");
         ecrireParametre(CLE_GARDER_JOURS, String.valueOf(garderJours),
@@ -131,6 +211,12 @@ public class SauvegardeService {
 
     /** Lance une sauvegarde en arriere-plan ; message si une sauvegarde tourne deja, null sinon. */
     public String lancer(String origine) {
+        if (!posteServeur()) {
+            return refusPoste();
+        }
+        if (verrouPris()) {
+            return "Une sauvegarde est déjà en cours" + (enCours.get() ? "." : ", lancée depuis un autre poste.");
+        }
         if (!enCours.compareAndSet(false, true)) {
             return "Une sauvegarde est déjà en cours.";
         }
@@ -149,16 +235,83 @@ public class SauvegardeService {
         executer(origine);
     }
 
-    /** Sauvegarde automatique (planificateur) : rien si une sauvegarde tourne deja. */
-    public void automatique() {
+    /**
+     * Passage du planificateur (toutes les 5 minutes) : sauvegarde si elle est active, si l'horaire est atteint et si
+     * ce poste est le serveur ; rien si une sauvegarde tourne deja, ici ou sur un autre poste.
+     */
+    public void automatique(LocalDateTime passage) {
+        if (!active() || !horaires().estDue(passage) || !posteServeur()) {
+            return;
+        }
         if (enCours.compareAndSet(false, true)) {
             enCoursDepuis = System.currentTimeMillis();
-            executer("AUTOMATIQUE");
+            /* en arriere-plan : le planificateur repasse toutes les 5 minutes, une sauvegarde dure 4 a 10 min */
+            try {
+                contexte.getBusinessObject(SauvegardeService.class).executerAsync("AUTOMATIQUE");
+            } catch (RuntimeException e) {
+                enCours.set(false);
+                throw e;
+            }
         }
     }
 
-    /** Le verrou enCours est deja pris par l'appelant ; il est rendu a la fin. */
+    /**
+     * Verrou de la base en plus de enCours : une seule sauvegarde a la fois pour tous les Payara branches sur la meme
+     * base (avant le 12/11, chaque poste lancait la sienne et marquait « interrompues » celles des autres).
+     */
     private void executer(String origine) {
+        Connection verrou = prendreVerrou();
+        if (verrou == null) {
+            enCours.set(false);
+            LOG.log(Level.INFO, "Sauvegarde {0} non lancée : une autre sauvegarde tient le verrou de la base", origine);
+            return;
+        }
+        try {
+            executerSousVerrou(origine);
+        } finally {
+            rendreVerrou(verrou);
+        }
+    }
+
+    /** Connexion qui tient le verrou de sauvegarde, ou null s'il est deja pris. */
+    private Connection prendreVerrou() {
+        Connection c = null;
+        try {
+            c = dataSource.getConnection();
+            try (Statement st = c.createStatement();
+                    ResultSet rs = st.executeQuery("SELECT GET_LOCK(" + VERROU + ", 0)")) {
+                if (rs.next() && rs.getInt(1) == 1) {
+                    return c;
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Verrou de sauvegarde", e);
+        }
+        if (c != null) {
+            try {
+                c.close();
+            } catch (Exception e) {
+                LOG.log(Level.FINE, "Verrou de sauvegarde", e);
+            }
+        }
+        return null;
+    }
+
+    private void rendreVerrou(Connection c) {
+        try (Connection f = c; Statement st = f.createStatement()) {
+            st.execute("DO RELEASE_LOCK(" + VERROU + ")");
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Verrou de sauvegarde", e);
+        }
+    }
+
+    /** Le verrou de sauvegarde est-il tenu (par ce poste ou un autre) ? */
+    private boolean verrouPris() {
+        return "0".equals(lireUn("SELECT IS_FREE_LOCK(" + VERROU + ")"));
+    }
+
+    /** Le verrou enCours est deja pris par l'appelant ; il est rendu a la fin. */
+    private void executerSousVerrou(String origine) {
         long debut = System.currentTimeMillis();
         long id = -1;
         Path options = null, erreurs = null, partiel = null;
@@ -266,16 +419,24 @@ public class SauvegardeService {
         }
     }
 
-    /** Alerte si la sauvegarde automatique est active et qu'aucune n'a reussi depuis {@link #FRAICHEUR_HEURES} h. */
-    public void verifierFraicheur(long demarrageServeur) {
-        if (!active() || enCours.get()
-                || System.currentTimeMillis() - demarrageServeur < FRAICHEUR_HEURES * 3600_000L) {
+    /**
+     * Alerte, sur le serveur seulement, si la sauvegarde automatique est active et que la sauvegarde prevue
+     * {@link HorairesSauvegarde#attendue(LocalDateTime) une heure au moins avant} n'a pas reussi.
+     */
+    public void verifierFraicheur(long demarrageServeur, LocalDateTime maintenant) {
+        if (!active() || enCours.get() || !posteServeur()) {
+            return;
+        }
+        LocalDateTime attendue = horaires().attendue(maintenant);
+        long limite = Timestamp.valueOf(attendue).getTime();
+        if (demarrageServeur > limite) {
             return;
         }
         Timestamp derniere = derniereReussie();
-        if (derniere == null || derniere.getTime() < System.currentTimeMillis() - FRAICHEUR_HEURES * 3600_000L) {
+        if (derniere == null || derniere.getTime() < limite) {
             supportEventService.recordServerIncident("SAUVEGARDE_ANCIENNE", "ERROR",
-                    "Aucune sauvegarde réussie de la base depuis plus de " + FRAICHEUR_HEURES + " h",
+                    "Aucune sauvegarde réussie de la base depuis celle prévue le "
+                            + attendue.toString().replace('T', ' ').substring(0, 16),
                     "Dernière sauvegarde réussie : "
                             + (derniere == null ? "aucune" : derniere.toString().substring(0, 16))
                             + ". Voir Centre de support > Stabilité du serveur > Sauvegardes.");
@@ -289,8 +450,12 @@ public class SauvegardeService {
         String dossier = dossier();
         JSONObject o = new JSONObject().put("outil", outil == null ? JSONObject.NULL : outil).put("dossier", dossier)
                 .put("copie", StringUtils.defaultString(parametre(CLE_COPIE))).put("active", active())
-                .put("garderHeures", entier(CLE_GARDER_HEURES, 48)).put("garderJours", entier(CLE_GARDER_JOURS, 30))
-                .put("enCours", enCours.get())
+                .put("horaires", horaires().texte()).put("horairesLibelle", horaires().libelle())
+                .put("prochaine",
+                        horaires().suivante(LocalDateTime.now()).toString().replace('T', ' ').substring(0, 16))
+                .put("poste", posteImpose()).put("posteCourant", nomPoste()).put("posteServeur", posteServeur())
+                .put("verrouPris", verrouPris()).put("garderHeures", entier(CLE_GARDER_HEURES, 48))
+                .put("garderJours", entier(CLE_GARDER_JOURS, 30)).put("enCours", enCours.get())
                 .put("enCoursDepuis", enCours.get() ? new Timestamp(enCoursDepuis).toString().substring(0, 19) : "");
         try {
             Path d = Paths.get(dossier);

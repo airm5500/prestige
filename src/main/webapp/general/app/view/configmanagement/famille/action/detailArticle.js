@@ -295,7 +295,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         parentview: '',
         mode: '',
         titre: '',
-        produitId: null
+        produitId: null,
+        /* retour du 12/11 (lenteurs appaul) : odatasource est deja la fiche complete (produits/{id}, meme calcul que
+           fiche?produitId=) ; la fenetre la reprend au lieu de refaire le calcul. */
+        ficheComplete: false
     },
     initComponent: function () {
         // Une seule fenetre de detail a la fois : un nouveau clic remplace la
@@ -1425,7 +1428,18 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             // Masque de chargement : la fiche s'affiche des l'ouverture et se
             // remplit a l'arrivee de la reponse, sans etat "vide" trompeur.
             win.setLoading('Chargement de la fiche...');
-            this.loadArticle(this.getProduitId());
+            const fiche = this.getOdatasource();
+            if (this.getFicheComplete() && fiche && fiche.lg_FAMILLE_ID === this.getProduitId()) {
+                const me = this;
+                Ext.defer(function () {
+                    if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
+                        winDetailArticleOuverte.setLoading(false);
+                        me.updateCmp(fiche);
+                    }
+                }, 1);
+            } else {
+                this.loadArticle(this.getProduitId());
+            }
         }
 
     },
