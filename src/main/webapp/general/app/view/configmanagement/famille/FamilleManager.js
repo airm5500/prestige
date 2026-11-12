@@ -1740,7 +1740,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         Ext.Ajax.request({
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/produit-search/produits/' + rec.data.lg_FAMILLE_ID,
+            /* lenteurs d'appaul (12/11) : le formulaire n'affiche ni dates, ni lots, ni etat des commandes */
+            url: '../api/v1/produit-search/produits/' + rec.data.lg_FAMILLE_ID + '?vue=modification',
             callback: function () {
                 self.chargementModification = false;
                 if (!self.isDestroyed) {
@@ -1979,7 +1980,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             Ext.Ajax.request({
                 method: 'GET',
                 headers: {'Content-Type': 'application/json'},
-                url: '../api/v1/produit-search/produits/' + rec.data.lg_FAMILLE_ID,
+                /* meme formulaire que « Modifier » : fiche allegee (lenteurs d'appaul, 12/11) */
+                url: '../api/v1/produit-search/produits/' + rec.data.lg_FAMILLE_ID + '?vue=modification',
                 callback: fin,
                 success: function (response, options) {
                     const result = Ext.JSON.decode(response.responseText, true);
