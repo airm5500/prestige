@@ -119,16 +119,62 @@ plans normaux. Elle était lente pour deux raisons :
      10 s avec 2 Go.
    - Avec 5 Go, seule la toute première balance après un redémarrage de MariaDB lit le disque (8,8 s).
 
+## 4 ter. Démarrage de Payara et fiche article (suite du 12/11)
+
+**Démarrage de Payara** (`PilotageAgregatScheduler`).
+- Constat : sur la copie d'appaul, le déploiement durait 299 à 310 s. L'étape « Agrégats du menu de pilotage » du
+  pipeline de démarrage en prenait 4 min 11 à 4 min 40 (1 min sur le poste local).
+- Cause : 48 photos des threads (`jstack`, toutes les 5 s pendant le déploiement) montrent tout ce temps dans
+  `PilotageSuiviService.evolution`. Il s'agit du précalcul des courbes « À suivre » du 02/11 : six grandeurs, trois
+  pas, quatre années, lues dans les ventes. Les agrégats mensuels eux-mêmes ne coûtent rien (aucun mois manquant).
+  Le déploiement attendait la fin de ce calcul.
+- Correction : les agrégats restent calculés avant l'ouverture. Les courbes, simple cache en mémoire, sont calculées
+  en tâche de fond par l'exécuteur géré de Payara, ou sur place s'il manque ou refuse. Le traitement de nuit est
+  inchangé.
+- Ce pipeline ne tourne que sur le poste déclaré serveur : les autres postes ne le relancent pas.
+- Mesure : le déploiement passe de 299 s à 28 s, et l'étape de 255 s à 0,012 s. Les courbes sont prêtes 244 s plus
+  tard. L'onglet « À suivre » s'ouvre ensuite en 0,9 s.
+- Rapprochement : le CA par semaine affiché est égal à la base sur les 46 semaines de 2026.
+
+**Fiche article, monographie** (demande du 12/11 : « ne doit plus être lancée automatiquement »).
+- Avant : la fiche Vidal n'était déjà demandée qu'au clic (31/10). Mais à l'ouverture du détail, le panneau affichait
+  « Chargement… », dessinait la rangée des rubriques et recalculait deux fois la mise en page de toute la fenêtre.
+- Après : à l'ouverture, seul le bouton « Afficher la monographie » apparaît. Les rubriques et la fiche n'arrivent
+  qu'au clic.
+- La petite demande d'état du service reste à l'ouverture, pour masquer la section quand le service est coupé
+  (c'est le cas sur la copie d'appaul).
+- « Modifier » ne contient pas de monographie.
+
+**Ce qui prend vraiment du temps à l'ouverture de « Détail » et « Modifier »** (copie d'appaul, 3 articles) :
+
+| Ouverture | Article très vendu | Articles au hasard |
+|---|---|---|
+| « Modifier » | 0,16 s | 0,13 et 0,14 s |
+| « Détail » | **5,2 s**, dont 4,9 s pour `suivi-stock-vente/stat-vente-famille` | 0,3 et 0,4 s |
+
+`stat-vente-famille` donne les quantités vendues par mois pour toutes les années. Pour un article très vendu, elle
+relit toutes ses lignes de vente depuis l'origine, avec une lecture au hasard de chaque vente (UUID). Ce point n'est
+pas corrigé (§ 5).
+
+**Balance à froid en un seul passage** (prototype SQL, non intégré).
+- Les chiffres sont identiques (24 lignes), mais il n'y a aucun gain : 11,7 s contre 11,6 s. Les trois requêtes ne
+  relisent pas les mêmes pages : elles lisent des tables différentes (ventes et mouvements, lignes, règlements). Le
+  coût est la première lecture de chaque page.
+- En revanche, les trois requêtes actuelles lancées **en parallèle** donnent les mêmes chiffres en **5,2 et 5,3 s** à
+  froid, au lieu de 11,5 et 11,6 s.
+
 ## 5. Ce qui reste (non corrigé, à décider)
 
 1. **Mémoire de MariaDB chez appaul : réglage du serveur, à décider avec l'officine.** Il faut demander la mémoire du
    serveur et la valeur actuelle de `innodb_buffer_pool_size`. Pour que la balance d'un mois reste rapide, il faut au
    moins 4 à 5 Go, si le serveur a la mémoire nécessaire (par exemple 16 Go). Ce réglage se fait dans `my.ini` du
    serveur, hors du code.
-2. **Balance à froid** (première ouverture après un redémarrage). Il faudrait lire les ventes du mois en un seul
-   passage au lieu de trois, ou faire les trois lectures en parallèle (gain estimé : environ un tiers). Ce n'est pas
-   fait : le gain est limité tant que la mémoire est insuffisante.
-3. **Tableau de bord.**
+2. **Balance à froid** (première ouverture après un redémarrage). Le passage unique n'apporte rien (§ 4 ter). Les
+   trois requêtes en parallèle divisent le temps à froid par deux (11,6 à 5,2 s) : c'est à décider.
+3. **« Détail sur l'article » d'un article très vendu** : 4,9 s pour la statistique de ventes par mois
+   (`stat-vente-famille`). Il y a deux pistes : la charger à la demande, comme la monographie, ou ne lire que les
+   années affichées. C'est à décider.
+4. **Tableau de bord.**
    - La carte Valorisation (« dormants », 0,4 à 1,4 s) lit un index de 2,6 millions d'entrées. La réécriture avec
      `MAX` a été essayée : pas plus rapide, abandonnée.
    - Le contrôle de cohérence de 22:00 pourrait être décalé hors des heures d'ouverture.
@@ -150,6 +196,12 @@ Chaque nouveau test a **d'abord échoué sur la version d'avant**.
 | `retours/test-cloche.js` (non-régression) | écran + rapprochement | — | **18/18** |
 | `retours/test-tableau-bord.js` (non-régression) | écran + rapprochement | — | 32/35 : achats par grossiste et tiers payants vides sur le mois de novembre de la copie (ventes d'anciens essais seulement), routes non modifiées ; sa partie « non vendus » n'est pas atteinte, elle est couverte par le test ci-dessus |
 | `ConservationTest`, `PoolMariaDbTest` | non-régression | 3/3, 3/3 | 3/3, 3/3 |
+| `PilotageAgregatSchedulerDemarrageTest` | bilan du démarrage + règle « jamais de courbes perdues » (200 cas, graine 20261112) | 1/2 (le démarrage attend 1,5 s) | **2/2** |
+| `src/test/e2e/perf/test-demarrage-courbes-fond.js` | bilan du démarrage (journal) + écran « À suivre » + rapprochement CA par semaine écran = base | 0/2 sur le journal de l'ancien démarrage (255 s, 299 s) | **9/9** |
+| `src/test/e2e/retours/test-monographie-ouverture-a-la-demande.js` | écran (4 articles variés) + rapprochement fiche affichée = réponse + « Modifier » + service coupé | 28/32 (rubriques, « Chargement… », 2 recalculs à l'ouverture) | **32/32** |
+| `retours/test-monographie-sur-demande.js`, `test-detail-article-un-seul-calcul.js` (non-régression) | écran | — | **6/6**, **23/23** |
+| `retours/test-monographie.js` (non-régression) | écran + service simulé | — | 18/19 : la bordure jaune des interactions, retirée par les styles du 04/11 (2eccef161), est encore attendue par ce test ; c'est antérieur |
+| `retours/test-detail-article-ergonomie.js` | écran | — | non joué : sa précondition (article au nom long avec un lot en stock) n'existe pas dans la copie d'appaul |
 
 **Endroits où la donnée apparaît, et test de rapprochement qui les compare**
 
@@ -198,3 +250,8 @@ Les deux autres tests ne font que lire.
 | balance 01 au 27/10, juste après alertes + tuiles (2 Go) | 5 034 / 4 192 ms | 976 / 978 ms |
 | balance 01 au 29/10 par l'écran, après « Actualiser » (2 Go) | 11 536 / 10 104 ms | 9 702 / 5 088 ms |
 | balance 01 au 29/10 par l'écran, après « Actualiser » (5 Go) | — | 8 782 (première lecture) / 1 085 ms ; puis 1 087 / 1 092 ms |
+| déploiement de Prestige sur la copie d'appaul (domain4) | 299 s (étape du pilotage 255 s) | 28 s (étape 0,012 s) ; courbes prêtes en fond 244 s plus tard |
+| onglet « À suivre » après le démarrage | — | 0,9 s |
+| « Détail sur l'article », article très vendu / au hasard | 5,2 s / 0,3 à 0,4 s (inchangé) | inchangé : 4,9 s de `stat-vente-famille` (§ 5) |
+| « Modifier » | 0,13 à 0,16 s | inchangé |
+| balance 01 au 29/10 à froid, SQL seul : trois requêtes l'une après l'autre | 11 637 / 11 531 ms | passage unique 11 731 / 11 684 ms ; en parallèle 5 311 / 5 189 ms (non intégré) |
