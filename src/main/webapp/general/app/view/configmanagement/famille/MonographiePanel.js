@@ -18,8 +18,11 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
 
     initComponent: function () {
         var me = this;
+        /* demande du 12/11 : a l'ouverture de la fiche, seul le bouton ; ni « Chargement… », ni rangee des rubriques, ni
+           recalcul de la fenetre. Les rubriques n'apparaissent qu'au clic. */
         me.html = '<div class="mono"><div class="mono-rubriques"></div><div class="mono-etat"></div>'
-                + '<div class="mono-corps"><div class="mono-vide">Chargement…</div></div></div>';
+                + '<div class="mono-corps"><div class="mono-vide"><button type="button" class="mono-rub mono-afficher">'
+                + 'Afficher la monographie</button></div></div></div>';
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.getEl().on('click', function (e) {
@@ -54,15 +57,11 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
                     return;
                 }
                 me.rubriques = o.rubriques || [];
-                /* retour du 31/10 : le site est lent ou en panne ; il n'est plus interroge a l'ouverture de la fiche,
-                   seulement au clic sur « Afficher la monographie » ou sur une rubrique */
-                me.ouverte = false;
-                me.dessinerRubriques();
-                var corps = me.zone('mono-corps');
-                if (corps) {
-                    corps.setHTML('<div class="mono-vide"><button type="button" class="mono-rub mono-afficher">'
-                            + 'Afficher la monographie</button></div>');
-                    me.ajuster();
+                /* retour du 31/10 : le site n'est interroge qu'au clic sur « Afficher la monographie » ou sur une
+                   rubrique. Demande du 12/11 : le bouton est deja dans le panneau, rien a redessiner ; si la fiche a deja
+                   ete demandee entre-temps, la rangee des rubriques est completee. */
+                if (me.ouverte) {
+                    me.dessinerRubriques();
                 }
             }
         });
