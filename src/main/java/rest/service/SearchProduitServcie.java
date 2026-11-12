@@ -22,6 +22,13 @@ public interface SearchProduitServcie {
     JSONObject fetchOne(List<TPrivilege> usersPrivileges, TUser user, String produitId);
 
     /**
+     * Fiche d'un article pour le formulaire « Modifier » (et la creation d'un detail) : les memes champs que
+     * {@link #fetchOne}, sans les dates, les lots ni l'etat des commandes, que ce formulaire n'affiche pas (lenteurs
+     * d'appaul, 12/11).
+     */
+    JSONObject fetchOneModification(List<TPrivilege> usersPrivileges, TUser user, String produitId);
+
+    /**
      * Apercu d'un article pour le bandeau de la fiche article : consommation des 13 derniers mois, lots proches de la
      * peremption et reperes de gestion.
      */

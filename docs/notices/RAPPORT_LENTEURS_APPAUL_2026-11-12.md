@@ -13,6 +13,7 @@ l'officine ni dans `laborex_v1_db`.**
 | `ca-all` (1 jour, applications mobile / ERP) | 7,97 s | 3,8 à 6,6 s | **0,02 s** | filtre `DATE(colonne)` : l'index de date n'est pas utilisé, 3 ans relus | **confirmé, corrigé** |
 | `ws/ca-achats-ventes` (11 jours) | 8,1 s | 4,8 s | **0,45 s** | même cause, sur les ventes et sur les BL | **confirmé, corrigé** |
 | « Détail sur l'article » | 10,5 s + 10,4 s | 0,1 à 0,2 s + 0,02 s | une seule demande | la fenêtre calculait la fiche deux fois (`produits/{id}`, puis `fiche?produitId=`) | double calcul **confirmé, corrigé** ; les 10 s **suspectées** (sauvegardes, § 3) |
+| `produits/{id}` (« Modifier » et « Détail ») | 1,1 s | 108 à 251 ms au 1er appel | **41 à 43 ms** pour « Modifier » ; dernière entrée à froid : lectures disque divisées par 2 | « Modifier » recevait la fiche complète ; la dernière entrée relisait toutes les lignes de BL de l'article | **confirmé, corrigé** (§ 4 ter) |
 | Liste des articles, touche Entrée | — | 2 recherches | **1 recherche** | Entrée lance la recherche, puis la pause de frappe la relance | **confirmé, corrigé** |
 | Sauvegardes automatiques | 15 échecs de 23:05 à 01:05 ; requêtes de 10 à 52 s | — | une seule sauvegarde, sur le serveur, aux horaires choisis | chaque poste (Payara) lançait sa sauvegarde à hh:05 et marquait « interrompues » celles des autres | **confirmé, corrigé** |
 | Balance vente caisse, 1 mois | (signalée lente) | 1,0 s seule ; **4,2 à 5,0 s** juste après le tableau de bord ; 10 à 13 s par l'écran | **0,98 s** juste après le tableau de bord ; par l'écran : 1,1 s avec 5 Go de mémoire tampon, 5 à 10 s avec 2 Go | le tableau de bord chassait les ventes du mois de la mémoire ; un mois de ventes occupe environ 3,7 Go de pages (clés aléatoires) | **confirmé, corrigé côté code** ; reste un **réglage du serveur** (§ 5) |
@@ -163,6 +164,27 @@ relit toutes ses lignes de vente depuis l'origine, avec une lecture au hasard de
 - Mesure, article très vendu : « Détail » passe de 2,6 s (réglage 0) à 0,43 s (réglage 1). Les autres articles
   restent entre 0,3 et 0,4 s.
 
+**produits/{id} à 1,1 s, en « Détail » comme en « Modifier »** (cas du 12/11 : 3232018 puis 3257001).
+- Cause : `produits/{id}` calculait toujours la fiche complète, même pour « Modifier », qui n'en affiche que les
+  champs du formulaire. Le plus coûteux était la **dernière entrée** : elle relisait toutes les lignes de BL closes de
+  l'article (177 à 1 134 lignes) et, pour chacune, ses mouvements. À froid : 1 664 lectures disque pour ZENTEL, 623
+  pour DOLIPRANE, 334 pour EFFERALGAN. Le 2e article est lent parce que ses pages ne sont pas encore en mémoire.
+- Correction 1, fiche allégée : « Modifier » (et la création d'un déconditionné) appelle `produits/{id}?vue=modification`.
+  Cette vue ne calcule ni l'inventaire, ni la dernière vente, ni la péremption, ni la dernière entrée, ni la date de
+  livraison, ni l'état des commandes. Les autres champs sont identiques à ceux de la fiche complète.
+- Correction 2, dernière entrée par l'index : nouvel index `idx_hmvt_fam_type_created (lg_FAMILLE_ID, typeMvt,
+  createdAt)` sur `hmvtproduit` (migration V7.6.41.13, 6 s sur 3,2 millions de lignes, sans verrou de table). La
+  requête lit le dernier mouvement d'entrée d'une ligne de BL close, puis seulement les lignes closes sans mouvement
+  plus récentes. Même règle qu'avant : 0 écart sur 3 166 articles. L'aperçu de l'article utilise la même requête.
+- Mesures (copie d'appaul, les 3 articles les plus livrés) :
+  - `produits/{id}?vue=modification` : 40 à 43 ms, au 1er appel comme au 2e ;
+  - fiche complète : 108 à 251 ms au 1er appel, 44 à 50 ms ensuite ;
+  - « Modifier » à l'écran : 82 ms jusqu'au calme ; « Détail », article très vendu : 369 ms (`produits/{id}` 219 ms) ;
+  - dernière entrée à froid, article de 1 134 lignes de BL : 157 ms et 1 537 lectures disque, contre 327 ms et
+    3 204 lectures avec l'ancienne requête. À chaud, les deux prennent moins de 12 ms.
+- **Au déploiement** : `fetchOneModification` est une nouvelle méthode d'EJB. Il faut `undeploy`, supprimer
+  `generated/policy/prestige` du domaine, puis `deploy` ; sinon les appels répondent 500 (politique JACC figée).
+
 **Balance à froid en un seul passage** (prototype SQL, non intégré).
 - Les chiffres sont identiques (24 lignes), mais il n'y a aucun gain : 11,7 s contre 11,6 s. Les trois requêtes ne
   relisent pas les mêmes pages : elles lisent des tables différentes (ventes et mouvements, lignes, règlements). Le
@@ -205,6 +227,8 @@ Chaque nouveau test a **d'abord échoué sur la version d'avant**.
 | `src/test/e2e/retours/test-monographie-ouverture-a-la-demande.js` | écran (4 articles variés) + rapprochement fiche affichée = réponse + « Modifier » + service coupé | 28/32 (rubriques, « Chargement… », 2 recalculs à l'ouverture) | **32/32** |
 | `src/test/e2e/retours/test-fiche-ventes-mois-a-la-demande.js` | écran (paramètre absent, à 0, à 1 ; 4 articles variés) + rapprochement grille = base, année par année, mois par mois, total | 11/15 (au réglage 1, les ventes étaient chargées à l'ouverture) | **23/23** |
 | `retours/test-monographie-sur-demande.js`, `test-detail-article-un-seul-calcul.js` (non-régression) | écran | — | **6/6**, **23/23** |
+| `src/test/e2e/perf/test-fiche-modifier-legere-entree.js` | rapprochement (23 articles variés : au hasard, très livrés, jamais livré, sans mouvement, avec et sans mouvement, déconditionné) : fiche légère = fiche complète champ par champ ; dernière entrée de la fiche et de l'aperçu = ancienne règle recalculée en base ; écran « Modifier » : une seule demande `?vue=modification`, formulaire = base | échoue sur toutes les lignes « Modifier » (champs coûteux encore calculés) | **79/79** |
+| `retours/test-detail-article-un-seul-calcul.js`, `test-fiche-ventes-mois-a-la-demande.js`, `test-monographie-ouverture-a-la-demande.js` (non-régression après la fiche allégée) | écran + rapprochement | — | **23/23**, **23/23**, **32/32** |
 | `retours/test-monographie.js` (non-régression) | écran + service simulé | — | 18/19 : la bordure jaune des interactions, retirée par les styles du 04/11 (2eccef161), est encore attendue par ce test ; c'est antérieur |
 | `retours/test-detail-article-ergonomie.js` | écran | — | non joué : sa précondition (article au nom long avec un lot en stock) n'existe pas dans la copie d'appaul |
 
@@ -261,3 +285,5 @@ Les deux autres tests ne font que lire.
 | « Modifier » | 0,13 à 0,16 s | inchangé |
 | balance 01 au 29/10 à froid, SQL seul : trois requêtes l'une après l'autre | 11 637 / 11 531 ms | passage unique 11 731 / 11 684 ms ; en parallèle 5 311 / 5 189 ms (non intégré) |
 | « Détail sur l'article », article très vendu, paramètre ventes par mois à 0 / à 1 | 2 594 ms | 426 ms |
+| `produits/{id}` pour « Modifier », 3 articles les plus livrés, 1er / 2e appel | 108 à 251 / 44 à 50 ms (fiche complète) | 42 / 41 ms (`?vue=modification`) |
+| dernière entrée à froid, article de 1 134 lignes de BL | 327 ms, 3 204 lectures disque | 157 ms, 1 537 lectures disque |

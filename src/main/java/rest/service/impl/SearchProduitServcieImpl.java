@@ -257,17 +257,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             // compris. C'est maintenant la date de MISE EN STOCK, et seulement pour un BL entre en stock : celle du
             // mouvement « entree en stock » de la ligne (jamais modifie ensuite), a defaut la date de cloture du BL.
             // La date du BL suit, en second.
-            Query qe = em.createNativeQuery("SELECT x.entree, x.dateBl, x.qte, x.grossiste FROM ("
-                    + "SELECT IFNULL((SELECT MAX(h.createdAt) FROM hmvtproduit h WHERE h.pkey = bld.lg_BON_LIVRAISON_DETAIL "
-                    + "AND h.typeMvt = '01'), bl.dt_UPDATED) AS entree, bl.dt_DATE_LIVRAISON AS dateBl, "
-                    + "bld.int_QTE_RECUE AS qte, g.str_LIBELLE AS grossiste " + "FROM t_bon_livraison_detail bld "
-                    + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
-                    + "LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = bld.lg_GROSSISTE_ID "
-                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.str_STATUT = 'is_Closed') x "
-                    + "WHERE x.entree IS NOT NULL ORDER BY x.entree DESC");
-            qe.setParameter(1, produitId);
-            qe.setMaxResults(1);
-            List<Object[]> entrees = qe.getResultList();
+            List<Object[]> entrees = derniereEntree(produitId);
             if (!entrees.isEmpty()) {
                 Object[] e = entrees.get(0);
                 if (e[0] != null) {
@@ -845,6 +835,17 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
     private JSONObject buildProduitData(boolean canceledAction, Object[] tuple, Object[] objArray, TUser user,
             String empl, boolean checkExpirationdate) {
+        return buildProduitData(canceledAction, tuple, objArray, user, empl, checkExpirationdate, true);
+    }
+
+    /**
+     * @param complet
+     *            false pour le formulaire « Modifier » : ni dernier inventaire, derniere vente, peremption proche,
+     *            derniere entree, date de livraison, ni etat des commandes (lenteurs d'appaul, 12/11 : la moitie du
+     *            temps de la fiche, pour des champs que ce formulaire n'affiche pas)
+     */
+    private JSONObject buildProduitData(boolean canceledAction, Object[] tuple, Object[] objArray, TUser user,
+            String empl, boolean checkExpirationdate, boolean complet) {
         JSONObject json = new JSONObject();
         try {
             TFamille t = (TFamille) tuple[0];
@@ -1032,6 +1033,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             } else {
                 json.put("checkExpirationdate", false);
             }
+            if (!complet) {
+                return json;
+            }
             try {
 
                 json.put("dt_LAST_INVENTAIRE", dateDerniereInventare(t.getLgFAMILLEID(), user));
@@ -1143,19 +1147,74 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     /**
+     * Date du dernier mouvement d'entree en stock de l'article, pour une ligne d'un BL clos (?1 : l'article). Par
+     * l'index idx_hmvt_fam_type_created (V7.6.41.13) : une ligne lue.
+     */
+    static final String DERNIER_MOUVEMENT_ENTREE_SQL = "SELECT h.createdAt FROM hmvtproduit h"
+            + " WHERE h.lg_FAMILLE_ID = ?1 AND h.typeMvt = '01' AND h.createdAt IS NOT NULL AND EXISTS (SELECT 1"
+            + " FROM t_bon_livraison_detail d JOIN t_bon_livraison l ON l.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID"
+            + " WHERE d.lg_BON_LIVRAISON_DETAIL = h.pkey AND d.lg_FAMILLE_ID = ?1 AND l.str_STATUT = 'is_Closed')"
+            + " ORDER BY h.createdAt DESC LIMIT 1";
+
+    /**
+     * Cloture la plus recente d'un BL clos dont la ligne de l'article n'a pas de mouvement d'entree, plus recente que
+     * y.a (le dernier mouvement d'entree) ; seules ces lignes peuvent l'emporter sur lui.
+     */
+    static final String ENTREE_SANS_MOUVEMENT_SQL = "SELECT MAX(bl.dt_UPDATED) FROM t_bon_livraison_detail bld"
+            + " JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID WHERE bld.lg_FAMILLE_ID = ?1"
+            + " AND bl.str_STATUT = 'is_Closed' AND bl.dt_UPDATED > COALESCE(y.a, '1000-01-01') AND NOT EXISTS (SELECT 1"
+            + " FROM hmvtproduit h2 WHERE h2.pkey = bld.lg_BON_LIVRAISON_DETAIL AND h2.typeMvt = '01'"
+            + " AND h2.createdAt IS NOT NULL)";
+
+    /**
+     * Ligne de la derniere entree en stock de l'apercu : { date d'entree, date du BL, quantite recue, grossiste }, ou
+     * liste vide. Meme regle que la fiche (entree = mouvement « entree en stock » de la ligne, a defaut cloture du BL),
+     * lue par l'index au lieu de relire chaque ligne de BL de l'article (lenteurs d'appaul, 12/11).
+     */
+    @SuppressWarnings("unchecked")
+    private List<Object[]> derniereEntree(String produitId) {
+        List<Object[]> a = em.createNativeQuery(
+                DERNIER_MOUVEMENT_ENTREE_SQL.replace("SELECT h.createdAt FROM", "SELECT h.createdAt, h.pkey FROM"))
+                .setParameter(1, produitId).getResultList();
+        Object[] mouvement = a.isEmpty() ? null : a.get(0);
+        String sansMouvement = ENTREE_SANS_MOUVEMENT_SQL
+                .replace("SELECT MAX(bl.dt_UPDATED) FROM", "SELECT bl.dt_UPDATED, bld.lg_BON_LIVRAISON_DETAIL FROM")
+                .replace(" AND bl.dt_UPDATED > COALESCE(y.a, '1000-01-01')",
+                        mouvement == null ? "" : " AND bl.dt_UPDATED > ?2")
+                + " AND bl.dt_UPDATED IS NOT NULL ORDER BY bl.dt_UPDATED DESC LIMIT 1";
+        Query qb = em.createNativeQuery(sansMouvement).setParameter(1, produitId);
+        if (mouvement != null) {
+            qb.setParameter(2, mouvement[0]);
+        }
+        List<Object[]> b = qb.getResultList();
+        Object[] retenue = b.isEmpty() ? mouvement : b.get(0);
+        if (retenue == null) {
+            return java.util.Collections.emptyList();
+        }
+        List<Object[]> ligne = em.createNativeQuery("SELECT bl.dt_DATE_LIVRAISON, bld.int_QTE_RECUE, g.str_LIBELLE"
+                + " FROM t_bon_livraison_detail bld JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID"
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = bld.lg_GROSSISTE_ID WHERE bld.lg_BON_LIVRAISON_DETAIL = ?1")
+                .setParameter(1, retenue[1]).setMaxResults(1).getResultList();
+        Object[] d = ligne.isEmpty() ? new Object[3] : ligne.get(0);
+        return java.util.Collections.singletonList(new Object[] { retenue[0], d[0], d[1], d[2] });
+    }
+
+    /**
      * Date de mise en stock la plus recente (jj/mm/aaaa hh:mm), BL entres en stock seulement : date du mouvement «
      * entree en stock » de la ligne, a defaut date de cloture du BL. Meme regle que l'apercu (retours du 10/10).
      */
     private String dateEntree(String lgFAMILLEID) {
         try {
-            Query q = em.createNativeQuery("SELECT DATE_FORMAT(x.entree, '%d/%m/%Y %H:%i') FROM ("
-                    + "SELECT IFNULL((SELECT MAX(h.createdAt) FROM hmvtproduit h WHERE h.pkey = bld.lg_BON_LIVRAISON_DETAIL "
-                    + "AND h.typeMvt = '01'), bl.dt_UPDATED) AS entree FROM t_bon_livraison_detail bld "
-                    + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
-                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.str_STATUT = 'is_Closed') x "
-                    + "WHERE x.entree IS NOT NULL ORDER BY x.entree DESC");
+            /*
+             * Lenteurs d'appaul (12/11) : la regle ne change pas, seule la lecture change. Avant, chaque ligne de BL de
+             * l'article et son mouvement etaient relus (177 a 470 lignes, 334 a 1 664 lectures disque a froid). Le
+             * maximum vient soit du dernier mouvement d'entree (index article, type, date : une ligne lue), soit d'une
+             * ligne sans mouvement, dont seule la cloture du BL compte, et qui n'importe que si elle est plus recente.
+             */
+            Query q = em.createNativeQuery("SELECT DATE_FORMAT(GREATEST(COALESCE(z.a, z.b), COALESCE(z.b, z.a)), "
+                    + "'%d/%m/%Y %H:%i') FROM (SELECT y.a, (" + ENTREE_SANS_MOUVEMENT_SQL + ") AS b FROM (" + "SELECT ("
+                    + DERNIER_MOUVEMENT_ENTREE_SQL + ") AS a) y) z");
             q.setParameter(1, lgFAMILLEID);
-            q.setMaxResults(1);
             List<?> r = q.getResultList();
             return r.isEmpty() || r.get(0) == null ? "" : r.get(0).toString();
         } catch (Exception e) {
@@ -1293,6 +1352,15 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
     @Override
     public JSONObject fetchOne(List<TPrivilege> usersPrivileges, TUser user, String produitId) {
+        return fetchOne(usersPrivileges, user, produitId, true);
+    }
+
+    @Override
+    public JSONObject fetchOneModification(List<TPrivilege> usersPrivileges, TUser user, String produitId) {
+        return fetchOne(usersPrivileges, user, produitId, false);
+    }
+
+    private JSONObject fetchOne(List<TPrivilege> usersPrivileges, TUser user, String produitId, boolean complet) {
         boolean checkExpirationdate = checkDatePeremption();
         JSONObject data = new JSONObject();
         Object[] objs = getPrivilegeProductByUser(user.getLgUSERID());
@@ -1312,6 +1380,6 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                 famille.getLgFABRIQUANTID(), famille.getLgINDICATEURREAPPROVISIONNEMENTID(), famille.getLgREMISEID(),
                 famille.getLgCODETVAID() };
 
-        return data.put("data", buildProduitData(canceledBtn, tuple, objs, user, empl, checkExpirationdate));
+        return data.put("data", buildProduitData(canceledBtn, tuple, objs, user, empl, checkExpirationdate, complet));
     }
 }

@@ -131,11 +131,14 @@ public class SearchProduitServcieRessource {
 
     @GET
     @Path("/produits/{id}")
-    public Response getOne(@PathParam("id") String produitId) throws JSONException {
+    public Response getOne(@PathParam("id") String produitId, @QueryParam("vue") String vue) throws JSONException {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
-        JSONObject jsono = this.searchProduitServcie.fetchOne(attribute, tu, produitId);
+        // vue=modification : formulaire « Modifier », sans dates, lots ni etat des commandes (lenteurs d'appaul, 12/11)
+        JSONObject jsono = "modification".equals(vue)
+                ? this.searchProduitServcie.fetchOneModification(attribute, tu, produitId)
+                : this.searchProduitServcie.fetchOne(attribute, tu, produitId);
         return Response.ok().entity(jsono.toString()).build();
     }
 
