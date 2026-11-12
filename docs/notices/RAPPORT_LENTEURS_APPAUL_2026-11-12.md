@@ -153,8 +153,15 @@ plans normaux. Elle était lente pour deux raisons :
 | « Détail » | **5,2 s**, dont 4,9 s pour `suivi-stock-vente/stat-vente-famille` | 0,3 et 0,4 s |
 
 `stat-vente-famille` donne les quantités vendues par mois pour toutes les années. Pour un article très vendu, elle
-relit toutes ses lignes de vente depuis l'origine, avec une lecture au hasard de chaque vente (UUID). Ce point n'est
-pas corrigé (§ 5).
+relit toutes ses lignes de vente depuis l'origine, avec une lecture au hasard de chaque vente (UUID).
+
+**Ventes par mois du détail, à la demande** (demande du 12/11) : nouveau paramètre `KEY_FICHE_VENTES_MOIS_A_LA_DEMANDE`
+(migration V7.6.41.12).
+- 0 (défaut, ou paramètre absent) : les ventes par mois sont chargées à l'ouverture, comme avant.
+- 1 : rien n'est demandé à l'ouverture ; le bouton « Afficher les ventes par mois », au-dessus de la grille, les
+  charge.
+- Mesure, article très vendu : « Détail » passe de 2,6 s (réglage 0) à 0,43 s (réglage 1). Les autres articles
+  restent entre 0,3 et 0,4 s.
 
 **Balance à froid en un seul passage** (prototype SQL, non intégré).
 - Les chiffres sont identiques (24 lignes), mais il n'y a aucun gain : 11,7 s contre 11,6 s. Les trois requêtes ne
@@ -165,15 +172,12 @@ pas corrigé (§ 5).
 
 ## 5. Ce qui reste (non corrigé, à décider)
 
-1. **Mémoire de MariaDB chez appaul : réglage du serveur, à décider avec l'officine.** Il faut demander la mémoire du
-   serveur et la valeur actuelle de `innodb_buffer_pool_size`. Pour que la balance d'un mois reste rapide, il faut au
-   moins 4 à 5 Go, si le serveur a la mémoire nécessaire (par exemple 16 Go). Ce réglage se fait dans `my.ini` du
-   serveur, hors du code.
-2. **Balance à froid** (première ouverture après un redémarrage). Le passage unique n'apporte rien (§ 4 ter). Les
-   trois requêtes en parallèle divisent le temps à froid par deux (11,6 à 5,2 s) : c'est à décider.
-3. **« Détail sur l'article » d'un article très vendu** : 4,9 s pour la statistique de ventes par mois
-   (`stat-vente-famille`). Il y a deux pistes : la charger à la demande, comme la monographie, ou ne lire que les
-   années affichées. C'est à décider.
+1. **Mémoire de MariaDB chez appaul** : réglée par l'utilisateur le 12/11 (serveur de 32 Go,
+   `innodb_buffer_pool_size` = 12 Go). Un mois de ventes (environ 3,7 Go de pages) y tient.
+2. **Balance à froid** : abandonnée. Avec 12 Go de mémoire tampon, seule la première balance après un redémarrage
+   lit le disque ; les requêtes en parallèle n'apporteraient rien ensuite.
+3. **« Détail sur l'article » d'un article très vendu** : le chargement à la demande est fait (paramètre à 1, § 4 ter).
+   Avec le paramètre à 0, la lecture reste longue pour un article très vendu.
 4. **Tableau de bord.**
    - La carte Valorisation (« dormants », 0,4 à 1,4 s) lit un index de 2,6 millions d'entrées. La réécriture avec
      `MAX` a été essayée : pas plus rapide, abandonnée.
@@ -199,6 +203,7 @@ Chaque nouveau test a **d'abord échoué sur la version d'avant**.
 | `PilotageAgregatSchedulerDemarrageTest` | bilan du démarrage + règle « jamais de courbes perdues » (200 cas, graine 20261112) | 1/2 (le démarrage attend 1,5 s) | **2/2** |
 | `src/test/e2e/perf/test-demarrage-courbes-fond.js` | bilan du démarrage (journal) + écran « À suivre » + rapprochement CA par semaine écran = base | 0/2 sur le journal de l'ancien démarrage (255 s, 299 s) | **9/9** |
 | `src/test/e2e/retours/test-monographie-ouverture-a-la-demande.js` | écran (4 articles variés) + rapprochement fiche affichée = réponse + « Modifier » + service coupé | 28/32 (rubriques, « Chargement… », 2 recalculs à l'ouverture) | **32/32** |
+| `src/test/e2e/retours/test-fiche-ventes-mois-a-la-demande.js` | écran (paramètre absent, à 0, à 1 ; 4 articles variés) + rapprochement grille = base, année par année, mois par mois, total | 11/15 (au réglage 1, les ventes étaient chargées à l'ouverture) | **23/23** |
 | `retours/test-monographie-sur-demande.js`, `test-detail-article-un-seul-calcul.js` (non-régression) | écran | — | **6/6**, **23/23** |
 | `retours/test-monographie.js` (non-régression) | écran + service simulé | — | 18/19 : la bordure jaune des interactions, retirée par les styles du 04/11 (2eccef161), est encore attendue par ce test ; c'est antérieur |
 | `retours/test-detail-article-ergonomie.js` | écran | — | non joué : sa précondition (article au nom long avec un lot en stock) n'existe pas dans la copie d'appaul |
@@ -255,3 +260,4 @@ Les deux autres tests ne font que lire.
 | « Détail sur l'article », article très vendu / au hasard | 5,2 s / 0,3 à 0,4 s (inchangé) | inchangé : 4,9 s de `stat-vente-famille` (§ 5) |
 | « Modifier » | 0,13 à 0,16 s | inchangé |
 | balance 01 au 29/10 à froid, SQL seul : trois requêtes l'une après l'autre | 11 637 / 11 531 ms | passage unique 11 731 / 11 684 ms ; en parallèle 5 311 / 5 189 ms (non intégré) |
+| « Détail sur l'article », article très vendu, paramètre ventes par mois à 0 / à 1 | 2 594 ms | 426 ms |

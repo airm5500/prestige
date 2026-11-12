@@ -357,10 +357,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
 
         });
 
+        /* demande du 12/11 : chargees a l'ouverture ou a la demande, selon KEY_FICHE_VENTES_MOIS_A_LA_DEMANDE (voir plus bas) */
         var store_statVente = new Ext.data.Store({
             model: 'testextjs.model.modelStatVente',
             pageSize: itemsPerPage,
-            autoLoad: true,
+            autoLoad: false,
             sorters: [{
                     property: 'int_YEAR',
                     // Annee en cours en premier, puis les precedentes
@@ -1214,6 +1215,20 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             margin: '0 0 5 0',
                             store: store_statVente,
                             height: 200,
+                            /* KEY_FICHE_VENTES_MOIS_A_LA_DEMANDE = 1 : le bouton remplace le chargement a l'ouverture */
+                            tbar: {
+                                itemId: 'barreVentesMois',
+                                hidden: true,
+                                items: [{
+                                        xtype: 'button',
+                                        itemId: 'afficherVentesMois',
+                                        text: 'Afficher les ventes par mois',
+                                        handler: function (b) {
+                                            b.up('toolbar').hide();
+                                            store_statVente.load();
+                                        }
+                                    }]
+                            },
                             columns: [
                                 {
                                     header: 'Année',
@@ -1416,6 +1431,26 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             }
         });
         winDetailArticleOuverte = win;
+        /*
+         * Lenteurs d'appaul (12/11) : les ventes par mois d'un article tres vendu prennent 4,9 s. Parametre
+         * KEY_FICHE_VENTES_MOIS_A_LA_DEMANDE : 1 = chargees au clic sur « Afficher les ventes par mois » ; 0, absent
+         * ou illisible = chargees a l'ouverture, comme avant.
+         */
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/app-params/value/KEY_FICHE_VENTES_MOIS_A_LA_DEMANDE',
+            callback: function (options, succes, response) {
+                if (win.isDestroyed) {
+                    return;
+                }
+                const r = succes ? (Ext.JSON.decode(response.responseText, true) || {}) : {};
+                const barre = Ext.getCmp('gridpanelStatVenteID') ? Ext.getCmp('gridpanelStatVenteID').down('#barreVentesMois') : null;
+                if (r.success === true && String(r.data).trim() === '1' && barre) {
+                    barre.show();
+                } else {
+                    store_statVente.load();
+                }
+            }
+        });
         // Les ventes mensuelles peuvent arriver AVANT que la fenetre soit rendue :
         // dans ce cas 'datachanged' est deja passe, on trace les courbes ici.
         win.on('afterrender', function () {
