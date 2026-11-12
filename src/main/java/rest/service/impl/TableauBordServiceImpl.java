@@ -191,7 +191,20 @@ public class TableauBordServiceImpl implements TableauBordService {
             + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID = x.famille AND s.lg_EMPLACEMENT_ID = ?1 AND s.int_NUMBER_AVAILABLE <= 0"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = x.famille AND f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0";
 
+    /*
+     * lenteurs d'appaul (12/11) : les tuiles et les alertes, demandees ensemble a l'ouverture et par « Actualiser »,
+     * faisaient chacune ce calcul (jusqu'a 2,4 s). Le second appel reprend le resultat du premier s'il a moins de 20 s,
+     * ou l'attend s'il est en cours.
+     */
+    private static final CalculPartage<String> RUPTURES_PARTAGEES = new CalculPartage<>(20_000L);
+
     private JSONObject ruptures(int jours, String emplacementId) {
+        /* copie a chaque appel : les tuiles ajoutent le taux de rupture a l'objet rendu */
+        return new JSONObject(RUPTURES_PARTAGEES.obtenir(jours + "|" + emplacementId + "|" + LocalDate.now(),
+                () -> calculerRuptures(jours, emplacementId).toString()));
+    }
+
+    private JSONObject calculerRuptures(int jours, String emplacementId) {
         Object[] r = ligne(
                 "SELECT COUNT(*), COALESCE(SUM(CASE WHEN r.derniere >= ?3 THEN 1 ELSE 0 END), 0) FROM (" + RUPTURES
                         + ") r",
@@ -416,9 +429,23 @@ public class TableauBordServiceImpl implements TableauBordService {
             + " FROM t_bon_livraison_detail bd JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = bd.lg_BON_LIVRAISON_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = bd.lg_FAMILLE_ID LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = bd.lg_GROSSISTE_ID"
             + " WHERE b.str_STATUT = 'is_Closed' AND b.dt_UPDATED >= ?1 AND f.str_STATUT = 'enable'"
-            + " GROUP BY f.lg_FAMILLE_ID, f.str_NAME, f.int_CIP) x WHERE NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d"
-            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE d.lg_FAMILLE_ID = x.famille"
-            + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.dt_UPDATED >= x.entree)";
+            + " GROUP BY f.lg_FAMILLE_ID, f.str_NAME, f.int_CIP) x"
+            /*
+             * lenteurs d'appaul (12/11) : la derniere vente est cherchee parmi les ventes de la periode seulement
+             * (index de date), et non plus dans tout l'historique de chaque article (NOT EXISTS par article : 3 ans de
+             * lignes relues, 2,7 a 6,4 s). Meme resultat : l'entree est toujours dans la periode, donc une vente
+             * posterieure a l'entree l'est aussi.
+             */
+            + " LEFT JOIN (SELECT d.lg_FAMILLE_ID famille, MAX(p.dt_UPDATED) derniere FROM t_preenregistrement p"
+            + "   STRAIGHT_JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + "   WHERE p.dt_UPDATED >= ?1 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+            + "   GROUP BY d.lg_FAMILLE_ID) v ON v.famille = x.famille"
+            + " WHERE v.derniere IS NULL OR v.derniere < x.entree";
+
+    /**
+     * Sans materialisation laterale : MariaDB relirait les ventes article par article (meme reglage que la balance).
+     */
+    private static final String SANS_LATERAL = "SET STATEMENT optimizer_switch='split_materialized=off' FOR ";
 
     @Override
     public JSONObject alertes(int moisPeremption, int joursRupture, int joursRenouvellement, int joursSuggestion,
@@ -432,7 +459,7 @@ public class TableauBordServiceImpl implements TableauBordService {
         JSONObject o = alertesSansNonVendus(moisPeremption, joursRupture, joursRenouvellement, joursSuggestion,
                 emplacementId);
         try {
-            Object[] nv = ligne("SELECT COUNT(*) FROM (" + NON_VENDUS + ") n",
+            Object[] nv = ligne(SANS_LATERAL + "SELECT COUNT(*) FROM (" + NON_VENDUS + ") n",
                     ts(LocalDate.now().minusDays(Math.max(1, joursNonVendus))));
             o.put("nonVendus", new JSONObject().put("produits", n(at(nv, 0))).put("jours", joursNonVendus));
         } catch (Exception e) {
@@ -501,7 +528,7 @@ public class TableauBordServiceImpl implements TableauBordService {
         int max = limite <= 0 ? 500 : limite;
         try {
             if ("nonvendus".equals(type)) {
-                for (Object[] r : lignes(NON_VENDUS + " ORDER BY x.entree ASC LIMIT " + max,
+                for (Object[] r : lignes(SANS_LATERAL + NON_VENDUS + " ORDER BY x.entree ASC LIMIT " + max,
                         ts(LocalDate.now().minusDays(Math.max(1, joursNonVendus))))) {
                     Timestamp e = (Timestamp) r[3];
                     a.put(new JSONObject().put("libelle", t(r[1])).put("cip", t(r[2]))

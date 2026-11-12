@@ -1,6 +1,11 @@
 
 package job;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.Resource;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
 import javax.ejb.TransactionAttribute;
@@ -39,10 +44,34 @@ public class PilotageAgregatScheduler {
     @Inject
     private PilotageSuiviService suivi;
 
+    /**
+     * Lenteurs d'appaul (12/11) : le deploiement attendait aussi les courbes « A suivre » (4 min 11 a 4 min 40 sur la
+     * copie d'appaul, 1 min sur le poste local). Ce n'est qu'un cache en memoire : il est calcule en tache de fond,
+     * apres les agregats qu'il lit. Sans executeur, ou s'il refuse, calcul sur place comme avant.
+     */
+    @Resource(name = "concurrent/__defaultManagedExecutorService")
+    private Executor executeur;
+
+    private static final Logger LOG = Logger.getLogger(PilotageAgregatScheduler.class.getName());
+
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void runOnStartup() {
         agregats.prechauffer();
-        suivi.prechauffer();
+        Runnable courbes = () -> {
+            long t0 = System.currentTimeMillis();
+            suivi.prechauffer();
+            LOG.log(Level.INFO, "Pilotage : courbes « A suivre » calculees d''avance en tache de fond ({0} ms)",
+                    System.currentTimeMillis() - t0);
+        };
+        if (executeur == null) {
+            courbes.run();
+            return;
+        }
+        try {
+            executeur.execute(courbes);
+        } catch (RejectedExecutionException e) {
+            courbes.run();
+        }
     }
 
     @Schedule(hour = "0", minute = "25", second = "0", persistent = false)

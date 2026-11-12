@@ -144,7 +144,7 @@ public class ErpServiceImpl implements ErpService {
     public List<ErpCaComptant> caComptant(String dtStart, String dtEnd) {
         try {
             List<Tuple> list = getEntityManager().createNativeQuery(
-                    "SELECT SUM(m.montantRegle) AS MONTANTREGLE,SUM(m.montantPaye) AS MONTANTPAYE, SUM(m.montantRemise) AS montantRemise, SUM(m.montantTva) as montantTva,m.mvtdate,m.typeReglementId FROM mvttransaction m where m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,m.typeReglementId",
+                    "SELECT SUM(m.montantRegle) AS MONTANTREGLE,SUM(m.montantPaye) AS MONTANTPAYE, SUM(m.montantRemise) AS montantRemise, SUM(m.montantTva) as montantTva,m.mvtdate,m.typeReglementId FROM mvttransaction m where m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND m.mvtdate BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,m.typeReglementId",
                     Tuple.class).setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd))
                     .getResultList();
             List<ErpCaComptant> caComptants = new ArrayList<>();
@@ -223,7 +223,7 @@ public class ErpServiceImpl implements ErpService {
             // par vente) : une vente reglee en plusieurs lignes de reglement ne doit
             // contribuer qu'une seule fois a ces montants
             List<Tuple> totaux = getEntityManager().createNativeQuery(
-                    "SELECT SUM(m.montantCredit) AS montantCredit, SUM(m.montantRemise) AS montantRemise, SUM(m.montantTva) as montantTva,m.mvtdate FROM mvttransaction m where m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate",
+                    "SELECT SUM(m.montantCredit) AS montantCredit, SUM(m.montantRemise) AS montantRemise, SUM(m.montantTva) as montantTva,m.mvtdate FROM mvttransaction m where m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND m.mvtdate BETWEEN ?1 AND ?2 GROUP BY m.mvtdate",
                     Tuple.class).setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd))
                     .getResultList();
             for (Tuple t : totaux) {
@@ -245,7 +245,7 @@ public class ErpServiceImpl implements ErpService {
                     .createNativeQuery("SELECT sum(v.montant_attentu) AS montantVerse,m.mvtdate,v.type_regelement,"
                             // libelle de l'operateur (demandes des applications mobiles, 25) : meme regroupement
                             + " (SELECT r.str_NAME FROM t_type_reglement r WHERE r.lg_TYPE_REGLEMENT_ID = v.type_regelement) AS libelle"
-                            + " FROM mvttransaction m, vente_reglement v where m.vente_id=v.vente_id AND m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,v.type_regelement",
+                            + " FROM mvttransaction m, vente_reglement v where m.vente_id=v.vente_id AND m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND m.mvtdate BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,v.type_regelement",
                             Tuple.class)
                     .setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd)).getResultList();
             for (Tuple t : reglements) {
@@ -726,9 +726,9 @@ public class ErpServiceImpl implements ErpService {
     private List<Tuple> fetchVentesCa(String dtStart, String dtEnd) {
         try {
             return getEntityManager().createNativeQuery(
-                    "SELECT  IFNULL(SUM(p.int_PRICE) ,0) AS montant,DATE(p.dt_UPDATED) AS mvtDay FROM t_preenregistrement p WHERE p.b_IS_CANCEL=FALSE AND p.int_PRICE >0 AND p.str_STATUT='is_Closed' AND p.lg_TYPE_VENTE_ID <>'5' AND  DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 GROUP  BY  DATE(p.dt_UPDATED)",
+                    "SELECT  IFNULL(SUM(p.int_PRICE) ,0) AS montant,DATE(p.dt_UPDATED) AS mvtDay FROM t_preenregistrement p WHERE p.b_IS_CANCEL=FALSE AND p.int_PRICE >0 AND p.str_STATUT='is_Closed' AND p.lg_TYPE_VENTE_ID <>'5' AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 GROUP  BY  DATE(p.dt_UPDATED)",
                     Tuple.class).setParameter(1, java.sql.Date.valueOf(dtStart))
-                    .setParameter(2, java.sql.Date.valueOf(dtEnd)).getResultList();
+                    .setParameter(2, java.sql.Date.valueOf(LocalDate.parse(dtEnd).plusDays(1))).getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchVentesCa =====>>", e);
             return Collections.emptyList();
@@ -738,9 +738,9 @@ public class ErpServiceImpl implements ErpService {
     private List<Tuple> fetchAchats(String dtStart, String dtEnd) {
         try {
             return getEntityManager().createNativeQuery(
-                    "SELECT  IFNULL(SUM(b.int_HTTC) ,0) AS montant, DATE(b.dt_CREATED) AS mvtDay FROM t_bon_livraison b WHERE DATE(b.dt_CREATED) BETWEEN ?1 AND ?2 GROUP  BY DATE(b.dt_CREATED)",
+                    "SELECT  IFNULL(SUM(b.int_HTTC) ,0) AS montant, DATE(b.dt_CREATED) AS mvtDay FROM t_bon_livraison b WHERE b.dt_CREATED >= ?1 AND b.dt_CREATED < ?2 GROUP  BY DATE(b.dt_CREATED)",
                     Tuple.class).setParameter(1, java.sql.Date.valueOf(dtStart))
-                    .setParameter(2, java.sql.Date.valueOf(dtEnd)).getResultList();
+                    .setParameter(2, java.sql.Date.valueOf(LocalDate.parse(dtEnd).plusDays(1))).getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchAchats =====>>", e);
             return Collections.emptyList();

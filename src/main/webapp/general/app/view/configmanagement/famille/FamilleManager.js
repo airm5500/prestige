@@ -857,6 +857,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                         }
                                         Me_Workflow = vue;
                                         var texte = (newValue || '').trim();
+                                        if (Me_Workflow.derniereRecherche === Ext.encode(Me_Workflow.fmParamsRecherche())) {
+                                            return; // déjà cherché (touche Entrée pendant la pause)
+                                        }
                                         if (texte.length >= 3) {
                                             Me_Workflow.onRechClick(false);
                                         } else if (texte.length === 0 && Me_Workflow.rechercheDejaLancee) {
@@ -1938,6 +1941,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
                 new testextjs.view.configmanagement.famille.action.detailArticle({
                     odatasource: produit,
+                    ficheComplete: true,
                     produitId: rec.get('lg_FAMILLE_ID'),
                     parentview: this,
                     mode: "update",
@@ -2096,6 +2100,18 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         });
     },
 
+    fmParamsRecherche: function () {
+        return {
+            search_value: Me_Workflow.fmField('rechecher').getValue() || '',
+            str_TYPE_TRANSACTION: Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue() || '',
+            lg_DCI_ID: Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() || '',
+            lg_ZONE_GEO_ID: Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue() || '',
+            stock_operator: Me_Workflow.fmField('stock_operator').getValue() || '',
+            stock_value: Me_Workflow.fmField('stock_value').getValue() || '',
+            lg_CODE_TVA_ID: Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getValue() || ''
+        };
+    },
+
     onRechClick: function (selectionner) {
         if (!Me_Workflow || Me_Workflow.isDestroyed) {
             return;
@@ -2107,16 +2123,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         // desormais recharger la liste complete (voir le listener change du champ).
         Me_Workflow.rechercheDejaLancee = true;
 
+        var params = Me_Workflow.fmParamsRecherche();
+        // lenteurs d'appaul (12/11) : critères de la dernière liste demandée ; la pause de frappe qui suit la touche
+        // Entrée ne recalcule pas la même liste une seconde fois (voir le listener change du champ)
+        Me_Workflow.derniereRecherche = Ext.encode(params);
         Me_Workflow.getStore().loadPage(1, {
-            params: {
-                search_value: val.getValue() || '',
-                str_TYPE_TRANSACTION: Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue() || '',
-                lg_DCI_ID: Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() || '',
-                lg_ZONE_GEO_ID: Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue() || '',
-                stock_operator: Me_Workflow.fmField('stock_operator').getValue() || '',
-                stock_value: Me_Workflow.fmField('stock_value').getValue() || '',
-                lg_CODE_TVA_ID: Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getValue() || ''
-            }
+            params: params
         });
 
         // selectionner === false : recherche partie pendant la frappe (pause) ; on rend le

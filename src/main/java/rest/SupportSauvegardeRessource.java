@@ -116,7 +116,9 @@ public class SupportSauvegardeRessource {
         String erreur = sauvegardeService.enregistrer(c.optString("dossier", null), c.optString("copie", ""),
                 c.has("active") ? c.optBoolean("active", true) : null,
                 c.has("garderHeures") ? c.optInt("garderHeures", -1) : null,
-                c.has("garderJours") ? c.optInt("garderJours", -1) : null);
+                c.has("garderJours") ? c.optInt("garderJours", -1) : null,
+                c.has("horaires") ? c.optString("horaires", "") : null,
+                c.has("poste") ? c.optString("poste", "") : null);
         if (erreur != null) {
             return echec(erreur);
         }

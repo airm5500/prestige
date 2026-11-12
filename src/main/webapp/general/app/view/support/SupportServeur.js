@@ -779,7 +779,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
     /* ============================================================================================ sauvegardes */
 
     /* retour du 01/11 : sauvegarde de la base toutes les heures (une heure perdue au plus), copie sur un second dossier,
-       conservation, historique ; marche a suivre pour restaurer. */
+       conservation, historique ; marche a suivre pour restaurer. Retour du 12/11 : horaires reglables, sur le serveur
+       seulement. */
     ongletSauvegardes: function () {
         var me = this;
         var store = Ext.create('Ext.data.Store', {fields: [{name: 'id', type: 'int'}, 'debut', 'fin', 'origine', 'statut', 'fichier',
@@ -793,7 +794,14 @@ Ext.define('testextjs.view.support.SupportServeur', {
                         {xtype: 'textfield', itemId: 'sauvCopie', fieldLabel: 'Copie sur un second dossier (autre disque, conseillé)', flex: 3, margin: '0 8 0 0'},
                         {xtype: 'numberfield', itemId: 'sauvGarderHeures', fieldLabel: 'Toutes gardées (heures)', width: 150, minValue: 1, maxValue: 720, allowDecimals: false, margin: '0 8 0 0'},
                         {xtype: 'numberfield', itemId: 'sauvGarderJours', fieldLabel: 'Puis une par jour (jours)', width: 150, minValue: 0, maxValue: 365, allowDecimals: false, margin: '0 8 0 0'},
-                        {xtype: 'checkbox', itemId: 'sauvActive', boxLabel: 'Sauvegarde automatique toutes les heures', margin: '24 8 0 0'}]},
+                        {xtype: 'checkbox', itemId: 'sauvActive', boxLabel: 'Sauvegarde automatique', margin: '24 8 0 0'}]},
+                /* retour du 12/11 : horaires reglables, et sauvegarde sur le serveur seulement (plus sur chaque caisse) */
+                {xtype: 'container', padding: '0 10 6 10', layout: {type: 'hbox', align: 'top'}, defaults: {labelAlign: 'top'}, items: [
+                        {xtype: 'textfield', itemId: 'sauvHoraires', fieldLabel: 'Horaires (ex. 12:00, 20:00 ; vide : toutes les heures à hh:05)', flex: 3, margin: '0 8 0 0',
+                            emptyText: 'toutes les heures'},
+                        {xtype: 'textfield', itemId: 'sauvPoste', fieldLabel: 'Poste serveur qui sauvegarde (vide : celui qui héberge la base)', flex: 3, margin: '0 8 0 0',
+                            emptyText: 'le poste qui héberge la base'},
+                        {xtype: 'component', flex: 2}]},
                 {xtype: 'toolbar', border: false, items: [
                         {xtype: 'button', itemId: 'btnSauvReglages', text: 'Enregistrer les réglages', iconCls: 'fa fa-save', handler: function () {
                             me.enregistrerSauvegardes();
@@ -960,10 +968,19 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 o.down('#sauvGarderHeures').setValue(r.garderHeures);
                 o.down('#sauvGarderJours').setValue(r.garderJours);
                 o.down('#sauvActive').setValue(r.active);
+                o.down('#sauvHoraires').setValue(r.horaires || '');
+                o.down('#sauvPoste').setValue(r.poste || '');
             }
-            e.update((r.enCours ? '<span class="srv-encours">Sauvegarde en cours depuis ' + me.esc(r.enCoursDepuis.substring(11)) + '…</span><br>' : '')
+            /* sur une caisse, « Sauvegarder maintenant » est grise : les sauvegardes se font sur le serveur */
+            o.down('#btnSauvMaintenant').setDisabled(r.posteServeur === false);
+            e.update((r.enCours ? '<span class="srv-encours">Sauvegarde en cours depuis ' + me.esc(r.enCoursDepuis.substring(11)) + '…</span><br>'
+                    : (r.verrouPris ? '<span class="srv-encours">Sauvegarde en cours sur un autre poste…</span><br>' : ''))
                     + 'Dernière sauvegarde réussie : ' + (r.derniereReussie ? '<b>' + me.esc(r.derniereReussie) + '</b>' : '<span class="srv-critique">aucune</span>')
-                    + (r.active ? '' : ' · <span class="srv-ajuster">sauvegarde automatique coupée</span>')
+                    + (r.active ? ' · automatique ' + me.esc(r.horairesLibelle || '') + ', prochaine le <b>' + me.esc(r.prochaine || '') + '</b>'
+                            : ' · <span class="srv-ajuster">sauvegarde automatique coupée</span>')
+                    + '<br>Ce poste : <b>' + me.esc(r.posteCourant || '?') + '</b> · ' + (r.posteServeur === false
+                    ? '<span class="srv-ajuster">poste client : les sauvegardes se font sur le serveur (' + me.esc(r.poste || 'le poste qui héberge la base') + ')</span>'
+                    : '<span class="srv-ok">serveur des sauvegardes</span>')
                     + '<br>Outil de sauvegarde : ' + (r.outil ? me.esc(r.outil) : '<span class="srv-critique">introuvable (mariadb-dump)</span>')
                     + ' · Espace libre : ' + (r.espaceLibreMo === null ? '—' : me.nombre(r.espaceLibreMo) + ' Mo'));
             o.down('#sauvListe').getStore().loadData(r.liste);
@@ -995,7 +1012,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
     enregistrerSauvegardes: function () {
         var me = this, o = me.down('#ongletSauvegardes'), m = o.down('#sauvMessage');
         me.appel('POST', '../sauvegardes/reglages', {dossier: o.down('#sauvDossier').getValue(), copie: o.down('#sauvCopie').getValue(),
-            active: o.down('#sauvActive').getValue(), garderHeures: o.down('#sauvGarderHeures').getValue(), garderJours: o.down('#sauvGarderJours').getValue()}, function (r) {
+            active: o.down('#sauvActive').getValue(), garderHeures: o.down('#sauvGarderHeures').getValue(), garderJours: o.down('#sauvGarderJours').getValue(),
+            horaires: o.down('#sauvHoraires').getValue() || '', poste: o.down('#sauvPoste').getValue() || ''}, function (r) {
             m.setText('<span class="' + (r.success ? 'srv-ok' : 'srv-critique') + '">' + me.esc(r.message) + '</span>');
             if (r.success) {
                 me.chargerSauvegardes(true);
