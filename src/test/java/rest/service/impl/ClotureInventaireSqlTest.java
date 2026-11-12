@@ -14,9 +14,9 @@ public class ClotureInventaireSqlTest {
     @Test
     public void seulesLesLignesAvecEcartSontTouchees() {
         for (String sql : new String[] { ClotureInventaireSql.STOCK_RAYON, ClotureInventaireSql.STOCK_PAR_TYPE,
-                ClotureInventaireSql.DERNIER_INVENTAIRE, ClotureInventaireSql.MOUVEMENT_CUMUL,
-                ClotureInventaireSql.MOUVEMENT_CREATION, ClotureInventaireSql.INSTANTANE_MAJ,
-                ClotureInventaireSql.INSTANTANE_CREATION, ClotureInventaireSql.LIGNES_CLOTUREES }) {
+                ClotureInventaireSql.MOUVEMENT_CUMUL, ClotureInventaireSql.MOUVEMENT_CREATION,
+                ClotureInventaireSql.INSTANTANE_MAJ, ClotureInventaireSql.INSTANTANE_CREATION,
+                ClotureInventaireSql.LIGNES_CLOTUREES }) {
             assertTrue(sql.contains("i.int_NUMBER <> i.int_NUMBER_INIT"), sql);
             assertTrue(sql.contains("i.bool_INVENTAIRE = 1"), sql);
             assertTrue(sql.contains(":inventaire"), sql);
@@ -28,7 +28,10 @@ public class ClotureInventaireSqlTest {
     @Test
     public void tablesDeLaProcedureStockee() {
         assertTrue(ClotureInventaireSql.STOCK_PAR_TYPE.contains("t_type_stock_famille"));
-        assertTrue(ClotureInventaireSql.DERNIER_INVENTAIRE.contains("dt_LAST_INVENTAIRE"));
+        for (String sql : new String[] { ClotureInventaireSql.STOCK_RAYON, ClotureInventaireSql.STOCK_PAR_TYPE,
+                ClotureInventaireSql.HISTORIQUE, ClotureInventaireSql.LIGNES_CLOTUREES }) {
+            assertFalse(sql.contains("dt_LAST_INVENTAIRE"), "date tenue par le declencheur de t_inventaire");
+        }
         assertTrue(ClotureInventaireSql.MOUVEMENT_CUMUL.contains("m.int_NUMBER = m.int_NUMBER + i.int_NUMBER"));
         assertTrue(ClotureInventaireSql.MOUVEMENT_CREATION.contains("'INVENTAIRE'"));
         assertTrue(ClotureInventaireSql.INSTANTANE_MAJ.contains("m.int_STOCK_JOUR = i.int_NUMBER"));

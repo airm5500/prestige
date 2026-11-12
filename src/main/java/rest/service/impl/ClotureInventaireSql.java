@@ -41,10 +41,6 @@ public final class ClotureInventaireSql {
             + " AND t.lg_TYPE_STOCK_ID = :typeStock AND t.lg_EMPLACEMENT_ID = :emplacement"
             + " AND t.str_STATUT = 'enable'";
 
-    /** Date du dernier inventaire du produit, comme la procedure. */
-    public static final String DERNIER_INVENTAIRE = "UPDATE t_famille f JOIN t_inventaire_famille i"
-            + " ON i.lg_FAMILLE_ID = f.lg_FAMILLE_ID SET f.dt_LAST_INVENTAIRE = NOW() WHERE" + LIGNES_AVEC_ECART;
-
     /**
      * Historique lu par les ecrans REST : une ligne par ligne retenue, comme avant (:emplacement emplacement,
      * :utilisateur user).

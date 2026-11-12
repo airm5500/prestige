@@ -711,6 +711,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             name: 'dt_LAST_INVENTAIRE',
                                             id: 'dt_LAST_INVENTAIRE',
                                             fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            /* demande du 12/11 : date de creation de la fiche */
+                                            fieldLabel: 'Date de création',
+                                            name: 'dt_CREATED',
+                                            id: 'dt_CREATED_DETAIL_ARTICLE',
+                                            fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
                                         }
                                     ]
                                 },
@@ -1687,6 +1694,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('str_CODE_REMISE').setValue(rec.str_CODE_REMISE);
         Ext.getCmp('dt_LAST_INVENTAIRE').setValue(rec.dt_LAST_INVENTAIRE);
         Ext.getCmp('dt_LAST_ENTREE').setValue(rec.dt_LAST_ENTREE);
+        Ext.getCmp('dt_CREATED_DETAIL_ARTICLE').setValue(rec.dt_CREATED);
         Ext.getCmp('dt_DATE_LIVRAISON').setValue(rec.dt_DATE_LIVRAISON);
         Ext.getCmp('dt_LAST_VENTE').setValue(this.texteDerniereVente(rec.dt_LAST_VENTE));
         this.afficherPeremptionProche(rec.dt_PEREMPTION_PROCHE, rec.lot_PEREMPTION_PROCHE, rec.qte_PEREMPTION_PROCHE);

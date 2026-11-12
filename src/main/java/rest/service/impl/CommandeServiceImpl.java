@@ -428,7 +428,7 @@ public class CommandeServiceImpl implements CommandeService {
                 bn.setStrSTATUT(Constant.STATUT_IS_CLOSED);
                 bn.setDtUPDATED(new Date());
                 this.getEm().merge(bn);
-                oFamille.setDtDATELASTENTREE(new Date());
+                // dt_DATE_LAST_ENTREE : tenue par les declencheurs (R__dates_fiche_article.sql).
                 oFamille.setDtUPDATED(new Date());
                 oFamille.setIntPAF(bn.getIntPAF());
                 oFamille.setIntPAT(oFamille.getIntPAF());
@@ -949,8 +949,10 @@ public class CommandeServiceImpl implements CommandeService {
                         null);
                 etapeSql(suivi, ++etape, emg, ClotureInventaireSql.STOCK_PAR_TYPE, inventaireId, emplacementId, userId,
                         ClotureInventaireSql.typeStockRayon(emplacementId));
-                etapeSql(suivi, ++etape, emg, ClotureInventaireSql.DERNIER_INVENTAIRE, inventaireId, emplacementId,
-                        userId, null);
+                // Date du dernier inventaire : posee par le declencheur de t_inventaire a la cloture de l'en-tete
+                // (R__dates_fiche_article.sql, officine seulement, toutes les lignes). L'etape reste affichee.
+                suivi.etape(++etape);
+                suivi.etapeFinie(0);
                 etapeSql(suivi, ++etape, emg, ClotureInventaireSql.HISTORIQUE, inventaireId, emplacementId, userId,
                         null);
                 suivi.etape(++etape);

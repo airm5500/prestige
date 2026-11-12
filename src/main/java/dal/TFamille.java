@@ -139,10 +139,15 @@ public class TFamille implements Serializable {
     private Date dtPEREMPTION;
     @Column(name = "int_COMPTEUR_PEREMPTION")
     private Integer intCOMPTEURPEREMPTION;
-    @Column(name = "dt_DATE_LAST_ENTREE")
+    /*
+     * Demande du 12/11 : derniere entree, derniere vente et dernier inventaire sont tenus par les declencheurs de
+     * R__dates_fiche_article.sql. Jamais ecrits par JPA : une entite chargee avant l'operation les remettrait a
+     * l'ancienne valeur en enregistrant ses autres colonnes.
+     */
+    @Column(name = "dt_DATE_LAST_ENTREE", insertable = false, updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtDATELASTENTREE;
-    @Column(name = "dt_DATE_LAST_SORTIE")
+    @Column(name = "dt_DATE_LAST_SORTIE", insertable = false, updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtDATELASTSORTIE;
     @Column(name = "int_SEUIL_RESERVE")
@@ -205,7 +210,8 @@ public class TFamille implements Serializable {
     private Integer intQTESORTIE;
     @Column(name = "int_MOY_VENTE")
     private Integer intMOYVENTE;
-    @Column(name = "dt_LAST_INVENTAIRE")
+    /* tenu par les declencheurs, voir dtDATELASTENTREE */
+    @Column(name = "dt_LAST_INVENTAIRE", insertable = false, updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtLASTINVENTAIRE;
     @Column(name = "dt_LAST_MOUVEMENT")

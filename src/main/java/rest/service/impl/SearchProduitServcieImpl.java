@@ -1032,16 +1032,23 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             } else {
                 json.put("checkExpirationdate", false);
             }
+            /*
+             * Demande du 12/11 : a l'officine, les trois dates sont lues dans t_famille, tenues a jour par les
+             * declencheurs de R__dates_fiche_article.sql (memes regles), au lieu de fouiller l'historique de l'article.
+             * Un depot garde le calcul (une seule ligne t_famille par article).
+             */
+            String[] tenues = datesTenues(t.getLgFAMILLEID(), empl);
             try {
 
-                json.put("dt_LAST_INVENTAIRE", dateDerniereInventare(t.getLgFAMILLEID(), user));
+                json.put("dt_LAST_INVENTAIRE",
+                        tenues != null ? tenues[2] : dateDerniereInventare(t.getLgFAMILLEID(), user));
             } catch (Exception e) {
                 LOG.log(Level.SEVERE, null, e);
             }
 
             try {
 
-                String dateVente = dateDerniereVente(t.getLgFAMILLEID(), user);
+                String dateVente = tenues != null ? tenues[0] : dateDerniereVente(t.getLgFAMILLEID(), user);
 
                 json.put("dt_LAST_VENTE", dateVente);
 
@@ -1057,7 +1064,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
             try {
 
-                String dateEntree = dateEntree(t.getLgFAMILLEID());
+                String dateEntree = tenues != null ? tenues[1] : dateEntree(t.getLgFAMILLEID());
 
                 json.put("dt_LAST_ENTREE", dateEntree);
 
@@ -1140,6 +1147,34 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
         }
         return null;
+    }
+
+    /** Emplacement de l'officine : le seul dont les dates sont tenues dans t_famille. */
+    static final String EMPLACEMENT_OFFICINE = "1";
+
+    /**
+     * Derniere vente, derniere entree et dernier inventaire tenus dans t_famille (jj/mm/aaaa hh:mm, "" si aucun), pour
+     * l'officine ; null pour un depot, ou si la lecture echoue (la fiche refait alors le calcul). Lecture directe en
+     * base : l'entite en memoire ne voit pas ce qu'ecrivent les declencheurs.
+     */
+    String[] datesTenues(String famille, String empl) {
+        if (!EMPLACEMENT_OFFICINE.equals(empl)) {
+            return null;
+        }
+        try {
+            List<?> r = em.createNativeQuery("SELECT IFNULL(DATE_FORMAT(dt_DATE_LAST_SORTIE, '%d/%m/%Y %H:%i'), ''),"
+                    + " IFNULL(DATE_FORMAT(dt_DATE_LAST_ENTREE, '%d/%m/%Y %H:%i'), ''),"
+                    + " IFNULL(DATE_FORMAT(dt_LAST_INVENTAIRE, '%d/%m/%Y %H:%i'), '')"
+                    + " FROM t_famille WHERE lg_FAMILLE_ID = ?1").setParameter(1, famille).getResultList();
+            if (r.isEmpty()) {
+                return null;
+            }
+            Object[] l = (Object[]) r.get(0);
+            return new String[] { String.valueOf(l[0]), String.valueOf(l[1]), String.valueOf(l[2]) };
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "dates de la fiche tenues dans t_famille", e);
+            return null;
+        }
     }
 
     /**
