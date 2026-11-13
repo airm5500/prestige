@@ -166,19 +166,7 @@ public final class ConversionTicket {
 
     /** Telephone principal et autres numeros de l'identification officine, separes par « · ». */
     static String telephones(String principal, String autres) {
-        List<String> l = new ArrayList<>();
-        for (String t : Arrays.asList(principal, autres)) {
-            if (t == null) {
-                continue;
-            }
-            for (String n : t.split("[;/,|]")) {
-                String x = n.trim();
-                if (!x.isEmpty() && !l.contains(x)) {
-                    l.add(x);
-                }
-            }
-        }
-        return String.join(" · ", l);
+        return String.join(" · ", util.TelephonesOfficine.numeros(principal, autres));
     }
 
     /* ---------- ventes ---------- */

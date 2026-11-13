@@ -80,8 +80,8 @@ public class OfficineRessource {
             JSONObject json = new JSONObject();
             json.put("lg_OFFICINE_ID", officine.getLgOFFICINEID());
             json.put("str_FIRST_NAME", officine.getStrFIRSTNAME());
-            json.put("str_PHONE", StringUtils.isNotBlank(officine.getStrAUTRESPHONES())
-                    ? officine.getStrPHONE() + ";" + officine.getStrAUTRESPHONES() : officine.getStrPHONE());
+            json.put("str_PHONE",
+                    util.TelephonesOfficine.affiche(officine.getStrPHONE(), officine.getStrAUTRESPHONES()));
             json.put("str_NOM_ABREGE", officine.getStrNOMABREGE());
             json.put("str_NOM_COMPLET", officine.getStrNOMCOMPLET());
             json.put("str_COMMENTAIRE2", officine.getStrCOMMENTAIRE2());
