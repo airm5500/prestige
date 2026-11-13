@@ -3950,6 +3950,10 @@ public class ProduitServiceImpl implements ProduitService {
             return json.put("success", false).put("message", "Produit introuvable");
         }
 
+        if (CODE_DU_PRODUIT.equalsIgnoreCase(dto.getField())) {
+            return retenirCodeArticle(famille, code, grossisteId);
+        }
+
         if (isEAN) {
             // Mise à jour de int_EAN13 uniquement — int_CIP reste inchangé
             famille.setIntEAN13(code);
@@ -3983,6 +3987,87 @@ public class ProduitServiceImpl implements ProduitService {
             }
         }
 
+        return json.put("success", true);
+    }
+
+    /** Choix « Utiliser le code du produit retrouvé » de la réconciliation d'un BL. */
+    static final String CODE_DU_PRODUIT = "PRODUIT";
+    /** Longueur de t_famille_grossiste.str_CODE_ARTICLE. */
+    static final int LONGUEUR_CODE_ARTICLE = 20;
+
+    /**
+     * Refus éventuel de retenir {@code code} comme code article d'un produit chez un grossiste, ou {@code null} si le
+     * code peut être retenu.
+     *
+     * @param autreProduitChezGrossiste
+     *            nom d'un AUTRE produit qui porte déjà ce code article chez ce grossiste, sinon {@code null}
+     * @param autreProduitCipOuEan
+     *            nom d'un AUTRE produit dont le CIP ou l'EAN13 vaut ce code, sinon {@code null}
+     */
+    static String refusCodeArticle(String code, String autreProduitChezGrossiste, String autreProduitCipOuEan) {
+        String c = code == null ? "" : code.trim();
+        if (c.length() < 6) {
+            return "Le code doit avoir au minimum 6 caractères";
+        }
+        if (c.length() > LONGUEUR_CODE_ARTICLE) {
+            return "Le code dépasse " + LONGUEUR_CODE_ARTICLE + " caractères";
+        }
+        if (autreProduitChezGrossiste != null) {
+            return "Ce code est déjà utilisé par : " + autreProduitChezGrossiste;
+        }
+        if (autreProduitCipOuEan != null) {
+            return "Ce code est déjà utilisé par : " + autreProduitCipOuEan;
+        }
+        return null;
+    }
+
+    /**
+     * Le produit garde son CIP et son EAN13 ; le code du BL devient son code article chez ce grossiste (ligne
+     * produit-grossiste reprise, ou créée s'il n'y en a pas), pour que le prochain BL le reconnaisse.
+     */
+    private JSONObject retenirCodeArticle(TFamille famille, String code, String grossisteId) {
+        JSONObject json = new JSONObject();
+        TGrossiste grossiste = grossisteId == null ? null : em.find(TGrossiste.class, grossisteId);
+        if (grossiste == null) {
+            return json.put("success", false).put("message", "Grossiste introuvable");
+        }
+        String familleId = famille.getLgFAMILLEID();
+        TFamilleGrossiste existant = isCIPExist(code, grossisteId);
+        String autreChezGrossiste = existant != null && !existant.getLgFAMILLEID().getLgFAMILLEID().equals(familleId)
+                ? existant.getLgFAMILLEID().getStrNAME() : null;
+        List<TFamille> autres = em
+                .createQuery(
+                        "SELECT t FROM TFamille t WHERE (t.intCIP = ?1 OR t.intEAN13 = ?1) AND t.lgFAMILLEID <> ?2",
+                        TFamille.class)
+                .setParameter(1, code).setParameter(2, familleId).setMaxResults(1).getResultList();
+        String refus = refusCodeArticle(code, autreChezGrossiste, autres.isEmpty() ? null : autres.get(0).getStrNAME());
+        if (refus != null) {
+            return json.put("success", false).put("message", refus);
+        }
+        List<TFamilleGrossiste> lignes = em.createQuery(
+                "SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgGROSSISTEID.lgGROSSISTEID = ?2 "
+                        + "ORDER BY CASE WHEN t.strSTATUT = 'enable' THEN 0 ELSE 1 END, t.dtCREATED",
+                TFamilleGrossiste.class).setParameter(1, familleId).setParameter(2, grossisteId).setMaxResults(1)
+                .getResultList();
+        Date maintenant = new Date();
+        if (lignes.isEmpty()) {
+            TFamilleGrossiste ligne = new TFamilleGrossiste();
+            ligne.setLgFAMILLEID(famille);
+            ligne.setLgGROSSISTEID(grossiste);
+            ligne.setStrCODEARTICLE(code);
+            ligne.setIntPAF(famille.getIntPAF());
+            ligne.setIntPRICE(famille.getIntPRICE());
+            ligne.setStrSTATUT(Constant.STATUT_ENABLE);
+            ligne.setDtCREATED(maintenant);
+            ligne.setDtUPDATED(maintenant);
+            em.persist(ligne);
+        } else {
+            TFamilleGrossiste ligne = lignes.get(0);
+            ligne.setStrCODEARTICLE(code);
+            ligne.setStrSTATUT(Constant.STATUT_ENABLE);
+            ligne.setDtUPDATED(maintenant);
+            em.merge(ligne);
+        }
         return json.put("success", true);
     }
 
