@@ -778,6 +778,85 @@ public class OrderServiceImpl implements OrderService {
 
     }
 
+    /**
+     * Plan du 12/11 : « Modifier Article » du detail d'un BL (le JSP appele ne compilait plus depuis le 18/10). Comme
+     * l'ancien traitement : les quatre prix et la zone de la ligne, le montant du bon (part de la ligne au nouveau
+     * PAF), et tout de suite la fiche article (prix de vente, TIPS, PAF, PA tarif, taux de marque) et le prix chez le
+     * grossiste. Un bon deja entre en stock n'est plus modifiable. La modification est tracee ; un changement de prix
+     * de vente entre dans l'historique des prix.
+     */
+    @Override
+    public JSONObject modifierPrixLigneBl(String detailId, rest.service.dto.PrixLigneBlDTO dto, TUser user) {
+        JSONObject json = new JSONObject();
+        TBonLivraisonDetail detail = detailId == null ? null : getEmg().find(TBonLivraisonDetail.class, detailId);
+        if (detail == null) {
+            return json.put("success", false).put("msg", "Ligne du bon introuvable.");
+        }
+        TBonLivraison bon = detail.getLgBONLIVRAISONID();
+        if (Constant.STATUT_IS_CLOSED.equals(bon.getStrSTATUT())
+                || Constant.STATUT_IS_CLOSED.equals(detail.getStrSTATUT())) {
+            return json.put("success", false).put("msg", "Ce bon est déjà entré en stock : ses prix ne changent plus.");
+        }
+        String refus = PrixLigneBl.refus(dto.getPrixVente(), dto.getPrixTips(), dto.getPrixAchatFacture(),
+                dto.getPrixAchatTarif());
+        if (refus != null) {
+            return json.put("success", false).put("msg", refus);
+        }
+        int quantite = Objects.requireNonNullElse(detail.getIntQTECMDE(), 0);
+        int ancienPaf = Objects.requireNonNullElse(detail.getIntPAF(), 0);
+        bon.setIntMHT(PrixLigneBl.montantApres(Objects.requireNonNullElse(bon.getIntMHT(), 0), ancienPaf,
+                dto.getPrixAchatFacture(), quantite));
+        bon.setIntHTTC(PrixLigneBl.montantApres(Objects.requireNonNullElse(bon.getIntHTTC(), 0), ancienPaf,
+                dto.getPrixAchatFacture(), quantite));
+        bon.setDtUPDATED(new Date());
+        detail.setIntPRIXVENTE(dto.getPrixVente());
+        detail.setIntPRIXREFERENCE(dto.getPrixTips());
+        detail.setIntPAF(dto.getPrixAchatFacture());
+        detail.setIntPAREEL(dto.getPrixAchatTarif());
+        if (StringUtils.isNotBlank(dto.getZoneId())) {
+            TZoneGeographique zone = getEmg().find(TZoneGeographique.class, dto.getZoneId());
+            if (zone != null) {
+                detail.setLgZONEGEOID(zone);
+            }
+        }
+        detail.setDtUPDATED(bon.getDtUPDATED());
+
+        TFamille f = detail.getLgFAMILLEID();
+        int ancienPrix = Objects.requireNonNullElse(f.getIntPRICE(), 0);
+        int ancienPafFiche = Objects.requireNonNullElse(f.getIntPAF(), 0);
+        int ancienPat = Objects.requireNonNullElse(f.getIntPAT(), 0);
+        int ancienTips = f.getIntPRICETIPS() != null ? f.getIntPRICETIPS() : ancienPrix;
+        f.setIntPRICE(dto.getPrixVente());
+        f.setIntPRICETIPS(dto.getPrixTips());
+        f.setIntPAF(dto.getPrixAchatFacture());
+        f.setIntPAT(dto.getPrixAchatTarif());
+        Integer tauxMarque = TauxMarque.calculer(f.getIntPRICE(), f.getIntPAF());
+        if (tauxMarque != null) {
+            f.setIntTAUXMARQUE(tauxMarque);
+        }
+        f.setDtUPDATED(bon.getDtUPDATED());
+        TGrossiste grossiste = bon.getLgORDERID() == null ? null : bon.getLgORDERID().getLgGROSSISTEID();
+        TFamilleGrossiste fg = grossiste == null ? null
+                : findFamilleGrossiste(f.getLgFAMILLEID(), grossiste.getLgGROSSISTEID());
+        if (fg != null) {
+            fg.setIntPRICE(dto.getPrixVente());
+            fg.setIntPAF(dto.getPrixAchatFacture());
+        }
+        if (ancienPrix != dto.getPrixVente() || ancienPafFiche != dto.getPrixAchatFacture()
+                || ancienPat != dto.getPrixAchatTarif() || ancienTips != dto.getPrixTips()) {
+            String desc = "Modification de prix au bon de livraison " + bon.getStrREFLIVRAISON() + " du produit "
+                    + f.getIntCIP() + " " + f.getStrNAME() + " : prix de vente " + ancienPrix + " -> "
+                    + dto.getPrixVente() + ", prix TIPS " + ancienTips + " -> " + dto.getPrixTips() + ", PAF "
+                    + ancienPafFiche + " -> " + dto.getPrixAchatFacture() + ", PA tarif " + ancienPat + " -> "
+                    + dto.getPrixAchatTarif() + ".";
+            logService.updateItem(user, f.getIntCIP(), desc, TypeLog.MODIFICATION_INFO_PRODUIT_COMMANDE, f);
+        }
+        if (ancienPrix != dto.getPrixVente()) {
+            saveMouvementPrice(f, dto.getPrixVente(), ancienPrix, f.getIntCIP(), user);
+        }
+        return json.put("success", true).put("montantHT", bon.getIntMHT()).put("montantTTC", bon.getIntHTTC());
+    }
+
     @Override
     public TOrderDetail modificationProduitCommandeEncours(ArticleDTO dto, TUser user) {
 

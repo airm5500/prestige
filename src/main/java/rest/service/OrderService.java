@@ -77,6 +77,9 @@ public interface OrderService {
 
     TOrderDetail modificationProduitCommandeEncours(ArticleDTO dto, TUser user);
 
+    /** Plan du 12/11 : « Modifier Article » du detail d'un BL (prix de la ligne, montant du bon, fiche article). */
+    org.json.JSONObject modifierPrixLigneBl(String detailId, rest.service.dto.PrixLigneBlDTO dto, TUser user);
+
     TFamilleGrossiste finFamilleGrossisteByByFamilleAndIdGrossiste(String idFamille, String grossisteId);
 
     TFamilleGrossiste findOrCreateFamilleGrossisteByFamilleAndGrossiste(TFamille famille, TGrossiste grossiste);
