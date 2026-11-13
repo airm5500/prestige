@@ -453,7 +453,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                     }), motif: motif},
                 success: function (rep) {
                     var o = Ext.JSON.decode(rep.responseText, true) || {}, refus = o.refus || [],
-                            msg = (o.supprimees || 0) + ' suggestion(s) supprimée(s)' + (refus.length ? ', ' + refus.length + ' refusée(s) : '
+                            msg = (o.supprimees || 0) + ' suggestion(s) supprimée(s)'
+                            + (o.ouvertesAilleurs ? ' (dont ' + o.ouvertesAilleurs + ' ouverte(s) sur un autre poste)' : '')
+                            + (refus.length ? ', ' + refus.length + ' refusée(s) : '
                             + Ext.Array.map(refus, function (x) {
                                 var r = me.getStore().findRecord('lg_SUGGESTION_RESERVE_ID', x.id, 0, false, true, true);
                                 return (r ? r.get('str_REF') + ' - ' : '') + x.message;
@@ -764,8 +766,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 var res = Ext.JSON.decode(response.responseText, true) || {};
                 if (window.PrestigeToast) {
                     PrestigeToast.afficher(res.success === false ? (res.message || 'Suppression impossible.')
-                            : 'Suggestion ' + rec.get('str_REF') + ' supprimée.', {niveau: res.success === false ? 'alerte' : 'ok', titre: 'Suppression'});
+                            : (res.message || 'Suggestion ' + rec.get('str_REF') + ' supprimée.'), {niveau: res.success === false ? 'alerte' : 'ok', titre: 'Suppression'});
                 }
+                me.dernierBilanSuppression = res.message || '';
                 if (res.success !== false) {
                     me.reloadGrid();
                 }
@@ -831,6 +834,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                             if (res.success === false) {
                                 Ext.MessageBox.alert('Suppression impossible', res.message || '');
                                 return;
+                            }
+                            me.dernierBilanSuppression = res.message || '';
+                            if (window.PrestigeToast && res.message) {
+                                PrestigeToast.afficher(res.message, {niveau: 'ok', titre: 'Suppression'});
                             }
                             me.reloadGrid();
                         },
