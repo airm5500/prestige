@@ -160,8 +160,16 @@ function creer(b) {
       if (!await attendreMessage(p, "Confirmer l'entrée en stock", 20000)) { throw new Error('confirmation absente'); }
       t0 = Date.now();
       await repondre(p, 'yes');
-      const suite = await attendreMessage(p, 'impression des entrées', 600000);
+      /* un produit du bon peut avoir un avoir client ouvert : la fenetre « Produits en avoir » passe alors d'abord
+         (elle arrive a la reponse de l'entree, c'est la que s'arrete le chronometre) ; on la ferme */
+      await p.waitForFunction(() => Ext.ComponentQuery.query('avoirsbonfenetre').length > 0
+        || Ext.ComponentQuery.query('messagebox{isVisible()}').some((m) => /impression des entrées/.test(m.el.dom.textContent)), null, { timeout: 600000 }).catch(() => {});
       const validation = Date.now() - t0;
+      if (await p.evaluate(() => Ext.ComponentQuery.query('avoirsbonfenetre').length > 0)) {
+        await p.waitForFunction(() => /vc-tableau|vc-vide/.test(Ext.ComponentQuery.query('avoirsbonfenetre')[0].getEl().dom.innerHTML), null, { timeout: 60000 });
+        await p.click('.vc-pied [data-action=fermer]');
+      }
+      const suite = await attendreMessage(p, 'impression des entrées', 60000);
       if (!suite) { throw new Error('pas de question d\'impression après l\'entrée : ' + await p.evaluate(() => Ext.ComponentQuery.query('messagebox{isVisible()}').map((m) => m.el.dom.textContent).join(' | '))); }
       const appelsValidation = lents(t0);
       const serveur = (etat.appels.filter((a) => a.quand >= t0 && /validerbl/.test(a.url))[0] || {}).ms;

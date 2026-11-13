@@ -42,6 +42,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Level;
@@ -232,7 +234,6 @@ public class CommandeServiceImpl implements CommandeService {
             }
 
             TBonLivraison bonLivraison = this.getEm().find(TBonLivraison.class, id);
-            List<TPreenregistrementDetail> avoirs = getAvoirs();
             Set<TPreenregistrementDetail> avoirs0 = new HashSet<>();
             TOfficine officine = getEm().find(TOfficine.class, Constant.OFFICINE);
 
@@ -285,6 +286,12 @@ public class CommandeServiceImpl implements CommandeService {
                             .put("msg", ReceptionEcart.messagePeremption(sansDate));
                 }
             }
+            /*
+             * plan du 12/11 (appaul : 7,5 s par entree, quel que soit le bon) : seuls les avoirs des produits du bon
+             * sont lus, et non plus tous les avoirs non servis de la base, lus sans index puis filtres par produit.
+             */
+            List<TPreenregistrementDetail> avoirs = getAvoirs(lstTBonLivraisonDetail.stream()
+                    .map(bn -> bn.getLgFAMILLEID().getLgFAMILLEID()).collect(Collectors.toCollection(TreeSet::new)));
             userTransaction.begin();
             JSONArray ugArray = new JSONArray();
             // Produits dont le stock rayon augmente : ils seront evalues APRES le commit, pour voir
@@ -632,11 +639,18 @@ public class CommandeServiceImpl implements CommandeService {
         return json.put("success", true).put("msg", "Opération effectuée avec success");
     }
 
-    List<TPreenregistrementDetail> getAvoirs() {
+    /** Avoirs non servis des produits donnes (lus par paquets de 500 produits). */
+    List<TPreenregistrementDetail> getAvoirs(Collection<String> produits) {
         try {
-            TypedQuery<TPreenregistrementDetail> q = getEm().createNamedQuery("TPreenregistrementDetail.findAvoir",
-                    TPreenregistrementDetail.class);
-            return q.getResultList();
+            List<String> ids = new ArrayList<>(produits);
+            List<TPreenregistrementDetail> avoirs = new ArrayList<>();
+            for (int i = 0; i < ids.size(); i += 500) {
+                avoirs.addAll(getEm()
+                        .createNamedQuery("TPreenregistrementDetail.findAvoirDesProduits",
+                                TPreenregistrementDetail.class)
+                        .setParameter("produits", ids.subList(i, Math.min(ids.size(), i + 500))).getResultList());
+            }
+            return avoirs;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
