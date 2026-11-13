@@ -284,10 +284,38 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
             titre: "Creation d'etiquette"
         });
     },*/
+    /* plan du 12/11 : l'etiquetage massif s'ouvre dans une fenetre modale AU-DESSUS de la liste des etiquettes (il
+       la remplacait). Fermer la fenetre (Annuler, Echap, croix ou apres l'impression) recharge la liste. */
     onAddClick: function() {
-        var xtype = "doEtiquette";
-        var alias = 'widget.' + xtype;
-        testextjs.app.getController('App').onLoadNewComponent(xtype, "Etiquettage massif", "0");
+        var me = this, vue = Ext.getBody().getViewSize();
+        var fenetre = Ext.create('Ext.window.Window', {
+            title: '&Eacute;tiquetage massif',
+            itemId: 'fenetreEtiquetageMassif',
+            modal: true,
+            closable: true,
+            closeAction: 'destroy',
+            width: Math.min(1150, vue.width - 30),
+            height: vue.height - 30,
+            layout: 'fit',
+            items: [{xtype: 'doEtiquette', dansFenetre: true}],
+            listeners: {
+                /* curseur dans « Article » (la fenetre prend le focus a son affichage) */
+                show: function(w) {
+                    Ext.defer(function() {
+                        var champ = w.down('#str_NAME') || Ext.getCmp('str_NAME');
+                        if (champ && !w.isDestroyed) {
+                            champ.focus(false);
+                        }
+                    }, 300);
+                },
+                close: function() {
+                    if (!me.isDestroyed) {
+                        me.loadStore();
+                    }
+                }
+            }
+        });
+        fenetre.show();
     },
     onEditClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
