@@ -143,6 +143,69 @@
                 differe('navigation repliee');
             });
         }
+
+        /*
+         * Demande du 13/11 (captures « Paramétrage général », « Ventes terminées », « Campagnes ») : l'ecran se
+         * rabat encore, a ~85 % de la largeur, apres un geste ordinaire (recherche, rechargement d'une liste) et sans
+         * aucun redimensionnement. Les controles ci-dessus ne le voyaient pas : ils ne mesurent qu'a l'ouverture d'un
+         * ecran et quand un conteneur change de taille. On mesure donc aussi apres chaque echange avec le serveur
+         * (c'est ce qui suit un geste) et au retour sur la fenetre. La mesure ne coute que quelques lectures de
+         * largeur ; on ne recale QUE si l'ecran ou le panneau central est rabattu.
+         */
+        var apresGeste = Ext.Function.createBuffered(function (declencheur) {
+            if (centreRabattu(contentPanel)) {
+                recalerCentre(contentPanel, declencheur);
+            }
+            var m = mesurer(contentPanel, declencheur);
+            if (m && m.rabattu) {
+                // trace avant recalage : recaler() ne trace que si sa premiere passe ne suffit pas
+                tracer(m);
+                recaler(contentPanel, declencheur);
+            }
+        }, 400);
+        if (Ext.Ajax && Ext.Ajax.on) {
+            Ext.Ajax.on('requestcomplete', function () {
+                apresGeste('apres un echange avec le serveur');
+            });
+        }
+        window.addEventListener('focus', function () {
+            apresGeste('retour sur la fenetre');
+        });
+    }
+
+    /* Le panneau central lui-meme ne va plus jusqu'au bord droit de la fenetre (fond vide a droite). */
+    function centreRabattu(contentPanel) {
+        if (!contentPanel || !contentPanel.rendered || !contentPanel.el || !contentPanel.isVisible()) {
+            return false;
+        }
+        var r = contentPanel.el.dom.getBoundingClientRect(),
+                fenetre = document.documentElement.clientWidth || window.innerWidth;
+        return r.width > 0 && fenetre - r.right > 40;
+    }
+
+    function recalerCentre(contentPanel, declencheur) {
+        if (window.PrestigeAffichage && window.PrestigeAffichage.resynchroniserMiseEnPage
+                && window.PrestigeAffichage.resynchroniserMiseEnPage.regionFlottante
+                && window.PrestigeAffichage.resynchroniserMiseEnPage.regionFlottante()) {
+            return;
+        }
+        var vp = Ext.ComponentQuery.query('viewport')[0];
+        if (!vp || !vp.rendered) {
+            return;
+        }
+        var avant = Math.round(contentPanel.el.dom.getBoundingClientRect().width);
+        // memoires de mise en page du viewport et du panneau central : celles qui figent l'ancienne largeur
+        Ext.each([vp, contentPanel], function (c) {
+            delete c.lastBox;
+            if (c.el) {
+                delete c.el.lastBox;
+            }
+        });
+        vp.setSize(Ext.Element.getViewportWidth(), Ext.Element.getViewportHeight());
+        vp.updateLayout({isRoot: true});
+        tracer({quand: new Date().toISOString(), declencheur: declencheur + ' (panneau central)', largeurAvant: avant,
+            largeurApres: Math.round(contentPanel.el.dom.getBoundingClientRect().width),
+            fenetre: window.innerWidth + 'x' + window.innerHeight, rabattu: true});
     }
 
     window.PrestigeGeometrie = {
