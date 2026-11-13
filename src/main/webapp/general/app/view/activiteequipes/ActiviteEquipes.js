@@ -104,6 +104,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + tuile('DELAI_BL', 'D\u00e9lai moyen de saisie des BL', T.delaiBl, T.delaiBlDetail, r.delaiMoyenBl >= 2)
                     + tuile('RAPIDE', 'Op\u00e9rateur le plus rapide', T.rapide, T.rapideDetail, false) + '</div>';
         },
+        /* plan du 12/11 : fonds doux des cartes du detail (bleu, vert, ambre, cyan, rose, sable, sarcelle, gris bleute) */
+        DOUX: ['#eef4ff', '#ecf8ef', '#fff5e3', '#e7f6f9', '#fdeef1', '#f6f1e7', '#e6f5f0', '#eef2f7'],
+
         styles: function () {
             if (Ext.get('activite-equipes-styles')) {
                 return;
@@ -151,6 +154,13 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-graphe>.x-panel-header .x-header-text,.ae-graphe>.x-panel-header .x-title-text{color:#1e3a5f!important;font-size:13px!important;font-weight:700!important}'
                     + '.ae-graphe>.x-panel-body{border:0!important;background:#fff!important}'
                     + '.ae-graphe .x-toolbar.ae-seuil{background:#f8fafc;border:0;border-bottom:1px solid #eef2f7;padding:4px 12px}'
+                    /* plan du 12/11 : une couleur douce par carte, pour distinguer les details (sans violet, sans filet) */
+                    + Ext.Array.map(testextjs.view.activiteequipes.ActiviteEquipes.DOUX, function (c, i) {
+                        var k = '.ae-graphe.ae-doux-' + i;
+                        return k + '{background:' + c + '!important}' + k + '>.x-panel-header,' + k + '>.x-panel-body{background:' + c + '!important}'
+                                + k + '>.x-panel-header{border-bottom-color:rgba(15,23,42,.06)!important}'
+                                + k + ' .x-toolbar.ae-seuil{background:rgba(255,255,255,.55)}';
+                    }).join('')
                     /* plan avoir du 08/11, point 1 : reperes (menu, fenetre, carte du tableau de bord) */
                     + '.ae-reps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:8px}'
                     /* retour du 04/11 : pas de filet de couleur ; etat par une pastille (tuiles C) et un fond doux (messages A) */
@@ -161,6 +171,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-rep .l{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.3px;white-space:normal}'
                     + '.ae-rep .v{font-size:18px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
                     + '.ae-rep .d{font-size:11px;color:#64748b;white-space:normal}'
+                    /* plan du 12/11 : dans une rangee, titres, valeurs et details alignes, meme quand un titre passe sur
+                       deux lignes (« Delai moyen de saisie des BL ») ; a defaut de sous-grille, le titre reserve deux lignes */
+                    + '.ae-rep .l{line-height:15px;min-height:30px}'
+                    + '@supports (grid-template-rows:subgrid){.ae-rep{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:2px}'
+                    + '.ae-rep .l{min-height:0}}'
                     + '.ae-rep-alerte{border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;margin-bottom:12px}'
                     + '.ae-rep-alerte.mal{background:#fef2f2;color:#b91c1c}.ae-rep-alerte.bon{background:#f0fdf4;color:#15803d}'
                     /* plan du 09/11, point 10 : tableaux des sept indicateurs */
@@ -797,8 +812,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
 
     /* cadre d'un graphique : titre, aide au survol du « ? », hauteur fixe */
     cadre: function (itemId, titre, aide, contenu, largeur) {
+        /* plan du 12/11 : chaque carte prend la couleur douce suivante, dans l'ordre des cartes */
+        var rang = this.rangCadre = (this.rangCadre || 0) + 1, doux = testextjs.view.activiteequipes.ActiviteEquipes.DOUX.length;
         return {xtype: 'panel', itemId: itemId, title: titre, columnWidth: largeur || 0.5, height: 340, margin: '0 10 12 0', layout: 'fit',
-            cls: 'ae-graphe', frame: false, bodyStyle: 'background:#fff', animCollapse: false, aeCadre: true,
+            cls: 'ae-graphe ae-doux-' + ((rang - 1) % doux), frame: false, animCollapse: false, aeCadre: true,
             /* plan du 09/11, point 10 : chaque carte se masque ; le bouton « Indicateurs masques » la ramene */
             tools: [{type: 'help', tooltip: aide}, {type: 'close', itemId: 'aeMasquer', tooltip: 'Masquer cette carte (bouton « Indicateurs masqués » pour la ramener)',
                     handler: function () {
@@ -1200,7 +1217,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 {xtype: 'combo', itemId: 'aeTrancheTaille', fieldLabel: 'Tranche', labelWidth: 50, width: 115, editable: false, queryMode: 'local',
                     forceSelection: true, value: 1, store: [[1, '1 h'], [2, '2 h'], [3, '3 h'], [4, '4 h'], [5, '5 h'], [6, '6 h']],
                     listeners: {select: relire}},
-                {xtype: 'combo', itemId: 'aeTrancheAttribution', fieldLabel: 'CA attribué à', labelWidth: 85, width: 290, editable: false,
+                {xtype: 'combo', itemId: 'aeTrancheAttribution', fieldLabel: 'CA attribué à', labelWidth: 85, width: 340, editable: false,
                     queryMode: 'local', forceSelection: true, value: 'CAISSIER',
                     store: [['CAISSIER', 'Caissière (encaissement)'], ['VENDEUR', 'Vendeur (prévente)'], ['CONSEIL', 'Conseil (qui a conseillé le client)']],
                     listeners: {select: relire}},
