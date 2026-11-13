@@ -3056,3 +3056,62 @@ window.PrestigeRetoursAttente = (function () {
             return nombre;
         }};
 })();
+
+/*
+ * =====================================================================================
+ * 7) BARRES DE FILTRES : DATES COUPEES, BOUTONS HORS DE L'ECRAN (demande du 13/11)
+ *
+ * Inventaire (docs/notices/INVENTAIRE_ECRANS_RESPONSIVE_2026-11-13.md) : 343 ecrans ont une barre de filtres en parts
+ * relatives (flex) sans largeur minimale. Des que la place manque (portable, ecran rabattu, menu deplie), la date se
+ * lit « 13/11/2C » et les derniers elements (« Garde », « rechercher ») sortent de l'ecran, hors d'atteinte.
+ *
+ * Correction generale, sans toucher aux ecrans :
+ *   - un champ d'une barre horizontale, en flex et sans largeur minimale, recoit celle qui garde sa valeur entiere
+ *     (place du libelle comprise) ; un minWidth deja ecrit dans l'ecran est respecte ;
+ *   - une barre horizontale sans gestion de debordement propose les fleches de defilement d'ExtJS quand ses
+ *     elements ne tiennent plus : rien n'est coupe hors d'atteinte. Une barre qui tient ne change pas d'aspect.
+ * Les barres de pagination et les barres verticales ne sont pas touchees.
+ * =====================================================================================
+ */
+(function () {
+    'use strict';
+    if (!Ext.toolbar || !Ext.toolbar.Toolbar || Ext.toolbar.Toolbar.prototype.barresResponsive) {
+        return;
+    }
+    var proto = Ext.toolbar.Toolbar.prototype;
+    proto.barresResponsive = true;
+
+    /* zone de saisie seule (fleche comprise) ; le libelle s'ajoute */
+    /* marge comprise pour le libelle elargi apres coup (section « libelles sur deux lignes ») */
+    var SAISIE = {datefield: 125, timefield: 85, combobox: 130, combo: 130, textfield: 110, numberfield: 80};
+
+    function concernee(barre) {
+        return !barre.vertical && barre.dock !== 'left' && barre.dock !== 'right'
+                && !(Ext.toolbar.Paging && barre instanceof Ext.toolbar.Paging);
+    }
+
+    proto.initComponent = Ext.Function.createInterceptor(proto.initComponent, function () {
+        var me = this, l;
+        if (!concernee(me) || me.enableOverflow) {
+            return;
+        }
+        l = Ext.isString(me.layout) ? {type: me.layout} : Ext.apply({}, me.layout || {});
+        if ((!l.type || l.type === 'hbox') && !l.overflowHandler) {
+            l.overflowHandler = 'Scroller';
+            me.layout = l;
+        }
+    });
+
+    proto.onBeforeAdd = Ext.Function.createInterceptor(proto.onBeforeAdd, function (champ) {
+        if (!champ || !champ.isFormField || !champ.flex || champ.minWidth || !concernee(this)) {
+            return;
+        }
+        var base = SAISIE[champ.xtype];
+        if (!base) {
+            return;
+        }
+        var libelle = champ.fieldLabel && !champ.hideLabel && champ.labelAlign !== 'top'
+                ? (champ.labelWidth || 100) + (champ.labelPad || 5) : 0;
+        champ.minWidth = base + libelle;
+    });
+}());
