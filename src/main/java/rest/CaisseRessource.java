@@ -254,6 +254,17 @@ public class CaisseRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Plan du 12/11 : types de reglement actifs et leurs modes, pour la fenetre « Mouvement de caisse ». */
+    @GET
+    @Path("mvt-caisse/modes")
+    public Response modesMvtCaisse() {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(caisseService.modesMvtCaisse().toString()).build();
+    }
+
     @POST
     @Path("addmvtCaisse")
     public Response addMvtCaisse(MvtCaisseDTO caisseDTO) throws Exception {

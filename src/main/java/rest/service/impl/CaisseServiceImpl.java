@@ -789,11 +789,27 @@ public class CaisseServiceImpl implements CaisseService {
         }
         TTypeMvtCaisse typeMvtCaisse = caisseDTO.getIdTypeMvt() == null ? null
                 : emg.find(TTypeMvtCaisse.class, caisseDTO.getIdTypeMvt());
-        TModeReglement modeReglement = findModeByIdOrName(caisseDTO.getIdModeRegle());
-        TTypeReglement tTypeReglement = findTypeRegByIdOrName(caisseDTO.getIdTypeRegl());
+        /*
+         * Plan du 12/11 : mode et type retrouves exactement (et non plus par « LIKE '1%' », qui pouvait donner WAVE
+         * pour les especes) ; la transaction de caisse porte toujours le type du mode, et un type contraire est refuse.
+         */
+        TModeReglement modeReglement = ModesMvtCaisse.retrouver(caisseDTO.getIdModeRegle(),
+                emg.createQuery("SELECT o FROM TModeReglement o", TModeReglement.class).getResultList(),
+                TModeReglement::getLgMODEREGLEMENTID, TModeReglement::getStrNAME, TModeReglement::getStrDESCRIPTION);
         if (modeReglement == null) {
             return json.put("success", false).put("msg", "Echec d'encaissement. Mode de règlement inexistant.");
         }
+        TTypeReglement tTypeReglement = ModesMvtCaisse.retrouver(caisseDTO.getIdTypeRegl(),
+                emg.createQuery("SELECT o FROM TTypeReglement o", TTypeReglement.class).getResultList(),
+                TTypeReglement::getLgTYPEREGLEMENTID, TTypeReglement::getStrNAME, TTypeReglement::getStrDESCRIPTION);
+        String incoherence = ModesMvtCaisse.incoherence(caisseDTO.getIdTypeRegl(),
+                tTypeReglement == null ? null : tTypeReglement.getLgTYPEREGLEMENTID(),
+                modeReglement.getLgTYPEREGLEMENTID() == null ? null
+                        : modeReglement.getLgTYPEREGLEMENTID().getLgTYPEREGLEMENTID());
+        if (incoherence != null) {
+            return json.put("success", false).put("msg", incoherence);
+        }
+        tTypeReglement = modeReglement.getLgTYPEREGLEMENTID();
         /*
          * Audit VC-16 (reproduit le 25/10) : un mouvement date de demain etait accepte. Une date future est refusee ;
          * la transaction de caisse porte la date saisie du mouvement (decision du 26/10 : date de l'operation reelle).
@@ -865,38 +881,34 @@ public class CaisseServiceImpl implements CaisseService {
 
     }
 
-    private TModeReglement findModeByIdOrName(String id) {
-        try {
-            TypedQuery<TModeReglement> tq = em.createQuery(
-                    "SELECT o FROM TModeReglement o WHERE o.lgMODEREGLEMENTID LIKE ?1 OR o.strNAME LIKE ?1 OR o.strDESCRIPTION LIKE ?1",
-                    TModeReglement.class);
-            tq.setParameter(1, id + "%");
-            tq.setMaxResults(1);
-            return tq.getSingleResult();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return null;
-        }
+    /**
+     * Plan du 12/11 : types de reglement actifs et leurs modes actifs, pour la fenetre « Mouvement de caisse » (especes
+     * d'abord). Un type sans mode actif n'est pas propose : il ne pourrait pas etre enregistre.
+     */
+    @Override
+    public JSONObject modesMvtCaisse() {
+        List<TModeReglement> modes = getEntityManager().createQuery(
+                "SELECT o FROM TModeReglement o WHERE o.strSTATUT = ?1 AND o.lgTYPEREGLEMENTID.strSTATUT = ?1",
+                TModeReglement.class).setParameter(1, Constant.STATUT_ENABLE).getResultList();
+        Map<String, JSONObject> types = new java.util.TreeMap<>(ModesMvtCaisse::comparerIdentifiants);
+        modes.stream().sorted(
+                (a, b) -> ModesMvtCaisse.comparerIdentifiants(a.getLgMODEREGLEMENTID(), b.getLgMODEREGLEMENTID()))
+                .forEach(m -> {
+                    TTypeReglement t = m.getLgTYPEREGLEMENTID();
+                    JSONObject type = types.computeIfAbsent(t.getLgTYPEREGLEMENTID(),
+                            k -> new JSONObject().put("lg_TYPE_REGLEMENT_ID", k).put("str_NAME", t.getStrNAME())
+                                    .put("modes", new JSONArray()));
+                    type.getJSONArray("modes").put(new JSONObject()
+                            .put("lg_MODE_REGLEMENT_ID", m.getLgMODEREGLEMENTID()).put("str_NAME", m.getStrNAME()));
+                });
+        JSONArray data = new JSONArray(types.values());
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
     }
 
     private TModeReglement findModeById(String id) {
         try {
             return getEntityManager().find(TModeReglement.class, id);
 
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return null;
-        }
-    }
-
-    private TTypeReglement findTypeRegByIdOrName(String id) {
-        try {
-            TypedQuery<TTypeReglement> tq = em.createQuery(
-                    "SELECT o FROM TTypeReglement o WHERE o.lgTYPEREGLEMENTID LIKE ?1 OR o.strNAME LIKE ?1 OR o.strDESCRIPTION LIKE ?1",
-                    TTypeReglement.class);
-            tq.setParameter(1, id + "%");
-            tq.setMaxResults(1);
-            return tq.getSingleResult();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return null;

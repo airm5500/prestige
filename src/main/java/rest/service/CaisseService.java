@@ -73,6 +73,9 @@ public interface CaisseService {
 
     JSONObject createMvt(MvtCaisseDTO caisseDTO, TUser user) throws Exception;
 
+    /** Types de reglement actifs et leurs modes actifs, pour la fenetre « Mouvement de caisse » (plan du 12/11). */
+    JSONObject modesMvtCaisse();
+
     boolean checkCaisse(TUser user);
 
     JSONObject attribuerFondDeCaisse(String idUser, TUser operateur, Integer amount) throws JSONException;
