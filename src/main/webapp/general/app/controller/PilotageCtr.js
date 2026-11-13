@@ -98,14 +98,31 @@ Ext.define('testextjs.controller.PilotageCtr', {
         if (onglet) {
             onglet.setLoading('Vérification des corrections apportées depuis le dernier calcul...');
         }
+        /*
+         * Plan du 12/11 (« chargement alertes ») : pendant la vérification, un onglet choisi ATTEND (voir actualiser).
+         * Avant, un clic sur « À suivre » pendant ces secondes lançait son calcul, puis la fin de la vérification le
+         * relançait : deux calculs, et la carte « Alertes » déjà remplie repassait à « Chargement… ».
+         */
+        var numero = me.numeroControle = (me.numeroControle || 0) + 1;
+        me.controleEnCours = true;
         Ext.Ajax.request({
             url: '../api/v1/pilotage/controler',
             method: 'GET',
             params: me.parametres(),
             timeout: 120000,
             callback: function () {
-                if (onglet) {
+                if (numero === me.numeroControle) {
+                    me.controleEnCours = false;
+                }
+                if (onglet && !onglet.isDestroyed) {
                     onglet.setLoading(false);
+                }
+                /* plan du 12/11 : un onglet traverse pendant la verification ne garde pas son masque */
+                var onglets = ecran.isDestroyed ? null : ecran.down('#onglets');
+                if (onglets) {
+                    onglets.items.each(function (o) {
+                        o.setLoading(false);
+                    });
                 }
                 me.actualiser();
             }
@@ -501,11 +518,27 @@ Ext.define('testextjs.controller.PilotageCtr', {
         var onglet = ecran.down('#onglet-' + cle);
         /* A suivre : affichage progressif, seules les tuiles et les cartes du calcul attendent (04/11) */
         var progressif = cle === 'asuivre' && onglet;
+        if (me.controleEnCours) {
+            /*
+             * Plan du 12/11 : la vérification des corrections tourne encore ; sa fin calculera l'onglet alors ouvert,
+             * une seule fois. En attendant, « À suivre » montre déjà ses courbes (elles ne dépendent pas de la
+             * vérification) et ses cartes « Chargement… » ; un autre onglet garde le masque de la vérification.
+             */
+            if (progressif) {
+                ecran.preparerSuivi();
+                me.suiviPrepare = true;
+            } else if (onglet) {
+                onglet.setLoading('Vérification des corrections apportées depuis le dernier calcul...');
+            }
+            return;
+        }
         if (progressif) {
-            ecran.preparerSuivi();
+            /* courbes deja demandees pendant la verification : on ne les redemande pas */
+            ecran.preparerSuivi(me.suiviPrepare === true);
         } else if (onglet) {
             onglet.setLoading('Rassemblement des chiffres...');
         }
+        me.suiviPrepare = false;
         /*
          * NUMÉRO DE DEMANDE, par onglet.
          *

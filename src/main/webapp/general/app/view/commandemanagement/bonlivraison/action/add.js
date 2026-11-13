@@ -272,39 +272,15 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                             tbar: [
                                 {xtype: 'textfield', cls: 'glass-input', id: 'rechercherDetail', name: 'rechercherDetail', emptyText: 'Recherche', flex: 1,
                                     enableKeyEvents: true,
-                                    /* Recherche pendant la frappe, des deux caracteres.
-                                     *
-                                     * Le declencheur est la VALEUR, pas la touche : les fleches, la tabulation
-                                     * ou Majuscule ne relancent donc rien, et une saisie rapide n'envoie qu'une
-                                     * seule requete grace au delai de grace. En dessous de deux caracteres on
-                                     * ne cherche pas - sauf quand le champ redevient vide, ou l'on remet la
-                                     * liste complete, sans quoi l'utilisateur ne pourrait plus y revenir.
-                                     *
-                                     * Entree garde son role : elle cherche tout de suite, sans attendre. */
-                                    derniereRecherche: null,
-                                    attenteRecherche: null,
-                                    rechercherSiBesoin: function (immediat) {
-                                        const cmp = this;
-                                        const valeur = (cmp.getValue() || '').trim();
-                                        if (valeur === cmp.derniereRecherche) {
-                                            return;
-                                        }
-                                        if (valeur.length === 1) {
-                                            return;
-                                        }
-                                        cmp.derniereRecherche = valeur;
-                                        clearTimeout(cmp.attenteRecherche);
-                                        if (immediat) {
-                                            Me_Workflow.onRechClick();
-                                            return;
-                                        }
-                                        cmp.attenteRecherche = setTimeout(function () {
-                                            Me_Workflow.onRechClick();
-                                        }, 350);
-                                    },
+                                    /* Demande du 13/11 : la recherche part a la touche Entree seulement (meme sur un texte
+                                     * inchange ; champ vide + Entree = liste complete). Elle partait pendant la frappe :
+                                     * au rechargement, le champ reprenait le curseur texte selectionne et la lettre
+                                     * suivante effacait la saisie (« STRIP » devenait « P »). */
                                     listeners: {
-                                        keyup: function (cmp, e) {
-                                            cmp.rechercherSiBesoin(e.getKey() === e.ENTER);
+                                        specialkey: function (cmp, e) {
+                                            if (e.getKey() === e.ENTER) {
+                                                Me_Workflow.onRechClick();
+                                            }
                                         },
                                         /* Au retour dans le champ, la saisie precedente est selectionnee :
                                          * la frappe suivante la remplace, sans avoir a effacer. */
@@ -314,9 +290,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                                     cmp.selectText();
                                                 }, 1);
                                             }
-                                        },
-                                        destroy: function (cmp) {
-                                            clearTimeout(cmp.attenteRecherche);
                                         }
                                     }
                                 }, '-',
@@ -477,11 +450,15 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
         doEntreeStock(lg_BON_LIVRAISON_ID_2);
     },
 
+    /* La recherche reste attachee a la liste (extraParams) : la pagination et les rechargements (apres la saisie
+       des UG, d'un lot...) la gardent, au lieu de revenir a la liste complete sous un champ qui affiche le texte. */
     onRechClick: function () {
         const val = Ext.getCmp('rechercherDetail');
-        Ext.getCmp('gridpanelID').getStore().load({
-            params: {query: val.getValue(), filtre: str_TYPE_TRANSACTION}
+        const store = Ext.getCmp('gridpanelID').getStore();
+        store.getProxy().extraParams = Ext.apply(store.getProxy().extraParams || {}, {
+            query: (val.getValue() || '').trim(), filtre: str_TYPE_TRANSACTION
         });
+        store.loadPage(1);
     },
     checkParamGestionLot: function () {
         const me = this;

@@ -387,6 +387,22 @@ public class CommandeRessource {
         return Response.ok().build();
     }
 
+    /** Plan du 12/11 : « Modifier Article » du detail d'un BL (remplace ws_transaction.jsp?mode=modifproductprice). */
+    @PUT
+    @Path("bon/item/{id}/prix")
+    public Response modifierPrixLigneBl(@PathParam("id") String id, rest.service.dto.PrixLigneBlDTO dto)
+            throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (dto == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", "Aucun prix reçu.").toString()).build();
+        }
+        return Response.ok().entity(orderService.modifierPrixLigneBl(id, dto, tu).toString()).build();
+    }
+
     @GET
     @Path("bon/items/{id}")
     public Response getBonItems(@PathParam("id") String id, @QueryParam(value = "start") int start,

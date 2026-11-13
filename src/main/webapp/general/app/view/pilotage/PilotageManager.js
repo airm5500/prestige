@@ -1872,13 +1872,17 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
      * Avant, tout l'onglet restait masque jusqu'a sa reponse, et les courbes - calculees d'avance au demarrage -
      * n'etaient demandees qu'ensuite.
      */
-    preparerSuivi: function () {
+    preparerSuivi: function (sansCourbes) {
         var me = this, tuiles = me.down('#tuiles-asuivre');
         Ext.each(me.CARTES_ONGLET_SUIVI, function (cle) {
             me.corpsSuivi(cle, '<div class="sv-attente">Chargement…</div>');
         });
         if (tuiles) {
             tuiles.setLoading('Rassemblement des chiffres...');
+        }
+        /* plan du 12/11 : courbes deja demandees pendant la verification des corrections */
+        if (sansCourbes === true) {
+            return;
         }
         me.avecPrefsSuivi(function () {
             me.chargerFrequentation();

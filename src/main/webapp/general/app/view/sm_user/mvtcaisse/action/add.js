@@ -59,8 +59,16 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
         Omode = this.getMode();
         Oview = this.getParentview();
         LaborexWorkFlow_Add_MvtCaisse = Ext.create('testextjs.controller.LaborexWorkFlow', {});
-        var store_modereglement_Add_MvtCaisse = LaborexWorkFlow_Add_MvtCaisse.BuildStore('testextjs.model.ModeReglement', itemsPerPage, url_services_data_modereglement_mvt_caisse);
-        var store_typereglement_Add_MvtCaisse = LaborexWorkFlow_Add_MvtCaisse.BuildStore('testextjs.model.TypeReglement', itemsPerPage, url_services_data_typereglement_mvt_caisse);
+        /* Plan du 12/11 : types de reglement ACTIFS et leurs modes, lus d'un seul appel (api/v1/caisse/mvt-caisse/modes).
+         * Avant, choisir un autre type que « Especes » levait une erreur JavaScript (champs de l'ecran de vente absents
+         * de cette fenetre) : le mode, masque, restait vide et l'enregistrement etait refuse. */
+        var store_modereglement_Add_MvtCaisse = Ext.create('Ext.data.Store', {
+            fields: ['lg_MODE_REGLEMENT_ID', 'str_NAME'], data: []
+        });
+        var store_typereglement_Add_MvtCaisse = Ext.create('Ext.data.Store', {
+            fields: ['lg_TYPE_REGLEMENT_ID', 'str_NAME', 'modes'], data: []
+        });
+        Me_add_mvt_caisse.modesParType = {};
         const store_typemvtcaisse_Add_MvtCaisse = Ext.create('Ext.data.Store', {
 
             model: 'testextjs.model.TypeEcartMvt',
@@ -219,25 +227,17 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
 //                            flex: 1,
                                     id: 'lg_TYPE_REGLEMENT_ID',
                                     store: store_typereglement_Add_MvtCaisse,
-                                    value: 'Especes',
                                     valueField: 'lg_TYPE_REGLEMENT_ID',
                                     displayField: 'str_NAME',
                                     typeAhead: true,
-                                    queryMode: 'remote',
+                                    queryMode: 'local',
+                                    forceSelection: true,
                                     allowBlank: false,
                                     emptyText: 'Choisir un type de reglement...',
                                     listeners: {
-                                        select: function (cmp) {
-                                            LaborexWorkFlow_Add_MvtCaisse.RedirectUrl('lg_TYPE_REGLEMENT_ID', 'lg_MODE_REGLEMENT_ID', url_services_data_modereglement_mvt_caisse);
-                                            LaborexWorkFlow_Add_MvtCaisse.FindComponentToHideDisplay('lg_TYPE_REGLEMENT_ID', 'str_LIEU', 'str_BANQUE', 'str_NOM', 'int_TAUX_CHANGE', 'str_CODE_MONNAIE');
-                                            LaborexWorkFlow_Add_MvtCaisse.ManageComponentLigth('lg_TYPE_REGLEMENT_ID', 'lg_MODE_REGLEMENT_ID', '1', 'Especes', 'hide');
-                                            // LaborexWorkFlow.ManageComponentLigth('lg_TYPE_REGLEMENT_ID', 'lg_MODE_REGLEMENT_ID', '4', 'Differe', 'hide');
-                                            LaborexWorkFlow_Add_MvtCaisse.ManageComponentLigth('lg_TYPE_REGLEMENT_ID', 'lg_MODE_REGLEMENT_ID', '2', 'Cheques', 'show');
-                                            LaborexWorkFlow_Add_MvtCaisse.ManageComponentLigth('lg_TYPE_REGLEMENT_ID', 'lg_MODE_REGLEMENT_ID', '3', 'Carte Bancaire', 'show');
-                                            LaborexWorkFlow_Add_MvtCaisse.ManageComponentLigth('lg_TYPE_REGLEMENT_ID', 'lg_MODE_REGLEMENT_ID', '5', 'Devise', 'show');
-
+                                        select: function () {
+                                            Me_add_mvt_caisse.appliquerTypeReglement();
                                         }
-
                                     }
 
 
@@ -259,28 +259,8 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                                     regex: /^[0-9]+$/,
                                     regexText: 'Le montant doit être strictement numérique',
                                     invalidText: 'Le montant doit être strictement numérique'
-                                },
-                                {
-                                    xtype: 'combobox',
-//                            labelWidth: 120,
-                                    fieldLabel: 'Mode.Reglement',
-                                    name: 'lg_MODE_REGLEMENT_ID',
-                                    id: 'lg_MODE_REGLEMENT_ID',
-//                            flex: 1,
-                                    store: store_modereglement_Add_MvtCaisse,
-                                    // value: 'Cash',
-                                    valueField: 'lg_MODE_REGLEMENT_ID',
-                                    displayField: 'str_NAME',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    allowBlank: false,
-                                    /* Champ retire de l'affichage sans etre retire du formulaire :
-                                     * sa valeur (Cash par defaut, voir plus bas) continue d'etre
-                                     * calculee et envoyee a l'enregistrement. */
-                                    hidden: true,
-                                    emptyText: 'Choisir un mode de reglement...'
-
                                 }
+
 
                             ]
                         },
@@ -306,6 +286,29 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                                     hidden: true,
                                     flex: 1,
 //                                    allowBlank: false
+                                },
+                                {
+                                    xtype: 'combobox',
+//                            labelWidth: 120,
+                                    fieldLabel: 'Mode.Reglement',
+                                    name: 'lg_MODE_REGLEMENT_ID',
+                                    id: 'lg_MODE_REGLEMENT_ID',
+                                    /* sur la ligne de la banque : sur celle du montant, il debordait de la fenetre */
+                                    flex: 1,
+//                            flex: 1,
+                                    store: store_modereglement_Add_MvtCaisse,
+                                    // value: 'Cash',
+                                    valueField: 'lg_MODE_REGLEMENT_ID',
+                                    displayField: 'str_NAME',
+                                    typeAhead: true,
+                                    queryMode: 'local',
+                                    forceSelection: true,
+                                    allowBlank: false,
+                                    /* Masque quand le type de reglement n'a qu'un mode (pose d'office) ;
+                                     * affiche, le premier mode pose, quand il en a plusieurs (cheques). */
+                                    hidden: true,
+                                    emptyText: 'Choisir un mode de reglement...'
+
                                 }]}, {
                             xtype: 'container',
                             layout: 'hbox',
@@ -388,35 +391,6 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
 
         //this.callParent();
 
-        if (Omode === "create") {
-
-            var lg_lg_MODE_REGLEMENT_ID = Ext.getCmp("lg_MODE_REGLEMENT_ID");
-            lg_lg_MODE_REGLEMENT_ID.getStore().on(
-                    "load", function () {
-
-                        var CODEstore = lg_lg_MODE_REGLEMENT_ID.getStore();
-                        CODEstore.each(function (r, id) {
-
-                            switch (r.get('lg_MODE_REGLEMENT_ID')) {
-                                case '1':
-
-                                    lg_lg_MODE_REGLEMENT_ID.setValue(r.get('lg_MODE_REGLEMENT_ID'));
-                                    //L'id de CASH  doit etre 1 ou remplacer la valeur  par l'id dans la bd
-                                    break;
-                            }
-
-
-
-                        });
-
-                    },
-                    this,
-                    {
-                        single: true
-                    }
-            );
-
-        }
         if (Omode === "update") {
 
             ref = this.getOdatasource().lg_MVT_CAISSE_ID;
@@ -442,7 +416,8 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
         win_add_mvt_caisse = new Ext.window.Window({
             autoShow: true,
             id: 'paydebtID',
-            height: 300,
+            /* hauteur selon les champs du type de reglement (banque, lieu, monnaie) : plus de champ coupe */
+            minHeight: 300,
             width: 700,
             layout: {
                 type: 'fit'
@@ -472,7 +447,78 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
             Ext.getCmp('btn_clt_saveID').hide();
             Ext.getCmp('btn_clt_anulerID').hide();
         }
+        Me_add_mvt_caisse.chargerModes(Omode === "update" ? this.getOdatasource() : null);
 
+    },
+
+    /* Types de reglement actifs et leurs modes ; en creation, « Especes » est pose d'office. */
+    chargerModes: function (consultation) {
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/caisse/mvt-caisse/modes',
+            success: function (response) {
+                var type = Ext.getCmp('lg_TYPE_REGLEMENT_ID');
+                if (!type || type.isDestroyed) {
+                    return;
+                }
+                var result = Ext.JSON.decode(response.responseText, true) || {};
+                var types = result.data || [];
+                Me_add_mvt_caisse.modesParType = {};
+                Ext.each(types, function (t) {
+                    Me_add_mvt_caisse.modesParType[t.lg_TYPE_REGLEMENT_ID] = t.modes || [];
+                });
+                type.getStore().loadData(types);
+                if (consultation) {
+                    type.setValue(consultation.lg_TYPE_REGLEMENT_ID);
+                    Me_add_mvt_caisse.appliquerTypeReglement(consultation.lg_MODE_REGLEMENT_ID);
+                    return;
+                }
+                if (types.length > 0) {
+                    var especes = type.getStore().findRecord('lg_TYPE_REGLEMENT_ID', '1', 0, false, true, true);
+                    type.setValue((especes || type.getStore().getAt(0)).get('lg_TYPE_REGLEMENT_ID'));
+                    Me_add_mvt_caisse.appliquerTypeReglement();
+                }
+            },
+            failure: function (response) {
+                Ext.MessageBox.alert('Mouvement de caisse', 'Les modes de règlement n\'ont pas pu être lus (' + response.status + ').');
+            }
+        });
+    },
+
+    /* Le type de reglement choisi pose son mode (le premier s'il y en a plusieurs, la liste est alors affichee) et ne
+     * montre que les champs utiles : banque et lieu pour un cheque ou une carte, monnaie pour une devise. */
+    appliquerTypeReglement: function (modeVoulu) {
+        var type = Ext.getCmp('lg_TYPE_REGLEMENT_ID'),
+                mode = Ext.getCmp('lg_MODE_REGLEMENT_ID');
+        if (!type || !mode) {
+            return;
+        }
+        var id = type.getValue();
+        var modes = Me_add_mvt_caisse.modesParType[id] || [];
+        mode.getStore().loadData(modes);
+        var garde = modeVoulu && Ext.Array.some(modes, function (m) {
+            return m.lg_MODE_REGLEMENT_ID === modeVoulu;
+        });
+        mode.setValue(garde ? modeVoulu : (modes.length > 0 ? modes[0].lg_MODE_REGLEMENT_ID : null));
+        mode.setVisible(modes.length > 1);
+        var voir = function (champ, visible) {
+            var c = Ext.getCmp(champ);
+            if (c) {
+                if (!visible && c.isVisible()) {
+                    c.reset();
+                }
+                c.setVisible(visible);
+            }
+        };
+        voir('str_BANQUE', id === '2' || id === '3');
+        voir('str_LIEU', id === '2' || id === '3');
+        voir('str_CODE_MONNAIE', id === '5');
+        voir('str_NOM', false);
+        voir('int_TAUX_CHANGE', false);
+        var fenetre = Ext.getCmp('paydebtID');
+        if (fenetre) {
+            fenetre.updateLayout();
+        }
     },
     onbtnsave_mvtcaisse: function () {
 

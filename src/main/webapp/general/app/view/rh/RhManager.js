@@ -201,7 +201,14 @@ Ext.define('testextjs.view.rh.RhManager', {
     panneauEquipes: function () {
         var me = this;
         var membres = Ext.create('Ext.data.Store', {fields: ['id', 'matricule', 'nom', 'prenoms', 'poste'],
-            proxy: {type: 'ajax', url: '../api/v1/rh/employes', reader: {type: 'json', root: 'data'}}});
+            proxy: {type: 'ajax', url: '../api/v1/rh/employes', reader: {type: 'json', root: 'data'}},
+            /* le rechargement redessine la liste : la selection affichee est refaite d'apres les membres retenus */
+            listeners: {beforeload: function () {
+                    me.filtrageMembres = true;
+                }, load: function () {
+                    me.filtrageMembres = false;
+                    me.recocherMembres();
+                }}});
         var programme = Ext.create('Ext.data.Store', {fields: [{name: 'jour', type: 'int'}, 'libelle', 'type', 'debut', 'fin', {name: 'pause', type: 'int'}]});
         var equipes = Ext.create('Ext.data.Store', {fields: ['id', 'nom', 'membres', 'programme'], proxy: {type: 'memory'}});
         var types = Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: '', l: '(rien)'}, {v: 'TRAVAIL', l: 'Travail'}, {v: 'GARDE', l: 'Garde'}, {v: 'REPOS', l: 'Repos'}]});
@@ -222,11 +229,25 @@ Ext.define('testextjs.view.rh.RhManager', {
             ],
             items: [
                 {xtype: 'textfield', itemId: 'equipeNom', fieldLabel: 'Nom', labelWidth: 50, emptyText: 'Ex. : Équipe du matin', maxLength: 60, enforceMaxLength: true},
-                {xtype: 'grid', itemId: 'equipeMembres', title: 'Membres (un employé n\'est que dans une équipe)', height: 200, store: membres,
-                    selModel: Ext.create('Ext.selection.CheckboxModel', {checkOnly: false}),
+                /* plan du 12/11 : recherche dans les employes (nom, prenoms, matricule, poste, sans tenir compte des
+                   accents) ; les membres coches restent coches quand la recherche les masque */
+                {xtype: 'textfield', itemId: 'rechercheMembre', margin: '6 0 4 0', emptyText: 'Rechercher un employé (nom, matricule, poste)…',
+                    listeners: {change: {buffer: 150, fn: function (f, v) {
+                                me.filtrerMembres(v);
+                            }}}},
+                {xtype: 'grid', itemId: 'equipeMembres', title: 'Membres (un employé n\'est que dans une équipe)', height: 220, store: membres,
+                    viewConfig: {emptyText: 'Aucun employé ne correspond à la recherche.', deferEmptyText: false},
+                    selModel: Ext.create('Ext.selection.CheckboxModel', {checkOnly: false, listeners: {
+                            select: function (sm, r) {
+                                me.cocherMembre(r, true);
+                            },
+                            deselect: function (sm, r) {
+                                me.cocherMembre(r, false);
+                            }}}),
                     columns: [{text: 'Employé', dataIndex: 'nom', flex: 1, renderer: function (v, m, r) {
                                 return me.esc(v + ' ' + (r.get('prenoms') || ''));
-                            }}, {text: 'Poste', dataIndex: 'poste', width: 120, renderer: me.esc}]},
+                            }}, {text: 'Matricule', dataIndex: 'matricule', width: 90, renderer: me.esc},
+                        {text: 'Poste', dataIndex: 'poste', width: 120, renderer: me.esc}]},
                 {xtype: 'grid', itemId: 'equipeProgramme', title: 'Programme commun de la semaine (cliquer une case pour la modifier)', height: 250, margin: '8 0 0 0',
                     store: programme, plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
                     columns: [
@@ -315,18 +336,15 @@ Ext.define('testextjs.view.rh.RhManager', {
             p.down('#equipeChoisie').clearValue();
         }
         p.down('#equipeNom').setValue(d.nom || '');
-        var g = p.down('#equipeMembres'), sel = [];
+        var g = p.down('#equipeMembres');
+        me.viderRechercheMembres();
+        me.membresCoches = {};
+        Ext.each(d.membres || [], function (m) {
+            me.membresCoches[m.id] = true;
+        });
         var cocher = function () {
-            g.getStore().each(function (r) {
-                if (Ext.Array.some(d.membres || [], function (m) {
-                    return m.id === r.get('id');
-                })) {
-                    sel.push(r);
-                }
-            });
-            g.getSelectionModel().select(sel, false, true);
+            me.recocherMembres();
         };
-        g.getSelectionModel().deselectAll(true);
         if (g.getStore().isLoading()) {
             g.getStore().on('load', cocher, me, {single: true});
         } else {
@@ -342,9 +360,87 @@ Ext.define('testextjs.view.rh.RhManager', {
         p.down('#equipeProgramme').getStore().loadData(lignes);
     },
 
+    /** Texte compare sans casse ni accents. */
+    sansAccent: function (t) {
+        return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    },
+
+    /** Employe coche ou decoche par l'utilisateur (ignore pendant un filtrage ou un chargement, qui redessinent la liste). */
+    cocherMembre: function (r, coche) {
+        var me = this;
+        if (me.filtrageMembres) {
+            return;
+        }
+        me.membresCoches = me.membresCoches || {};
+        if (coche) {
+            me.membresCoches[r.get('id')] = true;
+        } else {
+            delete me.membresCoches[r.get('id')];
+        }
+        me.compterMembres();
+    },
+
+    /** Employes coches, parmi tous ceux de la liste (meme masques par la recherche). */
+    membresChoisis: function () {
+        var me = this, coches = me.membresCoches || {};
+        return me.equipesCmp().down('#equipeMembres').getStore().queryBy(function (r) {
+            return coches[r.get('id')] === true;
+        }).getRange();
+    },
+
+    /** Coche, sans evenement, les employes affiches qui sont membres. */
+    recocherMembres: function () {
+        var me = this, g = me.equipesCmp().down('#equipeMembres'), coches = me.membresCoches || {}, sel = [];
+        g.getStore().each(function (r) {
+            if (coches[r.get('id')] === true) {
+                sel.push(r);
+            }
+        });
+        me.filtrageMembres = true;
+        g.getSelectionModel().deselectAll(true);
+        g.getSelectionModel().select(sel, false, true);
+        me.filtrageMembres = false;
+        me.compterMembres();
+    },
+
+    compterMembres: function () {
+        var me = this, g = me.equipesCmp().down('#equipeMembres'), n = me.membresChoisis().length;
+        g.setTitle('Membres : ' + n + ' coché' + (n > 1 ? 's' : '') + ' (un employé n\'est que dans une équipe)');
+    },
+
+    filtrerMembres: function (texte) {
+        var me = this, st = me.equipesCmp().down('#equipeMembres').getStore();
+        var mots = me.sansAccent(texte).split(/\s+/).filter(function (x) {
+            return x;
+        });
+        me.filtrageMembres = true;
+        st.clearFilter(mots.length > 0);
+        if (mots.length) {
+            st.filterBy(function (r) {
+                var t = me.sansAccent([r.get('nom'), r.get('prenoms'), r.get('matricule'), r.get('poste')].join(' '));
+                return mots.every(function (m) {
+                    return t.indexOf(m) >= 0;
+                });
+            });
+        }
+        me.filtrageMembres = false;
+        me.recocherMembres();
+    },
+
+    viderRechercheMembres: function () {
+        var me = this, f = me.equipesCmp().down('#rechercheMembre');
+        f.suspendEvents();
+        f.setValue('');
+        f.resumeEvents();
+        me.filtrageMembres = true;
+        me.equipesCmp().down('#equipeMembres').getStore().clearFilter();
+        me.filtrageMembres = false;
+    },
+
     enregistrerEquipe: function () {
         var me = this, p = me.equipesCmp();
-        var membres = Ext.Array.map(p.down('#equipeMembres').getSelectionModel().getSelection(), function (r) {
+        /* tous les employes coches, y compris ceux que la recherche masque */
+        var membres = Ext.Array.map(me.membresChoisis(), function (r) {
             return r.get('id');
         });
         var programme = [];
@@ -534,24 +630,27 @@ Ext.define('testextjs.view.rh.RhManager', {
                                 }
                                 return '<b style="color:' + s[1] + '">' + s[0] + '</b>';
                             }},
-                        {xtype: 'actioncolumn', width: 96, items: [
-                                {iconCls: 'icon-ok rh-valider', tooltip: 'Valider', getClass: function (v, m, r) {
-                                        return me.peutValider && r.get('statut') === 'DEMANDE' ? 'rh-act rh-act-valider' : 'x-hidden';
+                        /* plan du 12/11 : icones au dessin du theme commun (act-ico), rendues telles quelles par
+                           l'habillage. Les anciennes (police d'icones en « :before » sur une image) ne se dessinaient
+                           pas : Valider et Supprimer restaient vides, Refuser prenait l'icone du client. */
+                        {xtype: 'actioncolumn', width: 136, items: [
+                                {tooltip: 'Valider', getClass: function (v, m, r) {
+                                        return me.peutValider && r.get('statut') === 'DEMANDE' ? 'act-ico act-valider rh-act-valider' : 'x-hide-display';
                                     }, handler: function (g, i) {
                                         me.decider(g.getStore().getAt(i), 'VALIDE');
                                     }},
                                 {tooltip: 'Refuser', getClass: function (v, m, r) {
-                                        return me.peutValider && r.get('statut') === 'DEMANDE' ? 'rh-act rh-act-refuser' : 'x-hidden';
+                                        return me.peutValider && r.get('statut') === 'DEMANDE' ? 'act-ico act-refuser rh-act-refuser' : 'x-hide-display';
                                     }, handler: function (g, i) {
                                         me.decider(g.getStore().getAt(i), 'REFUSE');
                                     }},
                                 {tooltip: 'Modifier', getClass: function (v, m, r) {
-                                        return r.get('statut') === 'DEMANDE' ? 'rh-act rh-act-modifier' : 'x-hidden';
+                                        return r.get('statut') === 'DEMANDE' ? 'act-ico act-modifier rh-act-modifier' : 'x-hide-display';
                                     }, handler: function (g, i) {
                                         me.editerAbsence(g.getStore().getAt(i));
                                     }},
                                 {tooltip: 'Supprimer', getClass: function (v, m, r) {
-                                        return r.get('statut') === 'DEMANDE' || me.peutValider ? 'rh-act rh-act-supprimer' : 'x-hidden';
+                                        return r.get('statut') === 'DEMANDE' || me.peutValider ? 'act-ico act-supprimer rh-act-supprimer' : 'x-hide-display';
                                     }, handler: function (g, i) {
                                         me.supprimerAbsence(g.getStore().getAt(i));
                                     }}

@@ -263,15 +263,11 @@ public class EmplacementManagement extends bllBase {
             officine.setStrCOMMENTAIRE2(str_COMMENTAIRE2);
             officine.setStrENTETE(str_ENTETE);
             officine.setStrLASTNAME(str_LAST_NAME);
-            String[] phonestring = null;
-            String setStrAUTRESPHONES = "";
-            if (str_PHONE.length() > 0) {
-                phonestring = str_PHONE.split(";");
-
-            }
-            setStrAUTRESPHONES = str_PHONE.substring(str_PHONE.indexOf(";") + 1, str_PHONE.length());
-            officine.setStrAUTRESPHONES(setStrAUTRESPHONES);
-            officine.setStrPHONE(phonestring[0]);
+            // Plan du 12/11 : premier numero, puis les suivants, sans doublon (un seul numero ou une saisie
+            // separee par des virgules etait recopiee dans les deux colonnes ; un champ vide levait une erreur)
+            String[] telephones = util.TelephonesOfficine.decouper(str_PHONE);
+            officine.setStrPHONE(telephones[0]);
+            officine.setStrAUTRESPHONES(telephones[1]);
 
             officine.setStrNOMCOMPLET(str_NOM_COMPLET);
             officine.setDtUPDATED(new Date());

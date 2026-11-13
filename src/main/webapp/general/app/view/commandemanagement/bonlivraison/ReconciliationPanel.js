@@ -436,36 +436,52 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             // Code EAN (13 car.) ou longueur inconnue — proposer le choix via
             // une fenêtre dédiée (Ext.Msg avec libellés longs masque les boutons).
             var msgType = len === 13 ? 'EAN13 (' + len + ' car.)' : 'longueur inhabituelle (' + len + ' car.)';
+            /* plan du 12/11 : premier choix, « Utiliser le code du produit retrouvé » : le produit garde son CIP et
+               son EAN13, le code du BL devient son code article chez ce grossiste (le prochain BL le reconnait).
+               Les choix sont empiles, pleine largeur : les libelles longs restent lisibles sur un petit ecran. */
+            var cipProduit = produitRecord.get('intCIP') || '';
+            var choisir = function (champ) {
+                choix.destroy();
+                me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, champ);
+            };
             var choix = Ext.create('Ext.window.Window', {
                 title: 'Type de code détecté',
                 modal: true,
-                width: 520,
+                width: 560,
                 bodyPadding: 15,
-                layout: 'fit',
+                layout: {type: 'vbox', align: 'stretch'},
+                defaults: {margin: '0 0 8 0'},
                 items: [
                     {
                         xtype: 'component',
+                        margin: '0 0 12 0',
                         html: '<div style="font-size:13px;line-height:1.5;">'
-                            + 'Le code importé <b>' + codeImporte + '</b> est de type <b>' + msgType + '</b>.<br><br>'
-                            + 'Que souhaitez-vous faire pour le produit <b>' + nomProduit + '</b> ?'
+                            + 'Le code importé <b>' + Ext.String.htmlEncode(codeImporte) + '</b> est de type <b>' + msgType + '</b>.<br><br>'
+                            + 'Que souhaitez-vous faire pour le produit <b>' + Ext.String.htmlEncode(nomProduit) + '</b> ?'
                             + '</div>'
+                    },
+                    {
+                        xtype: 'button',
+                        itemId: 'codeProduit',
+                        scale: 'medium',
+                        text: 'Utiliser le code du produit retrouvé' + (cipProduit ? ' (CIP ' + Ext.String.htmlEncode(cipProduit) + ')' : ''),
+                        tooltip: 'Le produit garde son code ; le code du BL est retenu pour ce grossiste.',
+                        handler: function () { choisir('PRODUIT'); }
+                    },
+                    {
+                        xtype: 'button',
+                        scale: 'medium',
+                        text: 'Stocker comme EAN13 (CIP inchangé)',
+                        handler: function () { choisir('EAN'); }
+                    },
+                    {
+                        xtype: 'button',
+                        scale: 'medium',
+                        text: 'Remplacer le code CIP',
+                        handler: function () { choisir('CIP'); }
                     }
                 ],
                 buttons: [
-                    {
-                        text: 'Stocker comme EAN13 (CIP inchangé)',
-                        handler: function () {
-                            choix.destroy();
-                            me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'EAN');
-                        }
-                    },
-                    {
-                        text: 'Remplacer le code CIP',
-                        handler: function () {
-                            choix.destroy();
-                            me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'CIP');
-                        }
-                    },
                     {
                         text: 'Annuler',
                         handler: function () { choix.destroy(); }

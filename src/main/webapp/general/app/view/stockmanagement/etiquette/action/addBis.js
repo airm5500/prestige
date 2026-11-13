@@ -32,7 +32,9 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
         plain: true,
         maximizable: true,
         closable: false,
-        nameintern: ''
+        nameintern: '',
+        /* plan du 12/11 : ouvert dans la fenetre modale de la liste des etiquettes */
+        dansFenetre: false
     },
     xtype: 'doEtiquette',
     id: 'doEtiquetteID',
@@ -44,12 +46,19 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
     initComponent: function() {
 
         Me = this;
-        this.title = this.getTitre();
+        /* dans la fenetre modale, son titre suffit */
+        this.title = this.getDansFenetre() ? undefined : this.getTitre();
+        if (this.getDansFenetre()) {
+            this.header = false;
+            this.frame = false;
+        }
         var itemsPerPage = 20;
         LaborexWorkFlow = Ext.create('testextjs.controller.LaborexWorkFlow', {});
 //        store_famille_dovente = LaborexWorkFlow.BuildStore('testextjs.model.Famille', itemsPerPage, url_services_data_famille_select_dovente + "?str_TYPE_TRANSACTION=init"); // a decommenter en cas de probleme
+        /* plan du 12/11 : aucune recherche d'article a l'ouverture (elle chargeait tous les articles) ; la liste ne se
+           remplit qu'a partir de 3 caracteres saisis */
         store_famille_dovente = LaborexWorkFlow.BuildStore('testextjs.model.Famille', itemsPerPage,
-                url_services_etiquette_panier + '/produits');
+                url_services_etiquette_panier + '/produits', false);
 
         var store_details = new Ext.data.Store({
             model: 'testextjs.model.Etiquette',
@@ -129,7 +138,9 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                                             flex: 3,
                                             minChars: 3,
                                             queryMode: 'remote',
-                                            emptyText: 'Choisir un article par Nom ou Cip...',
+                                            /* la fleche recherche le texte saisi, jamais « tout » */
+                                            triggerAction: 'query',
+                                            emptyText: 'Choisir un article par Nom ou Cip (3 caractères minimum)...',
                                             listConfig: {
                                                 /* La liste deroulante prenait la largeur du champ : les
                                                  * designations longues passaient a la ligne et se
@@ -147,6 +158,21 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                                                 }
                                             },
                                             listeners: {
+                                                /* plan du 12/11 : moins de 3 caracteres, pas de recherche (ni en
+                                                   tapant, ni par la fleche) et la liste d'une recherche precedente
+                                                   est videe : elle ne montre jamais des articles d'un autre texte */
+                                                beforequery: function(qe) {
+                                                    var texte = Ext.String.trim(String(qe.query || ''));
+                                                    if (texte.length < 3) {
+                                                        qe.combo.getStore().removeAll();
+                                                        qe.combo.collapse();
+                                                        qe.cancel = true;
+                                                        return false;
+                                                    }
+                                                    if (qe.combo.lastQuery !== texte) {
+                                                        qe.combo.getStore().removeAll();
+                                                    }
+                                                },
                                                 afterrender: function(field) { // a decommenter apres les tests
                                                     field.focus();
                                                     field.setFieldStyle('border: 2px solid #3892d3; background: #F1F1F1;'); //cas plusieurs attribut
@@ -360,6 +386,18 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                         }]
                 }]
         });
+        if (this.getDansFenetre()) {
+            /* plan du 12/11, fenetre modale : l'ajout prend sa hauteur, la liste des produits occupe le reste (pagination
+               visible), les boutons sont au pied de la fenetre */
+            var parties = this.items;
+            parties[0].flex = 0;
+            parties[1].flex = 1;
+            parties[1].layout = 'fit';
+            delete parties[1].items[0].height;
+            parties[1].items[0].margin = '0 0 6 0';
+            this.dockedItems = [parties[2]];
+            this.items = [parties[0], parties[1]];
+        }
         this.callParent();
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
@@ -382,10 +420,10 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                     e.record.commit();
                     var OGrid = Ext.getCmp('gridpanelID');
                     OGrid.getStore().reload();
-                    Ext.getCmp('str_NAME').focus(true, 100, function() {
-                        Ext.getCmp('str_NAME').setValue("");
-                        Ext.getCmp('int_QUANTITE').setValue(1);
-                    });
+                    /* champ vide avant de reprendre le curseur : le texte d'aide n'apparait plus surligne */
+                    Ext.getCmp('str_NAME').setValue("");
+                    Ext.getCmp('int_QUANTITE').setValue(1);
+                    Ext.getCmp('str_NAME').focus(false, 100);
 
 
 
@@ -447,6 +485,15 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                 });
     },
     onbtnback: function() {
+        /* ouvert dans la fenetre modale : on la ferme (la liste des etiquettes, restee derriere, est rechargee) */
+        var fenetre = this.getDansFenetre ? this.up('window') : null;
+        if (!fenetre && Ext.getCmp('doEtiquetteID')) {
+            fenetre = Ext.getCmp('doEtiquetteID').up('window');
+        }
+        if (fenetre) {
+            fenetre.close();
+            return;
+        }
         var xtype = "";
         xtype = "etiquette";
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
@@ -505,10 +552,10 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
 
                 var OGrid = Ext.getCmp('gridpanelID');
                 OGrid.getStore().reload();
-                Ext.getCmp('str_NAME').focus(true, 100, function() {
-                    Ext.getCmp('str_NAME').setValue("");
-                    Ext.getCmp('int_QUANTITE').setValue(1);
-                });
+                /* champ vide avant de reprendre le curseur : le texte d'aide n'apparait plus surligne */
+                Ext.getCmp('str_NAME').setValue("");
+                Ext.getCmp('int_QUANTITE').setValue(1);
+                Ext.getCmp('str_NAME').focus(false, 100);
             },
             failure: function(response)
             {

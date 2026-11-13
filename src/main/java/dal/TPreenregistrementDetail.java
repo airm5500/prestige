@@ -29,6 +29,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 @NamedQueries({
         @NamedQuery(name = "TPreenregistrementDetail.findAvoir", query = "SELECT t FROM TPreenregistrementDetail t WHERE t.bISAVOIR=TRUE AND t.strSTATUT='is_Closed' AND t.intQUANTITY <> t.intQUANTITYSERVED AND t.intQUANTITY >0"),
+        /* plan du 12/11 : les memes avoirs, limites aux produits donnes (entree en stock d'un BL) */
+        @NamedQuery(name = "TPreenregistrementDetail.findAvoirDesProduits", query = "SELECT t FROM TPreenregistrementDetail t JOIN FETCH t.lgPREENREGISTREMENTID WHERE t.lgFAMILLEID.lgFAMILLEID IN :produits AND t.bISAVOIR=TRUE AND t.strSTATUT='is_Closed' AND t.intQUANTITY <> t.intQUANTITYSERVED AND t.intQUANTITY >0"),
         @NamedQuery(name = "TPreenregistrementDetail.findAll", query = "SELECT t FROM TPreenregistrementDetail t"),
         @NamedQuery(name = "TPreenregistrementDetail.findByVenteId", query = "SELECT t FROM TPreenregistrementDetail t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = :lgPREENREGISTREMENTID"), })
 public class TPreenregistrementDetail implements Serializable {
