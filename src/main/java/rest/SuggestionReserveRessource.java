@@ -428,6 +428,7 @@ public class SuggestionReserveRessource {
                     .entity(res.put("success", false).put("message", "Aucune suggestion cochée.").toString()).build();
         }
         int supprimees = 0;
+        int ouvertesAilleurs = 0;
         JSONArray refus = new JSONArray();
         java.util.Set<String> vus = new java.util.LinkedHashSet<>();
         for (int i = 0; i < ids.length(); i++) {
@@ -438,13 +439,15 @@ public class SuggestionReserveRessource {
             JSONObject r = suggestionReserveService.supprimerSuggestion(user, id, motif);
             if (r.optBoolean("success", false)) {
                 supprimees++;
+                if (r.optBoolean("ouverte_ailleurs", false)) {
+                    ouvertesAilleurs++; // demande du 13/11 : supprimee bien qu'ouverte sur un autre poste
+                }
             } else {
                 refus.put(new JSONObject().put("id", id).put("message", r.optString("message", "")));
             }
         }
-        return Response.ok()
-                .entity(res.put("success", supprimees > 0).put("supprimees", supprimees).put("refus", refus).toString())
-                .build();
+        return Response.ok().entity(res.put("success", supprimees > 0).put("supprimees", supprimees)
+                .put("ouvertesAilleurs", ouvertesAilleurs).put("refus", refus).toString()).build();
     }
 
     /** Supprime une suggestion. Refuse des qu'une ligne a deja ete traitee. */

@@ -119,6 +119,9 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             itemId: 'dtStart',
                             labelWidth: 15,
                             flex: 0.8,
+                            /* demande du 13/11 (captures) : la date restait coupee (« 13/11/2C ») des que la barre
+                               manquait de place ; avec les marges du theme, la date entiere tient en 136 */
+                            minWidth: 136,
                             submitFormat: 'Y-m-d',
                             maxValue: new Date(),
                             format: 'd/m/Y',
@@ -132,6 +135,9 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             itemId: 'dtEnd',
                             labelWidth: 15,
                             flex: 0.8,
+                            /* demande du 13/11 (captures) : la date restait coupee (« 13/11/2C ») des que la barre
+                               manquait de place ; avec les marges du theme, la date entiere tient en 136 */
+                            minWidth: 136,
                             submitFormat: 'Y-m-d',
                             maxValue: new Date(),
                             format: 'd/m/Y',
@@ -145,6 +151,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             itemId: 'hStart',
                             emptyText: 'Heure debut(HH:mm)',
                             flex: 0.6,
+                            minWidth: 104, // demande du 13/11 : l'heure entiere (« 23:59 »), jamais « 00:( »
                             labelWidth: 15,
                             increment: 30,
                             value: '00:00',
@@ -157,6 +164,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             itemId: 'hEnd',
                             emptyText: 'Heure fin(HH:mm)',
                             flex: 0.6,
+                            minWidth: 104, // demande du 13/11 : l'heure entiere (« 23:59 »), jamais « 00:( »
                             labelWidth: 15,
                             increment: 30,
                             value: '23:59',
@@ -169,6 +177,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             store: natureventeStore,
                             editable: false,
                             flex: 1.2,
+                            minWidth: 200, // demande du 13/11 : la liste n'avait plus que 12 px (« Selectic »)
                             labelWidth: 70,
                             valueField: 'lgNATUREVENTEID',
                             displayField: 'strLIBELLE',
@@ -184,13 +193,16 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             xtype: 'textfield',
                             itemId: 'query',
                             flex: 1.2,
+                            minWidth: 110,
                             enableKeyEvents: true,
                             emptyText: 'Recherche'
                         }, '-',
 
                         // Applique en un geste les bornes d'une garde enregistree. Cet ecran
                         // gere les heures : la garde y est donc rendue EXACTEMENT, nuit comprise.
-                        {xtype: 'selecteurgarde'}, '-',
+                        /* demande du 13/11 : 240 au lieu de 320 sur cet ecran, pour que dates, heures et nature tiennent
+                           entieres a 1280 points */
+                        {xtype: 'selecteurgarde', width: 240, emptyText: 'Période de garde...'}, '-',
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

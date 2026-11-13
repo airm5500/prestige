@@ -7,12 +7,12 @@
  *
  * Jeu d'essai (references E2E-SUP-*, retire a la fin) sur l'emplacement de l'utilisateur :
  *   S1 a traiter (aujourd'hui, 2 lignes), S2 en cours (15/09/2026, ancienne), S3 a traiter (aujourd'hui),
- *   S4 traitee (non supprimable), S5 a traiter ouverte par un autre poste (verrou recent : refusee), S6 a traiter non
+ *   S4 traitee (non supprimable), S5 a traiter ouverte par un autre poste (verrou recent : supprimee quand meme depuis le 13/11), S6 a traiter non
  *   cochee (doit rester).
- * Bilan avant / apres (base) : S1, S2, S3 passent SUPPRIMEE avec le motif, l'utilisateur et la date de cloture ; S4, S5,
+ * Bilan avant / apres (base) : S1, S2, S3, S5 passent SUPPRIMEE avec le motif, l'utilisateur et la date de cloture ; S4,
  * S6 inchangees ; aucune ligne de suggestion modifiee ; aucun mouvement de reserve ; stocks inchanges.
  * Ecran : compteur du bouton = suggestions cochees supprimables ; motif vide refuse sans rien supprimer ; le bouton
- * revient seul sans second clic ; message de bilan (3 supprimees, 1 refusee avec sa raison).
+ * revient seul sans second clic ; message de bilan (4 supprimees, dont 1 ouverte sur un autre poste).
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -108,12 +108,12 @@ const mouvements = () => q(`SELECT COUNT(*) FROM t_mouvement_reserve WHERE dt_CR
     await p.waitForFunction(() => Ext.getCmp('reservemanagerID').down('#ongletSuggestions').dernierBilanSuppression, null, { timeout: 20000 });
     await p.waitForFunction(() => !Ext.getCmp('reservemanagerID').down('#ongletSuggestions').getStore().isLoading(), null, { timeout: 20000 });
     const bilan = await p.evaluate(() => Ext.getCmp('reservemanagerID').down('#ongletSuggestions').dernierBilanSuppression);
-    ok('Message de bilan : 3 supprimées, 1 refusée (S5, ouverte par un autre poste)', /^3 suggestion\(s\) supprimée\(s\), 1 refusée\(s\) : E2E-SUP-5 - .*a ouvert cette suggestion/.test(bilan), bilan);
+    ok('Message de bilan : 4 supprimées, dont 1 ouverte sur un autre poste (S5, demande du 13/11)', bilan === '4 suggestion(s) supprimée(s) (dont 1 ouverte(s) sur un autre poste).', bilan);
 
     /* bilan en base */
     const apres = S.map(([id]) => etat(id));
-    [0, 1, 2].forEach((i) => ok(`Base : ${S[i][0]} supprimée avec le motif, l'utilisateur et la date de clôture`, apres[i] === `SUPPRIMEE|${MOTIF}|${MOI}|cloture`, apres[i]));
-    [3, 4, 5].forEach((i) => ok(`Base : ${S[i][0]} inchangée`, apres[i] === etatsAvant[i], etatsAvant[i] + ' -> ' + apres[i]));
+    [0, 1, 2, 4].forEach((i) => ok(`Base : ${S[i][0]} supprimée avec le motif, l'utilisateur et la date de clôture`, apres[i] === `SUPPRIMEE|${MOTIF}|${MOI}|cloture`, apres[i]));
+    [3, 5].forEach((i) => ok(`Base : ${S[i][0]} inchangée`, apres[i] === etatsAvant[i], etatsAvant[i] + ' -> ' + apres[i]));
     ok('Base : lignes de suggestion inchangées (quantités, état, date)', lignes() === lignesAvant, lignes());
     ok('Base : aucun mouvement de réserve, stocks inchangés', mouvements() === '0' && stocks() === stocksAvant, mouvements());
     const vusApres = await grille();

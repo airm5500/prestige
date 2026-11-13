@@ -577,9 +577,20 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
      *
      * @return {@code null} si l'operation peut se poursuivre, sinon le refus a retourner tel quel
      */
+    static final String CODE_SUPPRIMEE = "SUGGESTION_SUPPRIMEE";
+    static final String MESSAGE_SUPPRIMEE_AILLEURS = "Cette suggestion a ete supprimee : vos modifications ne sont pas"
+            + " enregistrees.";
+
     private JSONObject verifierVerrou(TUser user, TSuggestionReserve s) {
         if (s == null) {
             return echec("Suggestion introuvable.");
+        }
+        /*
+         * Demande du 13/11 : supprimee depuis un autre poste pendant qu'on la modifiait ici. Sans ce refus, la saisie
+         * continuait sur une suggestion supprimee et reprenait son verrou.
+         */
+        if (TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())) {
+            return echec(MESSAGE_SUPPRIMEE_AILLEURS).put("code", CODE_SUPPRIMEE);
         }
         TUser occupant = s.getLgUSERVERROUID();
         boolean perime = s.getDtVERROU() == null
@@ -716,7 +727,16 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         // Motif obligatoire, controle aussi cote serveur : l'ecran le demande deja, mais une fois la
         // suggestion supprimee ce motif reste le SEUL element expliquant sa disparition. Le rendre
         // facultatif ici laisserait passer les suppressions non motivees venues d'un autre appelant.
-        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        /*
+         * Demande du 13/11 : une suggestion ouverte sur un autre poste se supprime quand meme. Le verrou de saisie
+         * protege les QUANTITES (deux personnes ne modifient pas les memes lignes), pas l'existence de la suggestion :
+         * un poste oublie ouvert la bloquait pour tous pendant 20 minutes. La ligne est lue en verrou d'ecriture, et
+         * c'est la PREMIERE lecture de la transaction : un traitement en cours sur l'autre poste (traiterLigneIsolee
+         * prend le meme verrou) attend la fin de la suppression puis la voit supprimee, ou bien la suppression attend
+         * la fin de la ligne traitee et la compte plus bas.
+         */
+        TSuggestionReserve s = suggestionId == null ? null
+                : em.find(TSuggestionReserve.class, suggestionId, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
         if (s == null) {
             return echec("Suggestion introuvable.");
         }
@@ -737,17 +757,26 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return echec("Cette suggestion a ete annulee : elle est conservee pour l'historique "
                     + "et ne peut plus etre supprimee.");
         }
-        JSONObject refusVerrou = verifierVerrou(user, s);
-        if (refusVerrou != null) {
-            return refusVerrou;
+        // Ouverte par quelqu'un d'autre (verrou recent) : supprimee quand meme, et le message le dit.
+        TUser occupant = s.getLgUSERVERROUID();
+        boolean ouverteAilleurs = occupant != null && s.getDtVERROU() != null
+                && (System.currentTimeMillis() - s.getDtVERROU().getTime()) <= VERROU_EXPIRATION_MS
+                && !occupant.getLgUSERID().equals(user.getLgUSERID());
+        // Un mouvement de stock deja execute ne doit jamais pouvoir etre masque par une suppression. Compte lu en base
+        // (et non sur les lignes gardees en memoire) : une ligne traitee a l'instant sur l'autre poste est vue.
+        Long traitees = em
+                .createQuery(
+                        "SELECT COUNT(d) FROM TSuggestionReserveDetail d"
+                                + " WHERE d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID = :id AND d.strETAT = :etat",
+                        Long.class)
+                .setParameter("id", suggestionId).setParameter("etat", TSuggestionReserveDetail.ETAT_TRAITEE)
+                .getSingleResult();
+        if (traitees != null && traitees > 0) {
+            return echec("Cette suggestion contient des lignes deja traitees : elle ne peut plus etre supprimee. "
+                    + "Utilisez l'annulation par mouvement inverse.");
         }
-        // Un mouvement de stock deja execute ne doit jamais pouvoir etre masque par une suppression.
-        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
-            if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
-                return echec("Cette suggestion contient des lignes deja traitees : elle ne peut plus etre supprimee. "
-                        + "Utilisez l'annulation par mouvement inverse.");
-            }
-        }
+        s.setLgUSERVERROUID(null);
+        s.setDtVERROU(null);
         s.setStrSTATUT(TSuggestionReserve.STATUT_SUPPRIMEE);
         // Borne alignee sur la colonne str_COMMENTAIRE (500) : un motif plus long ferait echouer
         // l'enregistrement au lieu d'etre simplement raccourci.
@@ -756,8 +785,14 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         s.setDtCLOTURE(new Date());
         s.setDtUPDATED(s.getDtCLOTURE());
         em.merge(s);
-        LOG.log(Level.INFO, "suggestion supprimee={0} user={1}", new Object[] { suggestionId, user.getLgUSERID() });
-        return new JSONObject().put("success", true).put("message", "Suggestion supprimee.");
+        LOG.log(Level.INFO, "suggestion supprimee={0} user={1} ouverteAilleurs={2}",
+                new Object[] { suggestionId, user.getLgUSERID(), ouverteAilleurs });
+        JSONObject ok = new JSONObject().put("success", true).put("ouverte_ailleurs", ouverteAilleurs);
+        return ok.put("message",
+                ouverteAilleurs
+                        ? "Suggestion " + s.getStrREF() + " supprimée. Elle était ouverte par "
+                                + nomUtilisateur(occupant) + " : ses modifications ne seront plus enregistrées."
+                        : "Suggestion " + s.getStrREF() + " supprimée.");
     }
 
     // ---------------------------------------------------------------- TRAITEMENT
@@ -880,6 +915,16 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (d == null) {
             return echec("Ligne introuvable.");
         }
+        /*
+         * Demande du 13/11 : la suggestion peut etre supprimee depuis un autre poste pendant son traitement. Meme
+         * verrou d'ecriture que supprimerSuggestion : supprimee, plus aucun stock ne bouge pour elle.
+         */
+        TSuggestionReserve parent = d.getLgSUGGESTIONRESERVEID() == null ? null
+                : em.find(TSuggestionReserve.class, d.getLgSUGGESTIONRESERVEID().getLgSUGGESTIONRESERVEID(),
+                        javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (parent != null && TSuggestionReserve.STATUT_SUPPRIMEE.equals(parent.getStrSTATUT())) {
+            return echec(MESSAGE_SUPPRIMEE_AILLEURS).put("code", CODE_SUPPRIMEE);
+        }
         int qte = quantiteARetenir(d);
         String familleId = d.getLgFAMILLEID() != null ? d.getLgFAMILLEID().getLgFAMILLEID() : null;
         String categorie = d.getLgSUGGESTIONRESERVEID().getStrCATEGORIE();
@@ -917,7 +962,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     /** Recalcule le statut de l'en-tete apres un traitement, et renseigne les acteurs et les dates. */
     private void finaliserStatut(String suggestionId, TUser user) {
         TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
-        if (s == null) {
+        // supprimee depuis un autre poste pendant le traitement (demande du 13/11) : elle reste telle quelle
+        if (s == null || TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())) {
             return;
         }
         int restant = 0;
