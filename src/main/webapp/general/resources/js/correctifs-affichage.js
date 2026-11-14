@@ -1452,6 +1452,239 @@ Ext.onReady(function () {
         }
     }
 
+    rendreBarresLisibles();
+
+    /*
+     * Demande du 13/11 (captures « Ventes terminées », « Paramétrage général », « Campagnes » ; defaut ancien) : dans
+     * les barres d'outils, dates, heures et listes etaient coupees (« 13/11/2C », « 00:( », « Selectic ») des que la
+     * barre manquait de place, et le dernier element sortait parfois a droite. Regle generale, pour tous les ecrans et
+     * toutes les tailles d'ecran ; aucune largeur propre a un ecran :
+     *   1. un champ d'une barre ne descend jamais sous la largeur de son contenu : date ou heure entiere au format du
+     *      champ, texte d'invite d'une liste ou d'une recherche (borne). Plancher (minWidth) si le champ est souple,
+     *      largeur relevee s'il est fixe. Le plancher est ensuite verifie sur le champ affiche (police et marges
+     *      reelles du theme) et releve si la valeur ne tient toujours pas ;
+     *   2. si la barre deborde malgre tout, les champs de largeur fixe plus larges que leur contenu cedent ce qui
+     *      manque, jusqu'a leur plancher ; ils reprennent leur largeur des que la place revient ;
+     *   3. s'il manque encore de la place (tres petit ecran), la barre defile au lieu de couper : rien n'est cache.
+     */
+    function rendreBarresLisibles() {
+        var proto = Ext.form.field.Base.prototype;
+        if (proto.barresLisibles) {
+            return;
+        }
+        proto.barresLisibles = true;
+        proto.onAdded = Ext.Function.createSequence(proto.onAdded, function (conteneur) {
+            try {
+                if (conteneur && conteneur.isXType && conteneur.isXType('toolbar') && !conteneur.isXType('pagingtoolbar')) {
+                    poserPlancher(this);
+                    veillerBarre(conteneur);
+                }
+            } catch (e) {
+                /* jamais bloquant */
+            }
+        });
+    }
+
+    var police = null;
+    function largeurTexte(texte) {
+        if (!police) {
+            var essai = Ext.getBody().createChild({cls: 'x-toolbar mv-barre', style: 'position:absolute;left:-10000px;top:0;visibility:hidden',
+                cn: [{tag: 'input', cls: 'x-form-field x-form-text'}]});
+            var cs = window.getComputedStyle(essai.dom.firstChild);
+            police = document.createElement('canvas').getContext('2d');
+            police.font = cs.font || ((cs.fontSize || '13px') + ' ' + (cs.fontFamily || 'sans-serif'));
+            police.marge = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
+                    + (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+            essai.remove();
+        }
+        return Math.ceil(police.measureText(String(texte || '')).width);
+    }
+
+    /** Largeur sous laquelle le champ ne se lit plus en entier (0 : champ non concerne). */
+    function largeurLisible(champ) {
+        var contenu, exemple = new Date(2026, 11, 28, 23, 58, 58);
+        if (champ.isXType('timefield')) {
+            contenu = largeurTexte(Ext.Date.format(exemple, champ.format || 'H:i'));
+        } else if (champ.isXType('datefield')) {
+            contenu = largeurTexte(Ext.Date.format(exemple, champ.format || 'd/m/Y'));
+        } else if (champ.isXType('combobox')) {
+            contenu = Ext.Number.constrain(largeurTexte(champ.emptyText), 70, 170);
+        } else if (champ.isXType('textfield') && !champ.isXType('numberfield') && !champ.isXType('trigger')) {
+            contenu = Ext.Number.constrain(largeurTexte(champ.emptyText), 60, 140);
+        } else {
+            return 0;
+        }
+        var declencheurs = champ.isXType('trigger') && !champ.hideTrigger ? (champ.trigger2Cls ? 2 : 1) : 0;
+        var libelle = champ.fieldLabel && !champ.hideLabel && champ.labelAlign !== 'top'
+                ? (champ.labelWidth || 100) + (champ.labelPad === undefined ? 5 : champ.labelPad) : 0;
+        return Math.ceil(contenu + police.marge + 6 + declencheurs * 22 + libelle);
+    }
+
+    function poserPlancher(champ, plancher) {
+        plancher = Math.max(plancher || 0, largeurLisible(champ));
+        if (!plancher) {
+            return;
+        }
+        champ.plancherLisible = plancher;
+        if (typeof champ.width === 'number') {
+            champ.largeurPrevue = Math.max(champ.largeurPrevue || champ.width, plancher);
+            if (champ.width < plancher) {
+                champ.width = plancher;
+            }
+        } else {
+            champ.minWidth = Math.max(champ.minWidth || 0, plancher);
+        }
+        if (champ.maxWidth && champ.maxWidth < plancher) {
+            champ.maxWidth = plancher;
+        }
+    }
+
+    var barresVeillees = [];
+    Ext.EventManager.onWindowResize(function () {
+        Ext.each(barresVeillees, function (x) {
+            if (!x.barre.isDestroyed && x.barre.rendered && x.barre.isVisible(true)) {
+                x.tache.delay(120);
+            }
+        });
+    });
+
+    function veillerBarre(barre) {
+        if (barre.veilleLisible) {
+            return;
+        }
+        barre.veilleLisible = true;
+        /*
+         * 14/11 (« Gestion depots extensions » a 1024 px) : mesuree PENDANT la mise en page, une barre de grille
+         * pouvait encore avoir ses anciennes positions ; rien n'etait ajuste. Le controle passe maintenant juste APRES
+         * la mise en page (une fois par serie de mises en page rapprochees), et en relance une si une largeur change.
+         */
+        var tache = new Ext.util.DelayedTask(function () {
+            if (barre.isDestroyed) {
+                return;
+            }
+            try {
+                var maintenant = Date.now();
+                if (!barre.serieLisible || maintenant - barre.serieLisible.debut > 1000) {
+                    barre.serieLisible = {debut: maintenant, n: 0};
+                }
+                /*
+                 * garde-fou : au plus 8 ajustements par seconde (une barre qui hesiterait ne boucle pas). Les etapes
+                 * (ceder, puis faire defiler) s'enchainent dans le meme passage : une barre que la page elargit ou
+                 * retrecit sans mise en page ExtJS ne rappellerait pas la tache entre deux etapes.
+                 */
+                while (barre.serieLisible.n < 8 && ajusterBarre(barre)) {
+                    barre.serieLisible.n++;
+                    barre.updateLayout();
+                }
+            } catch (e) {
+                /* jamais bloquant */
+            }
+        });
+        barre.on('afterlayout', function () {
+            tache.delay(30);
+        });
+        /*
+         * une barre dont la largeur suit la page sans nouvelle mise en page ExtJS (« Gestion depots extensions ») n'emet
+         * pas 'afterlayout' quand la fenetre change de taille : elle est aussi controlee a chaque redimensionnement
+         */
+        barresVeillees.push({barre: barre, tache: tache});
+        barre.on('destroy', function () {
+            tache.cancel();
+            barresVeillees = Ext.Array.filter(barresVeillees, function (x) {
+                return x.barre !== barre;
+            });
+        });
+    }
+
+    /** @return {Boolean} vrai si une largeur a change (nouvelle mise en page a faire) */
+    function ajusterBarre(barre) {
+        var cadre = barre.layout && barre.layout.innerCt;
+        if (barre.isDestroyed || !barre.rendered || !cadre || !barre.isVisible() || !cadre.dom.clientWidth) {
+            return false;
+        }
+        var champs = Ext.Array.filter(barre.items.items, function (x) {
+            return x.plancherLisible && x.rendered && x.isVisible();
+        });
+        var change = false;
+        /* 1. plancher verifie sur le champ affiche : la valeur (date, heure) doit tenir en entier */
+        Ext.each(champs, function (champ) {
+            var saisie = champ.inputEl && champ.inputEl.dom;
+            if (saisie && saisie.value && (champ.isXType('datefield') || champ.isXType('timefield'))
+                    && saisie.scrollWidth > saisie.clientWidth + 1 && (champ.relevesLisibles || 0) < 2) {
+                champ.relevesLisibles = (champ.relevesLisibles || 0) + 1;
+                poserPlancher(champ, champ.plancherLisible + saisie.scrollWidth - saisie.clientWidth + 2);
+                change = true;
+            }
+        });
+        if (change) {
+            return true;
+        }
+        /* 2. debord : les champs fixes cedent jusqu'a leur plancher ; place revenue : ils reprennent leur largeur */
+        var droite = cadre.dom.getBoundingClientRect().right, fin = droite;
+        Ext.each(barre.items.items, function (x) {
+            if (x.rendered && x.isVisible() && x.el) {
+                fin = Math.max(fin, x.el.dom.getBoundingClientRect().right);
+            }
+        });
+        var debord = Math.ceil(fin - droite), libre = debord <= 1 ? Math.floor(placeLibre(barre)) : 0;
+        Ext.each(champs, function (champ) {
+            if (!champ.largeurPrevue || typeof champ.width !== 'number') {
+                return;
+            }
+            if (debord > 1 && champ.width > champ.plancherLisible) {
+                var cede = Math.min(champ.width - champ.plancherLisible, debord);
+                champ.width -= cede;
+                debord -= cede;
+                change = true;
+            } else if (libre > 1 && champ.width < champ.largeurPrevue) {
+                var repris = Math.min(champ.largeurPrevue - champ.width, libre);
+                champ.width += repris;
+                libre -= repris;
+                change = true;
+            }
+        });
+        if (change) {
+            return true;
+        }
+        /* 3. toujours trop large : la barre defile, aucun element n'est coupe */
+        var defile = debord > 1 ? 'auto' : '';
+        if (cadre.dom.style.overflowX !== defile) {
+            /* « important » : une regle du theme force overflow:visible !important sur certaines barres (14/11, depots) */
+            if (defile) {
+                cadre.dom.style.setProperty('overflow-x', defile, 'important');
+            } else {
+                cadre.dom.style.removeProperty('overflow-x');
+            }
+        }
+        return false;
+    }
+
+    /** Place reellement libre dans la barre : celle d'un remplissage (->) s'il y en a un, sinon a droite du dernier element. */
+    function placeLibre(barre) {
+        var cadre = barre.layout.innerCt.dom.getBoundingClientRect(), bord = cadre.left, remplissage = 0, avecRemplissage = false;
+        Ext.each(barre.items.items, function (x) {
+            if (!x.rendered || !x.isVisible() || !x.el) {
+                return;
+            }
+            if (x.isXType('tbfill')) {
+                avecRemplissage = true;
+                remplissage += x.el.getWidth();
+            } else {
+                bord = Math.max(bord, x.el.dom.getBoundingClientRect().right);
+            }
+        });
+        return avecRemplissage ? remplissage : cadre.right - bord;
+    }
+
+    /* pour les tests : relance l'ajustement d'une barre et rend vrai si une largeur a change */
+    window.PrestigeAffichage.ajusterBarre = function (barre) {
+        return ajusterBarre(barre);
+    };
+
+    window.PrestigeAffichage.largeurLisible = function (champ) {
+        return largeurLisible(champ);
+    };
+
     // ---------------------------------------------------------------------------------
     // 6) un ecouteur de redimensionnement fautif ne doit plus empecher le viewport de
     //    suivre la fenetre (cf. l'explication detaillee plus haut). Pose AVANT nos
