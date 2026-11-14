@@ -104,20 +104,22 @@ public class SupportCoherenceServiceImpl implements SupportCoherenceService {
         List<Object[]> lignes = executer(controle.getRequeteSql());
         int nbCas = lignes.size();
         resultat.put("nbCas", nbCas);
+        // Rapport du 13/11, point 11 : l'historique deja signale est separe des cas apparus depuis le passage precedent
+        SupportCasConnus cas = separerEtRetenir(controle.getCode(), lignes, nbCas >= MAX_LIGNES_PAR_CONTROLE);
+        resultat.put("nbNouveaux", cas.getNouveaux().size());
         // Enregistrement de l'anomalie en "best-effort" : recordCoherence tourne dans SA PROPRE transaction
         // (REQUIRES_NEW) et ecrit le fichier log AVANT tout acces base. Si l'insert de l'evenement echoue, le
         // controle reste valide (nombre de cas + fichier log disponibles) et on remonte juste la cause reelle.
         try {
             supportEventService.recordCoherence(controle.getCode(), controle.getLibelle(), controle.getModule(),
-                    controle.getRequeteSql(), nbCas, buildPayload(controle, lignes),
-                    buildListeComplete(controle, lignes));
+                    controle.getRequeteSql(), nbCas, buildPayload(controle, cas), buildListeComplete(controle, cas));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "recordCoherence " + controle.getCode() + " : " + rootCauseMessage(e), e);
             resultat.put("avertissement", "Anomalies detectees mais evenement non enregistre : " + rootCauseMessage(e));
         }
         if (!controle.isDryRun()) {
             if (nbCas > 0) {
-                creerTicketSynthese(controle, nbCas, lignes);
+                creerTicketSynthese(controle, nbCas, cas);
             } else {
                 cloturerTicketResolu(controle);
             }
@@ -139,23 +141,50 @@ public class SupportCoherenceServiceImpl implements SupportCoherenceService {
         }
     }
 
-    private void creerTicketSynthese(SupportControle controle, int nbCas, List<Object[]> lignes) {
+    /**
+     * Separe les cas du passage en nouveaux et deja connus, puis met a jour la memoire du controle (cas nouveaux
+     * retenus, cas resolus oublies). Seuls les identifiants techniques sont gardes.
+     */
+    @SuppressWarnings("unchecked")
+    private SupportCasConnus separerEtRetenir(String code, List<Object[]> lignes, boolean tronque) {
+        List<Object> lus = em.createNativeQuery("SELECT cas_id FROM t_support_controle_cas WHERE code = ?1")
+                .setParameter(1, code).getResultList();
+        List<String> dejaVus = new ArrayList<>(lus.size());
+        lus.forEach((o) -> dejaVus.add(String.valueOf(o)));
+        SupportCasConnus cas = SupportCasConnus.separer(lignes, dejaVus, tronque);
+        for (String id : cas.getARetenir()) {
+            em.createNativeQuery(
+                    "INSERT IGNORE INTO t_support_controle_cas (code, cas_id, premier_vu) VALUES (?1, ?2, NOW())")
+                    .setParameter(1, code).setParameter(2, id).executeUpdate();
+        }
+        for (String id : cas.getAOublier()) {
+            em.createNativeQuery("DELETE FROM t_support_controle_cas WHERE code = ?1 AND cas_id = ?2")
+                    .setParameter(1, code).setParameter(2, id).executeUpdate();
+        }
+        return cas;
+    }
+
+    private void creerTicketSynthese(SupportControle controle, int nbCas, SupportCasConnus cas) {
         // un seul ticket ouvert par controle : evite le flot de tickets
         if (supportTicketService.findOpenBySignature(controle.getCode()) != null) {
             return;
         }
         String description = "Controle de coherence : " + controle.getLibelle() + "\nNombre de cas detectes : " + nbCas
-                + "\nEchantillon (ids) :\n" + buildListeComplete(controle, lignes);
+                + " (dont " + cas.getNouveaux().size() + " nouveaux depuis le passage precedent)"
+                + "\nEchantillon (ids) :\n" + buildListeComplete(controle, cas);
         SupportTicket ticket = supportTicketService.createAutoTicket(
                 "[Coherence] " + controle.getLibelle() + " (" + nbCas + " cas)", description, controle.getModule(),
                 "HAUTE", controle.getCode(), null);
         LOG.log(Level.INFO, "Ticket de coherence cree : {0}", ticket.getNumero());
     }
 
-    private String buildPayload(SupportControle controle, List<Object[]> lignes) {
+    private String buildPayload(SupportControle controle, SupportCasConnus cas) {
+        // les nouveaux d'abord : ce sont eux qu'il faut regarder
+        List<Object[]> lignes = new ArrayList<>(cas.getNouveaux());
+        lignes.addAll(cas.getConnus());
         StringBuilder sb = new StringBuilder();
         sb.append("{\"code\":\"").append(controle.getCode()).append("\",\"nb_cas\":").append(lignes.size())
-                .append(",\"echantillon\":[");
+                .append(",\"nb_nouveaux\":").append(cas.getNouveaux().size()).append(",\"echantillon\":[");
         int max = Math.min(lignes.size(), TAILLE_ECHANTILLON);
         for (int i = 0; i < max; i++) {
             if (i > 0) {
@@ -167,11 +196,21 @@ public class SupportCoherenceServiceImpl implements SupportCoherenceService {
         return StringUtils.abbreviate(sb.toString(), 4000);
     }
 
-    private String buildListeComplete(SupportControle controle, List<Object[]> lignes) {
+    private String buildListeComplete(SupportControle controle, SupportCasConnus cas) {
+        int total = cas.getNouveaux().size() + cas.getConnus().size();
         StringBuilder sb = new StringBuilder();
-        sb.append("Controle : ").append(controle.getCode()).append(" (").append(lignes.size()).append(" cas)\n");
+        sb.append("Controle : ").append(controle.getCode()).append(" (").append(total).append(" cas, dont ")
+                .append(cas.getNouveaux().size()).append(" nouveaux)\n");
         sb.append("Ou chercher : ").append(localisation(controle.getCode())).append("\n");
-        sb.append("Colonnes : 1 = identifiant technique (a rechercher), 2 = contexte\n\n");
+        sb.append("Colonnes : 1 = identifiant technique (a rechercher), 2 = contexte\n");
+        sb.append("\nNouveaux depuis le passage precedent (").append(cas.getNouveaux().size()).append(") :\n");
+        ajouterLignes(sb, cas.getNouveaux());
+        sb.append("\nDeja connus (").append(cas.getConnus().size()).append(") :\n");
+        ajouterLignes(sb, cas.getConnus());
+        return sb.toString();
+    }
+
+    private void ajouterLignes(StringBuilder sb, List<Object[]> lignes) {
         for (Object[] ligne : lignes) {
             sb.append(premiereColonne(ligne));
             if (ligne.length > 1 && ligne[1] != null) {
@@ -179,7 +218,6 @@ public class SupportCoherenceServiceImpl implements SupportCoherenceService {
             }
             sb.append('\n');
         }
-        return sb.toString();
     }
 
     private void signalerControleEnErreur(SupportControle controle, Exception e) {

@@ -69,8 +69,9 @@ public class SmsImpl implements SmsService {
      * meme appel, repete, donnerait le meme refus. La consigne n'est ecrite qu'au moment de la coupure.
      */
     private void signalerRefus(SmsSendResult result, String fournisseur, String messageCourt, String detail) {
-        if (coupeCircuit.enregistrerRefus(result.getErrorCode())) {
-            reportSupport("ERROR", SmsCoupeCircuit.messageCourt(fournisseur, result.getErrorCode()),
+        if (coupeCircuit.enregistrerRefus(result.getErrorCode(), result.getErrorMessage())) {
+            reportSupport("ERROR",
+                    SmsCoupeCircuit.messageCourt(fournisseur, result.getErrorCode(), result.getErrorMessage()),
                     SmsCoupeCircuit.consigne(result.getErrorCode(), result.getErrorMessage(), SmsCoupeCircuit.SEUIL)
                             + "\n\nDernier envoi concerne : " + detail,
                     null);
@@ -466,9 +467,9 @@ public class SmsImpl implements SmsService {
             NotificationClient target = findClientForDeliveryReceipt(resourceUrl, address);
             if (target == null) {
                 LOG.log(Level.WARNING, "DR sans destinataire correspondant (address={0}, resourceURL={1})",
-                        new Object[] { address, resourceUrl });
+                        new Object[] { util.TelephoneCi.masquer(address), resourceUrl });
                 reportSupport("WARN", "Accuse de reception Orange sans destinataire correspondant",
-                        "address=" + address + ", resourceURL=" + resourceUrl, null);
+                        "address=" + util.TelephoneCi.masquer(address) + ", resourceURL=" + resourceUrl, null);
                 return false;
             }
             target.setDeliveryStatus(normalized);
@@ -477,7 +478,7 @@ public class SmsImpl implements SmsService {
             }
             em.merge(target);
             LOG.log(Level.INFO, "DR applique : client={0}, address={1}, status={2}",
-                    new Object[] { target.getId(), address, normalized });
+                    new Object[] { target.getId(), util.TelephoneCi.masquer(address), normalized });
             return true;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Echec traitement Delivery Receipt", e);
@@ -682,19 +683,27 @@ public class SmsImpl implements SmsService {
             }
             SmsSendResult result = provider.send(sp.mobile, message, null);
             LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
-                    new Object[] { sp.mobile, provider.getCode(), result.toLog() });
+                    new Object[] { util.TelephoneCi.masquer(sp.mobile), provider.getCode(), result.toLog() });
             if (result.isAccepted()) {
                 coupeCircuit.enregistrerSucces();
                 return "Envoyé";
             }
             signalerRefus(result, provider.getCode(),
                     "Envoi SMS admin refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
-                    "Numero d'administration " + sp.mobile + ". Erreur : " + result.getErrorMessage());
+                    detailAdministration(sp.mobile, result.getErrorMessage()));
             return "Échec";
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
             reportSupport("ERROR", "Exception lors de l'envoi SMS admin : " + ex.getMessage(), null, ex);
             return "Échec";
         }
+    }
+
+    /**
+     * Detail d'un refus d'envoi au numero d'administration, pour le Centre de Support : le numero est masque comme ceux
+     * des clients (le 13/11, il apparaissait en clair dans 14 evenements).
+     */
+    static String detailAdministration(String numero, String erreur) {
+        return "Numero d'administration " + util.TelephoneCi.masquer(numero) + ". Erreur : " + erreur;
     }
 }

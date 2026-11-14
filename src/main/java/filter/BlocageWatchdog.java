@@ -27,6 +27,10 @@ import rest.service.dto.SupportEventDTO;
  * EclipseLink, requete MySQL qui ne repond pas...) quand "plus aucune donnee ne s'affiche".
  *
  * Lecture seule et sans effet sur le traitement des requetes ; un rapport au plus toutes les 5 minutes.
+ * <p>
+ * Rapport d'exploitation du 13/11, point 10 : une meme requete n'est plus signalee qu'une fois (elle l'etait toutes les
+ * 5 minutes : 134 fois pour une impression bloquee 7 h 09), et sa fin donne un avis avec la duree totale.
+ * </p>
  */
 @Singleton
 @Startup
@@ -46,27 +50,46 @@ public class BlocageWatchdog {
     @EJB
     private SupportEventService supportEventService;
 
-    private volatile long dernierRapportMs = 0L;
+    private final SuiviBlocages suivi = new SuiviBlocages(SEUIL_MS, COOLDOWN_MS);
 
     @Schedule(hour = "*", minute = "*", second = "*/20", persistent = false)
     public void surveiller() {
         try {
             List<SlowRequestFilter.RequeteEnCours> enCours = SlowRequestFilter.requetesEnCours();
             long maintenant = System.currentTimeMillis();
-            SlowRequestFilter.RequeteEnCours plusAncienne = null;
-            for (SlowRequestFilter.RequeteEnCours r : enCours) {
-                if (plusAncienne == null || r.debutMs < plusAncienne.debutMs) {
-                    plusAncienne = r;
+            for (SuiviBlocages.Signal signal : suivi.passage(enCours, maintenant)) {
+                if (signal.nature == SuiviBlocages.Nature.FIN) {
+                    signalerFin(signal);
+                } else {
+                    signalerDebut(signal.requete, enCours, maintenant);
                 }
             }
-            if (plusAncienne == null || maintenant - plusAncienne.debutMs < SEUIL_MS) {
-                return;
-            }
-            if (maintenant - dernierRapportMs < COOLDOWN_MS) {
-                return;
-            }
-            dernierRapportMs = maintenant;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "surveillance des blocages", e);
+        }
+    }
 
+    /** Fin d'un blocage signale : un avis, avec la duree totale (au passage du guetteur pres, 20 s). */
+    private void signalerFin(SuiviBlocages.Signal signal) {
+        SlowRequestFilter.RequeteEnCours r = signal.requete;
+        String quoi = r.methode + " " + r.uri;
+        LOG.warning("FIN DE BLOCAGE : requete terminee apres " + SuiviBlocages.duree(signal.dureeMs) + " : " + quoi);
+        SupportEventDTO dto = new SupportEventDTO();
+        dto.setType("JAVA");
+        dto.setNiveau("INFO");
+        dto.setModule("BLOCAGE");
+        dto.setMessageCourt(StringUtils.abbreviate(
+                "Fin de blocage : requête terminée après " + SuiviBlocages.duree(signal.dureeMs) + " : " + quoi, 500));
+        dto.setUrlOuEcran(StringUtils.abbreviate(quoi, 255));
+        dto.setPayloadJson(StringUtils.abbreviate("Durée totale : " + SuiviBlocages.duree(signal.dureeMs)
+                + " (à 20 s près). Début : " + new java.sql.Timestamp(r.debutMs) + ". Le blocage avait été signalé"
+                + " une fois, avec la photographie des threads.", 4000));
+        supportEventService.record(dto, "");
+    }
+
+    private void signalerDebut(SlowRequestFilter.RequeteEnCours plusAncienne,
+            List<SlowRequestFilter.RequeteEnCours> enCours, long maintenant) {
+        {
             long ageS = (maintenant - plusAncienne.debutMs) / 1000;
             String rapport = construireRapport(enCours, maintenant);
             // Toujours dans le log serveur d'abord : il reste disponible meme si la base est bloquee.
@@ -91,8 +114,6 @@ public class BlocageWatchdog {
             // Asynchrone : si la base est bloquee, l'enregistrement echouera sans consequence,
             // le rapport complet etant deja dans le log serveur.
             supportEventService.record(dto, "");
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "surveillance des blocages", e);
         }
     }
 

@@ -66,14 +66,26 @@ public class AppContextListener implements ServletContextListener {
         // toutes les classes du war) se paie ainsi PENDANT le demarrage du serveur, et non a
         // la premiere requete d'un utilisateur - ou elle bloquait le menu et toutes les
         // tuiles du tableau de bord derriere le verrou de dataManager (blocage vu au watchdog).
-        Thread prechauffage = new Thread(dataManager::prechaufferSharedEntityManagerFactory,
-                "prechauffage-factory-jpa");
+        // Rapport du 13/11, point 4 : la page de connexion attend la fin des deux etapes (api/v1/app/info)
+        util.EtatDemarrage.commencer("jpa", "scripts");
+        Thread prechauffage = new Thread(() -> {
+            try {
+                dataManager.prechaufferSharedEntityManagerFactory();
+            } finally {
+                util.EtatDemarrage.terminer("jpa");
+            }
+        }, "prechauffage-factory-jpa");
         prechauffage.setDaemon(true);
         prechauffage.start();
         // Paquet des scripts d'ecran (api/v1/ecrans/scripts.js) prepare de meme : fabrique a la premiere demande, il
         // laissait la page d'accueil blanche 11,5 s pour le premier utilisateur connecte apres un deploiement.
-        Thread scripts = new Thread(() -> rest.EcransScriptsRessource.prechauffer(sce.getServletContext()),
-                "prechauffage-scripts-ecrans");
+        Thread scripts = new Thread(() -> {
+            try {
+                rest.EcransScriptsRessource.prechauffer(sce.getServletContext());
+            } finally {
+                util.EtatDemarrage.terminer("scripts");
+            }
+        }, "prechauffage-scripts-ecrans");
         scripts.setDaemon(true);
         scripts.start();
     }

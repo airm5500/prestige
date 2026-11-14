@@ -6,7 +6,10 @@
    - memoire Java (-Xmx, 4 Go par defaut) ;
    - image de la memoire si elle sature (-XX:+HeapDumpOnOutOfMemoryError), dans DossierDiagnostic ;
    - journal du ramasse-miettes (-Xlog:gc*), 5 fichiers de 20 Mo au plus, dans DossierDiagnostic ;
-   - pool de connexions a la base : verification des connexions avant emploi (apres une coupure de MariaDB).
+   - pool de connexions a la base : verification des connexions avant emploi (apres une coupure de MariaDB), delai
+     de connexion (5 s) et de lecture (10 min) et tcpKeepAlive : une coupure du reseau echoue en un temps borne au
+     lieu de figer la caisse (rapport d'exploitation du 13/11, point 2).
+  Sur chaque POSTE DE CAISSE qui a son propre Payara : -PoolSeulement (seul le pool est regle).
   Sur demande seulement :
    - -DelaisJdbc : delai de requete (300 s) et reprise des connexions oubliees (120 s). A ne poser que si aucun etat
      ne depasse ces durees (voir par. 6 du rapport : la suggestion depassait 10 min avant sa correction) ;
@@ -21,6 +24,7 @@
     .\1-configurer-payara.ps1 -Lire
     .\1-configurer-payara.ps1 -Xmx 6g -Redemarrer
     .\1-configurer-payara.ps1 -DelaisJdbc -ArretSurSaturation -Redemarrer
+    .\1-configurer-payara.ps1 -PoolSeulement -Redemarrer      # poste de caisse
     .\1-configurer-payara.ps1 -Annuler        # retour aux valeurs d'origine (5 fils, sans diagnostic ni delais)
 #>
 param(
@@ -36,6 +40,9 @@ param(
     [int]$DelaiRequete = 300,
     [int]$DelaiConnexionOubliee = 120,
     [switch]$ArretSurSaturation,
+    [switch]$PoolSeulement,
+    [int]$DelaiConnexionMs = 5000,
+    [int]$DelaiLectureMs = 600000,
     [switch]$Lire,
     [switch]$Annuler,
     [switch]$Redemarrer
@@ -58,7 +65,7 @@ function Etat {
     Write-Host "--- Options Java concernees"
     Options | Where-Object { $_ -match '^-Xmx|HeapDump|ExitOnOutOfMemory|^-Xlog:gc' } | ForEach-Object { Write-Host "  $_" }
     Write-Host "--- Pool $Pool"
-    Asadmin get "$JDBC.*" | Select-String -Pattern 'statement-timeout|connection-leak|connection-validation|validation-classname|max-pool-size' |
+    Asadmin get "$JDBC.*" | Select-String -Pattern 'statement-timeout|connection-leak|connection-validation|validation-classname|max-pool-size|connectTimeout|socketTimeout|tcpKeepAlive' |
         Where-Object { $_ -notmatch 'password' } | ForEach-Object { Write-Host "  $_" }
 }
 
@@ -99,7 +106,11 @@ if ($Annuler) {
     Asadmin set "$JDBC.statement-timeout-in-seconds=-1" "$JDBC.connection-leak-timeout-in-seconds=0" `
         "$JDBC.connection-leak-reclaim=false" "$JDBC.is-connection-validation-required=false" | Out-Null
     Asadmin set "$JDBC.connection-validation-method=table" | Out-Null
+    Asadmin set "$JDBC.property.connectTimeout=0" "$JDBC.property.socketTimeout=0" | Out-Null
 } else {
+    if ($PoolSeulement) {
+        Write-Host "  poste de caisse : seul le pool $Pool est regle (fils, memoire et diagnostic laisses tels quels)"
+    } else {
     if ($FilsMin -gt $FilsMax) { throw "FilsMin ($FilsMin) superieur a FilsMax ($FilsMax)" }
     Asadmin set "$FILS.max-thread-pool-size=$FilsMax" "$FILS.min-thread-pool-size=$FilsMin" | Out-Null
     Write-Host "  fils HTTP : $FilsMin a $FilsMax"
@@ -119,6 +130,7 @@ if ($Annuler) {
             AjouterOption '-XX:+ExitOnOutOfMemoryError'
         }
     }
+    }
 
     # verification des connexions : la classe de Payara pour MySQL/MariaDB, sans table a creer
     # la methode d'abord : Payara refuse d'activer la verification tant que la methode "table" n'a pas de table
@@ -126,6 +138,13 @@ if ($Annuler) {
         "$JDBC.validation-classname=org.glassfish.api.jdbc.validation.MySQLConnectionValidation" | Out-Null
     Asadmin set "$JDBC.is-connection-validation-required=true" | Out-Null
     Write-Host "  pool $Pool : connexions verifiees avant emploi"
+    # rapport d'exploitation du 13/11, point 2 : une coupure du reseau ou de la base doit echouer en un temps borne
+    # (connexion : 5 s ; lecture : 10 min, au-dela de l'etat le plus long) au lieu de figer le fil ; tcpKeepAlive
+    # garde vivantes les connexions au repos entre la caisse et le serveur.
+    if ($DelaiLectureMs -gt 0 -and $DelaiLectureMs -lt 60000) { throw "DelaiLectureMs ($DelaiLectureMs) : au moins 60000 (les etats longs)" }
+    Asadmin set "$JDBC.property.connectTimeout=$DelaiConnexionMs" "$JDBC.property.socketTimeout=$DelaiLectureMs" `
+        "$JDBC.property.tcpKeepAlive=true" | Out-Null
+    Write-Host "  pool $Pool : delai de connexion $DelaiConnexionMs ms, de lecture $DelaiLectureMs ms, tcpKeepAlive"
     if ($DelaisJdbc) {
         Asadmin set "$JDBC.statement-timeout-in-seconds=$DelaiRequete" `
             "$JDBC.connection-leak-timeout-in-seconds=$DelaiConnexionOubliee" "$JDBC.connection-leak-reclaim=true" | Out-Null

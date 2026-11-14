@@ -64,7 +64,7 @@ public class ApplicationEvent extends AbstractEntity {
      * Debut du detail technique (pile d'appels), conserve en base : le fichier log complet vit sur le disque du serveur
      * et devient illisible des que le compte qui fait tourner Payara change, ou apres une purge.
      */
-    @Column(name = "stack_extrait", length = 4000)
+    @Column(name = "stack_extrait", length = 65536)
     private String stackExtrait;
     @Column(name = "log_ref", length = 500)
     private String logRef;

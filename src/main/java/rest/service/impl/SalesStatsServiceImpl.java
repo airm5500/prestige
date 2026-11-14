@@ -1580,6 +1580,23 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
     }
 
+    /**
+     * Vrai si tous les utilisateurs sont rattaches a cet emplacement (cas d'une officine sans depot) : le filtre par
+     * l'emplacement du vendeur ne retire alors aucune vente.
+     */
+    boolean seulEmplacement(String lgEmplacementId) {
+        try {
+            Number autres = (Number) getEntityManager()
+                    .createNativeQuery(
+                            "SELECT COUNT(*) FROM t_user WHERE lg_EMPLACEMENT_ID IS NULL OR lg_EMPLACEMENT_ID <> ?1")
+                    .setParameter(1, lgEmplacementId).getSingleResult();
+            return autres.longValue() == 0;
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "seulEmplacement", e);
+            return false;
+        }
+    }
+
     List<Predicate> articlesVendusSpecialisation(CriteriaBuilder cb, Root<TPreenregistrementDetail> root,
             Join<TPreenregistrementDetail, TPreenregistrement> jp, Join<TPreenregistrementDetail, TFamille> jf,
             Join<TFamille, TFamilleStock> st, SalesStatsParams param) {
@@ -1593,7 +1610,15 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
         String lgEmplacementId = currentUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         List<Predicate> predicates = new ArrayList<>();
-        predicates.add(cb.equal(jp.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmplacementId));
+        if (seulEmplacement(lgEmplacementId)) {
+            // Rapport d'exploitation du 13/11, point 5 (suggestion 27 s) : quand tous les utilisateurs sont sur cet
+            // emplacement, le filtre par l'emplacement du vendeur ne retire aucune vente, mais sa jointure sur
+            // t_user faisait partir MariaDB des vendeurs (toutes leurs ventes, toutes dates) au lieu de l'index de
+            // date : 4,2 s contre 1,0 s sur 3,5 mois chez appaul, memes lignes. Une vente sans vendeur reste exclue.
+            predicates.add(cb.isNotNull(jp.get(TPreenregistrement_.lgUSERID)));
+        } else {
+            predicates.add(cb.equal(jp.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmplacementId));
+        }
         predicates.add(cb.equal(jp.get(TPreenregistrement_.bISCANCEL), Boolean.FALSE));
         predicates.add(cb.equal(jp.get(TPreenregistrement_.strSTATUT), "is_Closed"));
         predicates.add(cb.greaterThan(jp.get(TPreenregistrement_.intPRICE), 0));

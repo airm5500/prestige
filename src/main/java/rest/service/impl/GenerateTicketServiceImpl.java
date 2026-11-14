@@ -3529,11 +3529,28 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     buildComment(mvtCaisse.getCommentaire()), fileBarecode);
             for (int i = 0; i < numbretiket; i++) {
                 imp.printTicketVente(1);
+                EnvoiSpouleur.Resultat issue = imp.getDerniereIssue();
+                if (issue != null && !issue.isEnvoye()) {
+                    /* rapport d'exploitation du 13/11, point 1 : l'ecran le dit, au lieu d'attendre des heures */
+                    throw new TicketNonImprimeException(issue.getMessage(),
+                            issue.getIssue() == EnvoiSpouleur.Issue.IMPRIMANTE_VIRTUELLE);
+                }
             }
 
+        } catch (TicketNonImprimeException e) {
+            throw e;
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
+            LOG.log(printServiceInconnu(e) ? Level.FINE : Level.SEVERE, null, e);
+            if (printServiceInconnu(e)) {
+                throw new TicketNonImprimeException("Aucune imprimante sur le serveur : le ticket n'est pas imprimé.",
+                        true);
+            }
+            throw new TicketNonImprimeException("Le ticket n'a pas pu être imprimé : " + e.getMessage());
         }
+    }
+
+    private static boolean printServiceInconnu(Exception e) {
+        return e instanceof IllegalStateException && "Imprimante inconnue".equals(e.getMessage());
     }
 
     private List<String> generateData(rest.service.dto.MvtCaisseDTO mvtCaisse) {

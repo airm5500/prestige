@@ -79,6 +79,13 @@ class SupportPoolMonitorTest {
         assertTrue(a.detail.contains("45 connexion"), a.detail);
         assertTrue(a.detail.contains("60 minute"), a.detail);
         assertTrue(a.detail.contains("jconnexion"), a.detail);
+        /*
+         * rapport d'exploitation du 13/11, point 2 : le message ne pretend plus qu'une connexion du pool ne dort
+         * jamais, et renvoie au reglage du pool du poste
+         */
+        assertTrue(!a.detail.contains("ne dort pas"), a.detail);
+        assertTrue(a.detail.contains("steady-pool-size"), a.detail);
+        assertTrue(a.detail.contains("-PoolSeulement"), a.detail);
     }
 
     @Test

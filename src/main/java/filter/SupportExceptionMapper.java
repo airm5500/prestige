@@ -56,11 +56,21 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
         if (refus != null) {
             return refus;
         }
-        LOG.log(Level.SEVERE, "Erreur non gérée dans l'API REST", exception);
+        boolean interrompu = envoiInterrompu(exception);
+        if (interrompu) {
+            LOG.log(Level.FINE, "envoi interrompu par le poste", exception);
+        } else {
+            LOG.log(Level.SEVERE, "Erreur non gérée dans l'API REST", exception);
+        }
         try {
             supportEventService.record(buildEvent(exception), currentUser());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "toResponse: enregistrement de l'événement", e);
+        }
+        if (interrompu) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ResultFactory.getFailResult("Envoi interrompu avant la fin : à refaire."))
+                    .type(MediaType.APPLICATION_JSON).build();
         }
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity(ResultFactory.getFailResult("Une erreur interne est survenue. Le support a été notifié."))
@@ -105,7 +115,7 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
         // Cause racine : une EJBException (ou autre enveloppe) masque presque toujours la vraie erreur.
         // Le message et l'explication portent sur la cause d'origine, pas sur l'enveloppe technique.
         Throwable racine = util.ErreurExplication.causeRacine(exception);
-        dto.setNiveau(exception instanceof Error || racine instanceof Error ? "FATAL" : "ERROR");
+        dto.setNiveau(niveau(exception));
         String uri = request != null ? request.getRequestURI() : "";
         dto.setModule(moduleFromUri(uri));
         dto.setMessageCourt(StringUtils.abbreviate(
@@ -123,6 +133,42 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
         exception.printStackTrace(new PrintWriter(stack));
         dto.setStack(StringUtils.abbreviate("EXPLICATION : " + explication + "\n\n" + stack, 20000));
         return dto;
+    }
+
+    /**
+     * Niveau de l'evenement. Rapport d'exploitation du 13/11, point 10 : un envoi coupe par le poste pendant la lecture
+     * de la requete (EOFException de Grizzly sur {@code support/rum}, onglet ferme, Wi-Fi perdu) etait classe ERROR ;
+     * rien n'est en panne cote serveur : INFO.
+     */
+    static String niveau(Throwable exception) {
+        Throwable racine = util.ErreurExplication.causeRacine(exception);
+        if (exception instanceof Error || racine instanceof Error) {
+            return "FATAL";
+        }
+        return envoiInterrompu(exception) ? "INFO" : "ERROR";
+    }
+
+    /** Vrai si la cause est une connexion coupee par le poste pendant l'echange (et non une panne du serveur). */
+    static boolean envoiInterrompu(Throwable exception) {
+        for (Throwable t = exception; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            String classe = t.getClass().getName();
+            if (classe.endsWith("ClientAbortException") || classe.endsWith("EofException")) {
+                return true;
+            }
+            // fin de flux en lisant la requete du poste (Grizzly) ; une fin de fichier local reste une erreur
+            if (t instanceof java.io.EOFException && t.getStackTrace().length > 0
+                    && t.getStackTrace()[0].getClassName().startsWith("org.glassfish.grizzly")) {
+                return true;
+            }
+            if (t instanceof java.io.IOException && t.getMessage() != null) {
+                String m = t.getMessage();
+                if (m.contains("Connection is closed") || m.contains("Broken pipe") || m.contains("Connection reset")
+                        || m.contains("connexion a été abandonnée") || m.contains("Early EOF")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Contexte metier, best-effort : une erreur de plus ici ne doit pas empecher l'enregistrement de l'evenement. */

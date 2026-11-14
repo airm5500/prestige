@@ -2755,6 +2755,50 @@ window.PrestigeToast = (function () {
 })();
 
 /*
+ * Rapport d'exploitation du 13/11, point 1 : TICKET D'UN MOUVEMENT DE CAISSE. Le serveur n'attend plus le spouleur au-dela
+ * de 20 s et dit pourquoi le ticket n'est pas sorti (hors ligne, file bloquee). Le mouvement, lui, est enregistre :
+ * l'avis le dit et renvoie au bouton « Reimprimer » de la liste des mouvements. Serveur sans imprimante a tickets
+ * (serveur isole de l'officine, imprimante par defaut virtuelle) : c'est normal, aucun avis (sansImprimante). Un seul
+ * appel pour les quatre ecrans qui impriment ce ticket (creation, ouverture de caisse, caution, reimpression).
+ */
+window.PrestigeTicketMvtCaisse = (function () {
+    function avis(texte) {
+        var msg = texte + ' Le mouvement est bien enregistré : réimprimez le ticket depuis « Mouvements de caisse »'
+                + ' (bouton Réimprimer de la ligne).';
+        if (window.PrestigeToast) {
+            PrestigeToast.afficher(msg, {niveau: 'erreur', titre: 'Ticket non imprimé', duree: 15000});
+        } else {
+            Ext.Msg.alert('Ticket non imprimé', Ext.String.htmlEncode(msg));
+        }
+    }
+    /* apres(reponduParLeServeur) : la suite de l'ecran appelant, comme avant */
+    function imprimer(mvtCaisseId, apres) {
+        Ext.Ajax.request({
+            method: 'GET',
+            timeout: 60000,
+            url: '../api/v1/caisse/ticke-mvt-caisse?mvtCaisseId=' + encodeURIComponent(mvtCaisseId),
+            success: function (reponse) {
+                var r = Ext.JSON.decode(reponse.responseText, true);
+                /* serveur sans imprimante a tickets (serveur isole) : c'est normal, rien a signaler (14/11) */
+                if (r && r.success === false && !r.sansImprimante) {
+                    avis(r.msg || 'Le ticket n\'a pas pu être imprimé.');
+                }
+                if (apres) {
+                    apres(true); // le serveur a repondu (ticket sorti ou non : l'avis l'a dit)
+                }
+            },
+            failure: function (reponse) {
+                avis('Le serveur n\'a pas répondu (' + reponse.status + (reponse.statusText ? ' ' + reponse.statusText : '') + ').');
+                if (apres) {
+                    apres(false);
+                }
+            }
+        });
+    }
+    return {imprimer: imprimer};
+})();
+
+/*
  * Plan du 08/11, point 18 : motif obligatoire d'une annulation ou d'une modification de vente. Un menu ancre sur l'icone
  * (pas de fenetre) liste les motifs ; « Autre » demande un texte. Avec « confirmer », le premier clic sur un motif
  * l'affiche en rouge (« Confirmer … (motif) ? »), le second (apres 400 ms) valide ; sans « confirmer », un clic suffit.
@@ -2850,7 +2894,8 @@ window.PrestigeMotifVente = (function () {
 
 /*
  * Transmission du 07/11 (point 3) : RETOURS FOURNISSEURS EN ATTENTE, SIGNAL AU VALIDEUR. Seuls les profils qui ont
- * P_VALIDER_RETOUR_FRS le voient (la route repond 403 aux autres : rien n'est affiche) :
+ * P_VALIDER_RETOUR_FRS le voient. Aux autres, la route repond {autorise:false} (et non plus 403, qui devenait un
+ * evenement FRONTEND a chaque connexion : 53 le 13/11) : rien n'est affiche et le compteur n'est plus interroge.
  *  - pastille avec le nombre sur l'entree de menu « Retours fournisseurs » (noeud 'retourfrsmanager') ;
  *  - a la connexion, un avis discret et non bloquant (choix 3 du 08/11) ; un clic ouvre la liste filtree sur « En
  *    attente de validation » ;
@@ -2858,7 +2903,7 @@ window.PrestigeMotifVente = (function () {
  */
 window.PrestigeRetoursAttente = (function () {
     var NOEUD = 'retourfrsmanager', URL = '../api/v1/retourfournisseur/en-attente/nombre';
-    var nombre = null, avisMontre = false, essais = 0;
+    var nombre = null, avisMontre = false, essais = 0, minuterie = null, nonAutorise = false;
     /* arbre du menu (navigation) qui contient l'entree des retours */
     function noeuds() {
         var l = [];
@@ -2985,10 +3030,23 @@ window.PrestigeRetoursAttente = (function () {
         }
     }
     function actualiser() {
+        if (nonAutorise) {
+            return;
+        }
         Ext.Ajax.request({
             url: URL, method: 'GET',
             success: function (r) {
                 var o = Ext.JSON.decode(r.responseText, true) || {};
+                if (o.success && o.autorise === false) {
+                    /* pas valideur : aucun signal, et plus d'interrogation jusqu'a la prochaine connexion */
+                    nonAutorise = true;
+                    nombre = null;
+                    if (minuterie) {
+                        clearInterval(minuterie);
+                        minuterie = null;
+                    }
+                    return;
+                }
                 if (o.success) {
                     nombre = o.nombre || 0;
                     poser();
@@ -3010,7 +3068,7 @@ window.PrestigeRetoursAttente = (function () {
             return;
         }
         actualiser();
-        setInterval(actualiser, 5 * 60 * 1000);
+        minuterie = setInterval(actualiser, 5 * 60 * 1000);
         /* menu flottant d'un menu parent : la pastille est posee sur l'entree des retours a chaque ouverture */
         if (Ext.util.Observable.observe && Ext.menu && Ext.menu.Menu) {
             Ext.util.Observable.observe(Ext.menu.Menu, {

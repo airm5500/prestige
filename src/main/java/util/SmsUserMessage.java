@@ -28,6 +28,11 @@ public final class SmsUserMessage {
         String c = StringUtils.trimToEmpty(code);
         String m = StringUtils.lowerCase(StringUtils.trimToEmpty(orangeMessage));
 
+        // Forfait expiré (Orange : POL0001 « Expired contract », le 12/11) : rien à corriger dans Prestige.
+        if (rest.service.impl.SmsCoupeCircuit.contratExpire(orangeMessage)) {
+            return "Forfait SMS Orange expiré : le renouveler auprès d'Orange. Le SMS n'a pas été envoyé.";
+        }
+
         // Crédit / bundle épuisé : cas le plus important côté métier.
         if (m.contains("consumed all available units") || m.contains("buy a new bundle")
                 || m.contains("reactivate your contract") || m.contains("out of quota") || m.contains("insufficient")

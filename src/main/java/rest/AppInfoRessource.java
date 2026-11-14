@@ -39,8 +39,12 @@ public class AppInfoRessource {
         }
         HttpSession s = requete.getSession(false);
         boolean connecte = s != null && s.getAttribute(Constant.AIRTIME_USER) instanceof TUser;
+        // Rapport du 13/11, point 4 : tant que le prechauffage n'est pas fini, la page affiche « Demarrage en cours »
+        // et garde la connexion demandee jusqu'a ce qu'il le soit (aucun detail technique : page sans session)
         return Response
-                .ok(new JSONObject().put("nom", nom).put("version", version).put("connecte", connecte).toString())
+                .ok(new JSONObject().put("nom", nom).put("version", version).put("connecte", connecte)
+                        .put("pret", util.EtatDemarrage.pret())
+                        .put("demarrageSecondes", util.EtatDemarrage.dureeMs() / 1000).toString())
                 .header("Cache-Control", "no-store").build();
     }
 }

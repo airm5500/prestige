@@ -93,6 +93,10 @@
               <span>Se connecter avec mon badge</span>
             </button>
 
+            <!-- Rapport d'exploitation du 13/11, point 4 : prechauffage du serveur en cours -->
+            <p id="pl-demarrage" role="status" aria-live="polite" hidden
+               style="margin:10px 0 0;padding:8px 12px;border-radius:8px;background:#eef4fb;color:#1d3c63;font-size:13px;line-height:1.4;"></p>
+
             <p id="pl-message" class="pl-message" role="alert" aria-live="assertive" hidden
                style="margin:10px 0 0;padding:8px 12px;border-radius:8px;background:#fdecea;color:#8a1c12;font-size:13px;line-height:1.4;"></p>
 
@@ -644,8 +648,65 @@
         var marque = document.querySelector('.pl-brand__text');
         if (marque && window.prestigeAnimerMarque) { window.prestigeAnimerMarque(nom); }
         else if (marque) { marque.textContent = nom; }
+        if (i.pret === false && window.prestigeDemarrage) { window.prestigeDemarrage.suivre(); }
       })
       .catch(function () { /* la page reste utilisable avec « Prestige » */ });
+  })();
+  </script>
+
+  <!-- Rapport d'exploitation du 13/11, point 4 : apres le demarrage du serveur, les premieres connexions prenaient 6 a
+       16 s pendant son prechauffage. Tant qu'il dure, la page le dit ; une connexion demandee part des qu'il est fini
+       (au plus tard apres 2 minutes, pour ne jamais bloquer). Aucune fenetre. -->
+  <script>
+  (function () {
+    var zone = document.getElementById('pl-demarrage');
+    var bouton = document.querySelector('#login span');
+    var libelle = bouton ? bouton.textContent : '';
+    var LIMITE_MS = 120000;
+    var etat = window.prestigeDemarrage = { pret: true, attente: null, debut: 0 };
+    function afficher(texte) {
+      zone.textContent = texte || '';
+      zone.hidden = !texte;
+    }
+    function fini() {
+      etat.pret = true;
+      if (bouton) { bouton.textContent = libelle; }
+      var a = etat.attente;
+      etat.attente = null;
+      if (a) {
+        afficher('Serveur prêt : connexion…');
+        window.authenticate(a[0], a[1]);
+      } else {
+        afficher('Serveur prêt.');
+        setTimeout(function () { if (zone.textContent === 'Serveur prêt.') { afficher(''); } }, 4000);
+      }
+    }
+    function interroger() {
+      if (etat.pret) { return; }
+      if (Date.now() - etat.debut > LIMITE_MS) { fini(); return; }
+      fetch('../api/v1/app/info', { cache: 'no-store', credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (i) {
+          if (i && i.pret !== false) { fini(); return; }
+          setTimeout(interroger, 1000);
+        })
+        .catch(function () { setTimeout(interroger, 1000); });
+    }
+    etat.suivre = function () {
+      if (!etat.pret) { return; }
+      etat.pret = false;
+      etat.debut = Date.now();
+      if (bouton) { bouton.textContent = 'Démarrage en cours…'; }
+      afficher('Démarrage du serveur en cours : vous pouvez saisir vos identifiants, la connexion partira dès qu’il sera prêt.');
+      setTimeout(interroger, 1000);
+    };
+    /* appelee par authenticate (app/controler.js) : vrai si la connexion est mise en attente */
+    etat.retenir = function (login, motDePasse) {
+      if (etat.pret) { return false; }
+      etat.attente = [login, motDePasse];
+      afficher('Démarrage du serveur en cours : votre connexion partira dès qu’il sera prêt.');
+      return true;
+    };
   })();
   </script>
 </body>

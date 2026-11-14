@@ -582,14 +582,8 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
         if (!mvtCaisseId) {
             return;
         }
-        Ext.Ajax.request({
-            method: 'GET',
-            url: '../api/v1/caisse/ticke-mvt-caisse?mvtCaisseId=' + encodeURIComponent(mvtCaisseId),
-            failure: function (response) {
-                Ext.MessageBox.alert('Reedition du ticket',
-                        "Le ticket n'a pas pu etre reedite : " + response.status + ' ' + response.statusText);
-            }
-        });
+        /* rapport d'exploitation du 13/11, point 1 : delai borne et avis « Ticket non imprime » */
+        PrestigeTicketMvtCaisse.imprimer(mvtCaisseId);
     },
     modifyClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);

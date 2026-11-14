@@ -1,5 +1,6 @@
 package rest.service.impl;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -53,13 +54,31 @@ public class SmsCoupeCircuit {
     private static final Set<String> CODES_CONFIGURATION = new HashSet<>(Arrays.asList("POL0001", "POL0002", "POL0004",
             "POL0006", "POL0011", "POL1009", "INVALID_CLIENT", "INVALID_GRANT", "HTTP_404"));
 
+    /** Motif reconnu dans le texte de l'operateur, quel que soit son code (rapport du 13/11, point 6). */
+    static final String CONTRAT_EXPIRE = "CONTRAT_EXPIRE";
+
+    private final Clock horloge;
     private int refusConsecutifs;
     private String dernierCode;
     private LocalDateTime suspenduJusqua;
+    /**
+     * Vrai depuis la premiere suspension de la panne en cours, jusqu'au premier envoi accepte. Sert a deux choses : la
+     * consigne n'est ecrite qu'une fois par panne (le 13/11 : 11 suspensions, 11 evenements identiques), et a la
+     * reprise un seul envoi d'essai refuse suffit a suspendre de nouveau.
+     */
+    private boolean panneSignalee;
+
+    public SmsCoupeCircuit() {
+        this(Clock.systemDefaultZone());
+    }
+
+    SmsCoupeCircuit(Clock horloge) {
+        this.horloge = horloge;
+    }
 
     /** Vrai si les envois sont actuellement suspendus. */
     public boolean suspendu() {
-        return suspenduJusqua != null && LocalDateTime.now().isBefore(suspenduJusqua);
+        return suspenduJusqua != null && LocalDateTime.now(horloge).isBefore(suspenduJusqua);
     }
 
     /** Instant de reprise, ou {@code null} si le circuit est ferme. */
@@ -79,25 +98,39 @@ public class SmsCoupeCircuit {
      *         chaque tentative
      */
     public boolean enregistrerRefus(String code) {
-        if (!erreurDeConfiguration(code)) {
+        return enregistrerRefus(code, null);
+    }
+
+    /**
+     * Enregistre un refus, avec le texte de l'operateur (pour reconnaitre un contrat expire sous un code generique).
+     *
+     * @return vrai UNIQUEMENT a la premiere suspension de la panne : la consigne est ecrite une fois, et non a chaque
+     *         reprise horaire
+     */
+    public synchronized boolean enregistrerRefus(String code, String messageOperateur) {
+        if (!erreurDeConfiguration(code, messageOperateur)) {
             // Un refus passager ne doit pas rapprocher le circuit de la coupure : le compteur repart de zero.
             refusConsecutifs = 0;
             return false;
         }
         dernierCode = StringUtils.trimToEmpty(code);
         refusConsecutifs++;
-        if (refusConsecutifs >= SEUIL && !suspendu()) {
-            suspenduJusqua = LocalDateTime.now().plusMinutes(REPOS_MINUTES);
-            return true;
+        // A la reprise d'une panne deja constatee, l'envoi d'essai refuse suffit : inutile d'en gacher deux de plus.
+        if ((refusConsecutifs >= SEUIL || panneSignalee) && !suspendu()) {
+            suspenduJusqua = LocalDateTime.now(horloge).plusMinutes(REPOS_MINUTES);
+            boolean premiere = !panneSignalee;
+            panneSignalee = true;
+            return premiere;
         }
         return false;
     }
 
     /** Un envoi accepte referme le circuit : la configuration fonctionne. */
-    public void enregistrerSucces() {
+    public synchronized void enregistrerSucces() {
         refusConsecutifs = 0;
         dernierCode = null;
         suspenduJusqua = null;
+        panneSignalee = false;
     }
 
     // ------------------------------------------------------------------
@@ -108,6 +141,18 @@ public class SmsCoupeCircuit {
     static boolean erreurDeConfiguration(String code) {
         String normalise = StringUtils.trimToEmpty(code).toUpperCase(Locale.ROOT);
         return !normalise.isEmpty() && CODES_CONFIGURATION.contains(normalise);
+    }
+
+    /** Idem, en reconnaissant aussi un contrat expire d'apres le texte de l'operateur. */
+    static boolean erreurDeConfiguration(String code, String messageOperateur) {
+        return erreurDeConfiguration(code) || contratExpire(messageOperateur);
+    }
+
+    /** Vrai si l'operateur dit que le contrat (le forfait SMS) a expire : « Expired contract » chez Orange. */
+    public static boolean contratExpire(String messageOperateur) {
+        String m = StringUtils.lowerCase(StringUtils.trimToEmpty(messageOperateur), Locale.ROOT);
+        return m.contains("expired contract") || m.contains("contract expired") || m.contains("contract has expired")
+                || m.contains("contrat expir");
     }
 
     /**
@@ -124,14 +169,20 @@ public class SmsCoupeCircuit {
         if (StringUtils.isNotBlank(messageOperateur)) {
             sb.append(" - ").append(messageOperateur.trim());
         }
-        sb.append("\n\nA verifier chez l'operateur, dans cet ordre :\n").append(pistes(normalise));
+        sb.append("\n\nA verifier chez l'operateur, dans cet ordre :\n")
+                .append(pistes(contratExpire(messageOperateur) ? CONTRAT_EXPIRE : normalise));
         sb.append("\nLes envois reprennent d'eux-memes des que la configuration est corrigee :"
-                + " aucun redemarrage n'est necessaire.");
+                + " aucun redemarrage n'est necessaire. Tant que la panne dure, un seul envoi d'essai est tente"
+                + " par heure et cette consigne n'est pas repetee.");
         return sb.toString();
     }
 
     private static String pistes(String code) {
         switch (code) {
+        case CONTRAT_EXPIRE:
+            return "1. Forfait SMS Orange expiré : le renouveler sur le portail Orange Developer (ou auprès du"
+                    + " commercial Orange).\n2. Rien a changer dans Prestige : les envois reprennent au premier"
+                    + " SMS accepte.\n";
         case "POL1009":
             return "1. L'application n'est pas souscrite a l'API SMS : souscrire l'offre sur le portail de"
                     + " l'operateur.\n2. Verifier que la cle utilisee appartient bien a cette application.\n";
@@ -153,6 +204,13 @@ public class SmsCoupeCircuit {
     }
 
     /** Message court de l'evenement, celui que l'exploitant voit dans la liste du Centre de Support. */
+    static String messageCourt(String fournisseur, String code, String messageOperateur) {
+        if (contratExpire(messageOperateur)) {
+            return "Forfait SMS Orange expiré : le renouveler (envois SMS suspendus)";
+        }
+        return messageCourt(fournisseur, code);
+    }
+
     static String messageCourt(String fournisseur, String code) {
         String normalise = StringUtils.trimToEmpty(code).toUpperCase(Locale.ROOT);
         return "Envois SMS suspendus " + REPOS_MINUTES + " min : configuration refusee par "

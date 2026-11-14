@@ -91,6 +91,9 @@ public class ImpressionServiceImpl implements Printable {
      * l'imprimante. Null en impression normale.
      */
     private java.util.function.Consumer<TicketDocument> apercu;
+
+    /** Issue du dernier envoi au spouleur (null tant que rien n'a ete envoye) : voir {@link EnvoiSpouleur}. */
+    private EnvoiSpouleur.Resultat derniereIssue;
     private int hauteurEnCours;
     private boolean showCodeBar;
     private TImprimante oTImprimante;
@@ -378,6 +381,10 @@ public class ImpressionServiceImpl implements Printable {
         this.intBegin = intBegin;
     }
 
+    public EnvoiSpouleur.Resultat getDerniereIssue() {
+        return derniereIssue;
+    }
+
     public PrintService getService() {
         return service;
     }
@@ -439,10 +446,33 @@ public class ImpressionServiceImpl implements Printable {
             }
             printerjob.setPrintable(this, pageFormat);
             long t1 = System.nanoTime();
+            /*
+             * rapport d'exploitation du 13/11, point 1 : delai maximal. Un pilote qui ne rend pas la main (imprimante
+             * virtuelle, hors ligne, file bloquee) figeait le fil HTTP et sa connexion pendant des heures.
+             */
+            final PrinterJob travail = printerjob;
+            final PrintRequestAttributeSet attributs = printRequestAttributeSet;
+            final PrinterException[] erreur = new PrinterException[1];
             try {
-                printerjob.print(printRequestAttributeSet);
+                derniereIssue = EnvoiSpouleur.instance().envoyer(service == null ? null : service.getName(), () -> {
+                    try {
+                        travail.print(attributs);
+                    } catch (PrinterException e) {
+                        erreur[0] = e;
+                        throw e;
+                    }
+                    return null;
+                }, EnvoiSpouleur.DELAI_MS);
             } finally {
                 MesureImpression.etape(MesureImpression.ENVOI_SPOULEUR, t1);
+            }
+            if (erreur[0] != null) {
+                throw erreur[0]; // comme avant : l'appelant journalise l'echec du pilote
+            }
+            if (!derniereIssue.isEnvoye()) {
+                /* un serveur isole n'a qu'une imprimante virtuelle : c'est normal, rien a signaler */
+                LOG.log(derniereIssue.getIssue() == EnvoiSpouleur.Issue.IMPRIMANTE_VIRTUELLE ? Level.FINE
+                        : Level.WARNING, "Ticket non imprime : {0}", derniereIssue);
             }
         }
 

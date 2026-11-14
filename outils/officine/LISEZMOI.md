@@ -20,6 +20,13 @@ Règles communes :
 | 5 | `5-planifier.ps1 -CopieVers E:\Sauvegardes` | une fois | aucun |
 | 6 | désactiver l'ancienne tâche `SAUVEGARDE_COMPRESSION.bat`, que `5-planifier.ps1` signale | après une journée de sauvegardes vérifiées | aucun |
 | 7 | `6-essai-restauration.ps1 -Base laborex_v1_db -OptionsCible <instance d'essai>` | chaque mois | aucun (autre serveur) |
+| 8 | `7-service-payara.ps1 -Installer`, sur le serveur **et sur chaque caisse qui a son propre Payara** | hors des heures d'ouverture | Payara redémarre en service Windows, puis démarre avec le PC |
+
+**`7-service-payara.ps1`** (rapport d'exploitation du 13/11, point 4) : sans option, il affiche seulement l'état
+(service, démarrage automatique, relance si arrêt). `-Installer` crée le service (`asadmin create-service`), le règle en
+démarrage automatique avec relance une minute après un arrêt, arrête le domaine lancé à la main et démarre le service.
+`-Retirer` revient au lancement à la main. Payara est ainsi prêt avant l'arrivée de la caissière ; si elle se connecte
+pendant le préchauffage, la page de connexion affiche « Démarrage en cours » et sa connexion part dès qu'il est fini.
 
 `E:\` désigne ici un **autre disque** que celui de la base (second disque, clé USB, NAS) : une panne du disque de la
 base ne doit pas emporter ses sauvegardes.
