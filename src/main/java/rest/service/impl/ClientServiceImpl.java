@@ -325,9 +325,20 @@ public class ClientServiceImpl implements ClientService {
             Query q = emg.createQuery(cq);
             q.setMaxResults(100);
             List<TClient> resultat = q.getResultList();
-
-            return resultat.stream().map(cl -> new ClientDTO(cl, findTiersPayantByClientId(cl.getLgCLIENTID()),
-                    findAyantDroitByClientId(cl.getLgCLIENTID()))).collect(Collectors.toList());
+            /*
+             * demande du 13/11 (lenteur de la recherche a la vente assurance ou carnet) : tiers-payants et ayants droit
+             * lus en deux requetes pour tous les clients trouves, au lieu de deux requetes PAR client (jusqu'a 201
+             * requetes pour 100 clients, a chaque recherche). Memes regles que findTiersPayantByClientId et
+             * findAyantDroitByClientId : liens actifs vers un organisme actif, tries par priorite ; ayants droit
+             * actifs.
+             */
+            List<String> ids = resultat.stream().map(TClient::getLgCLIENTID).collect(Collectors.toList());
+            Map<String, List<TiersPayantParams>> tiersPayants = tiersPayantsDesClients(emg, ids);
+            Map<String, List<AyantDroitDTO>> ayantsDroit = ayantsDroitDesClients(emg, ids);
+            return resultat.stream()
+                    .map(cl -> new ClientDTO(cl, tiersPayants.getOrDefault(cl.getLgCLIENTID(), new ArrayList<>()),
+                            ayantsDroit.getOrDefault(cl.getLgCLIENTID(), new ArrayList<>())))
+                    .collect(Collectors.toList());
         } catch (RuntimeException e) {
             // etape 5 : une erreur de lecture n'est plus une liste vide (« aucun client ») ; l'ecran la signale
             LOG.log(Level.SEVERE, "recherche des clients assures", e);
@@ -335,6 +346,44 @@ public class ClientServiceImpl implements ClientService {
                     "La recherche des clients a échoué : réessayez ; si l'erreur revient," + " signalez-la au support.",
                     e);
         }
+    }
+
+    /** Tiers-payants actifs (organisme actif) des clients, par client, tries par priorite : une seule requete. */
+    private Map<String, List<TiersPayantParams>> tiersPayantsDesClients(EntityManager emg, List<String> ids) {
+        Map<String, List<TiersPayantParams>> parClient = new HashMap<>();
+        if (ids.isEmpty()) {
+            return parClient;
+        }
+        TypedQuery<TCompteClientTiersPayant> query = emg.createQuery(
+                "SELECT o FROM TCompteClientTiersPayant o JOIN FETCH o.lgTIERSPAYANTID t JOIN FETCH o.lgCOMPTECLIENTID c"
+                        + " WHERE c.lgCLIENTID.lgCLIENTID IN :ids AND o.strSTATUT = :statut AND t.strSTATUT = :statut",
+                TCompteClientTiersPayant.class);
+        query.setParameter("ids", ids);
+        query.setParameter("statut", Constant.STATUT_ENABLE);
+        for (TCompteClientTiersPayant o : query.getResultList()) {
+            parClient.computeIfAbsent(o.getLgCOMPTECLIENTID().getLgCLIENTID().getLgCLIENTID(), k -> new ArrayList<>())
+                    .add(new TiersPayantParams(o));
+        }
+        parClient.values().forEach(l -> l.sort(comparator));
+        return parClient;
+    }
+
+    /** Ayants droit actifs des clients, par client : une seule requete. */
+    private Map<String, List<AyantDroitDTO>> ayantsDroitDesClients(EntityManager emg, List<String> ids) {
+        Map<String, List<AyantDroitDTO>> parClient = new HashMap<>();
+        if (ids.isEmpty()) {
+            return parClient;
+        }
+        TypedQuery<TAyantDroit> query = emg.createQuery(
+                "SELECT o FROM TAyantDroit o WHERE o.lgCLIENTID.lgCLIENTID IN :ids AND o.strSTATUT = :statut",
+                TAyantDroit.class);
+        query.setParameter("ids", ids);
+        query.setParameter("statut", Constant.STATUT_ENABLE);
+        for (TAyantDroit o : query.getResultList()) {
+            parClient.computeIfAbsent(o.getLgCLIENTID().getLgCLIENTID(), k -> new ArrayList<>())
+                    .add(new AyantDroitDTO(o));
+        }
+        return parClient;
     }
 
     /** Erreur de lecture des clients ou de leurs tiers-payants, signalee a l'ecran au lieu d'une liste vide. */
