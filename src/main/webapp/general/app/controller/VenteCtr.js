@@ -1183,18 +1183,54 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.rafraichirColonnesReferenceTp();
         me.rafraichirColonneComptant(typevente);
     },
+    /**
+     * Demande du 14/11 : texte du bouton « Au comptant » quand il retire le client d'une vente assurance ou carnet en
+     * cours (premier clic) ; rien sinon (le choix s'applique tout de suite, comme avant).
+     */
+    confirmationTypeVente: function (valeur, courant) {
+        const me = this;
+        /* image du 14/11 : sans client sur la vente, rien a retirer : pas de question, la bascule est immediate */
+        if (valeur === '1' && (courant === '2' || courant === '3') && me.getCurrent() && me.getClient()) {
+            return 'Retirer le client et passer au comptant ?';
+        }
+        return null;
+    },
+
+    /* vente passee au comptant par le serveur : plus aucune donnee du client ni de ses tiers-payants a l'ecran */
+    viderDonneesAssurance: function () {
+        const me = this;
+        me.client = null;
+        me.ayantDroit = null;
+        me.getTpContainerForm().removeAll();
+        me.updateAssurerResetCmp();
+        me.updateAyantDroitResetCmp();
+        me.restetRemiseCmb(null);
+        me.hideAssureContainer();
+        me.getMontantRecu().enable();
+        me.getMontantRecu().setReadOnly(false);
+        me.refresh();
+    },
+
     modifierTypeVente: function (newValue, venteId, field) {
         const me = this;
+        const viderAssurance = field.confirmationDonnee === newValue;
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/vente/modifiertypevente/' + venteId,
-            params: Ext.JSON.encode({typeVenteId: newValue}),
+            params: Ext.JSON.encode({typeVenteId: newValue, viderAssurance: viderAssurance}),
             success: function (response, options) {
                 progress.hide();
                 const result = Ext.JSON.decode(response.responseText, true);
                 const dataRetour = result.typeVenteId;
+                if (result.success && result.assuranceVidee) {
+                    field.setValue(dataRetour);
+                    me.resetTitle(dataRetour);
+                    me.viderDonneesAssurance();
+                    me.getVnoproduitCombo().focus(true, 100);
+                    return;
+                }
                 if (result.success) {
                     me.showAssureContainer(dataRetour);
                     // audit 05 PR-01 : lignes en promotion revenues au prix public (pas de promotion en assurance)
@@ -1204,6 +1240,15 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.refresh();
                     }
                     me.getClientSearchTextField().focus(true, 50);
+                } else if (result.code === 'CONFIRMATION_REQUISE') {
+                    /* le serveur voit un client sur la vente (l'ecran n'en montrait pas) : la question passe dans le
+                       bouton, comme d'habitude, au lieu d'une fenetre */
+                    field.setValue(dataRetour);
+                    const segments = field.findPlugin('segments');
+                    if (segments) {
+                        segments.armer(newValue, 'Retirer le client et passer au comptant ?');
+                    }
+                    return;
                 } else {
                     Ext.Msg.alert("Message", result.msg);
 
@@ -5369,6 +5414,9 @@ Ext.define('testextjs.controller.VenteCtr', {
         let clientwin;
         let me = this,
                 typeVenteCombo = me.getTypeVenteCombo().getValue();
+        /* video du 13/11 : une CREATION, jamais la modification d'un client ouvert auparavant (sinon le client cree
+           n'etait pas rattache a la vente : « Client absent de cette vente ») */
+        me.ancienTierspayant = null;
         if (typeVenteCombo === '2') {
             clientwin = Ext.create('testextjs.view.vente.user.addClientAssurance');
             clientwin.show();
@@ -5490,11 +5538,15 @@ Ext.define('testextjs.controller.VenteCtr', {
                         if (result.success) {
                             me.onBtnCancelAssClient();
                             let recordR = new testextjs.model.caisse.ClientAssurance(result.data);
-                            me.client = recordR;
-                            if (me.getCurrent()) {
+                            if (me.getCurrent() && !me.getAncienTierspayant()) {
+                                /* video du 13/11 : client CREE alors que la vente existe deja (produit saisi avant) :
+                                   il est rattache a la vente comme un client trouve par la recherche */
+                                me.choisirClientAssurance(recordR);
+                            } else if (me.getCurrent()) {
+                                me.client = recordR;
                                 me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
-
                             } else {
+                                me.client = recordR;
                                 me.onNewClientAssurance();
                             }
 
@@ -5648,6 +5700,11 @@ Ext.define('testextjs.controller.VenteCtr', {
                         if (result.success) {
                             me.onBtnCancelCarnet();
                             let clientR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            if (me.getCurrent() && !me.getAncienTierspayant()) {
+                                /* video du 13/11 : client carnet CREE sur une vente deja commencee : rattache a la vente */
+                                me.choisirClientAssurance(clientR);
+                                return;
+                            }
                             me.client = clientR;
                             if (me.getCurrent()) {
                                 if (me.getAncienTierspayant() && me.getAncienTierspayant() !== record.get('lgTIERSPAYANTID')) {

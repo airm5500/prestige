@@ -9,7 +9,10 @@
  * sont repris a l'ecran, et un combo en lecture seule ou desactive rend les boutons inactifs.
  *
  * Options : libelles (valeur -> texte affiche), exclure (valeurs a ne pas proposer), pastille (point clignotant sur le
- * bouton actif).
+ * bouton actif), confirmer (demande du 14/11) : fonction (valeur visee, valeur courante) qui rend le texte de
+ * confirmation quand le choix a des consequences, ou rien. Le premier clic ne change rien : le bouton vise affiche ce
+ * texte (aucune fenetre) ; un second clic dans les 6 secondes confirme. Le combo porte alors confirmationDonnee
+ * (= la valeur) pendant le 'select', pour que le controleur sache que l'operateur a confirme.
  */
 Ext.define('testextjs.view.vente.Segments', {
     extend: 'Ext.AbstractPlugin',
@@ -17,6 +20,8 @@ Ext.define('testextjs.view.vente.Segments', {
     libelles: null,
     exclure: null,
     pastille: false,
+    confirmer: null,
+    arme: null,
 
     init: function (combo) {
         var me = this;
@@ -69,11 +74,12 @@ Ext.define('testextjs.view.vente.Segments', {
             if (me.exclure && me.exclure.indexOf(v) >= 0 && v !== courant) {
                 return;
             }
-            var actif = v === courant;
-            html.push('<button type="button" class="seg-bouton' + (actif ? ' seg-actif' : '') + '" role="radio" aria-checked="'
-                    + actif + '" data-valeur="' + Ext.String.htmlEncode(v) + '"' + (inactif ? ' disabled' : '') + '>'
+            var actif = v === courant, arme = v === me.arme;
+            html.push('<button type="button" class="seg-bouton' + (actif ? ' seg-actif' : '') + (arme ? ' seg-confirmer' : '')
+                    + '" role="radio" aria-checked="' + actif + '" data-valeur="' + Ext.String.htmlEncode(v) + '"'
+                    + (inactif ? ' disabled' : '') + '>'
                     + (actif && me.pastille ? '<span class="seg-point"></span>' : '')
-                    + Ext.String.htmlEncode(me.libelle(rec)) + '</button>');
+                    + Ext.String.htmlEncode(arme ? me.texteArme : me.libelle(rec)) + '</button>');
         });
         me.zone.update(html.join(''));
         /* Le combo prend la largeur de ses boutons : l'espacement avec le champ suivant reste celui de la marge. */
@@ -98,7 +104,44 @@ Ext.define('testextjs.view.vente.Segments', {
         if (!rec) {
             return;
         }
-        combo.setValue(rec.get(combo.valueField));
-        combo.fireEvent('select', combo, [rec]);
+        // second clic sur un bouton arme (par le premier clic ou par le controleur) : c'est la confirmation
+        var confirme = me.arme === valeur;
+        var texte = !confirme && me.confirmer ? me.confirmer(valeur, String(combo.getValue())) : null;
+        if (texte) {
+            me.armer(valeur, texte);
+            return;
+        }
+        me.desarmer(true);
+        combo.confirmationDonnee = confirme ? valeur : null;
+        try {
+            combo.setValue(rec.get(combo.valueField));
+            combo.fireEvent('select', combo, [rec]);
+        } finally {
+            combo.confirmationDonnee = null;
+        }
+    },
+
+    /* premier clic d'un choix a consequences : le bouton affiche la question, un second clic confirme */
+    armer: function (valeur, texte) {
+        var me = this;
+        me.arme = valeur;
+        me.texteArme = texte;
+        clearTimeout(me.minuteur);
+        me.minuteur = setTimeout(function () {
+            me.desarmer();
+        }, 6000);
+        me.dessiner();
+    },
+
+    desarmer: function (sansDessin) {
+        var me = this;
+        clearTimeout(me.minuteur);
+        if (me.arme === null) {
+            return;
+        }
+        me.arme = null;
+        if (!sansDessin) {
+            me.dessiner();
+        }
     }
 });

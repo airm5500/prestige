@@ -335,7 +335,13 @@ Ext.define('testextjs.view.vente.VenteView', {
                             displayField: 'strNAME',
                             typeAhead: false,
                             queryMode: 'remote',
-                            plugins: [{ptype: 'segments', pastille: true, libelles: {'1': 'Au comptant', '2': 'Assurance', '3': 'Carnet'}}],
+                            plugins: [{ptype: 'segments', pastille: true, libelles: {'1': 'Au comptant', '2': 'Assurance', '3': 'Carnet'},
+                                    /* demande du 14/11 : passer au comptant une vente assurance ou carnet se confirme
+                                       dans le bouton (le client et ses tiers-payants sont retires) */
+                                    confirmer: function (valeur, courant) {
+                                        var c = testextjs.app.getController('VenteCtr');
+                                        return c && c.confirmationTypeVente ? c.confirmationTypeVente(valeur, courant) : null;
+                                    }}],
                             emptyText: 'Choisir un type de vente...'
                         },
                         {xtype: 'component', cls: 'seg-lib', html: 'Nature', margin: '0 10 0 16'},

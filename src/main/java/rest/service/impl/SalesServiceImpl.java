@@ -5186,8 +5186,20 @@ public class SalesServiceImpl implements SalesService {
 
             TTypeVente oldType = p.getLgTYPEVENTEID();
             if ((p.getStrTYPEVENTE().equals(VENTE_ASSURANCE)) && (params.getTypeVenteId().equals(VENTE_COMPTANT_ID))) {
-                return new JSONObject().put("success", false)
-                        .put("msg", "Imposible de modifier une vente assurance en vente au comptant")
+                /*
+                 * image du 14/11 : vente encore sans client (produit au comptant, « Assurance », retour aussitot) :
+                 * rien a retirer, la bascule est immediate, sans question
+                 */
+                if (params.isViderAssurance()
+                        || (p.getClient() == null && getTPreenregistrementCompteClientTiersPayent(venteId).isEmpty())) {
+                    return passerAuComptant(venteId);
+                }
+                /*
+                 * demande du 14/11 : le passage au comptant n'est plus refuse ; il se confirme dans le bouton (l'ecran
+                 * renvoie viderAssurance), parce qu'il retire le client et ses tiers-payants de la vente
+                 */
+                return new JSONObject().put("success", false).put("code", "CONFIRMATION_REQUISE")
+                        .put("msg", "Passer au comptant retire le client et ses tiers-payants de la vente : confirmez.")
                         .put("typeVenteId", oldType.getLgTYPEVENTEID());
             }
             if (oldType.getLgTYPEVENTEID().equals(params.getTypeVenteId())) {
@@ -5207,6 +5219,40 @@ public class SalesServiceImpl implements SalesService {
             return new JSONObject().put("success", false).put("msg", "Imposible de modifier la vente ")
                     .put("typeVenteId", VENTE_COMPTANT_ID);
         }
+    }
+
+    /**
+     * Demande du 14/11 (« basculer sans residu de donnees credit ») : une vente assurance ou carnet passe au comptant.
+     * Retire, en une fois et sous le verrou de la vente : les lignes de tiers-payant (parts, bons), le client, l'ayant
+     * droit et les noms recopies sur la vente, les prix de reference saisis a la caisse pour cette vente et le
+     * tiers-payant « premier » marque sur ses lignes. Les produits, quantites et prix restent.
+     */
+    private JSONObject passerAuComptant(String venteId) throws JSONException {
+        TPreenregistrement op = getEm().find(TPreenregistrement.class, venteId,
+                javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (op == null) {
+            return new JSONObject().put("success", false)
+                    .put("msg", "Cette vente n'existe plus : actualisez l'écran de vente.")
+                    .put("typeVenteId", VENTE_COMPTANT_ID);
+        }
+        getTPreenregistrementCompteClientTiersPayent(venteId).forEach(c -> getEm().remove(c));
+        getEm().createQuery("DELETE FROM PrixReferenceSaisie s WHERE s.venteId = :v").setParameter("v", venteId)
+                .executeUpdate();
+        getEm().createQuery(
+                "UPDATE TPreenregistrementDetail d SET d.tpPremierId = NULL WHERE d.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = :v")
+                .setParameter("v", venteId).executeUpdate();
+        op.setClient(null);
+        op.setAyantDroit(null);
+        op.setStrFIRSTNAMECUSTOMER(null);
+        op.setStrLASTNAMECUSTOMER(null);
+        op.setStrPHONECUSTOME(null);
+        op.setStrNUMEROSECURITESOCIAL(null);
+        op.setStrREFBON(null);
+        op.setLgTYPEVENTEID(getEm().find(TTypeVente.class, VENTE_COMPTANT_ID));
+        op.setStrTYPEVENTE(VENTE_COMPTANT);
+        getEm().merge(op);
+        return new JSONObject().put("success", true).put("typeVenteId", VENTE_COMPTANT_ID).put("assuranceVidee", true)
+                .put("intPRICE", op.getIntPRICE());
     }
 
     @Override

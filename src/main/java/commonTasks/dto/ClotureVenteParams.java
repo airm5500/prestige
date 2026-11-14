@@ -36,6 +36,20 @@ public class ClotureVenteParams implements Serializable {
     }
 
     private boolean sansBon;
+    /**
+     * Demande du 14/11 : passage d'une vente assurance ou carnet au comptant, confirme dans le bouton. Le client, ses
+     * tiers-payants et tout ce qui en depend sont retires de la vente ; les produits restent.
+     */
+    private boolean viderAssurance;
+
+    public boolean isViderAssurance() {
+        return viderAssurance;
+    }
+
+    public void setViderAssurance(boolean viderAssurance) {
+        this.viderAssurance = viderAssurance;
+    }
+
     private String typeVenteId, natureVenteId;
     private TiersPayantParams compteTp, compteTpNouveau;
     private List<TiersPayantParams> tierspayants = new ArrayList<>();
