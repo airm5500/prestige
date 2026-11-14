@@ -1442,19 +1442,13 @@ public class GroupeTierspayantController implements Serializable {
                 }).sum();
 
                 if (p.getIntMONTANTFAC() < montantFact) {
-                    Integer virtualAmont = 0;
-                    int myCount = 0;
-                    for (TPreenregistrementCompteClientTiersPayent op : finalTp) {
-
-                        virtualAmont += op.getIntPRICE();
-                        myCount++;
-
-                        if (virtualAmont > p.getIntMONTANTFAC()) {
-                            finalTp = finalTp.subList(0, myCount - 1);
-                            break;
-                        }
-
-                    }
+                    // une seule facture : la premiere tranche, au moins un bon (un bon au-dessus du plafond seul)
+                    finalTp = finalTp
+                            .subList(0,
+                                    bll.facture.DecoupeMontantMax.premiereFacture(
+                                            bll.facture.DecoupeMontantMax.montants(finalTp,
+                                                    b -> b.getIntPRICE() == null ? 0 : b.getIntPRICE()),
+                                            p.getIntMONTANTFAC()));
                 }
 
                 break;
@@ -1681,19 +1675,13 @@ public class GroupeTierspayantController implements Serializable {
                 }).sum();
 
                 if (p.getIntMONTANTFAC() < montantFact) {
-                    Integer virtualAmont = 0;
-                    int myCount = 0;
-                    for (TPreenregistrementCompteClientTiersPayent op : finalTp) {
-
-                        virtualAmont += op.getIntPRICE();
-                        myCount++;
-
-                        if (virtualAmont > p.getIntMONTANTFAC()) {
-                            finalTp = finalTp.subList(0, myCount - 1);
-                            break;
-                        }
-
-                    }
+                    // une seule facture : la premiere tranche, au moins un bon (un bon au-dessus du plafond seul)
+                    finalTp = finalTp
+                            .subList(0,
+                                    bll.facture.DecoupeMontantMax.premiereFacture(
+                                            bll.facture.DecoupeMontantMax.montants(finalTp,
+                                                    b -> b.getIntPRICE() == null ? 0 : b.getIntPRICE()),
+                                            p.getIntMONTANTFAC()));
                 }
 
                 break;
@@ -1756,19 +1744,13 @@ public class GroupeTierspayantController implements Serializable {
                 }).sum();
 
                 if (p.getIntMONTANTFAC() < montantFact) {
-                    Integer virtualAmont = 0;
-                    int myCount = 0;
-                    for (TPreenregistrementCompteClientTiersPayent op : finalTp) {
-
-                        virtualAmont += op.getIntPRICE();
-                        myCount++;
-
-                        if (virtualAmont > p.getIntMONTANTFAC()) {
-                            finalTp = finalTp.subList(0, myCount - 1);
-                            break;
-                        }
-
-                    }
+                    // une seule facture : la premiere tranche, au moins un bon (un bon au-dessus du plafond seul)
+                    finalTp = finalTp
+                            .subList(0,
+                                    bll.facture.DecoupeMontantMax.premiereFacture(
+                                            bll.facture.DecoupeMontantMax.montants(finalTp,
+                                                    b -> b.getIntPRICE() == null ? 0 : b.getIntPRICE()),
+                                            p.getIntMONTANTFAC()));
                 }
 
                 break;
@@ -2297,59 +2279,18 @@ public class GroupeTierspayantController implements Serializable {
                 }).sum();
 
                 if (p.getIntMONTANTFAC() < montantFact) {
-                    Integer virtualAmont = 0;
-                    int myCount = 0;
-                    int volatilecount = 0;
-
-                    for (TPreenregistrementCompteClientTiersPayent op : finalTp) {
-
-                        if (virtualAmont > p.getIntMONTANTFAC()) {
-                            try {
-                                if (myCount < finalTp.size()) {
-
-                                    TFacture of = this.createInvoices(finalTp.subList(volatilecount, myCount - 1),
-                                            date.formatterMysqlShort.parse(dt_start),
-                                            date.formatterMysqlShort.parse(dt_end), p, em, us);
-
-                                    factures.add(of);
-
-                                    createGroupeFacture(g, of, CODEFACTURE, em);
-
-                                } else if (myCount == (finalTp.size() - 1)) {
-
-                                    TFacture of = this.createInvoices(finalTp.subList(volatilecount, finalTp.size()),
-                                            date.formatterMysqlShort.parse(dt_start),
-                                            date.formatterMysqlShort.parse(dt_end), p, em, us);
-
-                                    factures.add(of);
-                                    createGroupeFacture(g, of, CODEFACTURE, em);
-                                }
-
-                                volatilecount = (myCount - 1);
-                                virtualAmont = (finalTp.get(volatilecount).getIntPRICE())
-                                        + (finalTp.get(myCount).getIntPRICE());
-
-                            } catch (ParseException ex) {
-
-                            }
-                        } else if ((virtualAmont <= p.getIntMONTANTFAC()) && (myCount == (finalTp.size() - 1))) {
-                            try {
-
-                                TFacture of = this.createInvoices(finalTp.subList(volatilecount, finalTp.size()),
-                                        date.formatterMysqlShort.parse(dt_start),
-                                        date.formatterMysqlShort.parse(dt_end), p, em, us);
-
-                                factures.add(of);
-
-                                createGroupeFacture(g, of, CODEFACTURE, em);
-                            } catch (ParseException ex) {
-
-                            }
+                    // montant maximal par facture : une facture par tranche, jamais vide, chaque bon une fois
+                    for (int[] tranche : bll.facture.DecoupeMontantMax.decouper(bll.facture.DecoupeMontantMax.montants(
+                            finalTp, b -> b.getIntPRICE() == null ? 0 : b.getIntPRICE()), p.getIntMONTANTFAC())) {
+                        try {
+                            TFacture of = this.createInvoices(finalTp.subList(tranche[0], tranche[1]),
+                                    date.formatterMysqlShort.parse(dt_start), date.formatterMysqlShort.parse(dt_end), p,
+                                    em, us);
+                            factures.add(of);
+                            createGroupeFacture(g, of, CODEFACTURE, em);
+                        } catch (ParseException ex) {
 
                         }
-                        virtualAmont += op.getIntPRICE();
-                        myCount++;
-
                     }
 
                 } else {
@@ -2484,59 +2425,18 @@ public class GroupeTierspayantController implements Serializable {
                 }).sum();
 
                 if (p.getIntMONTANTFAC() < montantFact) {
-                    Integer virtualAmont = 0;
-                    int myCount = 0;
-                    int volatilecount = 0;
-
-                    for (TPreenregistrementCompteClientTiersPayent op : finalTp) {
-
-                        if (virtualAmont > p.getIntMONTANTFAC()) {
-                            try {
-                                if (myCount < finalTp.size()) {
-
-                                    TFacture of = this.createInvoices(finalTp.subList(volatilecount, myCount - 1),
-                                            date.formatterMysqlShort.parse(dt_start),
-                                            date.formatterMysqlShort.parse(dt_end), p, em, u);
-
-                                    factures.add(of);
-
-                                    createGroupeFacture(g, of, CODEFACTURE, em);
-
-                                } else if (myCount == (finalTp.size() - 1)) {
-
-                                    TFacture of = this.createInvoices(finalTp.subList(volatilecount, finalTp.size()),
-                                            date.formatterMysqlShort.parse(dt_start),
-                                            date.formatterMysqlShort.parse(dt_end), p, em, u);
-
-                                    factures.add(of);
-                                    createGroupeFacture(g, of, CODEFACTURE, em);
-                                }
-
-                                volatilecount = (myCount - 1);
-                                virtualAmont = (finalTp.get(volatilecount).getIntPRICE())
-                                        + (finalTp.get(myCount).getIntPRICE());
-
-                            } catch (ParseException ex) {
-
-                            }
-                        } else if ((virtualAmont <= p.getIntMONTANTFAC()) && (myCount == (finalTp.size() - 1))) {
-                            try {
-
-                                TFacture of = this.createInvoices(finalTp.subList(volatilecount, finalTp.size()),
-                                        date.formatterMysqlShort.parse(dt_start),
-                                        date.formatterMysqlShort.parse(dt_end), p, em, u);
-
-                                factures.add(of);
-
-                                createGroupeFacture(g, of, CODEFACTURE, em);
-                            } catch (ParseException ex) {
-
-                            }
+                    // montant maximal par facture : une facture par tranche, jamais vide, chaque bon une fois
+                    for (int[] tranche : bll.facture.DecoupeMontantMax.decouper(bll.facture.DecoupeMontantMax.montants(
+                            finalTp, b -> b.getIntPRICE() == null ? 0 : b.getIntPRICE()), p.getIntMONTANTFAC())) {
+                        try {
+                            TFacture of = this.createInvoices(finalTp.subList(tranche[0], tranche[1]),
+                                    date.formatterMysqlShort.parse(dt_start), date.formatterMysqlShort.parse(dt_end), p,
+                                    em, u);
+                            factures.add(of);
+                            createGroupeFacture(g, of, CODEFACTURE, em);
+                        } catch (ParseException ex) {
 
                         }
-                        virtualAmont += op.getIntPRICE();
-                        myCount++;
-
                     }
 
                 } else {
@@ -5159,60 +5059,21 @@ public class GroupeTierspayantController implements Serializable {
                     }).sum();
 
                     if (p.getIntMONTANTFAC() < montantFact) {
-                        Integer virtualAmont = 0;
-                        int myCount = 0;
-                        int volatilecount = 0;
-
-                        for (TPreenregistrementCompteClientTiersPayent op : finalTp) {
-
-                            if (virtualAmont > p.getIntMONTANTFAC()) {
-                                try {
-                                    if (myCount < finalTp.size()) {
-
-                                        TFacture of = this.createInvoices(finalTp.subList(volatilecount, myCount - 1),
-                                                date.formatterMysqlShort.parse(dt_start),
-                                                date.formatterMysqlShort.parse(dt_end), p, em, us);
-
-                                        factures.add(of);
-
-                                        createGroupeFacture(g, of, codeFacture, em);
-
-                                    } else if (myCount == (finalTp.size() - 1)) {
-
-                                        TFacture of = this.createInvoices(
-                                                finalTp.subList(volatilecount, finalTp.size()),
-                                                date.formatterMysqlShort.parse(dt_start),
-                                                date.formatterMysqlShort.parse(dt_end), p, em, us);
-
-                                        factures.add(of);
-                                        createGroupeFacture(g, of, codeFacture, em);
-                                    }
-
-                                    volatilecount = (myCount - 1);
-                                    virtualAmont = (finalTp.get(volatilecount).getIntPRICE())
-                                            + (finalTp.get(myCount).getIntPRICE());
-
-                                } catch (ParseException ex) {
-
-                                }
-                            } else if ((virtualAmont <= p.getIntMONTANTFAC()) && (myCount == (finalTp.size() - 1))) {
-                                try {
-
-                                    TFacture of = this.createInvoices(finalTp.subList(volatilecount, finalTp.size()),
-                                            date.formatterMysqlShort.parse(dt_start),
-                                            date.formatterMysqlShort.parse(dt_end), p, em, us);
-
-                                    factures.add(of);
-
-                                    createGroupeFacture(g, of, codeFacture, em);
-                                } catch (ParseException ex) {
-
-                                }
+                        // montant maximal par facture : une facture par tranche, jamais vide, chaque bon une fois
+                        for (int[] tranche : bll.facture.DecoupeMontantMax
+                                .decouper(
+                                        bll.facture.DecoupeMontantMax.montants(finalTp,
+                                                b -> b.getIntPRICE() == null ? 0 : b.getIntPRICE()),
+                                        p.getIntMONTANTFAC())) {
+                            try {
+                                TFacture of = this.createInvoices(finalTp.subList(tranche[0], tranche[1]),
+                                        date.formatterMysqlShort.parse(dt_start),
+                                        date.formatterMysqlShort.parse(dt_end), p, em, us);
+                                factures.add(of);
+                                createGroupeFacture(g, of, codeFacture, em);
+                            } catch (ParseException ex) {
 
                             }
-                            virtualAmont += op.getIntPRICE();
-                            myCount++;
-
                         }
 
                     } else {
