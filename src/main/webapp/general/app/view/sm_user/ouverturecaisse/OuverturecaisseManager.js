@@ -210,19 +210,11 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
 
     },
     lunchPrinter: function (str_REF) {
-
-        Ext.Ajax.request({
-            method: 'GET',
-            url: '../api/v1/caisse/ticke-mvt-caisse?mvtCaisseId=' + str_REF,
-
-            success: function (response)
-            {
-
+        /* rapport d'exploitation du 13/11, point 1 : delai borne et avis « Ticket non imprime » ; meme suite qu'avant */
+        PrestigeTicketMvtCaisse.imprimer(str_REF, function (repondu) {
+            if (repondu) {
                 testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager.retourNavigation();
-
-            },
-            failure: function (response)
-            {
+            } else {
                 testextjs.app.getController('App').onLoadNewComponent("ouverturecaisseempmanager", "Attribution Caisse Emp");
             }
         });

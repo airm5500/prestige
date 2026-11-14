@@ -57,6 +57,10 @@ function connexionAcceptee(data) {
 
 function authenticate(str_LOGIN, Str_PASSWORD) {
     messageConnexion('');
+    /* rapport d'exploitation du 13/11, point 4 : serveur en prechauffage, la connexion part des qu'il est pret */
+    if (window.prestigeDemarrage && window.prestigeDemarrage.retenir(str_LOGIN, Str_PASSWORD)) {
+        return;
+    }
     //  alert(str_LOGIN);
         $("#loader").show();
     jQuery.ajax(

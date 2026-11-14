@@ -8475,7 +8475,40 @@ Ext.define('testextjs.controller.VenteCtr', {
             this.validerSaisieReferenceTp(editor, e);
             return false;
         }
+        if (this.scanDansCellule(editor, e)) {
+            return false;
+        }
         return this.controlerQuantiteEntiere(editor, e);
+    },
+
+    /**
+     * Rapport d'exploitation du 13/11, point 9 : un code-barres lu pendant que la cellule du prix (ou de la quantite)
+     * etait en saisie partait comme prix ; le serveur refusait (« itemPu : un nombre entier est attendu ») et l'article
+     * n'etait pas ajoute ; dans la quantite, un CIP7 devenait la quantite (8 005 480 boites, total negatif). Une valeur
+     * de 7 chiffres ou plus (un CIP7, un EAN : jamais une quantite ni un prix unitaire d'officine) dans le prix ou la
+     * quantite est un code-barres : la cellule garde sa valeur, rien n'est envoye pour la ligne, et le code est lu comme
+     * un scan (l'article est ajoute). Avis discret, sans fenetre.
+     */
+    longueurCodeBarres: 7,
+    scanDansCellule: function (editor, e) {
+        if (e.field !== 'intPRICEUNITAIR' && e.field !== 'intQUANTITY' && e.field !== 'intQUANTITYSERVED') {
+            return false;
+        }
+        const champ = e.column && e.column.getEditor ? e.column.getEditor(e.record) : null;
+        const brut = String(champ && champ.getRawValue ? champ.getRawValue() : e.value).replace(/\s/g, '');
+        if (!/^\d+$/.test(brut) || brut.length < this.longueurCodeBarres) {
+            return false;
+        }
+        const libelle = e.field === 'intPRICEUNITAIR' ? 'du prix' : 'de la quantité';
+        if (window.PrestigeToast) {
+            PrestigeToast.afficher('Code-barres lu dans la cellule ' + libelle + ' : l\'article est ajouté comme un scan ; '
+                    + 'la ligne ' + (e.rowIdx + 1) + ' n\'a pas changé.', {titre: 'Code-barres', niveau: 'info', duree: 6000});
+        }
+        const me = this;
+        setTimeout(function () {
+            me.checkDouchette(me.getVnoproduitCombo(), true, brut);
+        }, 0);
+        return true;
     },
 
     /**

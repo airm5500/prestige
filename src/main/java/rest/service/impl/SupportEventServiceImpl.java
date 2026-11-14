@@ -233,6 +233,11 @@ public class SupportEventServiceImpl implements SupportEventService {
             LOG.log(Level.WARNING, "readLogContent " + eventId, e);
             // Le fichier a disparu (purge, ou dossier de travail change avec le compte du serveur) : on rend
             // l'extrait conserve en base, qui suffit a nommer la cause.
+            // Rapport du 13/11, point 7 : detail garde en base en entier (evenement constate sur une caisse, dont le
+            // fichier est sur le disque de la caisse) : rendu tel quel, identique au fichier.
+            if (detailComplet(event.getStackExtrait())) {
+                return event.getStackExtrait();
+            }
             return extraitConserve(event,
                     "Fichier de détail introuvable sur le disque (purgé, ou écrit par une installation précédente) :\n"
                             + event.getLogRef() + "\nDossier de travail actuel : " + getStorageBase().resolve("logs"));
@@ -726,11 +731,52 @@ public class SupportEventServiceImpl implements SupportEventService {
         event.setMessageCourt(StringUtils.abbreviate(dto.getMessageCourt(), 500));
         event.setUrlOuEcran(StringUtils.abbreviate(dto.getUrlOuEcran(), 255));
         event.setPayloadJson(StringUtils.abbreviate(dto.getPayloadJson(), 4000));
-        event.setStackExtrait(extraitStack(dto.getStack()));
         event.setUtilisateur(StringUtils.abbreviate(utilisateur, 255));
         event.setLastSeenAt(LocalDateTime.now());
-        event.setLogRef(writeLogFile(event.getId(), dto, utilisateur));
+        // Rapport du 13/11, point 7 : le detail est garde EN BASE tel qu'il est ecrit dans le fichier (64 Ko au plus),
+        // pour etre lu depuis le serveur quand l'evenement a ete constate sur une caisse.
+        String contenu = StringUtils.isBlank(dto.getStack()) ? null
+                : contenuDetail(dto, utilisateur, LocalDateTime.now());
+        event.setStackExtrait(contenu == null ? extraitStack(dto.getStack()) : detailEnBase(contenu));
+        event.setLogRef(ecrireDetail(event.getId(), dto, contenu));
         return event;
+    }
+
+    /** Taille maximale du detail garde en base (caracteres). */
+    static final int DETAIL_MAX = 65_536;
+    static final String DETAIL_TRONQUE = "\n... (détail tronqué à 64 Ko : le fichier complet est sur le poste qui a"
+            + " constaté l'événement)";
+
+    /** Contenu du fichier de detail d'un evenement : en-tete, puis le detail technique. */
+    static String contenuDetail(SupportEventDTO dto, String utilisateur, LocalDateTime date) {
+        StringBuilder content = new StringBuilder();
+        content.append("Date : ").append(date.format(DATE_FORMAT)).append("\n");
+        content.append("Type : ").append(StringUtils.defaultString(dto.getType())).append("\n");
+        content.append("Module : ").append(StringUtils.defaultString(dto.getModule())).append("\n");
+        if (StringUtils.isNotBlank(utilisateur)) {
+            content.append("Constaté par : ").append(utilisateur).append("\n");
+        }
+        content.append("Écran/URL : ").append(StringUtils.defaultString(dto.getUrlOuEcran())).append("\n");
+        content.append("Message : ").append(StringUtils.defaultString(dto.getMessageCourt())).append("\n\n");
+        content.append(dto.getStack());
+        return content.toString();
+    }
+
+    /** Detail garde en base : le contenu du fichier, ou son debut (64 Ko) suivi de la mention de troncature. */
+    static String detailEnBase(String contenu) {
+        if (contenu == null || contenu.length() <= DETAIL_MAX) {
+            return contenu;
+        }
+        int fin = DETAIL_MAX - DETAIL_TRONQUE.length();
+        if (Character.isHighSurrogate(contenu.charAt(fin - 1))) {
+            fin--;
+        }
+        return contenu.substring(0, fin) + DETAIL_TRONQUE;
+    }
+
+    /** Vrai si l'extrait en base est le detail complet (forme du 13/11) et non l'ancien extrait de 4 000 caracteres. */
+    static boolean detailComplet(String extrait) {
+        return extrait != null && extrait.startsWith("Date : ");
     }
 
     /**
@@ -881,23 +927,21 @@ public class SupportEventServiceImpl implements SupportEventService {
         if (StringUtils.isBlank(dto.getStack())) {
             return null;
         }
+        return ecrireDetail(eventId, dto, contenuDetail(dto, utilisateur, LocalDateTime.now()));
+    }
+
+    /** Ecrit le fichier de detail avec le contenu donne (le meme que celui garde en base). */
+    private String ecrireDetail(String eventId, SupportEventDTO dto, String contenu) {
+        if (contenu == null) {
+            return null;
+        }
         try {
             LocalDate now = LocalDate.now();
             Path dir = getStorageBase().resolve("logs").resolve(String.valueOf(now.getYear()))
                     .resolve(String.format("%02d", now.getMonthValue()));
             Files.createDirectories(dir);
             Path file = dir.resolve("event-" + sanitizeForFileName(dto.getModule()) + "-" + eventId + ".log");
-            StringBuilder content = new StringBuilder();
-            content.append("Date : ").append(LocalDateTime.now().format(DATE_FORMAT)).append("\n");
-            content.append("Type : ").append(StringUtils.defaultString(dto.getType())).append("\n");
-            content.append("Module : ").append(StringUtils.defaultString(dto.getModule())).append("\n");
-            if (StringUtils.isNotBlank(utilisateur)) {
-                content.append("Constaté par : ").append(utilisateur).append("\n");
-            }
-            content.append("Écran/URL : ").append(StringUtils.defaultString(dto.getUrlOuEcran())).append("\n");
-            content.append("Message : ").append(StringUtils.defaultString(dto.getMessageCourt())).append("\n\n");
-            content.append(dto.getStack());
-            Files.write(file, content.toString().getBytes(StandardCharsets.UTF_8));
+            Files.write(file, contenu.getBytes(StandardCharsets.UTF_8));
             return StringUtils.abbreviate(file.toString(), 500);
         } catch (IOException e) {
             LOG.log(Level.SEVERE, "writeLogFile", e);

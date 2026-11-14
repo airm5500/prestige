@@ -124,20 +124,8 @@ Ext.define('testextjs.controller.CautionCtr', {
    
    
     lunchPrinter: function (mvtCaisseId) {
-
-        Ext.Ajax.request({
-            method: 'GET',
-            url: '../api/v1/caisse/ticke-mvt-caisse?mvtCaisseId=' + mvtCaisseId,
-            failure: function (response)
-            {
-
-                const object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + object);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
-
-            }
-        });
+        /* rapport d'exploitation du 13/11, point 1 : delai borne et avis « Ticket non imprime » */
+        PrestigeTicketMvtCaisse.imprimer(mvtCaisseId);
     },
     edit: function () {
         const me = this;

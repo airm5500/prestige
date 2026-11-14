@@ -596,8 +596,14 @@ public class CaisseRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
 
-        generateTicketService.printMvtCaisse(mvtCaisseId, tu);
-        return Response.ok().build();
+        try {
+            generateTicketService.printMvtCaisse(mvtCaisseId, tu);
+        } catch (rest.service.impl.TicketNonImprimeException e) {
+            /* rapport d'exploitation du 13/11, point 1 : le mouvement est enregistre, seul le ticket manque */
+            return Response.ok().entity(new JSONObject().put("success", false).put("imprime", false)
+                    .put("msg", e.getMessage()).put("sansImprimante", e.isSansImprimante()).toString()).build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("imprime", true).toString()).build();
     }
 
     @POST

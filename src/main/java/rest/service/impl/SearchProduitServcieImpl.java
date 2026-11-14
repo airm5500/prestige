@@ -1233,8 +1233,23 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
     /** [date jj/mm/aaaa ou "", numero de lot ou "", quantite en stock du lot ou ""]. */
     @Override
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.SUPPORTS)
     public Object[] peremptionProche(String produitId) {
-        TFamille t = produitId == null || produitId.trim().isEmpty() ? null : em.find(TFamille.class, produitId.trim());
+        /*
+         * rapport d'exploitation du 13/11, point 2 : information facultative de l'ecran de vente. Sans transaction
+         * (pure lecture), une connexion en echec n'entraine pas d'annulation, et l'echec rend une peremption vide au
+         * lieu d'une erreur technique (caisse 4 le 13/11 a 18:37 : « Communications link failure » apres 42 s).
+         */
+        if (produitId == null || produitId.trim().isEmpty()) {
+            return new Object[] { "", "", "" };
+        }
+        TFamille t;
+        try {
+            t = em.find(TFamille.class, produitId.trim());
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "peremptionProche : lecture du produit impossible", e);
+            return new Object[] { "", "", "" };
+        }
         return t == null ? new Object[] { "", "", "" } : peremptionProche(t);
     }
 

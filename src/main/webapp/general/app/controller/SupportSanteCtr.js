@@ -77,7 +77,8 @@ Ext.define('testextjs.controller.SupportSanteCtr', {
             html = '<table style="border-collapse:collapse;width:100%;">'
                     + '<tr><th style="padding:6px;border:1px solid #ccc;text-align:left;">Contrôle</th>'
                     + '<th style="padding:6px;border:1px solid #ccc;">Cas détectés</th>'
-                    + '<th style="padding:6px;border:1px solid #ccc;">Mode</th></tr>';
+                    + '<th style="padding:6px;border:1px solid #ccc;">Mode</th>'
+                    + '<th style="padding:6px;border:1px solid #ccc;">dont nouveaux</th></tr>';
             Ext.Array.each(lignes, function (l) {
                 const nb = (l.erreur ? '<span style="color:red;">erreur</span>' : (l.nbCas || 0));
                 const color = l.erreur ? 'red' : ((l.nbCas || 0) > 0 ? 'orange' : 'green');
@@ -86,9 +87,12 @@ Ext.define('testextjs.controller.SupportSanteCtr', {
                         + '<td style="padding:6px;border:1px solid #ccc;text-align:center;color:' + color
                         + ';font-weight:bold;">' + nb + '</td>'
                         + '<td style="padding:6px;border:1px solid #ccc;text-align:center;">'
-                        + (l.dryRun ? 'observation' : 'ticket auto') + '</td></tr>';
+                        + (l.dryRun ? 'observation' : 'ticket auto') + '</td>'
+                        + '<td class="coherence-nouveaux" style="padding:6px;border:1px solid #ccc;text-align:center;'
+                        + ((l.nbNouveaux || 0) > 0 ? 'color:red;font-weight:bold;' : '') + '">'
+                        + (l.erreur ? '' : (l.nbNouveaux || 0)) + '</td></tr>';
                 if (l.erreur) {
-                    html += '<tr><td colspan="3" style="padding:4px 6px;border:1px solid #ccc;color:red;font-size:11px;">'
+                    html += '<tr><td colspan="4" style="padding:4px 6px;border:1px solid #ccc;color:red;font-size:11px;">'
                             + Ext.String.htmlEncode(l.erreur) + '</td></tr>';
                 }
             });

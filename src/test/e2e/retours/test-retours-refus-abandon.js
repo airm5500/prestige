@@ -1,5 +1,6 @@
 /* RETOURS FOURNISSEURS EN ATTENTE (transmission du 07/11, choix du 08/11). Par l'ecran « Retour fournisseur », admin.
- *  1. Sans P_VALIDER_RETOUR_FRS : mise en attente (confirmation dans le bouton) ; compteur 403 ; ni pastille ni avis ;
+ *  1. Sans P_VALIDER_RETOUR_FRS : mise en attente (confirmation dans le bouton) ; compteur « non autorise » (pas de
+ *     403, rapport du 13/11 point 8) ; ni pastille ni avis ;
  *     le refus est interdit (403).
  *  2. Avec le droit : pastille du menu et avis de connexion = nombre de retours en attente en base ; filtre d'etat.
  *     Refus : sans motif, le bouton dit « Motif obligatoire » et rien ne part ; avec motif, confirmation dans le
@@ -145,7 +146,9 @@ function retirer() {
     R1 = await creer();
     ok('Retour créé en saisie', !!R1 && etat(R1) === 'is_Process', R1);
     const n403 = await api('GET', '../api/v1/retourfournisseur/en-attente/nombre');
-    ok('Sans le droit : compteur refusé (403), ni pastille ni avis', n403.status === 403 && (await pastille()) === 0 && (await avis()) === '', JSON.stringify(n403));
+    /* rapport du 13/11, point 8 : sans le droit, {autorise:false} et non 403 (chaque 403 devenait un evenement FRONTEND) */
+    ok('Sans le droit : compteur non autorisé (200, autorise=false, sans nombre), ni pastille ni avis', n403.status === 200 && n403.j && n403.j.autorise === false && n403.j.nombre === 0
+      && (await pastille()) === 0 && (await avis()) === '', JSON.stringify(n403));
     await p.evaluate(([id, note]) => testextjs.app.getController('App').onLoadNewComponentWithDataSource('retourfournisseurmanagerlist', 'Modification fiche retour fournisseur', id,
       { lg_RETOUR_FRS_ID: id, str_REF_LIVRAISON: '', str_REPONSE_FRS: '', str_COMMENTAIRE: note, str_GROSSISTE_LIBELLE: '' }), [R1, NOTE]);
     await p.waitForFunction(() => { const b = Ext.getCmp('btn_save'); return b && /attente/i.test(b.getText()); }, null, { timeout: 15000 });

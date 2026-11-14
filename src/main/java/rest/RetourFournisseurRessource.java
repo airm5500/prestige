@@ -113,8 +113,7 @@ public class RetourFournisseurRessource {
     @POST
     @Path("remettre-en-attente/{id}")
     public Response remettreEnAttente(@PathParam("id") String id) {
-        Response refus = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
-                "P_VALIDER_RETOUR_FRS");
+        Response refus = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS", "P_VALIDER_RETOUR_FRS");
         if (refus != null) {
             return refus;
         }
@@ -125,27 +124,39 @@ public class RetourFournisseurRessource {
     @POST
     @Path("abandonner/{id}")
     public Response abandonner(@PathParam("id") String id) {
-        Response refus = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
-                "P_VALIDER_RETOUR_FRS");
+        Response refus = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS", "P_VALIDER_RETOUR_FRS");
         if (refus != null) {
             return refus;
         }
         return repondre(retourAttente.abandonner(id, utilisateur(), peutValider()));
     }
 
-    /** Transmission du 07/11 : nombre de retours en attente (compteur et pastille), pour le valideur seulement. */
+    /**
+     * Transmission du 07/11 : nombre de retours en attente (compteur et pastille), pour le valideur seulement.
+     * <p>
+     * Rapport d'exploitation du 13/11, point 8 : sans le droit, la reponse est {@code {"autorise":false}} et non un
+     * refus 403. Le compteur est interroge par tous les postes a la connexion : chaque 403 devenait un evenement
+     * FRONTEND (53 le 13/11) alors que rien n'etait anormal. Le nombre n'est pas donne a qui n'a pas le droit.
+     * </p>
+     */
     @GET
     @Path("en-attente/nombre")
     public Response nombreEnAttente() {
-        Response refus = Droits.refus(servletRequest, "Valider un retour fournisseur", "P_VALIDER_RETOUR_FRS");
-        if (refus != null) {
-            return refus;
+        if (utilisateur() == null) {
+            return ReceptionMobileRessource.sansSession();
         }
-        return Response.ok().entity(new org.json.JSONObject().put("success", true)
+        if (!Droits.a(servletRequest, "P_VALIDER_RETOUR_FRS")) {
+            return Response.ok().entity(
+                    new org.json.JSONObject().put("success", true).put("autorise", false).put("nombre", 0).toString())
+                    .build();
+        }
+        return Response.ok().entity(new org.json.JSONObject().put("success", true).put("autorise", true)
                 .put("nombre", retourAttente.nombreEnAttente()).toString()).build();
     }
 
-    /** Transmission du 07/11 : historique d'un retour (mise en attente, refus, remise en attente, abandon, validation). */
+    /**
+     * Transmission du 07/11 : historique d'un retour (mise en attente, refus, remise en attente, abandon, validation).
+     */
     @GET
     @Path("{id}/historique")
     public Response historique(@PathParam("id") String id) {
@@ -229,17 +240,18 @@ public class RetourFournisseurRessource {
             @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre,
             @QueryParam(value = "userId") String userId, @QueryParam(value = "etat") String etat) throws Exception {
         /*
-         * partie 2 de la demande 59 : avec le parametre etat (l'ecran l'envoie toujours, TOUS par defaut), l'export suit
-         * le filtre d'etat de la liste et porte l'etat, le motif du refus, l'auteur et la date de l'etat ; sans lui,
-         * l'export reste celui des retours valides de la periode.
+         * partie 2 de la demande 59 : avec le parametre etat (l'ecran l'envoie toujours, TOUS par defaut), l'export
+         * suit le filtre d'etat de la liste et porte l'etat, le motif du refus, l'auteur et la date de l'etat ; sans
+         * lui, l'export reste celui des retours valides de la periode.
          */
         List<RetourDetailsDTO> details = mvtProduitService.loadretoursFournisseur(defaultDate(dtStart),
                 defaultDate(dtEnd), fourId, query, filtre, userId, etat);
-        java.util.Map<String, org.json.JSONObject> infos = retourAttente.infos(details.stream()
-                .map(RetourDetailsDTO::getLgRETOURFRSID).filter(java.util.Objects::nonNull)
-                .collect(java.util.stream.Collectors.toSet()));
+        java.util.Map<String, org.json.JSONObject> infos = retourAttente
+                .infos(details.stream().map(RetourDetailsDTO::getLgRETOURFRSID).filter(java.util.Objects::nonNull)
+                        .collect(java.util.stream.Collectors.toSet()));
         String[] headers = new String[] { "N° BL", "Date retour", "Heure", "Fournisseur", "Code produit", "Libelle",
-                "Quantite retournee", "Utilisateur", "Etat", "Motif du refus", "Auteur de l'etat", "Date de l'etat", "Reference du retour" };
+                "Quantite retournee", "Utilisateur", "Etat", "Motif du refus", "Auteur de l'etat", "Date de l'etat",
+                "Reference du retour" };
         String title = "Produits des retours fournisseur du " + defaultDate(dtStart) + " au " + defaultDate(dtEnd);
         byte[] data = reportExcelExportService.createExcelReport(title, headers, details, (row, dto) -> {
             row.createCell(0).setCellValue(dto.getReferenceBl() == null ? "" : dto.getReferenceBl());

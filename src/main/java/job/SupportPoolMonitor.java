@@ -483,9 +483,12 @@ public class SupportPoolMonitor {
         }
         String detail = dormantes + " connexion(s) ouverte(s) et inactive(s) depuis plus de " + ageMinutes
                 + " minute(s) (seuil " + seuil + ").\n\n"
-                + "Une connexion rendue au pool ne dort pas : elle est reutilisee ou fermee. Celles-ci ont ete"
-                + " empruntees et jamais rendues. Elles s'accumulent au fil de la journee et occupent des places"
-                + " qui manqueront a l'heure de pointe.\n\n"
+                + "Le pool garde au repos quelques connexions (steady-pool-size, 8 par defaut) : au-dela, une"
+                + " connexion qui dort plus d'une heure a ete empruntee sans etre rendue, ou ouverte hors du pool."
+                + " Elles s'accumulent au fil de la journee et occupent des places qui manqueront a l'heure de"
+                + " pointe. Une connexion qui dort longtemps peut aussi etre coupee par la base ou le reseau : sans"
+                + " verification des connexions par le pool, la requete suivante echoue (« Communications link"
+                + " failure »). Regler le pool du poste : outils/officine/1-configurer-payara.ps1 -PoolSeulement.\n\n"
                 + "Les editions d'etats ouvrent des connexions DIRECTES, hors du pool (dal.jconnexion) : c'est le"
                 + " premier endroit ou chercher.";
         return new Alerte("POOL_DORMANTES", dal.ApplicationEvent.NIVEAU_WARN,
