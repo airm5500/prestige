@@ -1756,52 +1756,14 @@ public class factureManagement extends bll.bllBase {
                 switch (getCase(tiersPayant)) {
 
                 case 1:
-                    final long montantFact = list.stream().mapToLong(qty -> qty.getIntPRICE()).sum();
-                    if (tiersPayant.getIntMONTANTFAC() < montantFact) {
-                        Integer virtualAmont = 0;
-                        int myCount = 0;
-                        int volatilecount = 0;
-                        for (TPreenregistrementCompteClientTiersPayent op : list) {
-                            if (virtualAmont > tiersPayant.getIntMONTANTFAC()) {
-                                if (myCount < list.size()) {
-                                    TFacture of = this.createInvoices(list.subList(volatilecount, myCount - 1), dtDebut,
-                                            dtFin, tiersPayant, montantForfetaire, tauxRemise, typeFacture,
-                                            typeMvtCaisse);
-                                    factures.add(of);
-                                } else if (myCount == (list.size() - 1)) {
-                                    TFacture of = this.createInvoices(list.subList(volatilecount, list.size()), dtDebut,
-                                            dtFin, tiersPayant, montantForfetaire, tauxRemise, typeFacture,
-                                            typeMvtCaisse);
-                                    factures.add(of);
-
-                                }
-
-                                volatilecount = (myCount - 1);
-                                virtualAmont = (list.get(volatilecount).getIntPRICE())
-                                        + (list.get(myCount).getIntPRICE());
-
-                            } else if ((virtualAmont <= tiersPayant.getIntMONTANTFAC())
-                                    && (myCount == (list.size() - 1))) {
-
-                                TFacture of = this.createInvoices(list.subList(volatilecount, list.size()), dtDebut,
-                                        dtFin, tiersPayant, montantForfetaire, tauxRemise, typeFacture, typeMvtCaisse);
-                                factures.add(of);
-
-                            }
-                            virtualAmont += op.getIntPRICE();
-                            myCount++;
-
-                        }
-
-                    } else {
-
-                        TFacture of = this.createInvoices(list, dtDebut, dtFin, tiersPayant, montantForfetaire,
-                                tauxRemise, typeFacture, typeMvtCaisse);
-
+                    // montant maximal par facture : une facture par tranche, jamais vide, chaque bon une fois
+                    for (int[] t : DecoupeMontantMax.decouper(
+                            DecoupeMontantMax.montants(list, b -> b.getIntPRICE() == null ? 0 : b.getIntPRICE()),
+                            tiersPayant.getIntMONTANTFAC())) {
+                        TFacture of = this.createInvoices(list.subList(t[0], t[1]), dtDebut, dtFin, tiersPayant,
+                                montantForfetaire, tauxRemise, typeFacture, typeMvtCaisse);
                         factures.add(of);
-
                     }
-
                     break;
                 case 2:
                     int count = tiersPayant.getIntNBREBONS();
