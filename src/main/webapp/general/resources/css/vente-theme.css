@@ -3619,3 +3619,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* demande du 15/11 : envoi des factures par WhatsApp */
 .fm-btn.fm-whatsapp { background: #e7f8ee; border-color: #128c4a; color: #0b6b37; }
 .fm-btn.fm-simulee { background: #fff6dd; border-color: #b7791f; color: #8a5a12; }
+/* Retour du 15/11 : barre de pagination des listes (Ext.ux.ProgressBarPager) agrandie et centree */
+.prestige-pager-barre.x-progress { height: 24px !important; border-radius: 4px; }
+.prestige-pager-barre .x-progress-bar, .prestige-pager-barre .x-progress-text { height: 22px !important; line-height: 22px !important; }
+.prestige-pager-barre .x-progress-text { font-size: 13px !important; font-weight: 600; text-align: center; }

@@ -491,3 +491,9 @@
     from { opacity: 0; transform: translateX(-8px) scale(0.97); }
     to   { opacity: 1; transform: translateX(0)   scale(1); }
 }
+
+/* Retour du 15/11 : volet de navigation deplie par-dessus l'ecran. ExtJS lui donne un z-index de 5, alors que le
+   voile d'un panneau grise (masque d'element, z-index 100) monte a 100 : le voile passait PAR-DESSUS le menu (ecran
+   Ouverture / cloture caisse, et tout ecran a panneau ou groupe de champs desactive). Le volet passe au-dessus des
+   voiles d'element, et reste sous les fenetres, listes et masques flottants d'ExtJS (z-index 9000 et plus). */
+.x-panel.prestige-nav { z-index: 1000 !important; }

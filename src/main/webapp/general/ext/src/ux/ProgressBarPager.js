@@ -9,7 +9,7 @@ Ext.define('Ext.ux.ProgressBarPager', {
      * @cfg {Number} width
      * <p>The default progress bar width.  Default is 225.</p>
     */
-    width   : 225,
+    width   : 320,
     /**
      * @cfg {String} defaultText
     * <p>The text to display while the store is loading.  Default is 'Loading...'</p>
@@ -61,7 +61,11 @@ Ext.define('Ext.ux.ProgressBarPager', {
 
             parent.displayItem = this.progressBar;
 
+            // Prestige (15/11) : barre plus large, texte plus grand (classe prestige-pager-barre), et centree dans
+            // la barre d'outils : un remplissage de chaque cote (le premier est le « -> » d'origine).
             parent.add(parent.displayItem);
+            this.progressBar.addCls('prestige-pager-barre');
+            parent.add({xtype: 'tbfill'});
             Ext.apply(parent, this.parentOverrides);
         }
     },

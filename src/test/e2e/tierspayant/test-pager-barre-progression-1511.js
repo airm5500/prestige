@@ -60,6 +60,15 @@ function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' +
     await attendreCharge();
     const e0 = await etat();
     ok('Préparation : liste chargée sur plusieurs pages', e0.total > e0.taille * 3, e0.total + ' organismes, ' + e0.taille + ' par page');
+    /* apparence (retour du 15/11 : « agrandir et centrer ») : barre large, texte lisible, centree entre le dernier
+       bouton de la barre et son bord droit */
+    const forme = await p.evaluate(() => { const tb = Ext.ComponentQuery.query('tierspayantmanager')[0].down('pagingtoolbar'), bar = tb.displayItem.getEl().dom;
+      const rb = bar.getBoundingClientRect(), rt = tb.getEl().dom.getBoundingClientRect();
+      const boutons = Array.from(tb.getEl().dom.querySelectorAll('.x-btn')).map((x) => x.getBoundingClientRect()).filter((r) => r.width && r.right <= rb.left);
+      const gauche = boutons.length ? Math.max.apply(null, boutons.map((r) => r.right)) : rt.left;
+      const texte = bar.querySelector('.x-progress-text');
+      return { largeur: Math.round(rb.width), hauteur: Math.round(rb.height), police: parseFloat(getComputedStyle(texte).fontSize), ecart: Math.round(((rb.left + rb.right) / 2) - ((gauche + rt.right) / 2)), texte: texte.textContent.trim() }; });
+    ok('Apparence : barre de pagination large (≥ 300 px), texte de 13 px, centrée dans l’espace libre (± 15 px)', forme.largeur >= 300 && forme.police >= 13 && Math.abs(forme.ecart) <= 15 && /Page/.test(forme.texte), JSON.stringify(forme));
 
     /* 1. sans filtre, trois endroits de la barre */
     for (const frac of [0.25, 0.75, 1]) {
