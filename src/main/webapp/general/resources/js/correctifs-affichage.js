@@ -932,6 +932,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'myaccountmanager',
     // facturation
     'facturemanager', 'facturesubrogatoireother', 'groupeInvoices', 'factureprovisoire',
+    // plan du 14/11 (point 3) : conteneur de la liste des bons par organisme (bons + bordereaux / suivi)
+    'bonsorganismeonglets',
     'recapOrganisme',
     // parametrage et administration
     'parametermanager', 'kobysky', 'zonegeographiquemanager', 'usermanager',
@@ -1033,6 +1035,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
     // lot 4 : facture subrogatoire, ventes ratees, mouchard des prix de vente
     'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente', 'produitscodegeo', 'rappelshabitude', 'whatsappcomptes', 'rhmanager', 'analysecommande',
+    // plan du 14/11 (point 3) : conteneur de la liste des bons par organisme
+    'bonsorganismeonglets',
     // retours du 05/10, lot A : facturation et caisse
     'facturemanager', 'listecaissemanager', 'visualisercaissemanager', 'caisserecetterecap', 'facturesubrogatoire', 'delayed',
     'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',

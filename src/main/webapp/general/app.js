@@ -786,6 +786,7 @@ Ext.application({
         'testextjs.view.actions.action',
         'testextjs.view.configmanagement.famille.Products',
         'testextjs.view.configmanagement.famille.ProduitsOnglets',
+        'testextjs.view.sm_user.journalvente.BonsOrganismeOnglets',
         'testextjs.view.depot.Export',
         'testextjs.view.depot.Import',
         'testextjs.view.depot.Export',

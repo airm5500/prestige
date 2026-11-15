@@ -1423,9 +1423,16 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                             },
                             icon: Ext.MessageBox.QUESTION
                         });
+                        // Plan du 14/11, point 3 : l'ecran appelant peut demander a rester ouvert (rappel onSaved) ;
+                        // sans rappel, retour aux ventes terminees comme avant.
+                        const rappel = wind.onSaved;
                         wind.destroy();
-                        const xtype = "ventemanager";
-                        testextjs.app.getController('App').onRedirectTo(xtype, {});
+                        if (Ext.isFunction(rappel)) {
+                            rappel(result);
+                        } else {
+                            const xtype = "ventemanager";
+                            testextjs.app.getController('App').onRedirectTo(xtype, {});
+                        }
                     } else {
                         Ext.MessageBox.show({
                             title: 'Message d\'erreur',

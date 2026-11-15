@@ -73,7 +73,8 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
                 click: this.doSearch
             },
             'facturesubrogatoireother #tiersPayantId': {
-                select: this.doSearch
+                select: this.doSearch,
+                vide: this.doSearch
             },
 
             'facturesubrogatoireother gridpanel': {
@@ -87,10 +88,12 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
                 specialkey: this.onSpecialKey
             },
             'facturesubrogatoireother #typeTiersPayantId': {
-                select: this.doSearch
+                select: this.doSearch,
+                vide: this.doSearch
             },
             'facturesubrogatoireother #groupeId': {
-                select: this.doSearch
+                select: this.doSearch,
+                vide: this.doSearch
             },
             'facturesubrogatoireother #printable': {
                 click: this.onPdfClick
@@ -145,19 +148,34 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
             me.doSearch();
         }
     },
+    parametres: function () {
+        const me = this;
+        return {
+            "query": me.getQueryField().getValue(),
+            "dtStart": me.getDtStart().getSubmitValue(),
+            "dtEnd": me.getDtEnd().getSubmitValue(),
+            "tiersPayantId": me.getTiersPayantId().getValue(),
+            "hStart": me.getHStart().getSubmitValue(),
+            "hEnd": me.getHEnd().getSubmitValue(),
+            "typeTiersPayantId": me.getTypeTiersPayantId().getValue(),
+            "groupeId": me.getGroupeId().getValue()
+        };
+    },
     doSearch: function () {
         const me = this;
         me.getFacturesSubroGrid().getStore().load({
-            params: {
-                "query": me.getQueryField().getValue(),
-                "dtStart": me.getDtStart().getSubmitValue(),
-                "dtEnd": me.getDtEnd().getSubmitValue(),
-                "tiersPayantId": me.getTiersPayantId().getValue(),
-                "hStart": me.getHStart().getSubmitValue(),
-                "hEnd": me.getHEnd().getSubmitValue(),
-                "typeTiersPayantId": me.getTypeTiersPayantId().getValue(),
-                "groupeId": me.getGroupeId().getValue()
-            }
+            params: me.parametres()
+        });
+    },
+    /** Plan du 14/11, point 3 : apres la modification d'un bon, la meme page, avec les memes filtres, est relue. */
+    rechargerPage: function () {
+        const me = this, grille = me.getFacturesSubroGrid();
+        if (!grille || grille.isDestroyed) {
+            return;
+        }
+        const store = grille.getStore();
+        store.loadPage(store.currentPage || 1, {
+            params: me.parametres()
         });
     },
     doMetachange: function (store, meta) {

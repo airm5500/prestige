@@ -268,6 +268,10 @@ Ext.define('testextjs.controller.App', {
         if (xtype === 'margeproducts' && Ext.ClassManager.getNameByAlias('widget.margeonglets')) {
             return 'margeonglets';
         }
+        /* plan du 14/11 (point 3) : la liste des bons par organisme s'ouvre dans son conteneur (bons + bordereaux / suivi) */
+        if (xtype === 'facturesubrogatoireother' && Ext.ClassManager.getNameByAlias('widget.bonsorganismeonglets')) {
+            return 'bonsorganismeonglets';
+        }
         /* retours du 10/10 (section 16) : la gestion de caisse s'ouvre dans son conteneur (liste + analyse des ecarts) */
         if (xtype === 'gestcaissemanager' && Ext.ClassManager.getNameByAlias('widget.gestioncaisseonglets')) {
             return 'gestioncaisseonglets';
