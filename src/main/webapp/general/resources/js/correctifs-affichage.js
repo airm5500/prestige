@@ -952,6 +952,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'facturemanager', 'facturesubrogatoireother', 'groupeInvoices', 'factureprovisoire',
     // plan du 14/11 (point 5) : menu « Ouverture / clôture de caisse » (SERVICE CLIENT)
     'caisseouverturecloture',
+    // plan du 14/11 (point 2) : menu « En-tête des factures » (FACTURATION)
+    'entetefacture',
     // plan du 14/11 (point 3) : conteneur de la liste des bons par organisme (bons + bordereaux / suivi)
     'bonsorganismeonglets',
     'recapOrganisme',
@@ -1059,6 +1061,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'bonsorganismeonglets',
     // plan du 14/11 (point 5) : menu « Ouverture / clôture de caisse »
     'caisseouverturecloture',
+    // plan du 14/11 (point 2) : menu « En-tête des factures »
+    'entetefacture',
     // retours du 05/10, lot A : facturation et caisse
     'facturemanager', 'listecaissemanager', 'visualisercaissemanager', 'caisserecetterecap', 'facturesubrogatoire', 'delayed',
     'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',

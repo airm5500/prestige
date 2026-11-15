@@ -302,6 +302,7 @@
             inputPdfList.add(outputStreamFile);
             str_file = factureFileName;
             rest.report.FusionPdf.assembler(inputPdfList, Ojdom.scr_report_pdf + str_file);
+            rest.service.impl.facture.EnteteFacture.apposerSiRegle(obllBase.getOdataManager().getEm(), Ojdom.scr_report_pdf + str_file);
             ObllBase.setKey(new date());
             ObllBase.setOTranslate(OTranslate);
             ObllBase.setOTUser(OTUser);
@@ -320,6 +321,7 @@
             outputStreamFile = Ojdom.scr_report_pdf + str_file;
             inputPdfList.add(complementairePath);
             rest.report.FusionPdf.assembler(inputPdfList, outputStreamFile);
+            rest.service.impl.facture.EnteteFacture.apposerSiRegle(obllBase.getOdataManager().getEm(), outputStreamFile);
             ObllBase.setKey(new date());
             ObllBase.setOTranslate(OTranslate);
             ObllBase.setOTUser(OTUser);
@@ -493,6 +495,8 @@
     str_file = factureFileName;
     outputStreamFile = Ojdom.scr_report_pdf + str_file;
     rest.report.FusionPdf.assembler(inputPdfList, outputStreamFile);
+    // en-tete et pied de page propres a la pharmacie (plan du 14/11, point 2) : sans image, edition inchangee
+    rest.service.impl.facture.EnteteFacture.apposerSiRegle(obllBase.getOdataManager().getEm(), outputStreamFile);
     ObllBase.setKey(new date());
     ObllBase.setOTranslate(OTranslate);
     ObllBase.setOTUser(OTUser);

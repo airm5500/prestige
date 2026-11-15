@@ -774,6 +774,7 @@ Ext.application({
         'testextjs.view.produits.mvtproduit.*',
         'testextjs.view.facturation.ModelFacture',
         'testextjs.view.facturation.ModelFactureDynamique',
+        'testextjs.view.facturation.EnteteFacture',
         'testextjs.view.facturation.FactureProvisoire',
         'testextjs.view.caisseManager.Importation',
         'testextjs.view.caisseManager.GestionCaisseOnglets',

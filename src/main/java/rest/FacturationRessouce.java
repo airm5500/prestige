@@ -517,6 +517,7 @@ public class FacturationRessouce {
                                 .toString())
                         .build();
             }
+            apposerEntete(url);
             return Response.ok()
                     .entity(new JSONObject().put("success", true).put("msg", url).put("url", url).toString()).build();
         } catch (Exception e) {
@@ -532,6 +533,24 @@ public class FacturationRessouce {
      * Meme edition, servie DIRECTEMENT en PDF : c'est ce que la page d'impression appelle, le navigateur devant
      * afficher le document et non un objet JSON portant son adresse.
      */
+    /** En-tete et pied de page propres a la pharmacie (plan du 14/11, point 2) ; sans image, edition inchangee. */
+    private void apposerEntete(String url) {
+        if (!reportUtil.editionEcrite(url)) {
+            return;
+        }
+        dal.dataManager odm = new dal.dataManager();
+        try {
+            odm.initEntityManager();
+            rest.service.impl.facture.EnteteFacture.apposerSiRegle(odm.getEm(),
+                    reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1)));
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(FacturationRessouce.class.getName()).log(java.util.logging.Level.WARNING,
+                    "en-tête de facture non apposé", e);
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     @GET
     @Path("facture/{id}/detail-articles/pdf")
     @Produces("application/pdf")

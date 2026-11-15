@@ -389,6 +389,9 @@
     OutputStream outputStream = new FileOutputStream(outputStreamFile);
 
     PdfFiles.mergePdfFiles(inputPdfList, outputStream);
+    outputStream.close();
+    // en-tete et pied de page propres a la pharmacie (plan du 14/11, point 2) : sans image, edition inchangee
+    rest.service.impl.facture.EnteteFacture.apposerSiRegle(OdataManager.getEm(), outputStreamFile);
     //response.sendRedirect(str_file_name);
 
 

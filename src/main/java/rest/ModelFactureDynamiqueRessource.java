@@ -1001,7 +1001,8 @@ public class ModelFactureDynamiqueRessource {
         }
 
         document.close();
-        return out.toByteArray();
+        // en-tete et pied de page propres a la pharmacie (plan du 14/11, point 2) : sans image, PDF inchange
+        return rest.service.impl.facture.EnteteFacture.apposerSiRegle(em, out.toByteArray());
     }
 
     /**
