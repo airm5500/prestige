@@ -58,7 +58,7 @@ class EnvoiFactureCoherenceTest {
     void modesNormalisesOuRefuses() {
         Random r = new Random(GRAINE);
         for (int i = 0; i < 3000; i++) {
-            String mode = EnvoiFacture.MODES.get(r.nextInt(3));
+            String mode = EnvoiFacture.MODES.get(r.nextInt(EnvoiFacture.MODES.size()));
             StringBuilder ecrit = new StringBuilder();
             for (char c : mode.toCharArray()) {
                 ecrit.append(r.nextBoolean() ? Character.toLowerCase(c) : c);

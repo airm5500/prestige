@@ -23,7 +23,10 @@ function sansReglagesInchanges(params) {
 
 /* Plan du 14/11, point 4 : en mode Email, il faut au moins une adresse et toutes valides (separees par ; , ou des
    espaces) ; meme regle que le serveur (rest.service.facture.EnvoiFacture). */
-function modeEnvoiFactureValide(mode, champMail) {
+function modeEnvoiFactureValide(mode, champMail, champMobile) {
+    if (mode === 'WHATSAPP') {
+        return numeroWhatsAppValide(champMobile);
+    }
     if (mode !== 'MAIL') {
         return true;
     }
@@ -37,6 +40,24 @@ function modeEnvoiFactureValide(mode, champMail) {
         return 'Envoi des factures par email : adresse invalide (' + invalides.join(', ') + ')';
     }
     return morceaux.length ? true : 'Envoi des factures par email : renseignez l\'adresse email de l\'organisme (champ Mail)';
+}
+
+/* Demande du 15/11 : en mode WhatsApp, le champ Mobile doit porter un numero mobile ivoirien (10 chiffres commencant
+   par 01, 05 ou 07, indicatif 225 accepte) ; meme regle que le serveur (util.TelephoneCi). */
+function numeroWhatsAppValide(champMobile) {
+    var n = String(champMobile || '').replace(/[\s.\-()]/g, '').replace(/^\+/, '');
+    if (n === '') {
+        return 'Envoi des factures par WhatsApp : renseignez le numéro mobile de l\'organisme (champ Mobile)';
+    }
+    if (/^00225/.test(n)) {
+        n = n.substring(5);
+    } else if (/^225/.test(n) && n.length === 13) {
+        n = n.substring(3);
+    }
+    if (!/^\d{10}$/.test(n) || !/^0[157]/.test(n)) {
+        return 'Envoi des factures par WhatsApp : numéro mobile invalide (10 chiffres, commençant par 01, 05 ou 07)';
+    }
+    return true;
 }
 
 /* Bouton « Enregistrer » remis dans son etat ordinaire apres une confirmation (ou son expiration). */
@@ -484,7 +505,13 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     fieldLabel: 'Mobile',
                                     emptyText: 'Mobile',
                                     name: 'str_MOBILE',
-                                    id: 'str_MOBILE'
+                                    id: 'str_MOBILE',
+                                    listeners: {change: function () {
+                                            var mode = Ext.getCmp('str_MODE_ENVOI_FACTURE');
+                                            if (mode) {
+                                                mode.validate();
+                                            }
+                                        }}
                                 },
                                 {
                                     fieldLabel: 'Mail',
@@ -658,7 +685,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                         {
                                             /* Plan du 14/11, point 4 : mode d'envoi des factures. Email : la facture
                                                part en PDF a l'adresse du champ Mail (liste des factures, colonne
-                                               « Envoi email ») ; API : reglage seul, l'envoi n'est pas encore
+                                               « Envoi ») ; WhatsApp (15/11) : la facture part en PDF au numero du
+                                               champ Mobile ; API : reglage seul, l'envoi n'est pas encore
                                                disponible. */
                                             xtype: 'combobox',
                                             fieldLabel: 'Envoi des factures',
@@ -668,6 +696,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                                 data: [
                                                     ['IMPRESSION', 'Impression'],
                                                     ['MAIL', 'Email (adresse du champ Mail)'],
+                                                    ['WHATSAPP', 'WhatsApp (numéro du champ Mobile)'],
                                                     ['API', 'API (envoi pas encore disponible)']
                                                 ],
                                                 fields: ['value', 'libelle']
@@ -679,7 +708,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                             value: 'IMPRESSION',
                                             validator: function (v) {
                                                 return modeEnvoiFactureValide(this.getValue(),
-                                                        Ext.getCmp('str_MAIL') ? Ext.getCmp('str_MAIL').getValue() : '');
+                                                        Ext.getCmp('str_MAIL') ? Ext.getCmp('str_MAIL').getValue() : '',
+                                                        Ext.getCmp('str_MOBILE') ? Ext.getCmp('str_MOBILE').getValue() : '');
                                             }
                                         }
                                     ]

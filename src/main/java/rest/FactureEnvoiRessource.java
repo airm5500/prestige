@@ -16,6 +16,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.mail.Session;
 import javax.mail.Transport;
@@ -45,13 +46,15 @@ import dal.TOfficine;
 import dal.TTiersPayant;
 import dal.TUser;
 import dal.dataManager;
+import rest.service.WhatsAppService;
 import rest.service.facture.EnvoiFacture;
 import toolkits.utils.jdom;
 import util.AppParameters;
 import util.Constant;
 
 /**
- * Plan du 14/11, point 4 : envoi d'une facture de tiers payant par email.
+ * Plan du 14/11, point 4 : envoi d'une facture de tiers payant par email ; demande du 15/11 : ou par WhatsApp, au
+ * numero mobile de la fiche (document PDF avec une legende courte, par le compte WhatsApp de l'officine).
  *
  * <p>
  * La facture part telle qu'elle s'imprime : modele dynamique du tiers payant s'il en a un, sinon la page d'impression
@@ -74,6 +77,9 @@ public class FactureEnvoiRessource {
 
     @Inject
     private HttpServletRequest servletRequest;
+
+    @EJB
+    private WhatsAppService whatsApp;
 
     @Context
     private HttpServletResponse servletResponse;
@@ -216,7 +222,95 @@ public class FactureEnvoiRessource {
         }
     }
 
+    /**
+     * Demande du 15/11 : envoi de la facture par WhatsApp au numero mobile de la fiche du tiers payant (mode WHATSAPP).
+     * Le PDF est le meme que pour l'impression et l'email ; il part en document, avec une legende courte (numero,
+     * organisme, periode, nombre de bons, montant net, officine), par le compte WhatsApp par defaut. Les documents ne
+     * partent que par WhatsApp Web : avec l'API de Meta, l'envoi est refuse et le motif journalise. Compte en mode test
+     * : l'envoi est simule (statut SIMULEE), rien ne part.
+     */
+    @POST
+    @Path("{factureId}/whatsapp")
+    public Response envoyerParWhatsApp(@PathParam("factureId") String factureId) {
+        TUser user = utilisateurSession();
+        if (user == null) {
+            return refus(Constant.DECONNECTED_MESSAGE);
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        EntityManager em = odm.getEm();
+        try {
+            TFacture facture = em.find(TFacture.class, factureId);
+            if (facture == null) {
+                return refus("Facture introuvable");
+            }
+            TTiersPayant tp = em.find(TTiersPayant.class, facture.getStrCUSTOMER());
+            if (tp == null) {
+                return refus("Cette facture n'est pas celle d'un tiers payant");
+            }
+            if (!EnvoiFacture.WHATSAPP.equals(EnvoiFacture.modeEffectif(tp.getStrMODEENVOIFACTURE()))) {
+                return refus("Le tiers payant " + tp.getStrNAME()
+                        + " n'est pas réglé sur l'envoi des factures par WhatsApp (fiche du tiers payant)");
+            }
+            String motif = EnvoiFacture.controlerFiche(EnvoiFacture.WHATSAPP, null, tp.getStrMOBILE());
+            if (motif != null) {
+                return refus(motif);
+            }
+            String numero = EnvoiFacture.numeroWhatsApp(tp.getStrMOBILE());
+            if (facture.getIntNBDOSSIER() == null || facture.getIntNBDOSSIER() == 0) {
+                return refus("Cette facture ne contient aucun bon : il n'y a rien à envoyer");
+            }
+            byte[] pdf;
+            try {
+                pdf = pdf(em, facture, tp);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "envoyerParWhatsApp : edition de la facture " + factureId, e);
+                pdf = null;
+            }
+            if (pdf == null || pdf.length == 0) {
+                return journaliserEtRepondre(em, facture, tp, user, EnvoiFacture.WHATSAPP, numero,
+                        EnvoiFacture.STATUT_ECHEC, "La facture n'a pas pu être éditée en PDF", null, 0);
+            }
+            String nomFichier = EnvoiFacture.nomPieceJointe(tp.getStrNAME(), facture.getStrCODEFACTURE());
+            if (pdf.length > util.whatsapp.PieceJointe.MAX_OCTETS) {
+                return journaliserEtRepondre(em, facture, tp, user, EnvoiFacture.WHATSAPP, numero,
+                        EnvoiFacture.STATUT_ECHEC,
+                        "Facture trop lourde pour WhatsApp (5 Mo au plus) : envoyez-la par email ou imprimez-la",
+                        nomFichier, pdf.length);
+            }
+            TOfficine officine = em.find(TOfficine.class, "1");
+            String nomOfficine = officine == null ? ""
+                    : StringUtils.defaultIfBlank(officine.getStrNOMCOMPLET(), officine.getStrNOMABREGE());
+            SimpleDateFormat jour = new SimpleDateFormat("dd/MM/yyyy");
+            String periode = facture.getDtDEBUTFACTURE() == null || facture.getDtFINFACTURE() == null ? "" : "du "
+                    + jour.format(facture.getDtDEBUTFACTURE()) + " au " + jour.format(facture.getDtFINFACTURE());
+            String legende = EnvoiFacture.legende(tp.getStrFULLNAME(), facture.getStrCODEFACTURE(), periode,
+                    facture.getDblMONTANTCMDE() == null ? 0 : facture.getDblMONTANTCMDE(), facture.getIntNBDOSSIER(),
+                    nomOfficine);
+            JSONObject r = whatsApp.envoyerDocument(numero, legende,
+                    new util.whatsapp.PieceJointe("document", "application/pdf", nomFichier, pdf),
+                    rest.service.impl.whatsapp.OrigineEnvoi.FACTURE, user.getLgUSERID());
+            String statut = !r.optBoolean("success") ? EnvoiFacture.STATUT_ECHEC
+                    : (r.optBoolean("simule") ? EnvoiFacture.STATUT_SIMULEE : EnvoiFacture.STATUT_ENVOYEE);
+            String erreur = EnvoiFacture.STATUT_ECHEC.equals(statut) ? StringUtils.defaultIfBlank(
+                    StringUtils.removeStart(r.optString("message"), "Envoi refusé : "), "L'envoi a échoué") : null;
+            return journaliserEtRepondre(em, facture, tp, user, EnvoiFacture.WHATSAPP, numero, statut, erreur,
+                    nomFichier, pdf.length);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "envoyerParWhatsApp " + factureId, e);
+            return refus("L'envoi de la facture n'a pas pu être fait");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     private Response journaliserEtRepondre(EntityManager em, TFacture facture, TTiersPayant tp, TUser user,
+            String destinataires, String statut, String erreur, String fichier, int taille) {
+        return journaliserEtRepondre(em, facture, tp, user, EnvoiFacture.MAIL, destinataires, statut, erreur, fichier,
+                taille);
+    }
+
+    private Response journaliserEtRepondre(EntityManager em, TFacture facture, TTiersPayant tp, TUser user, String mode,
             String destinataires, String statut, String erreur, String fichier, int taille) {
         Date maintenant = new Date();
         javax.persistence.EntityTransaction tx = em.getTransaction();
@@ -228,7 +322,7 @@ public class FactureEnvoiRessource {
                 + " str_DESTINATAIRE, str_STATUT, str_ERREUR, str_FICHIER, int_TAILLE, lg_USER_ID, dt_CREATED)"
                 + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)")
                 .setParameter(1, UUID.randomUUID().toString()).setParameter(2, facture.getLgFACTUREID())
-                .setParameter(3, tp.getLgTIERSPAYANTID()).setParameter(4, EnvoiFacture.MAIL)
+                .setParameter(3, tp.getLgTIERSPAYANTID()).setParameter(4, mode)
                 .setParameter(5, StringUtils.abbreviate(destinataires, 255)).setParameter(6, statut)
                 .setParameter(7, erreur == null ? null : StringUtils.abbreviate(erreur, 500)).setParameter(8, fichier)
                 .setParameter(9, taille).setParameter(10, user.getLgUSERID()).setParameter(11, maintenant)
@@ -237,10 +331,14 @@ public class FactureEnvoiRessource {
             tx.commit();
         }
         boolean ok = EnvoiFacture.STATUT_ENVOYEE.equals(statut);
-        return json(new JSONObject().put("success", ok).put("statut", statut)
+        boolean simulee = EnvoiFacture.STATUT_SIMULEE.equals(statut);
+        String canal = EnvoiFacture.WHATSAPP.equals(mode) ? " par WhatsApp" : "";
+        String message = ok ? "Facture " + facture.getStrCODEFACTURE() + " envoyée" + canal + " à " + destinataires
+                : simulee ? "Facture " + facture.getStrCODEFACTURE()
+                        + " : envoi WhatsApp simulé (compte en mode test), rien n'est parti" : erreur;
+        return json(new JSONObject().put("success", ok || simulee).put("statut", statut).put("mode", mode)
                 .put("date", new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(maintenant))
-                .put("destinataire", destinataires).put("message",
-                        ok ? "Facture " + facture.getStrCODEFACTURE() + " envoyée à " + destinataires : erreur));
+                .put("destinataire", destinataires).put("message", message));
     }
 
     /**

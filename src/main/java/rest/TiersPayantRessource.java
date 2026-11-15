@@ -121,9 +121,9 @@ public class TiersPayantRessource {
      * Plan du 14/11, point 4 : mode d'envoi des factures recu de la fiche. Vide : null (inchange ; IMPRESSION a la
      * creation). En mode MAIL, l'adresse de la fiche doit etre valide. IllegalArgumentException : motif du refus.
      */
-    static String modeEnvoiControle(String modeRecu, String mail) {
+    static String modeEnvoiControle(String modeRecu, String mail, String mobile) {
         String mode = rest.service.facture.EnvoiFacture.normaliserMode(modeRecu);
-        String motif = rest.service.facture.EnvoiFacture.controlerFiche(mode, mail);
+        String motif = rest.service.facture.EnvoiFacture.controlerFiche(mode, mail, mobile);
         if (motif != null) {
             throw new IllegalArgumentException(motif);
         }
@@ -203,7 +203,7 @@ public class TiersPayantRessource {
         }
         String modeEnvoi;
         try {
-            modeEnvoi = modeEnvoiControle(modeEnvoiFacture, mail);
+            modeEnvoi = modeEnvoiControle(modeEnvoiFacture, mail, mobile);
         } catch (IllegalArgumentException e) {
             return reponseSimple(commonparameter.PROCESS_FAILED, e.getMessage());
         }
@@ -298,7 +298,7 @@ public class TiersPayantRessource {
         }
         String modeEnvoi;
         try {
-            modeEnvoi = modeEnvoiControle(modeEnvoiFacture, mail);
+            modeEnvoi = modeEnvoiControle(modeEnvoiFacture, mail, mobile);
         } catch (IllegalArgumentException e) {
             return reponseSimple(commonparameter.PROCESS_FAILED, e.getMessage());
         }

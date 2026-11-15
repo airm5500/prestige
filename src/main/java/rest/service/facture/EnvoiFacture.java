@@ -28,7 +28,9 @@ import org.apache.commons.lang3.StringUtils;
  *
  * <ul>
  * <li>mode d'envoi de la fiche : IMPRESSION (par defaut, comportement historique), MAIL (la facture part en PDF a
- * l'adresse de la fiche) ou API (reglage seul : l'envoi par API n'est pas encore disponible) ;</li>
+ * l'adresse de la fiche), WHATSAPP (demande du 15/11 : la facture part en PDF au numero mobile de la fiche, par le
+ * compte WhatsApp de l'officine) ou API (reglage seul : l'envoi par API n'est pas encore disponible) ;</li>
+ * <li>numero de la fiche (champ Mobile) : en mode WHATSAPP, un numero mobile ivoirien valide (TelephoneCi) ;</li>
  * <li>adresse de la fiche : une ou plusieurs adresses separees par « ; », « , » ou des espaces ; en mode MAIL, il en
  * faut au moins une et toutes doivent etre valides ;</li>
  * <li>message : objet « Facture &lt;numero&gt; - &lt;officine&gt; », corps court (organisme, periode, montant, nombre
@@ -41,10 +43,13 @@ public final class EnvoiFacture {
     public static final String IMPRESSION = "IMPRESSION";
     public static final String MAIL = "MAIL";
     public static final String API = "API";
+    public static final String WHATSAPP = "WHATSAPP";
     public static final List<String> MODES = Collections
-            .unmodifiableList(java.util.Arrays.asList(IMPRESSION, MAIL, API));
+            .unmodifiableList(java.util.Arrays.asList(IMPRESSION, MAIL, WHATSAPP, API));
 
     public static final String STATUT_ENVOYEE = "ENVOYEE";
+    /** Compte WhatsApp en mode test : rien n'est parti. */
+    public static final String STATUT_SIMULEE = "SIMULEE";
     public static final String STATUT_ECHEC = "ECHEC";
 
     /** Une adresse : une partie locale, un @, un domaine avec au moins un point ; ni espace ni second @. */
@@ -65,8 +70,8 @@ public final class EnvoiFacture {
         }
         String m = mode.trim().toUpperCase(Locale.ROOT);
         if (!MODES.contains(m)) {
-            throw new IllegalArgumentException(
-                    "Mode d'envoi des factures inconnu : " + mode.trim() + " (attendu : impression, email ou API)");
+            throw new IllegalArgumentException("Mode d'envoi des factures inconnu : " + mode.trim()
+                    + " (attendu : impression, email, WhatsApp ou API)");
         }
         return m;
     }
@@ -131,9 +136,23 @@ public final class EnvoiFacture {
     }
 
     /**
-     * Controle de la fiche a l'enregistrement : motif du refus, ou null si la fiche est acceptable. Seul le mode MAIL
-     * exige une adresse ; en IMPRESSION et en API, l'adresse reste libre comme aujourd'hui.
+     * Controle de la fiche a l'enregistrement : motif du refus, ou null si la fiche est acceptable. Le mode MAIL exige
+     * une adresse, le mode WHATSAPP un numero mobile ; en IMPRESSION et en API, les deux champs restent libres comme
+     * aujourd'hui.
      */
+    public static String controlerFiche(String mode, String champMail, String champMobile) {
+        if (WHATSAPP.equals(mode)) {
+            if (StringUtils.isBlank(champMobile)) {
+                return "Envoi des factures par WhatsApp : renseignez le numéro mobile de l'organisme (champ Mobile)";
+            }
+            util.TelephoneCi.Resultat t = util.TelephoneCi.controler(champMobile);
+            return t.isValide() ? null
+                    : "Envoi des factures par WhatsApp : numéro mobile invalide (" + t.getMotif() + ")";
+        }
+        return controlerFiche(mode, champMail);
+    }
+
+    /** Controle du seul champ Mail (modes autres que WHATSAPP). */
     public static String controlerFiche(String mode, String champMail) {
         if (!MAIL.equals(mode)) {
             return null;
@@ -146,6 +165,25 @@ public final class EnvoiFacture {
             return "Envoi des factures par email : renseignez l'adresse email de l'organisme (champ Mail)";
         }
         return null;
+    }
+
+    /** Numero WhatsApp de la fiche (format international 225...), ou null s'il n'est pas valide. */
+    public static String numeroWhatsApp(String champMobile) {
+        util.TelephoneCi.Resultat t = util.TelephoneCi.controler(champMobile);
+        return t.isValide() ? t.getInternational() : null;
+    }
+
+    /**
+     * Legende du document envoye par WhatsApp : memes elements que le corps du message email, sur quelques lignes (un
+     * message WhatsApp est lu sur un telephone). Aucun nom de patient.
+     */
+    public static String legende(String organisme, String numero, String periode, double montantNet, int nbBons,
+            String officine) {
+        return "Facture " + StringUtils.defaultString(numero).trim()
+                + (StringUtils.isBlank(organisme) ? "" : " - " + organisme.trim()) + "\n"
+                + (StringUtils.isBlank(periode) ? "" : "Période : " + periode.trim() + "\n") + "Nombre de bons : "
+                + nbBons + "\n" + "Montant net : " + montant(montantNet)
+                + (StringUtils.isBlank(officine) ? "" : "\n" + officine.trim());
     }
 
     /** Montant en francs, espaces entre les milliers : 1 234 567 F CFA. */

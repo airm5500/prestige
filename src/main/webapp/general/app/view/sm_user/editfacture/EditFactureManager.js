@@ -144,47 +144,57 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     },
     statics: {
         /**
-         * Plan du 14/11, point 4 : cellule « Envoi email ». Le bouton de la cellule demande confirmation au premier
-         * clic (10 s), envoie au second ; il affiche ensuite le dernier envoi (date) ou son echec (motif au survol).
+         * Plan du 14/11, point 4 : cellule « Envoi » (email ; WhatsApp depuis la demande du 15/11). Le bouton de la
+         * cellule demande confirmation au premier clic (10 s), envoie au second ; il affiche ensuite le dernier envoi
+         * PAR CE CANAL (date) ou son echec (motif au survol).
          */
         celluleEnvoi: function (rec, meta) {
             var h = Ext.String.htmlEncode, mode = rec.get('modeEnvoi');
             if (mode === 'API') {
                 return '<span class="fm-info">API : pas encore disponible</span>';
             }
-            if (mode !== 'MAIL') {
+            if (mode !== 'MAIL' && mode !== 'WHATSAPP') {
                 return '';
             }
-            var etat = rec.etatEnvoi, texte, cls, bulle;
-            if (!rec.get('mailTp')) {
-                texte = 'Adresse manquante';
+            var wa = mode === 'WHATSAPP', dest = wa ? rec.get('mobileTp') : rec.get('mailTp'),
+                    canal = wa ? 'par WhatsApp' : 'par email', etat = rec.etatEnvoi, texte, cls, bulle;
+            /* un envoi fait par l'autre canal (avant un changement de mode) ne dit rien de celui-ci */
+            var statut = (rec.get('envoiMode') || 'MAIL') === mode ? rec.get('envoiStatut') : '';
+            if (!dest) {
+                texte = wa ? 'Numéro manquant' : 'Adresse manquante';
                 cls = 'fm-sans';
-                bulle = 'Renseignez l\'adresse email sur la fiche du tiers payant';
+                bulle = wa ? 'Renseignez un numéro mobile valide (champ Mobile) sur la fiche du tiers payant'
+                        : 'Renseignez l\'adresse email sur la fiche du tiers payant';
             } else if (etat === 'confirmer') {
                 texte = 'Confirmer l\'envoi ?';
                 cls = 'fm-confirmer';
-                bulle = 'Cliquez encore pour envoyer la facture à ' + rec.get('mailTp');
+                bulle = 'Cliquez encore pour envoyer la facture ' + canal + ' à ' + dest;
             } else if (etat === 'encours') {
                 texte = 'Envoi en cours…';
                 cls = 'fm-encours';
-                bulle = 'Envoi à ' + rec.get('mailTp');
+                bulle = 'Envoi ' + canal + ' à ' + dest;
             } else if (rec.refusEnvoi) {
                 texte = '✖ Refusé';
                 cls = 'fm-echec';
                 bulle = rec.refusEnvoi;
-            } else if (rec.get('envoiStatut') === 'ENVOYEE') {
+            } else if (statut === 'ENVOYEE') {
                 texte = '✔ Envoyée le ' + String(rec.get('envoiDate')).substring(0, 16);
                 cls = 'fm-envoyee';
-                bulle = 'Envoyée le ' + rec.get('envoiDate') + ' à ' + rec.get('envoiDestinataire')
+                bulle = 'Envoyée ' + canal + ' le ' + rec.get('envoiDate') + ' à ' + rec.get('envoiDestinataire')
                         + '. Cliquez pour la renvoyer.';
-            } else if (rec.get('envoiStatut') === 'ECHEC') {
+            } else if (statut === 'SIMULEE') {
+                texte = '◌ Simulée le ' + String(rec.get('envoiDate')).substring(0, 16);
+                cls = 'fm-simulee';
+                bulle = 'Envoi simulé le ' + rec.get('envoiDate') + ' : le compte WhatsApp est en mode test, rien'
+                        + ' n\'est parti. Cliquez pour recommencer.';
+            } else if (statut === 'ECHEC') {
                 texte = '✖ Échec : réessayer';
                 cls = 'fm-echec';
                 bulle = 'Échec le ' + rec.get('envoiDate') + ' : ' + rec.get('envoiErreur');
             } else {
-                texte = '✉ Envoyer';
-                cls = '';
-                bulle = 'Envoyer la facture par email à ' + rec.get('mailTp');
+                texte = wa ? '✆ Envoyer' : '✉ Envoyer';
+                cls = wa ? 'fm-whatsapp' : '';
+                bulle = 'Envoyer la facture ' + canal + ' à ' + dest;
             }
             meta.tdAttr = 'data-qtip="' + h(h(bulle)) + '"';
             return '<span class="fm-btn ' + cls + '">' + h(texte) + '</span>';
@@ -204,7 +214,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             }
         }
     },
-    /** Plan du 14/11, point 4 : premier clic = confirmation dans le bouton (10 s), second clic = envoi. */
+    /**
+     * Plan du 14/11, point 4 : premier clic = confirmation dans le bouton (10 s), second clic = envoi (par email ou,
+     * depuis le 15/11, par WhatsApp selon le mode de la fiche du tiers payant).
+     */
     clicEnvoi: function (rec) {
         var me = this, id = rec.get('lg_FACTURE_ID');
         var rafraichir = function () {
@@ -213,7 +226,8 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 me.getView().refreshNode(i);
             }
         };
-        if (rec.get('modeEnvoi') !== 'MAIL' || !rec.get('mailTp') || rec.etatEnvoi === 'encours') {
+        var mode = rec.get('modeEnvoi'), wa = mode === 'WHATSAPP';
+        if ((mode !== 'MAIL' && !wa) || !(wa ? rec.get('mobileTp') : rec.get('mailTp')) || rec.etatEnvoi === 'encours') {
             return;
         }
         if (rec.etatEnvoi !== 'confirmer') {
@@ -234,13 +248,13 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         rafraichir();
         Ext.Ajax.request({
             method: 'POST',
-            url: '../api/v1/facture-envoi/' + encodeURIComponent(id) + '/mail',
+            url: '../api/v1/facture-envoi/' + encodeURIComponent(id) + (wa ? '/whatsapp' : '/mail'),
             callback: function (opt, reussi, response) {
                 var o = response && response.responseText ? Ext.JSON.decode(response.responseText, true) : null;
                 rec.etatEnvoi = null;
                 if (o && o.statut) {
                     rec.set({envoiDate: o.date, envoiStatut: o.statut, envoiDestinataire: o.destinataire || '',
-                        envoiErreur: o.success ? '' : (o.message || '')});
+                        envoiErreur: o.success ? '' : (o.message || ''), envoiMode: o.mode || mode});
                     rec.commit();
                     rec.refusEnvoi = null;
                 } else {
@@ -250,7 +264,8 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 rafraichir();
                 if (window.PrestigeToast) {
                     PrestigeToast.afficher((o && o.message) || rec.refusEnvoi,
-                            {niveau: o && o.success ? 'ok' : 'erreur', titre: 'Facture ' + rec.get('str_CODE_FACTURE')});
+                            {niveau: o && o.statut === 'SIMULEE' ? 'info' : (o && o.success ? 'ok' : 'erreur'),
+                                titre: 'Facture ' + rec.get('str_CODE_FACTURE')});
                 }
             }
         });
@@ -689,7 +704,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 align: 'right'
             },
             {
-                header: 'Envoi email',
+                header: 'Envoi',
                 dataIndex: 'envoiStatut',
                 width: 150,
                 sortable: false,

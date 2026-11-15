@@ -93,8 +93,8 @@ public class FactureTiersPayantRessource {
             marques.append(i == 1 ? "" : ",").append('?').append(i);
         }
         javax.persistence.Query q = em.createNativeQuery("SELECT e.lg_FACTURE_ID, e.dt_CREATED, e.str_STATUT,"
-                + " e.str_DESTINATAIRE, e.str_ERREUR FROM t_facture_envoi e WHERE e.lg_FACTURE_ID IN (" + marques
-                + ") ORDER BY e.dt_CREATED, e.id");
+                + " e.str_DESTINATAIRE, e.str_ERREUR, e.str_MODE FROM t_facture_envoi e WHERE e.lg_FACTURE_ID IN ("
+                + marques + ") ORDER BY e.dt_CREATED, e.id");
         for (int i = 0; i < ids.size(); i++) {
             q.setParameter(i + 1, ids.get(i));
         }
@@ -212,6 +212,11 @@ public class FactureTiersPayantRessource {
                 json.put("envoiStatut", envoi == null ? "" : StringUtils.defaultString((String) envoi[2]));
                 json.put("envoiDestinataire", envoi == null ? "" : StringUtils.defaultString((String) envoi[3]));
                 json.put("envoiErreur", envoi == null ? "" : StringUtils.defaultString((String) envoi[4]));
+                // demande du 15/11 : canal du dernier envoi, et numero WhatsApp de la fiche (vide s'il n'est pas
+                // valide)
+                json.put("envoiMode", envoi == null ? "" : StringUtils.defaultString((String) envoi[5]));
+                json.put("mobileTp", otp == null ? "" : StringUtils
+                        .defaultString(rest.service.facture.EnvoiFacture.numeroWhatsApp(otp.getStrMOBILE())));
                 arrayObj.put(json);
             }
             String result = "{\"total\":\"" + count + " \",\"results\":" + arrayObj.toString() + "}";

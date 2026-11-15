@@ -219,7 +219,10 @@ Ext.define('testextjs.model.Facture', {
         {name: 'envoiDate', type: 'string'},
         {name: 'envoiStatut', type: 'string'},
         {name: 'envoiDestinataire', type: 'string'},
-        {name: 'envoiErreur', type: 'string'}
+        {name: 'envoiErreur', type: 'string'},
+        /* demande du 15/11 : canal du dernier envoi, numero WhatsApp valide de la fiche (vide sinon) */
+        {name: 'envoiMode', type: 'string'},
+        {name: 'mobileTp', type: 'string'}
   
     ]
 });

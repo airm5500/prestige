@@ -3616,3 +3616,6 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .fm-btn.fm-echec { background: #fde2e1; border-color: #c62828; color: #c62828; }
 .fm-btn.fm-sans { background: #f4f4f4; border-color: #999; color: #777; cursor: not-allowed; }
 .fm-info { color: #888; font-size: 11px; }
+/* demande du 15/11 : envoi des factures par WhatsApp */
+.fm-btn.fm-whatsapp { background: #e7f8ee; border-color: #128c4a; color: #0b6b37; }
+.fm-btn.fm-simulee { background: #fff6dd; border-color: #b7791f; color: #8a5a12; }
