@@ -1888,42 +1888,30 @@ public class ClientServiceImpl implements ClientService {
             String tiersPayantId, String groupeId, String typeTp, int start, int limit, boolean all) {
         List<VenteTiersPayantsDTO> data = new ArrayList<>();
         try {
-            CriteriaBuilder cb = this.getEmg().getCriteriaBuilder();
-            CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
-            Root<TPreenregistrementCompteClientTiersPayent> root = cq
-                    .from(TPreenregistrementCompteClientTiersPayent.class);
-
-            cq.multiselect(
-                    root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
-                            .get(TCompteClientTiersPayant_.lgTIERSPAYANTID),
-                    cb.count(root), cb.sum(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICE)),
-                    cb.sum(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICERESTE)))
-                    .orderBy(cb.asc(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
-                            .get(TCompteClientTiersPayant_.lgTIERSPAYANTID).get(TTiersPayant_.strFULLNAME)))
-                    .groupBy(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
-                            .get(TCompteClientTiersPayant_.lgTIERSPAYANTID));
-
-            List<Predicate> predicates = predicateventesTiersPayants(cb, root, query, dtStart, dtEnd, tiersPayantId,
-                    groupeId, typeTp);
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-
-            TypedQuery<Object[]> q = this.getEmg().createQuery(cq);
-            if (!all) {
-                q.setFirstResult(start);
-                q.setMaxResults(limit);
+            /* retour du 15/11 : une requete SQL, periode en intervalle (voir VentesTiersPayantsRequete) */
+            VentesTiersPayantsRequete r = new VentesTiersPayantsRequete(query, dtStart, dtEnd, tiersPayantId, groupeId,
+                    typeTp, start, limit, all);
+            javax.persistence.Query q = this.getEmg().createNativeQuery(r.sql);
+            for (int i = 0; i < r.parametres.size(); i++) {
+                q.setParameter(i + 1, r.parametres.get(i));
             }
-
-            // Mapping manuel robuste
+            @SuppressWarnings("unchecked")
             List<Object[]> results = q.getResultList();
             for (Object[] row : results) {
-                TTiersPayant payant = (TTiersPayant) row[0];
-                Number count = (Number) row[1];
-                Number sumPrice = (Number) row[2];
-                Number sumReste = (Number) row[3];
-
-                data.add(new VenteTiersPayantsDTO(payant, count, sumPrice, sumReste));
+                VenteTiersPayantsDTO d = new VenteTiersPayantsDTO();
+                d.setTiersPayantId((String) row[0]);
+                d.setCodeTiersPayant((String) row[1]);
+                d.setLibelleTiersPayant((String) row[2]);
+                d.setGroupeId(row[3] == null ? null : ((Number) row[3]).intValue());
+                d.setLibelleGroupe((String) row[4]);
+                d.setGroupBy(row[4] == null ? "" : (String) row[4]);
+                d.setTypeTiersPayantId((String) row[5]);
+                d.setTypeTiersPayant((String) row[6]);
+                d.setNbreDossier(row[7] == null ? 0 : ((Number) row[7]).intValue());
+                d.setMontant(row[8] == null ? 0L : ((Number) row[8]).longValue());
+                d.setMontantRemise(row[9] == null ? 0L : ((Number) row[9]).longValue());
+                data.add(d);
             }
-
             return data;
 
         } catch (Exception e) {
@@ -1933,58 +1921,11 @@ public class ClientServiceImpl implements ClientService {
         return data;
     }
 
-    List<Predicate> predicateventesTiersPayants(CriteriaBuilder cb,
-            Root<TPreenregistrementCompteClientTiersPayent> root, String query, String dtStart, String dtEnd,
-            String tiersPayantId, String groupeId, String typeTp) {
-        List<Predicate> predicates = new ArrayList<>();
-        Predicate btw = cb.between(
-                cb.function("DATE", Date.class,
-                        root.get(TPreenregistrementCompteClientTiersPayent_.lgPREENREGISTREMENTID)
-                                .get(TPreenregistrement_.dtCREATED)),
-                java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-        predicates.add(btw);
-        predicates.add(cb.equal(root.get(TPreenregistrementCompteClientTiersPayent_.lgPREENREGISTREMENTID)
-                .get(TPreenregistrement_.strSTATUT), Constant.STATUT_IS_CLOSED));
-        predicates.add(
-                cb.equal(root.get(TPreenregistrementCompteClientTiersPayent_.strSTATUT), Constant.STATUT_IS_CLOSED));
-        predicates.add(cb.isFalse(root.get(TPreenregistrementCompteClientTiersPayent_.lgPREENREGISTREMENTID)
-                .get(TPreenregistrement_.bISCANCEL)));
-        predicates.add(cb.greaterThan(root.get(TPreenregistrementCompteClientTiersPayent_.lgPREENREGISTREMENTID)
-                .get(TPreenregistrement_.intPRICE), 0));
-        predicates.add(cb.greaterThan(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICE), 0));
-        if (!StringUtils.isEmpty(query)) {
-            query = query.toUpperCase();
-            predicates.add(cb.or(
-                    cb.like(cb.upper(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
-                            .get(TCompteClientTiersPayant_.lgTIERSPAYANTID).get(TTiersPayant_.strFULLNAME)),
-                            query + "%"),
-                    cb.like(cb.upper(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
-                            .get(TCompteClientTiersPayant_.lgTIERSPAYANTID).get(TTiersPayant_.strNAME)), query + "%")));
-        }
-
-        if (!StringUtils.isEmpty(tiersPayantId) || !StringUtils.isEmpty(query) || !StringUtils.isEmpty(groupeId)) {
-            Join<TPreenregistrementCompteClientTiersPayent, TCompteClientTiersPayant> join = root
-                    .join(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID, JoinType.INNER);
-            if (!StringUtils.isEmpty(tiersPayantId)) {
-                predicates.add(
-                        cb.equal(join.get(TCompteClientTiersPayant_.lgTIERSPAYANTID).get(TTiersPayant_.lgTIERSPAYANTID),
-                                tiersPayantId));
-            }
-
-            if (!StringUtils.isEmpty(groupeId)) {
-                predicates.add(cb.equal(join.get(TCompteClientTiersPayant_.lgTIERSPAYANTID)
-                        .get(TTiersPayant_.lgGROUPEID).get(TGroupeTierspayant_.lgGROUPEID), Integer.valueOf(groupeId)));
-
-            }
-
-        }
-        if (!StringUtils.isEmpty(typeTp) && !"ALL".equals(typeTp)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
-                    .get(TCompteClientTiersPayant_.lgTIERSPAYANTID).get(TTiersPayant_.lgTYPETIERSPAYANTID)
-                    .get(TTypeTiersPayant_.lgTYPETIERSPAYANTID), typeTp));
-        }
-        return predicates;
-
+    /** Periode du jour {@code debut} au jour {@code fin} inclus : [debut 0 h ; lendemain de fin 0 h[. */
+    static java.util.Date[] bornesJours(String debut, String fin) {
+        java.time.LocalDate d = java.time.LocalDate.parse(debut), f = java.time.LocalDate.parse(fin);
+        return new java.util.Date[] { java.sql.Timestamp.valueOf(d.atStartOfDay()),
+                java.sql.Timestamp.valueOf(f.plusDays(1).atStartOfDay()) };
     }
 
     public TCompteClientTiersPayant updateOrCreateClientCarnet(TClient client, TTiersPayant p, int taux)
