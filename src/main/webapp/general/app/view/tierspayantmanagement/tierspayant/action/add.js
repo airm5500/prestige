@@ -5,6 +5,35 @@ var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tiersp
  * d'enregistrer : onbtnsave est un handler de bouton, « this » y designe le BOUTON et
  * non la fenetre, la source de donnees n'y est donc pas accessible. */
 var consommationEnCoursTiersPayant = 0;
+
+/* Plan du 14/11, point 4 : en mode Email, il faut au moins une adresse et toutes valides (separees par ; , ou des
+   espaces) ; meme regle que le serveur (rest.service.facture.EnvoiFacture). */
+function modeEnvoiFactureValide(mode, champMail) {
+    if (mode !== 'MAIL') {
+        return true;
+    }
+    var morceaux = String(champMail || '').split(/[;,\s]+/).filter(function (m) {
+        return m !== '';
+    });
+    var invalides = morceaux.filter(function (m) {
+        return !/^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(m) || /\.\.|^\.|\.@/.test(m);
+    });
+    if (invalides.length) {
+        return 'Envoi des factures par email : adresse invalide (' + invalides.join(', ') + ')';
+    }
+    return morceaux.length ? true : 'Envoi des factures par email : renseignez l\'adresse email de l\'organisme (champ Mail)';
+}
+
+/* Bouton « Enregistrer » remis dans son etat ordinaire apres une confirmation (ou son expiration). */
+function remettreBoutonEnregistrer(button) {
+    if (!button || button.isDestroyed || !button.texteOrigine) {
+        return;
+    }
+    button.confirmePlafond = null;
+    button.setText(button.texteOrigine);
+    button.removeCls('bouton-confirmer');
+    button.setTooltip('');
+}
 var url_services_transaction_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
 
 /*
@@ -446,7 +475,13 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     fieldLabel: 'Mail',
                                     emptyText: 'MAIL',
                                     name: 'str_MAIL',
-                                    id: 'str_MAIL'
+                                    id: 'str_MAIL',
+                                    listeners: {change: function () {
+                                            var mode = Ext.getCmp('str_MODE_ENVOI_FACTURE');
+                                            if (mode) {
+                                                mode.validate();
+                                            }
+                                        }}
                                 },
                                 {
                                     fieldLabel: 'Compte Contribuable',
@@ -604,6 +639,33 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                             queryMode: 'local',
                                             // 7 points : la taille moyenne des modeles livres.
                                             value: 7
+                                        },
+                                        {
+                                            /* Plan du 14/11, point 4 : mode d'envoi des factures. Email : la facture
+                                               part en PDF a l'adresse du champ Mail (liste des factures, colonne
+                                               « Envoi email ») ; API : reglage seul, l'envoi n'est pas encore
+                                               disponible. */
+                                            xtype: 'combobox',
+                                            fieldLabel: 'Envoi des factures',
+                                            name: 'str_MODE_ENVOI_FACTURE',
+                                            id: 'str_MODE_ENVOI_FACTURE',
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                data: [
+                                                    ['IMPRESSION', 'Impression'],
+                                                    ['MAIL', 'Email (adresse du champ Mail)'],
+                                                    ['API', 'API (envoi pas encore disponible)']
+                                                ],
+                                                fields: ['value', 'libelle']
+                                            }),
+                                            valueField: 'value',
+                                            displayField: 'libelle',
+                                            editable: false,
+                                            queryMode: 'local',
+                                            value: 'IMPRESSION',
+                                            validator: function (v) {
+                                                return modeEnvoiFactureValide(this.getValue(),
+                                                        Ext.getCmp('str_MAIL') ? Ext.getCmp('str_MAIL').getValue() : '');
+                                            }
                                         }
                                     ]
                                 }
@@ -821,6 +883,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.getCmp('str_MOBILE').setValue(this.getOdatasource().str_MOBILE);
             Ext.getCmp('str_TELEPHONE').setValue(this.getOdatasource().str_TELEPHONE);
             Ext.getCmp('str_MAIL').setValue(this.getOdatasource().str_MAIL);
+            Ext.getCmp('str_MODE_ENVOI_FACTURE').setValue(this.getOdatasource().str_MODE_ENVOI_FACTURE || 'IMPRESSION');
             Ext.getCmp('str_CODE_OFFICINE').setValue(this.getOdatasource().str_CODE_OFFICINE);
             Ext.getCmp('str_COMPTE_CONTRIBUABLE').setValue(this.getOdatasource().str_COMPTE_CONTRIBUABLE);
 
@@ -1050,6 +1113,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                     // Champ vide = automatique : on transmet 0, la facture garde sa presentation actuelle
                     int_NB_BONS_PAR_PAGE: Ext.getCmp('int_NB_BONS_PAR_PAGE').getValue() || 0,
                     int_TAILLE_POLICE: Ext.getCmp('int_TAILLE_POLICE').getValue() || 0,
+                    str_MODE_ENVOI_FACTURE: Ext.getCmp('str_MODE_ENVOI_FACTURE').getValue() || 'IMPRESSION',
                     cmu: Ext.getCmp('cmu').getValue(),
                     caution: Ext.getCmp('caution').getValue(),
                     // Gere comme depot : n'a de sens que pour un carnet, d'ou le controle de
@@ -1124,25 +1188,34 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             var plafondSaisi = parseFloat(Ext.getCmp('dbl_PLAFOND_CREDIT').getValue()) || 0;
             var consoEnCours = (Omode === "create") ? 0 : consommationEnCoursTiersPayant;
             if (plafondSaisi > 0 && consoEnCours > plafondSaisi) {
-                var format = function (v) {
-                    return Ext.util.Format.number(v, '0,000') + ' F';
-                };
-                Ext.MessageBox.show({
-                    title: 'Plafond inférieur à la consommation',
-                    msg: 'La consommation en cours de cet organisme est de <b>' + format(consoEnCours)
-                            + '</b>, le plafond que vous enregistrez est de <b>' + format(plafondSaisi)
-                            + '</b>.<br><br>Le plafond sera bien enregistré : les ventes à venir seront'
-                            + ' contrôlées sur cette nouvelle valeur.<br><br>Enregistrer quand même ?',
-                    buttons: Ext.MessageBox.YESNO,
-                    icon: Ext.MessageBox.QUESTION,
-                    fn: function (bouton) {
-                        if (bouton === 'yes') {
-                            envoyerLaFiche();
-                        }
+                /* Plan du 14/11, point 4 : la confirmation se fait dans le bouton (deux clics en 10 s), sans
+                   fenetre ; le detail s'affiche sur le bouton et dans un avis qui ne bloque rien. */
+                if (!(button.confirmePlafond && Date.now() - button.confirmePlafond < 10000)) {
+                    var format = function (v) {
+                        return Ext.util.Format.number(v, '0,000') + ' F';
+                    };
+                    var detail = 'La consommation en cours de cet organisme est de ' + format(consoEnCours)
+                            + ', le plafond que vous enregistrez est de ' + format(plafondSaisi)
+                            + '. Le plafond sera bien enregistré : les ventes à venir seront contrôlées sur cette'
+                            + ' nouvelle valeur. Cliquez encore sur le bouton pour enregistrer.';
+                    var marque = Date.now();
+                    button.confirmePlafond = marque;
+                    button.texteOrigine = button.texteOrigine || button.getText();
+                    button.setText('Plafond < consommation : confirmer ?');
+                    button.addCls('bouton-confirmer');
+                    button.setTooltip(detail);
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher(detail, {niveau: 'alerte', titre: 'Plafond inférieur à la consommation', duree: 10000});
                     }
-                });
-                return;
+                    Ext.defer(function () {
+                        if (!button.isDestroyed && button.confirmePlafond === marque) {
+                            remettreBoutonEnregistrer(button);
+                        }
+                    }, 10000);
+                    return;
+                }
             }
+            remettreBoutonEnregistrer(button);
             envoyerLaFiche();
 
         } else {

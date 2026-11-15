@@ -789,6 +789,19 @@ public class ModelFactureDynamiqueRessource {
     /** Marge haute du modele de reference : l'en-tete repete commence juste en dessous. */
     private static final float MARGE_HAUTE = 20f;
 
+    /**
+     * PDF de la facture si son tiers payant est rattache a un modele dynamique, sinon null (la facture s'imprime alors
+     * par le circuit Jasper historique). Meme document que GET pdf/{factureId} ; sert a l'envoi par email (plan du
+     * 14/11, point 4).
+     */
+    byte[] pdfSiModeleDynamique(EntityManager em, TFacture facture, TTiersPayant tiersPayant) throws Exception {
+        Integer idModeleDyn = tiersPayant != null && tiersPayant.getLgMODELFACTUREID() != null
+                && tiersPayant.getLgMODELFACTUREID().isDynamique()
+                        ? tiersPayant.getLgMODELFACTUREID().getModelFactureDynamiqueId() : null;
+        ModelFactureDynamique modele = idModeleDyn != null ? em.find(ModelFactureDynamique.class, idModeleDyn) : null;
+        return modele == null ? null : genererPdf(em, facture, tiersPayant, modele);
+    }
+
     private byte[] genererPdf(EntityManager em, TFacture facture, TTiersPayant tiersPayant,
             ModelFactureDynamique modele) throws Exception {
         List<TFactureDetail> details = em

@@ -626,7 +626,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
         if (lg_TYPE == null) {
             lg_TYPE = "";
         }
-        this.getStore().load({
+        /* page 1 explicitement : sans elle, la page courante valait NaN (« Page courante NaN »), la demande partait
+           avec page=NaN&start=NaN, le serveur la rejetait et la recherche restait sans effet */
+        this.getStore().loadPage(1, {
             params: {
                 search_value: val.getValue(),
                 lg_TYPE_TIERS_PAYANT_ID: lg_TYPE

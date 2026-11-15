@@ -214,6 +214,7 @@ Ext.define('testextjs.model.TiersPayant', {
         // Mise en page de la facture : 0 = automatique, c'est-a-dire la presentation d'aujourd'hui
         {name: 'int_NB_BONS_PAR_PAGE', type: 'int', defaultValue: 0},
         {name: 'int_TAILLE_POLICE', type: 'int', defaultValue: 0},
+        {name: 'str_MODE_ENVOI_FACTURE', type: 'string', defaultValue: 'IMPRESSION'},
         {
             name: 'str_CODE_OFFICINE',
             type: 'string'

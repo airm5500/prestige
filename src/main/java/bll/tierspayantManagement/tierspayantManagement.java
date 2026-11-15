@@ -43,6 +43,16 @@ import toolkits.utils.logger;
  */
 public class tierspayantManagement extends bllBase {
 
+    /**
+     * Plan du 14/11, point 4 : mode d'envoi des factures a poser par create ou update (IMPRESSION, MAIL ou API, deja
+     * controle par l'appelant) ; null = inchange (creation : IMPRESSION).
+     */
+    private String modeEnvoiFacture;
+
+    public void setModeEnvoiFacture(String modeEnvoiFacture) {
+        this.modeEnvoiFacture = modeEnvoiFacture;
+    }
+
     Object Otable = TTiersPayant.class;
 
     /**
@@ -256,6 +266,9 @@ public class tierspayantManagement extends bllBase {
             OTTiersPayant.setStrMODETRIFACTURE(normalizeModeTriFacture(str_MODE_TRI_FACTURE));
             OTTiersPayant.setIntNBBONSPARPAGE(rest.report.MiseEnPageFacture.bonsParPage(int_NB_BONS_PAR_PAGE));
             OTTiersPayant.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(int_TAILLE_POLICE));
+            if (modeEnvoiFacture != null) {
+                OTTiersPayant.setStrMODEENVOIFACTURE(modeEnvoiFacture);
+            }
             OTTiersPayant.setStrSTATUT(commonparameter.statut_enable);
             OTTiersPayant.setDtCREATED(new Date());
 
@@ -466,6 +479,9 @@ public class tierspayantManagement extends bllBase {
             OTTiersPayant.setStrMODETRIFACTURE(normalizeModeTriFacture(str_MODE_TRI_FACTURE));
             if (int_NB_BONS_PAR_PAGE != null) {
                 OTTiersPayant.setIntNBBONSPARPAGE(rest.report.MiseEnPageFacture.bonsParPage(int_NB_BONS_PAR_PAGE));
+            }
+            if (modeEnvoiFacture != null) {
+                OTTiersPayant.setStrMODEENVOIFACTURE(modeEnvoiFacture);
             }
             if (int_TAILLE_POLICE != null) {
                 OTTiersPayant.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(int_TAILLE_POLICE));

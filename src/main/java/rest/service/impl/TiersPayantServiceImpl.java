@@ -185,6 +185,9 @@ public class TiersPayantServiceImpl implements TiersPayantService {
             // Mise en page de la facture : 0 = automatique (la presentation propre a chaque modele)
             json.put("int_NB_BONS_PAR_PAGE", tTiersPayant.bonsParPageEffectif());
             json.put("int_TAILLE_POLICE", tTiersPayant.taillePoliceEffective());
+            // Plan du 14/11, point 4 : mode d'envoi des factures (IMPRESSION par defaut)
+            json.put("str_MODE_ENVOI_FACTURE",
+                    rest.service.facture.EnvoiFacture.modeEffectif(tTiersPayant.getStrMODEENVOIFACTURE()));
             json.put("str_STATUT", tTiersPayant.getStrSTATUT());
             json.put("b_IsAbsolute", tTiersPayant.getBIsAbsolute());
             json.put("db_CONSOMMATION_MENSUELLE", encoursParTp.getOrDefault(tTiersPayant.getLgTIERSPAYANTID(), 0));

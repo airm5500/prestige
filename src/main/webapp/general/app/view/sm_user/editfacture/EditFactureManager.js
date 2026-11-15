@@ -143,6 +143,52 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         }
     },
     statics: {
+        /**
+         * Plan du 14/11, point 4 : cellule « Envoi email ». Le bouton de la cellule demande confirmation au premier
+         * clic (10 s), envoie au second ; il affiche ensuite le dernier envoi (date) ou son echec (motif au survol).
+         */
+        celluleEnvoi: function (rec, meta) {
+            var h = Ext.String.htmlEncode, mode = rec.get('modeEnvoi');
+            if (mode === 'API') {
+                return '<span class="fm-info">API : pas encore disponible</span>';
+            }
+            if (mode !== 'MAIL') {
+                return '';
+            }
+            var etat = rec.etatEnvoi, texte, cls, bulle;
+            if (!rec.get('mailTp')) {
+                texte = 'Adresse manquante';
+                cls = 'fm-sans';
+                bulle = 'Renseignez l\'adresse email sur la fiche du tiers payant';
+            } else if (etat === 'confirmer') {
+                texte = 'Confirmer l\'envoi ?';
+                cls = 'fm-confirmer';
+                bulle = 'Cliquez encore pour envoyer la facture à ' + rec.get('mailTp');
+            } else if (etat === 'encours') {
+                texte = 'Envoi en cours…';
+                cls = 'fm-encours';
+                bulle = 'Envoi à ' + rec.get('mailTp');
+            } else if (rec.refusEnvoi) {
+                texte = '✖ Refusé';
+                cls = 'fm-echec';
+                bulle = rec.refusEnvoi;
+            } else if (rec.get('envoiStatut') === 'ENVOYEE') {
+                texte = '✔ Envoyée le ' + String(rec.get('envoiDate')).substring(0, 16);
+                cls = 'fm-envoyee';
+                bulle = 'Envoyée le ' + rec.get('envoiDate') + ' à ' + rec.get('envoiDestinataire')
+                        + '. Cliquez pour la renvoyer.';
+            } else if (rec.get('envoiStatut') === 'ECHEC') {
+                texte = '✖ Échec : réessayer';
+                cls = 'fm-echec';
+                bulle = 'Échec le ' + rec.get('envoiDate') + ' : ' + rec.get('envoiErreur');
+            } else {
+                texte = '✉ Envoyer';
+                cls = '';
+                bulle = 'Envoyer la facture par email à ' + rec.get('mailTp');
+            }
+            meta.tdAttr = 'data-qtip="' + h(h(bulle)) + '"';
+            return '<span class="fm-btn ' + cls + '">' + h(texte) + '</span>';
+        },
         estSupprimable: function (rec) {
             return rec.get('str_STATUT') !== 'paid' && Number(rec.get('dbl_MONTANT_PAYE') || 0) <= 0
                     && !rec.get('fneUrl') && !rec.get('fneAvoirUrl') && rec.get('isALLOWED');
@@ -151,7 +197,63 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     listeners: {
         render: function (grid) {
             this.onRechClick();
+        },
+        cellclick: function (view, td, ci, rec, tr, ri, e) {
+            if (e && e.getTarget('.fm-btn')) {
+                this.clicEnvoi(rec);
+            }
         }
+    },
+    /** Plan du 14/11, point 4 : premier clic = confirmation dans le bouton (10 s), second clic = envoi. */
+    clicEnvoi: function (rec) {
+        var me = this, id = rec.get('lg_FACTURE_ID');
+        var rafraichir = function () {
+            var i = me.getStore().indexOf(rec);
+            if (i >= 0 && !me.isDestroyed) {
+                me.getView().refreshNode(i);
+            }
+        };
+        if (rec.get('modeEnvoi') !== 'MAIL' || !rec.get('mailTp') || rec.etatEnvoi === 'encours') {
+            return;
+        }
+        if (rec.etatEnvoi !== 'confirmer') {
+            var marque = Date.now();
+            rec.etatEnvoi = 'confirmer';
+            rec.marqueEnvoi = marque;
+            rec.refusEnvoi = null;
+            rafraichir();
+            Ext.defer(function () {
+                if (rec.etatEnvoi === 'confirmer' && rec.marqueEnvoi === marque) {
+                    rec.etatEnvoi = null;
+                    rafraichir();
+                }
+            }, 10000);
+            return;
+        }
+        rec.etatEnvoi = 'encours';
+        rafraichir();
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/facture-envoi/' + encodeURIComponent(id) + '/mail',
+            callback: function (opt, reussi, response) {
+                var o = response && response.responseText ? Ext.JSON.decode(response.responseText, true) : null;
+                rec.etatEnvoi = null;
+                if (o && o.statut) {
+                    rec.set({envoiDate: o.date, envoiStatut: o.statut, envoiDestinataire: o.destinataire || '',
+                        envoiErreur: o.success ? '' : (o.message || '')});
+                    rec.commit();
+                    rec.refusEnvoi = null;
+                } else {
+                    rec.refusEnvoi = (o && o.message) || ('L\'envoi n\'a pas pu être fait (erreur '
+                            + (response ? response.status : '?') + ')');
+                }
+                rafraichir();
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher((o && o.message) || rec.refusEnvoi,
+                            {niveau: o && o.success ? 'ok' : 'erreur', titre: 'Facture ' + rec.get('str_CODE_FACTURE')});
+                }
+            }
+        });
     },
     /**
      * Marque l'info-bulle quand elle est declenchee depuis CET ecran, pour la mettre en bleu gras
@@ -585,6 +687,16 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 flex: 1,
                 renderer: renduAvecInfobulle('Montant restant', amountformat),
                 align: 'right'
+            },
+            {
+                header: 'Envoi email',
+                dataIndex: 'envoiStatut',
+                width: 150,
+                sortable: false,
+                menuDisabled: true,
+                renderer: function (v, meta, rec) {
+                    return testextjs.view.sm_user.editfacture.EditFactureManager.celluleEnvoi(rec, meta);
+                }
             },
             {
                 header: 'Date',

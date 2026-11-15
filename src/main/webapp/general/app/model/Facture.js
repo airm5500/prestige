@@ -212,7 +212,14 @@ Ext.define('testextjs.model.Facture', {
         {
             name: 'ACTION_REGLER_FACTURE',
             type: 'boolean'
-        }
+        },
+        /* Plan du 14/11, point 4 : mode d'envoi du tiers payant, adresses valides de sa fiche, dernier envoi */
+        {name: 'modeEnvoi', type: 'string'},
+        {name: 'mailTp', type: 'string'},
+        {name: 'envoiDate', type: 'string'},
+        {name: 'envoiStatut', type: 'string'},
+        {name: 'envoiDestinataire', type: 'string'},
+        {name: 'envoiErreur', type: 'string'}
   
     ]
 });
