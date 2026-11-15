@@ -52,7 +52,8 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.Passerelle', {
                 w.close();
             }
         });
-        testextjs.app.getController('App').onLoadNewComponent('etiquetagepro', 'Étiquettage Pro', '');
+        var app = testextjs.app.getController('App'), retour = preset.apresEntree ? null : this.pageCourante(app);
+        app.onLoadNewComponent('etiquetagepro', 'Étiquettage Pro', '');
         var ecran = Ext.ComponentQuery.query('etiquetagepro')[0];
         if (!ecran) {
             throw new Error('Étiquettage Pro indisponible');
@@ -61,6 +62,8 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.Passerelle', {
             ecran.ouvrirOutil(7, preset);
             if (preset.apresEntree) {
                 ecran.modeApresEntree();
+            } else if (retour) {
+                ecran.modeRetour(retour);
             }
         };
         if (ecran.rendered) {
@@ -70,5 +73,17 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.Passerelle', {
                 Ext.defer(ouvrir, 1);
             }, null, {single: true});
         }
+    },
+
+    /**
+     * Retour du 15/11 : « après édition on doit revenir à la page précédente qui a conduit à Étiquettage Pro ». Page
+     * affichee au moment du clic (liste des etiquettes, gestion des etiquettes...), avec ce qui l'avait ouverte.
+     */
+    pageCourante: function (app) {
+        var c = app.getContentPanel() && app.getContentPanel().items.first();
+        if (!c || c.isXType('etiquetagepro')) {
+            return null;
+        }
+        return {xtype: c.getXType(), titre: c.titre || '', nameintern: c.nameintern || '', odatasource: c.odatasource};
     }
 });

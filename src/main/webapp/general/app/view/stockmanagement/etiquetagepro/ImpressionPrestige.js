@@ -95,6 +95,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
     ouvrir: function (preset) {
         var me = this;
         me.preset = preset || null;
+        me.imprime = false;
         me.ligneId = preset && preset.source === 'LIGNE' ? preset.id : null;
         me.down('#impSourceLigne').setVisible(!!me.ligneId);
         if (!me.ligneId && me.source() === 'LIGNE') {
@@ -243,6 +244,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
             var t = i >= pos ? types[i - pos] : null, fond = i < pos ? '#c9d1d9' : t ? me.COULEURS[t] || '#7d8b99' : '#fff';
             html += '<div class="etqp-case" data-position="' + i + '" title="Position ' + i + (t ? ' — ' + (me.LIBELLES[t] || t) : '') + '" style="height:'
                     + Math.max(8, g.h * k) + 'px;background:' + fond + ';border:1px solid #b8c1cb;cursor:pointer;font-size:9px;color:#fff;'
+                    + (i === pos ? 'outline:3px solid #0b5e78;outline-offset:-3px;font-size:12px;color:' + (t ? '#fff' : '#0b5e78') + ';' : '')
                     + 'display:flex;align-items:center;justify-content:center">' + (i === pos ? '▶' : '') + '</div>';
         }
         html += '</div>';
@@ -259,9 +261,13 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
         });
         var pages = total ? Math.ceil((total + pos - 1) / parPage) : 0;
         me.down('#impResume').update('<div class="etqp-resume"><b>' + total + '</b> étiquette(s) pour <b>' + (me.etat.produits || 0) + '</b> produit(s), '
-                + parPage + ' par planche : <b>' + pages + '</b> planche(s).' + (total === 0
+                + parPage + ' par planche : <b>' + pages + '</b> planche(s).'
+                + '<br><span class="etqp-depart">Départ : position <b>' + pos + '</b> (ligne ' + Math.ceil(pos / g.col) + ', colonne ' + ((pos - 1) % g.col + 1) + ')</span>'
+                + (total === 0 && me.imprime ? '<br><span style="color:#17795f">✔ Planche générée : le panier est soldé, il n’y a plus rien à imprimer.</span>' : total === 0
                 ? '<br><span style="color:#b42318">Aucune étiquette à imprimer' + (me.source() === 'BL' && !me.down('#impBon').getValue() ? ' : choisissez un bon.' : '.') + '</span>'
                 : '') + '</div>');
+        /* retour du 15/11 : apres l'impression du panier, le bouton dit pourquoi il est grise */
+        me.down('#impPdf').setText(total === 0 && me.imprime ? '✔ Planche générée' : 'Générer le PDF');
         me.down('#impPdf').setDisabled(total === 0);
     },
 
@@ -292,10 +298,25 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
     },
 
     imprimer: function (test) {
-        var me = this;
+        var me = this, ecran = me.ecran;
         window.open('../Etiquete?' + Ext.Object.toQueryString(me.parametres(test)));
-        me.ecran.message(test ? 'Page de test envoyée : imprimez-la à 100 % et superposez-la sur une planche.'
-                : 'Planche envoyée (' + ((me.etat && me.etat.total) || 0) + ' étiquette(s)).' + (me.source() === 'PANIER' ? ' Le panier est soldé.' : ''));
+        /* retour du 15/11 : ouvert depuis une autre page, l'impression y ramene */
+        var retour = !test && ecran.aUnePageDOrigine();
+        ecran.message(test ? 'Page de test envoyée : imprimez-la à 100 % et superposez-la sur une planche.'
+                : 'Planche envoyée (' + ((me.etat && me.etat.total) || 0) + ' étiquette(s)).' + (me.source() === 'PANIER' ? ' Le panier est soldé.' : '')
+                + (retour ? ' Retour à la page précédente…' : ''));
+        if (retour) {
+            me.down('#impPdf').disable();
+            Ext.defer(function () {
+                if (!ecran.isDestroyed) {
+                    ecran.revenir();
+                }
+            }, 1500);
+            return;
+        }
+        if (!test) {
+            me.imprime = true;
+        }
         if (!test && me.source() === 'PANIER') {
             Ext.defer(function () {
                 me.resume();
