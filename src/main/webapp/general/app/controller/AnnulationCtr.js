@@ -61,6 +61,13 @@ Ext.define('testextjs.controller.AnnulationCtr', {
             'venteannuler #query': {
                 specialkey: this.onSpecialKey
             },
+            /* plan du 14/11, point 10 : le choix d'un motif ou d'un tri relance la recherche */
+            'venteannuler #motifFiltre': {
+                select: this.doSearch
+            },
+            'venteannuler #triAnnulees': {
+                select: this.doSearch
+            },
 
             'venteannuler #printPdf': {
                 click: this.printLit
@@ -153,6 +160,8 @@ Ext.define('testextjs.controller.AnnulationCtr', {
         };
 
         myProxy.setExtraParam('query', me.getQueryField().getValue());
+        myProxy.setExtraParam('motif', me.motifChoisi());
+        myProxy.setExtraParam('tri', me.triChoisi());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
 
@@ -170,16 +179,30 @@ Ext.define('testextjs.controller.AnnulationCtr', {
             me.doSearch();
         }
     },
+    motifChoisi: function () {
+        var c = this.getVenteannulerlist() ? this.getVenteannulerlist().down('#motifFiltre') : null;
+        return c ? (c.getValue() || '') : '';
+    },
+    triChoisi: function () {
+        var c = this.getVenteannulerlist() ? this.getVenteannulerlist().down('#triAnnulees') : null;
+        return c ? (c.getValue() || '') : '';
+    },
     doSearch: function () {
         var me = this;
-
-        me.getVenteannulerGrid().getStore().load({
+        var store = me.getVenteannulerGrid().getStore();
+        /* plan du 14/11, point 10 : motif et tri gardes pour les pages suivantes ; page 1 a chaque recherche */
+        store.getProxy().setExtraParam('motif', me.motifChoisi());
+        store.getProxy().setExtraParam('tri', me.triChoisi());
+        store.loadPage(1, {
             params: {
                 "query": me.getQueryField().getValue(),
                 "dtStart": me.getDtStart().getSubmitValue(),
                 "dtEnd": me.getDtEnd().getSubmitValue()
             }
         });
+        if (me.getVenteannulerlist() && me.getVenteannulerlist().chargerMotifs) {
+            me.getVenteannulerlist().chargerMotifs();
+        }
     },
     doMetachange: function (store, meta) {
         var me = this;

@@ -30,7 +30,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
       const m = await p.evaluate(() => {
         const w = Ext.ComponentQuery.query('#fenetreCreerFacture')[0].getEl().dom.getBoundingClientRect();
         const r = (c) => c.getEl().dom.getBoundingClientRect();
-        const panel = Ext.getCmp('panelID');
+        const panel = Ext.ComponentQuery.query('addeditfacture')[0];
         /* contenu visible de chaque section (le cadre), et non la part de hauteur qu'elle recoit */
         const items = panel.items.getRange().map((c) => { const d = c.getEl().dom; return (d.tagName === 'FIELDSET' ? d : d.querySelector('fieldset')).getBoundingClientRect(); });
         const bt = r(Ext.getCmp('btn_create_facture'));

@@ -172,9 +172,18 @@ public class MotifVenteServiceImpl implements MotifVenteService {
     static final class Ligne {
         final String type, motif, auteurId, auteur, operateur, ref, commentaire, date;
         final int montant;
+        /* plan du 14/11, point 10 : caissier(e) de la vente d'origine */
+        final String caissierId, caissier;
 
         Ligne(String type, String motif, String auteurId, String auteur, String operateur, String ref,
                 String commentaire, String date, int montant) {
+            this(type, motif, auteurId, auteur, operateur, ref, commentaire, date, montant, "", INCONNU);
+        }
+
+        Ligne(String type, String motif, String auteurId, String auteur, String operateur, String ref,
+                String commentaire, String date, int montant, String caissierId, String caissier) {
+            this.caissierId = caissierId == null ? "" : caissierId;
+            this.caissier = caissier == null || caissier.trim().isEmpty() ? INCONNU : caissier;
             this.type = type;
             this.motif = motif;
             this.auteurId = auteurId;
@@ -187,19 +196,37 @@ public class MotifVenteServiceImpl implements MotifVenteService {
         }
     }
 
-    /** Agregation : par motif, par auteur de la vente d'origine (le plus d'operations d'abord), totaux. */
+    static final String INCONNU = "Inconnu";
+
+    /** Ordre d'un bloc : le plus d'operations d'abord, a egalite par libelle (ordre stable d'un appel a l'autre). */
+    private static java.util.Comparator<Map.Entry<String, int[]>> ordre(Map<String, String> libelles) {
+        return (x, y) -> {
+            int c = (y.getValue()[0] + y.getValue()[1]) - (x.getValue()[0] + x.getValue()[1]);
+            return c != 0 ? c : String.valueOf(libelles.getOrDefault(x.getKey(), x.getKey()))
+                    .compareTo(String.valueOf(libelles.getOrDefault(y.getKey(), y.getKey())));
+        };
+    }
+
+    /**
+     * Agregation : par motif, par auteur de la vente d'origine, par caissier(e) de la vente d'origine (le plus
+     * d'operations d'abord), totaux.
+     */
     static JSONObject agreger(List<Ligne> lignes) {
         Map<String, int[]> parMotif = new LinkedHashMap<>();
         Map<String, int[]> parAuteur = new LinkedHashMap<>();
+        Map<String, int[]> parCaissier = new LinkedHashMap<>();
         Map<String, String> noms = new LinkedHashMap<>();
+        Map<String, String> caissiers = new LinkedHashMap<>();
         int annulations = 0, modifications = 0, montant = 0;
         JSONArray detail = new JSONArray();
         for (Ligne l : lignes) {
             boolean annulation = ANNULATION.equals(l.type);
             int[] m = parMotif.computeIfAbsent(l.motif, k -> new int[3]);
             int[] a = parAuteur.computeIfAbsent(l.auteurId, k -> new int[3]);
+            int[] c = parCaissier.computeIfAbsent(l.caissierId, k -> new int[3]);
             noms.put(l.auteurId, l.auteur);
-            for (int[] t : new int[][] { m, a }) {
+            caissiers.put(l.caissierId, l.caissier);
+            for (int[] t : new int[][] { m, a, c }) {
                 t[annulation ? 0 : 1]++;
                 t[2] += l.montant;
             }
@@ -209,23 +236,26 @@ public class MotifVenteServiceImpl implements MotifVenteService {
             detail.put(new JSONObject().put("date", l.date).put("type", annulation ? "Annulation" : "Modification")
                     .put("ref", l.ref).put("montant", l.montant).put("motif", l.motif)
                     .put("commentaire", l.commentaire == null ? "" : l.commentaire).put("auteur", l.auteur)
-                    .put("operateur", l.operateur));
+                    .put("operateur", l.operateur).put("caissier", l.caissier));
         }
         JSONArray motifs = new JSONArray();
-        parMotif.entrySet().stream()
-                .sorted((x, y) -> (y.getValue()[0] + y.getValue()[1]) - (x.getValue()[0] + x.getValue()[1]))
+        parMotif.entrySet().stream().sorted(ordre(java.util.Collections.emptyMap()))
                 .forEach(e -> motifs.put(new JSONObject().put("motif", e.getKey()).put("annulations", e.getValue()[0])
                         .put("modifications", e.getValue()[1]).put("nb", e.getValue()[0] + e.getValue()[1])
                         .put("montant", e.getValue()[2])));
         JSONArray auteurs = new JSONArray();
-        parAuteur.entrySet().stream()
-                .sorted((x, y) -> (y.getValue()[0] + y.getValue()[1]) - (x.getValue()[0] + x.getValue()[1]))
-                .forEach(e -> auteurs
-                        .put(new JSONObject().put("auteurId", e.getKey()).put("auteur", noms.get(e.getKey()))
+        parAuteur.entrySet().stream().sorted(ordre(noms)).forEach(
+                e -> auteurs.put(new JSONObject().put("auteurId", e.getKey()).put("auteur", noms.get(e.getKey()))
+                        .put("annulations", e.getValue()[0]).put("modifications", e.getValue()[1])
+                        .put("nb", e.getValue()[0] + e.getValue()[1]).put("montant", e.getValue()[2])));
+        JSONArray caisse = new JSONArray();
+        parCaissier.entrySet().stream().sorted(ordre(caissiers))
+                .forEach(e -> caisse
+                        .put(new JSONObject().put("caissierId", e.getKey()).put("caissier", caissiers.get(e.getKey()))
                                 .put("annulations", e.getValue()[0]).put("modifications", e.getValue()[1])
                                 .put("nb", e.getValue()[0] + e.getValue()[1]).put("montant", e.getValue()[2])));
         return new JSONObject().put("success", true).put("parMotif", motifs).put("parAuteur", auteurs)
-                .put("detail", detail)
+                .put("parCaissier", caisse).put("detail", detail)
                 .put("total", new JSONObject().put("annulations", annulations).put("modifications", modifications)
                         .put("nb", annulations + modifications).put("montant", montant));
     }
@@ -238,8 +268,10 @@ public class MotifVenteServiceImpl implements MotifVenteService {
         List<Object[]> l = em.createNativeQuery("SELECT m.type_operation, m.motif_libelle, COALESCE(m.vendeur_id, ''),"
                 + " COALESCE(CONCAT_WS(' ', a.str_FIRST_NAME, a.str_LAST_NAME), 'Inconnu'),"
                 + " COALESCE(CONCAT_WS(' ', o.str_FIRST_NAME, o.str_LAST_NAME), ''), COALESCE(m.vente_ref, ''),"
-                + " m.commentaire, DATE_FORMAT(m.created_at, '%d/%m/%Y %H:%i'), m.montant"
+                + " m.commentaire, DATE_FORMAT(m.created_at, '%d/%m/%Y %H:%i'), m.montant, COALESCE(m.caissier_id, ''),"
+                + " COALESCE(CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), '')"
                 + " FROM vente_motif m LEFT JOIN t_user a ON a.lg_USER_ID = m.vendeur_id"
+                + " LEFT JOIN t_user c ON c.lg_USER_ID = m.caissier_id"
                 + " LEFT JOIN t_user o ON o.lg_USER_ID = m.operateur_id"
                 + " WHERE m.statut = 'VALIDEE' AND m.created_at >= ?1 AND m.created_at < ?2"
                 + " AND (?3 = '' OR m.type_operation = ?3) AND (?4 = '' OR m.vendeur_id = ?4) ORDER BY m.created_at DESC")
@@ -247,8 +279,9 @@ public class MotifVenteServiceImpl implements MotifVenteService {
                 .setParameter(3, t).setParameter(4, StringUtils.defaultString(StringUtils.trimToNull(vendeurId)))
                 .getResultList();
         List<Ligne> lignes = new ArrayList<>();
-        l.forEach(x -> lignes.add(new Ligne((String) x[0], (String) x[1], (String) x[2], (String) x[3], (String) x[4],
-                (String) x[5], (String) x[6], (String) x[7], ((Number) x[8]).intValue())));
+        l.forEach(x -> lignes
+                .add(new Ligne((String) x[0], (String) x[1], (String) x[2], (String) x[3], (String) x[4], (String) x[5],
+                        (String) x[6], (String) x[7], ((Number) x[8]).intValue(), (String) x[9], (String) x[10])));
         return agreger(lignes).put("dtStart", debut.toString()).put("dtEnd", fin.toString());
     }
 

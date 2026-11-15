@@ -43,7 +43,8 @@ function amountformat(val) {
  * retour ferme la fenetre (la liste se recharge a sa fermeture) ; ouvert autrement (sans fenetre), retour historique.
  */
 function retourListeFactures(titre) {
-    var vue = Ext.getCmp('addeditfactureID'), fenetre = vue ? vue.up('window') : null;
+    var vue = Ext.getCmp('addeditfactureID') || Ext.ComponentQuery.query('addeditfacture')[0],
+            fenetre = vue ? vue.up('window') : Ext.ComponentQuery.query('window[itemId=fenetreCreerFacture]')[0];
     if (fenetre) {
         fenetre.close();
         return;
@@ -287,7 +288,9 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
             /* retour du 31/10 : les deux premieres sections gardent leur hauteur naturelle ; « Gestion des bons »
                prend le reste. Le flex: 1 commun donnait un tiers a chacune : grands vides en haut, et la grille
                coupee avec son bouton « Générer facture » hors de vue. */
-            id: 'panelID',
+            /* plan du 14/11, point 1 : plus d'id 'panelID' ici. Il remplacait l'id declare « addeditfactureID » :
+               retourListeFactures ne retrouvait plus la fenetre, et « Non » a l'impression comme RETOUR la laissaient
+               ouverte en rechargeant la liste derriere elle. */
             items: [
 
                 {

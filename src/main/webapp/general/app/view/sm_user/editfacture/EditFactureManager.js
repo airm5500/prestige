@@ -1135,7 +1135,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 }],
             listeners: {
                 close: function () {
-                    if (!moi.destroyed && moi.onRechClick) {
+                    if (!moi.isDestroyed && moi.onRechClick) {
                         moi.onRechClick();
                     }
                 }
