@@ -292,6 +292,10 @@ function mouvements(p) {
         + ` FROM hmvtproduit WHERE lg_FAMILLE_ID = '${prod}' AND mvtdate = CURDATE()`).split('|').map(Number);
       await ouvrirMenu(p, 'GESTION DU STOCK', await p.evaluate(() => { /* libelle affiche de l'entree du menu */
         const n = Ext.ComponentQuery.query('navigation')[0]; let t = null;
+        /* l'entree de l'ecran monitoringproduct : deux menus ont presque le meme nom (« Suivi mouvement article » ouvre
+           suivientreevente) et le meme rang, leur ordre varie d'une ouverture a l'autre */
+        const e = n.getStore().getRootNode().findChild('id', 'monitoringproduct', true);
+        if (e) { t = e.get('text'); }
         n.getStore().getRootNode().cascadeBy((x) => { if (!t && /Suivi mouvement article/.test(x.get('text') || '')) { t = x.get('text'); } });
         return t || 'Suivi mouvement article';
       }).catch(() => 'Suivi mouvement article'));

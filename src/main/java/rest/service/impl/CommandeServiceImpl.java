@@ -220,9 +220,21 @@ public class CommandeServiceImpl implements CommandeService {
      */
     @Override
     public JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu) throws JSONException {
+        try {
+            return cloturerBonLivraisonSuivi(id, avecEcart, modeRecu);
+        } finally {
+            stocksDuBon = null; // instance sans etat entre deux appels
+        }
+    }
+
+    private JSONObject cloturerBonLivraisonSuivi(String id, boolean avecEcart, boolean modeRecu) throws JSONException {
         JSONObject json = new JSONObject();
         JSONArray ecarts = new JSONArray();
         int totalManquant = 0;
+        /* 14/11 : duree de chaque etape, journalisee en une ligne par bon (numero du bon et durees seulement) */
+        final long t0 = System.nanoTime();
+        long tDebut = t0, tFinBoucle = t0, tCommit = t0, tApresCommit = t0;
+        long dureeStock = 0, dureeLots = 0;
 
         try {
             TParameters tp = findParameter(Constant.KEY_ACTIVATE_PEREMPTION_DATE);
@@ -249,10 +261,16 @@ public class CommandeServiceImpl implements CommandeService {
                         "Impossible de trouver ce bon. Verifier s'il ce bon n'est pas deja cloturé");
             }
             List<TBonLivraisonDetail> lstTBonLivraisonDetail = bonLivraisonDetail(id);
+            /*
+             * Chantier de performance du 13/11 : les lots du bon sont lus en UNE requete (avant : une requete par
+             * ligne, trois fois par ligne), puis regroupes par produit. Memes conditions que getLot (numero du BL,
+             * grossiste, lots actifs).
+             */
+            Map<String, List<TLot>> lotsLus = lotsDuBon(bonLivraison);
             if (modeRecu) {
                 /* demande 59, choix par defaut : un BL dont aucune ligne n'a de lot n'est pas entre */
                 List<Integer> nbLots = lstTBonLivraisonDetail.stream()
-                        .map(bn -> getLot(bn.getLgFAMILLEID().getLgFAMILLEID(), bonLivraison).size())
+                        .map(bn -> lotsLus.getOrDefault(bn.getLgFAMILLEID().getLgFAMILLEID(), List.of()).size())
                         .collect(Collectors.toList());
                 if (ReceptionEcart.aucunProduitRecu(nbLots)) {
                     return json.put("success", false).put("code", "AUCUN_RECU").put("msg",
@@ -274,7 +292,7 @@ public class CommandeServiceImpl implements CommandeService {
                 List<ReceptionEcart.LignePeremption> lp = new ArrayList<>();
                 for (TBonLivraisonDetail bn : lstTBonLivraisonDetail) {
                     TFamille f = bn.getLgFAMILLEID();
-                    List<TLot> lots = getLot(f.getLgFAMILLEID(), bonLivraison);
+                    List<TLot> lots = lotsLus.getOrDefault(f.getLgFAMILLEID(), List.of());
                     lp.add(new ReceptionEcart.LignePeremption(f.getLgFAMILLEID(), f.getIntCIP(), f.getStrNAME(),
                             Boolean.TRUE.equals(f.getBoolCHECKEXPIRATIONDATE()), lots.size(),
                             (int) lots.stream().filter(l -> Objects.isNull(l.getDtPEREMPTION())).count()));
@@ -293,6 +311,30 @@ public class CommandeServiceImpl implements CommandeService {
             List<TPreenregistrementDetail> avoirs = getAvoirs(lstTBonLivraisonDetail.stream()
                     .map(bn -> bn.getLgFAMILLEID().getLgFAMILLEID()).collect(Collectors.toCollection(TreeSet::new)));
             userTransaction.begin();
+            tDebut = System.nanoTime();
+            /*
+             * Chantier de performance du 13/11 : ce qui etait relu a chaque ligne est lu une fois, dans la transaction
+             * : lots du bon (un lot cree pour une ligne sans lot y est ajoute : une ligne suivante du MEME produit le
+             * trouve, comme avant), produits « facturé non livré », prix grossiste. Chaque requete dans la boucle
+             * forcait en plus l'ecriture de tout ce qui etait en attente.
+             */
+            Map<String, List<TLot>> lotsDuBon = lotsDuBon(bonLivraison);
+            Set<String> factureNonLivre = produitsFactureNonLivre(bonLivraison);
+            Map<String, TFamilleGrossiste> prixGrossiste = famillesGrossiste(lstTBonLivraisonDetail,
+                    grossiste.getLgGROSSISTEID());
+            /*
+             * 14/11 (test de bilan, produit present sur deux lignes du bon) : les lignes sont lues AVANT la
+             * transaction, leurs fiches produit sont donc detachees. La 2e ligne d'un meme produit renvoyait la fiche
+             * avec une version perimee : OptimisticLockException, l'entree echouait (« erreur interne »). Les fiches et
+             * leur stock au rayon de l'utilisateur sont lus ici, dans la transaction, en une requete chacun : chaque
+             * ligne travaille sur l'objet suivi, le meme pour un produit repete. Cela evite aussi une requete de stock
+             * par ligne, qui forcait l'ecriture de tout ce qui etait en attente (75 ms par ligne mesurees).
+             */
+            Set<String> idsProduits = lstTBonLivraisonDetail.stream().map(bn -> bn.getLgFAMILLEID().getLgFAMILLEID())
+                    .collect(Collectors.toCollection(TreeSet::new));
+            Map<String, TFamille> fiches = fichesSuivies(idsProduits);
+            stocksDuBon = stocksAuRayon(idsProduits, user.getLgEMPLACEMENTID());
+            Boolean depuisBlvDuBon = null;
             JSONArray ugArray = new JSONArray();
             // Produits dont le stock rayon augmente : ils seront evalues APRES le commit, pour voir
             // s'ils passent au-dessus du seuil reserve et appellent un rangement en reserve.
@@ -300,17 +342,16 @@ public class CommandeServiceImpl implements CommandeService {
             /* plan du 08/11, point 13 : produits reellement entres (quantite > 0), pour les ventes ratees */
             Set<String> produitsRecus = new java.util.LinkedHashSet<>();
             for (TBonLivraisonDetail bn : lstTBonLivraisonDetail) {
-                TFamille oFamille = bn.getLgFAMILLEID();
-                List<TLot> lots = getLot(oFamille.getLgFAMILLEID(), bonLivraison);
+                TFamille suivie = fiches.get(bn.getLgFAMILLEID().getLgFAMILLEID());
+                final TFamille oFamille = suivie != null ? suivie : this.getEm().merge(bn.getLgFAMILLEID());
+                List<TLot> lots = new ArrayList<>(lotsDuBon.getOrDefault(oFamille.getLgFAMILLEID(), List.of()));
                 if (!modeRecu || !lots.isEmpty()) {
                     famillesEntreesEnStock.add(oFamille.getLgFAMILLEID());
                 }
                 if (peremptionDateIsEnabled && oFamille.getBoolCHECKEXPIRATIONDATE()
                         && ReceptionEcart.peremptionManquante(modeRecu, lots.size(),
                                 (int) lots.stream().filter(l -> Objects.isNull(l.getDtPEREMPTION())).count())) {
-                    if (userTransaction.getStatus() == Status.STATUS_ACTIVE) {
-                        userTransaction.rollback();
-                    }
+                    annulerTransactionOuverte("dates de peremption manquantes");
                     return json.put("success", false).put("msg",
                             "Certaines dates de péremptions ne sont pas renseignées");
                 }
@@ -354,14 +395,24 @@ public class CommandeServiceImpl implements CommandeService {
                      * Audit 06, EN-03 : BL cree depuis un BLV PharmaML, la quantite recue est celle que le grossiste
                      * dit avoir livree ; elle entre, et le reliquat reste. Sans BLV, la quantite commandee (inchange).
                      */
-                    boolean depuisBlv = blvDuBon(bonLivraison);
+                    if (depuisBlvDuBon == null) {
+                        depuisBlvDuBon = blvDuBon(bonLivraison); // une fois par bon (avant : a chaque ligne sans lot)
+                    }
+                    boolean depuisBlv = depuisBlvDuBon;
                     int entree = depuisBlv ? Objects.requireNonNullElse(bn.getIntQTERECUE(), 0)
                             : Objects.requireNonNullElse(bn.getIntQTECMDE(), 0);
-                    createTLot(bn, user, oFamille, entree, bonLivraison.getStrREFLIVRAISON(), grossiste,
+                    long tl = System.nanoTime();
+                    TLot cree = createTLot(bn, user, oFamille, entree, bonLivraison.getStrREFLIVRAISON(), grossiste,
                             order.getStrREFORDER(), 0);
+                    dureeLots += System.nanoTime() - tl;
+                    if (cree != null) {
+                        lotsDuBon.computeIfAbsent(oFamille.getLgFAMILLEID(), k -> new ArrayList<>()).add(cree);
+                    }
                     quantiteEntree = entree;
+                    long ts = System.nanoTime();
                     stockApres = addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
                             entree, 0, oFamille);
+                    dureeStock += System.nanoTime() - ts;
                     if (!depuisBlv) {
                         bn.setIntQTERECUE(bn.getIntQTECMDE());
                         bn.setIntQTEMANQUANT(0);
@@ -383,9 +434,7 @@ public class CommandeServiceImpl implements CommandeService {
                         LOG.log(Level.INFO,
                                 String.format("La reception de certains produits n'a pas ete faite %s %d %d  ",
                                         oFamille.getIntCIP(), cmde, bn.getIntQTECMDE()));
-                        if (userTransaction.getStatus() == Status.STATUS_ACTIVE) {
-                            userTransaction.rollback();
-                        }
+                        annulerTransactionOuverte("reception incomplete " + oFamille.getIntCIP());
                         return json.put("success", false).put("msg",
                                 "La reception de certains produits n'a pas ete faite. Veuillez verifier vos saisie");
                     }
@@ -395,8 +444,10 @@ public class CommandeServiceImpl implements CommandeService {
                         cmde = entree;
                     }
                     quantiteEntree = cmde;
+                    long ts = System.nanoTime();
                     stockApres = addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
                             cmde, qu, oFamille);
+                    dureeStock += System.nanoTime() - ts;
 
                     if (qu > 0) {
 
@@ -413,24 +464,6 @@ public class CommandeServiceImpl implements CommandeService {
                     }
 
                 }
-                if (!ugArray.isEmpty()) {
-
-                    Map<String, Object> donnee = new HashMap<>();
-                    donnee.put(NotificationUtils.ITEMS.getId(), ugArray);
-                    donnee.put(NotificationUtils.NUM_BL.getId(), bonLivraison.getStrREFLIVRAISON());
-                    donnee.put(NotificationUtils.TYPE_NAME.getId(), TypeLog.QUANTITE_UG.getValue());
-                    donnee.put(NotificationUtils.USER.getId(), user.getStrFIRSTNAME() + " " + user.getStrLASTNAME());
-                    donnee.put(NotificationUtils.MVT_DATE.getId(), DateCommonUtils.formatCurrentDate());
-                    donnee.put(NotificationUtils.MONTANT_TVA.getId(),
-                            NumberUtils.formatIntToString(bonLivraison.getIntTVA()));
-                    donnee.put(NotificationUtils.MONTANT_TTC.getId(),
-                            NumberUtils.formatIntToString(bonLivraison.getIntHTTC()));
-                    donnee.put(NotificationUtils.DATE_BON.getId(),
-                            DateCommonUtils.formatDate(bonLivraison.getDtDATELIVRAISON()));
-                    createNotification("", TypeNotification.QUANTITE_UG, user, donnee,
-                            bonLivraison.getLgBONLIVRAISONID(), null);
-
-                }
 
                 bn.setStrSTATUT(Constant.STATUT_IS_CLOSED);
                 bn.setDtUPDATED(new Date());
@@ -439,8 +472,7 @@ public class CommandeServiceImpl implements CommandeService {
                 oFamille.setDtUPDATED(new Date());
                 oFamille.setIntPAF(bn.getIntPAF());
                 oFamille.setIntPAT(oFamille.getIntPAF());
-                TFamilleGrossiste familleGrossiste = this.findFamilleGrossiste(oFamille.getLgFAMILLEID(),
-                        grossiste.getLgGROSSISTEID());
+                TFamilleGrossiste familleGrossiste = prixGrossiste.get(oFamille.getLgFAMILLEID());
                 if (familleGrossiste != null) {
                     familleGrossiste.setIntPAF(bn.getIntPAF());
                 }
@@ -472,10 +504,32 @@ public class CommandeServiceImpl implements CommandeService {
                     produitsRecus.add(oFamille.getLgFAMILLEID());
                 }
                 if (AvoirNotifiable.produitDisponible(quantiteEntree, stockApres,
-                        retourFactureNonLivre(bonLivraison, oFamille))) {
+                        factureNonLivre.contains(oFamille.getLgFAMILLEID()))) {
                     avoirs.stream().filter(e -> e.getLgFAMILLEID().equals(oFamille)).forEach(s -> avoirs0.add(s));
                 }
 
+            }
+            /*
+             * Chantier de performance du 13/11 : UNE notification « Entrée quantité UG » par bon, avec tous les
+             * produits en UG. Avant, ce bloc etait dans la boucle : chaque ligne suivant la premiere ligne avec UG
+             * creait une notification de plus, avec la liste cumulee.
+             */
+            tFinBoucle = System.nanoTime();
+            if (!ugArray.isEmpty()) {
+                Map<String, Object> donnee = new HashMap<>();
+                donnee.put(NotificationUtils.ITEMS.getId(), ugArray);
+                donnee.put(NotificationUtils.NUM_BL.getId(), bonLivraison.getStrREFLIVRAISON());
+                donnee.put(NotificationUtils.TYPE_NAME.getId(), TypeLog.QUANTITE_UG.getValue());
+                donnee.put(NotificationUtils.USER.getId(), user.getStrFIRSTNAME() + " " + user.getStrLASTNAME());
+                donnee.put(NotificationUtils.MVT_DATE.getId(), DateCommonUtils.formatCurrentDate());
+                donnee.put(NotificationUtils.MONTANT_TVA.getId(),
+                        NumberUtils.formatIntToString(bonLivraison.getIntTVA()));
+                donnee.put(NotificationUtils.MONTANT_TTC.getId(),
+                        NumberUtils.formatIntToString(bonLivraison.getIntHTTC()));
+                donnee.put(NotificationUtils.DATE_BON.getId(),
+                        DateCommonUtils.formatDate(bonLivraison.getDtDATELIVRAISON()));
+                createNotification("", TypeNotification.QUANTITE_UG, user, donnee, bonLivraison.getLgBONLIVRAISONID(),
+                        null);
             }
 
             closureOrder(order);
@@ -555,7 +609,9 @@ public class CommandeServiceImpl implements CommandeService {
                 }
 
             });
+            tCommit = System.nanoTime();
             userTransaction.commit();
+            tApresCommit = System.nanoTime();
 
             // Correspondances grossistes (lot 2) : les codes lus a l'import de la commande sont confirmes ou
             // contredits par ce BL, APRES le commit et dans leur propre transaction. Rien n'est propage : un
@@ -612,6 +668,14 @@ public class CommandeServiceImpl implements CommandeService {
                     }
                 }
             }
+            long tFin = System.nanoTime();
+            LOG.log(Level.INFO, String.format(
+                    "Entree en stock du BL %s : %d lignes en %d ms (controles %d, boucle %d dont stock %d et lots %d,"
+                            + " fin de transaction %d, commit %d, apres commit %d)",
+                    bonLivraison.getStrREFLIVRAISON(), lstTBonLivraisonDetail.size(), (tFin - t0) / 1_000_000,
+                    (tDebut - t0) / 1_000_000, (tFinBoucle - tDebut) / 1_000_000, dureeStock / 1_000_000,
+                    dureeLots / 1_000_000, (tCommit - tFinBoucle) / 1_000_000, (tApresCommit - tCommit) / 1_000_000,
+                    (tFin - tApresCommit) / 1_000_000));
 
         } catch (IllegalStateException | NumberFormatException | SecurityException | HeuristicMixedException
                 | HeuristicRollbackException | NotSupportedException | RollbackException | SystemException
@@ -628,6 +692,16 @@ public class CommandeServiceImpl implements CommandeService {
             } catch (SystemException ex) {
                 LOG.log(Level.SEVERE, null, ex);
             }
+        } catch (RuntimeException e) {
+            /*
+             * 14/11 (test de bilan de l'entree en stock) : une erreur imprevue sortait de la methode avec la
+             * transaction ouverte ; le serveur repondait « erreur interne ». Tout est annule et l'ecran recoit un refus
+             * clair.
+             */
+            LOG.log(Level.SEVERE, "Entree en stock du BL " + id + " annulee", e);
+            annulerTransactionOuverte("erreur imprevue");
+            return json.put("success", false).put("msg",
+                    "Echec de validation de l'entrée en stock : rien n'a été enregistré, réessayez.");
         }
         if (modeRecu) {
             return json.put("success", true).put("mode", "RECU").put("ecarts", ecarts)
@@ -637,6 +711,25 @@ public class CommandeServiceImpl implements CommandeService {
                                             + totalManquant + " boîte(s) manquante(s)");
         }
         return json.put("success", true).put("msg", "Opération effectuée avec success");
+    }
+
+    /**
+     * 14/11 : annule la transaction de l'entree en stock si elle est encore ouverte, active OU marquee pour annulation
+     * (avant : seulement active ; marquee, la methode rendait sa reponse transaction ouverte et le serveur repondait «
+     * erreur interne »). Une transaction marquee est tracee : un appel precedent a echoue sans le dire.
+     */
+    private void annulerTransactionOuverte(String motif) {
+        try {
+            int statut = userTransaction.getStatus();
+            if (statut == Status.STATUS_MARKED_ROLLBACK) {
+                LOG.log(Level.WARNING, "Entree en stock : transaction deja marquee pour annulation ({0})", motif);
+            }
+            if (statut == Status.STATUS_ACTIVE || statut == Status.STATUS_MARKED_ROLLBACK) {
+                userTransaction.rollback();
+            }
+        } catch (SystemException | IllegalStateException | SecurityException e) {
+            LOG.log(Level.SEVERE, "annulation de l'entree en stock", e);
+        }
     }
 
     /** Avoirs non servis des produits donnes (lus par paquets de 500 produits). */
@@ -691,6 +784,71 @@ public class CommandeServiceImpl implements CommandeService {
         }
     }
 
+    /**
+     * Lots actifs du bon (son numero ET son grossiste), par produit, en une requete : memes conditions que
+     * {@link #getLot}. Chantier de performance du 13/11.
+     */
+    private Map<String, List<TLot>> lotsDuBon(TBonLivraison bon) {
+        Map<String, List<TLot>> parProduit = new HashMap<>();
+        try {
+            List<TLot> lots = em
+                    .createQuery("SELECT t FROM TLot t WHERE t.strREFLIVRAISON = :ref"
+                            + " AND t.lgGROSSISTEID.lgGROSSISTEID = :grossiste", TLot.class)
+                    .setParameter("ref", bon.getStrREFLIVRAISON())
+                    .setParameter("grossiste", bon.getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID())
+                    .getResultList();
+            for (TLot l : LotsBonLivraison.actifs(lots)) {
+                if (l.getLgFAMILLEID() != null) {
+                    parProduit.computeIfAbsent(l.getLgFAMILLEID().getLgFAMILLEID(), k -> new ArrayList<>()).add(l);
+                }
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "lotsDuBon", e);
+        }
+        return parProduit;
+    }
+
+    /** Produits du bon rendus au motif « facturé non livré » (code FNL), en une requete (chantier du 13/11). */
+    private Set<String> produitsFactureNonLivre(TBonLivraison bon) {
+        try {
+            return new HashSet<>(getEm().createQuery(
+                    "SELECT DISTINCT d.lgFAMILLEID.lgFAMILLEID FROM TRetourFournisseurDetail d"
+                            + " WHERE d.lgRETOURFRSID.lgBONLIVRAISONID.lgBONLIVRAISONID = ?1 AND d.lgMOTIFRETOUR.strCODE = 'FNL'",
+                    String.class).setParameter(1, bon.getLgBONLIVRAISONID()).getResultList());
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "produitsFactureNonLivre", e);
+            return Set.of();
+        }
+    }
+
+    /**
+     * Prix grossiste actif de chaque produit du bon chez ce grossiste, en une requete : memes conditions que
+     * {@link #findFamilleGrossiste} (grossiste par identifiant ou par libelle ; le premier trouve par produit).
+     */
+    private Map<String, TFamilleGrossiste> famillesGrossiste(List<TBonLivraisonDetail> lignes, String grossisteId) {
+        Map<String, TFamilleGrossiste> parProduit = new HashMap<>();
+        Set<String> produits = lignes.stream().map(l -> l.getLgFAMILLEID().getLgFAMILLEID())
+                .collect(Collectors.toCollection(TreeSet::new));
+        if (produits.isEmpty()) {
+            return parProduit;
+        }
+        try {
+            List<TFamilleGrossiste> lus = getEm()
+                    .createQuery("SELECT t FROM TFamilleGrossiste t"
+                            + " WHERE t.lgFAMILLEID.lgFAMILLEID IN :produits AND (t.lgGROSSISTEID.lgGROSSISTEID = :g"
+                            + " OR t.lgGROSSISTEID.strDESCRIPTION = :g) AND t.strSTATUT = :statut",
+                            TFamilleGrossiste.class)
+                    .setParameter("produits", new ArrayList<>(produits)).setParameter("g", grossisteId)
+                    .setParameter("statut", Constant.STATUT_ENABLE).getResultList();
+            for (TFamilleGrossiste fg : lus) {
+                parProduit.putIfAbsent(fg.getLgFAMILLEID().getLgFAMILLEID(), fg);
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "famillesGrossiste", e);
+        }
+        return parProduit;
+    }
+
     /** Retour fournisseur au motif « facturé non livré » (code FNL) pour ce produit sur ce bon (point 22 du 28/10). */
     private boolean retourFactureNonLivre(TBonLivraison bon, TFamille produit) {
         try {
@@ -710,8 +868,49 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     /** Ajoute au stock ; rend le stock du produit apres l'entree (point 22 du 28/10). */
+    /** Stocks au rayon des produits du bon en cours d'entree, lus dans sa transaction (null hors entree). */
+    private Map<String, TFamilleStock> stocksDuBon;
+
+    /** Fiches des produits, suivies par la transaction en cours, en une requete. */
+    private Map<String, TFamille> fichesSuivies(Set<String> ids) {
+        Map<String, TFamille> out = new HashMap<>();
+        if (ids.isEmpty()) {
+            return out;
+        }
+        this.getEm().createQuery("SELECT f FROM TFamille f WHERE f.lgFAMILLEID IN :ids", TFamille.class)
+                .setParameter("ids", ids).getResultList().forEach(f -> out.put(f.getLgFAMILLEID(), f));
+        return out;
+    }
+
+    /**
+     * Stock actif de chaque produit a l'emplacement donne, en une requete : meme choix que
+     * MvtProduitServiceImpl.findStock (le plus recent).
+     */
+    private Map<String, TFamilleStock> stocksAuRayon(Set<String> ids, TEmplacement emplacement) {
+        Map<String, TFamilleStock> out = new HashMap<>();
+        if (ids.isEmpty() || emplacement == null) {
+            return out;
+        }
+        this.getEm().createQuery("SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID IN :ids"
+                + " AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = :e AND t.strSTATUT = 'enable' ORDER BY t.dtCREATED DESC",
+                TFamilleStock.class).setParameter("ids", ids).setParameter("e", emplacement.getLgEMPLACEMENTID())
+                .getResultList().forEach(t -> out.putIfAbsent(t.getLgFAMILLEID().getLgFAMILLEID(), t));
+        return out;
+    }
+
     private int addToStock(Integer prixU, Integer prixA, String key, TUser u, int qty, int ug, TFamille oFamille) {
-        int initStock = mvtProduitService.updateStockReturnInitStock(oFamille, u.getLgEMPLACEMENTID(), qty, ug);
+        TFamilleStock stock = stocksDuBon != null ? stocksDuBon.get(oFamille.getLgFAMILLEID()) : null;
+        int initStock;
+        if (stock != null) {
+            /* meme mise a jour que MvtProduitServiceImpl.updateStockReturnInitStock, sur le stock deja lu */
+            initStock = stock.getIntNUMBERAVAILABLE();
+            stock.setIntNUMBERAVAILABLE(stock.getIntNUMBERAVAILABLE() + qty);
+            stock.setIntNUMBER(stock.getIntNUMBERAVAILABLE());
+            stock.setIntUG(stock.getIntUG() != null ? stock.getIntUG() + ug : ug);
+            stock.setDtUPDATED(new Date());
+        } else {
+            initStock = mvtProduitService.updateStockReturnInitStock(oFamille, u.getLgEMPLACEMENTID(), qty, ug);
+        }
         int finalQty = initStock + qty;
         /* audit 06, EN-06 : ancien stock a l'ancien PMP, UG a cout nul, pas de PMP negatif */
         Double ancienPmp = oFamille.getDblPRIXMOYENPONDERE();
