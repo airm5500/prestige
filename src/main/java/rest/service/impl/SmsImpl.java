@@ -83,10 +83,17 @@ public class SmsImpl implements SmsService {
     /** Vrai si les envois sont suspendus ; trace la raison sans repasser par le journal du support. */
     private boolean envoisSuspendus() {
         if (!coupeCircuit.suspendu()) {
+            // exploitation du 14/11, S5 : un seul bilan a la fin de la panne, au lieu d'une ligne par SMS
+            String bilan = coupeCircuit.panneEnCours() ? null : coupeCircuit.bilanIgnores();
+            if (bilan != null) {
+                LOG.info(bilan);
+            }
             return false;
         }
-        LOG.log(Level.WARNING, "Envoi SMS ignore : envois suspendus jusqu''a {0} (configuration refusee, code {1})",
-                new Object[] { coupeCircuit.reprisePrevue(), coupeCircuit.dernierCode() });
+        String ligne = coupeCircuit.noterEnvoiIgnore();
+        if (ligne != null) {
+            LOG.warning(ligne);
+        }
         return true;
     }
 

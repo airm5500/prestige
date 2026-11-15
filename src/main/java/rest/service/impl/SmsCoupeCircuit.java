@@ -125,6 +125,56 @@ public class SmsCoupeCircuit {
         return false;
     }
 
+    /*
+     * Exploitation du 14/11, S5 : 551 lignes « Envoi SMS ignore » dans la journee d'appaul, une par SMS. Les envois
+     * ignores d'une meme panne sont desormais comptes : une ligne au premier, une par heure, un bilan a la reprise.
+     */
+    private LocalDateTime ignoresDepuis;
+    private LocalDateTime dernierBilanIgnores;
+    private int ignores;
+
+    /** Vrai tant que la panne n'a pas ete close par un envoi accepte (meme entre deux suspensions). */
+    public synchronized boolean panneEnCours() {
+        return panneSignalee || suspendu();
+    }
+
+    /** Compte un envoi ignore ; rend la ligne a ecrire au journal (premier envoi, puis une par heure), sinon null. */
+    public synchronized String noterEnvoiIgnore() {
+        LocalDateTime t = LocalDateTime.now(horloge);
+        if (ignoresDepuis == null) {
+            ignoresDepuis = t;
+            dernierBilanIgnores = t;
+            ignores = 1;
+            return "Envoi SMS ignore : envois suspendus jusqu'a " + heure(suspenduJusqua)
+                    + " (configuration refusee, code " + dernierCode
+                    + ") ; les suivants sont comptes : bilan chaque heure et a la reprise";
+        }
+        ignores++;
+        if (!t.isBefore(dernierBilanIgnores.plusMinutes(REPOS_MINUTES))) {
+            dernierBilanIgnores = t;
+            return ignores + " envoi(s) SMS ignore(s) depuis " + heure(ignoresDepuis) + " (configuration refusee, code "
+                    + dernierCode + ")";
+        }
+        return null;
+    }
+
+    /** Bilan de la panne close, a ecrire une fois a la reprise ; null s'il n'y a rien eu d'ignore. */
+    public synchronized String bilanIgnores() {
+        if (ignoresDepuis == null) {
+            return null;
+        }
+        String bilan = "Envois SMS de nouveau possibles : " + ignores + " envoi(s) SMS ignore(s) du "
+                + heure(ignoresDepuis) + " au " + heure(LocalDateTime.now(horloge));
+        ignoresDepuis = null;
+        dernierBilanIgnores = null;
+        ignores = 0;
+        return bilan;
+    }
+
+    private static String heure(LocalDateTime t) {
+        return t == null ? "?" : t.withNano(0).toString().replace('T', ' ');
+    }
+
     /** Un envoi accepte referme le circuit : la configuration fonctionne. */
     public synchronized void enregistrerSucces() {
         refusConsecutifs = 0;
