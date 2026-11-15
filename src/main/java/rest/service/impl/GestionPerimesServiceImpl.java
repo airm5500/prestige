@@ -47,6 +47,10 @@ import util.NotificationUtils;
 @Stateless
 public class GestionPerimesServiceImpl implements GestionPerimesService {
 
+    /** Retour du 15/11 : une cloture en erreur est annulee en entier (rien de retire a moitie). */
+    @javax.annotation.Resource
+    private javax.ejb.SessionContext contexte;
+
     private static final Logger LOG = Logger.getLogger(GestionPerimesServiceImpl.class.getName());
     private static final String P_CLOTURE_SAISIE_PERIMES = "P_CLOTURE_SAISIE_PERIMES";
 
@@ -364,15 +368,24 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
                 TFamille famille = tWarehouse.getLgFAMILLEID();
                 TFamilleStock oTFamilleStock = getTProductItemStock(tWarehouse.getLgFAMILLEID().getLgFAMILLEID(),
                         emplacement.getLgEMPLACEMENTID());
+                /*
+                 * retour du 15/11 (capitale) : produit desactive depuis la saisie (pas de stock actif dans
+                 * l'emplacement) - la ligne reste en attente, signalee ; avant, elle arretait toute la cloture.
+                 */
+                if (oTFamilleStock == null || oTFamilleStock.getIntNUMBERAVAILABLE() == null) {
+                    nonAppliquees.add(famille.getIntCIP() + " " + famille.getStrNAME() + " (lot "
+                            + tWarehouse.getIntNUMLOT() + ") : produit désactivé ou sans stock dans cet emplacement");
+                    continue;
+                }
                 Integer stockInit = oTFamilleStock.getIntNUMBERAVAILABLE();
                 /*
                  * audit 06 PE-01 : controle refait a la cloture avec le stock courant ; une ligne qui le rendrait
                  * negatif reste en attente et est signalee.
                  */
                 if (stockInit < tWarehouse.getIntNUMBER()) {
-                    nonAppliquees
-                            .add(famille.getIntCIP() + " " + famille.getStrNAME() + " (lot " + tWarehouse.getIntNUMLOT()
-                                    + ") : " + tWarehouse.getIntNUMBER() + " à retirer, " + stockInit + " en stock");
+                    nonAppliquees.add(famille.getIntCIP() + " " + famille.getStrNAME() + " (lot "
+                            + tWarehouse.getIntNUMLOT() + ") : " + tWarehouse.getIntNUMBER() + " à retirer, "
+                            + stockInit + " en stock (stock insuffisant)");
                 } else {
                     oTFamilleStock
                             .setIntNUMBERAVAILABLE(oTFamilleStock.getIntNUMBERAVAILABLE() - tWarehouse.getIntNUMBER());
@@ -413,13 +426,17 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
             json.put("NB", i);
             if (!nonAppliquees.isEmpty()) {
                 json.put("nonAppliquees", nonAppliquees.size()).put("message",
-                        nonAppliquees.size() + " ligne(s) non retirée(s), stock insuffisant ; elles restent dans la"
+                        nonAppliquees.size() + " ligne(s) non retirée(s) ; elles restent dans la"
                                 + " saisie en cours :<br>- " + String.join("<br>- ", nonAppliquees));
             }
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "updateStock {0}", e);
-            json.put("success", false);
+            /* retour du 15/11 : rien n'est garde d'une cloture interrompue */
+            contexte.setRollbackOnly();
+            json = new JSONObject().put("success", false).put("message",
+                    "La clôture n'a pas abouti : aucune ligne n'a été retirée du stock. Erreur : "
+                            + e.getClass().getSimpleName());
 
         }
         return json;
