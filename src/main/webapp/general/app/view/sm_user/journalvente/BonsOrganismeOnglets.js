@@ -46,6 +46,13 @@ Ext.define('testextjs.view.sm_user.journalvente.BonsOrganismeOnglets', {
                 }]
         });
         me.callParent(arguments);
+        /* demande du 15/11 : retour d'une modification de vente lancee depuis le pointage -> onglet Pointage, meme
+           organisme, meme periode, fiche du bon corrige */
+        if (me.data && me.data.pointage) {
+            me.on('afterrender', function () {
+                me.afficher('pointage').reprendre(me.data.pointage);
+            }, me, {single: true, delay: 50});
+        }
     },
 
     /** Le menu (par son ecran) est-il dans l'arbre de l'utilisateur ? Sans arbre lisible, l'onglet reste visible. */

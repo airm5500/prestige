@@ -93,7 +93,15 @@ public class PointageBonRessource {
         if (tp == null || p == null || id == null) {
             return erreur("Bon, organisme ou période manquant.");
         }
-        return json(service.fiche(u, tp, p[0], p[1], id));
+        JSONObject f = service.fiche(u, tp, p[0], p[1], id);
+        /*
+         * demande du 15/11 : corriger pendant le controle avec les boutons existants, selon les memes droits que «
+         * Ventes terminées » (infos client / tiers payant ; modification de la vente : prix, quantites)
+         */
+        f.put("droits",
+                new JSONObject().put("clientTp", Droits.a(servletRequest, util.Constant.P_BTN_UPDATE_VENTE_CLIENT_TP))
+                        .put("vente", Droits.a(servletRequest, util.Constant.P_BT_MODIFICATION_DE_VENTE)));
+        return json(f);
     }
 
     @POST
@@ -173,13 +181,52 @@ public class PointageBonRessource {
         }
     }
 
-    /** Releve de l'organisme envoye tel quel (Excel ou CSV), rapproche des bons de la periode. */
+    /**
+     * Demande du 15/11 : colonnes reconnues dans le releve (Excel, CSV ou PDF), en-tetes et apercu des premieres
+     * lignes, pour que l'utilisateur les verifie ou en choisisse d'autres avant le rapprochement. Rien n'est ecrit.
+     */
+    @POST
+    @Path("releve/analyse")
+    @Consumes({ "application/octet-stream", "text/csv", "application/vnd.ms-excel", "application/pdf",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    public Response analyseReleve(byte[] contenu) {
+        Response refus = Droits.refus(servletRequest, DROIT, PRIVILEGE);
+        if (refus != null) {
+            return refus;
+        }
+        if (contenu != null && contenu.length > 10 * 1024 * 1024) {
+            return erreur("Fichier trop gros (10 Mo au plus).");
+        }
+        try {
+            ReleveOrganisme.Tableau t = ReleveOrganisme.analyser(contenu);
+            org.json.JSONArray apercu = new org.json.JSONArray();
+            for (int i = 0; i < Math.min(8, t.donnees.size()); i++) {
+                apercu.put(new org.json.JSONArray(t.donnees.get(i)));
+            }
+            JSONObject col = new JSONObject();
+            for (int i = 0; i < ReleveOrganisme.CHAMPS.length; i++) {
+                col.put(ReleveOrganisme.CHAMPS[i], t.colonnes[i]);
+            }
+            return json(new JSONObject().put("success", true).put("format", t.format)
+                    .put("entetes", new org.json.JSONArray(t.entetes)).put("colonnes", col).put("apercu", apercu)
+                    .put("lignes", t.donnees.size()));
+        } catch (IOException e) {
+            return erreur(e.getMessage());
+        }
+    }
+
+    /**
+     * Releve de l'organisme envoye tel quel (Excel, CSV ou PDF), rapproche des bons de la periode. Colonnes choisies a
+     * l'ecran (cBon, cMatricule, cDate, cMontant : rang, -1 = aucune) ; sans elles, les colonnes reconnues.
+     */
     @POST
     @Path("releve")
-    @Consumes({ "application/octet-stream", "text/csv", "application/vnd.ms-excel",
+    @Consumes({ "application/octet-stream", "text/csv", "application/vnd.ms-excel", "application/pdf",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
     public Response releve(@QueryParam("tiersPayantId") String tp, @QueryParam("dtStart") String debut,
-            @QueryParam("dtEnd") String fin, byte[] contenu) {
+            @QueryParam("dtEnd") String fin, @QueryParam("cBon") Integer cBon,
+            @QueryParam("cMatricule") Integer cMatricule, @QueryParam("cDate") Integer cDate,
+            @QueryParam("cMontant") Integer cMontant, byte[] contenu) {
         Response refus = Droits.refus(servletRequest, DROIT, PRIVILEGE);
         if (refus != null) {
             return refus;
@@ -191,9 +238,12 @@ public class PointageBonRessource {
         if (contenu != null && contenu.length > 10 * 1024 * 1024) {
             return erreur("Fichier trop gros (10 Mo au plus).");
         }
+        boolean choisies = cBon != null || cMatricule != null || cDate != null || cMontant != null;
+        int[] colonnes = choisies ? new int[] { cBon == null ? -1 : cBon, cMatricule == null ? -1 : cMatricule,
+                cDate == null ? -1 : cDate, cMontant == null ? -1 : cMontant } : null;
         List<Map<String, Object>> lignes;
         try {
-            lignes = ReleveOrganisme.lire(contenu);
+            lignes = ReleveOrganisme.lire(contenu, colonnes);
         } catch (IOException e) {
             return erreur(e.getMessage());
         }

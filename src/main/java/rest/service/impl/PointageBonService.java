@@ -63,16 +63,13 @@ public class PointageBonService {
             + " (SELECT COUNT(*) FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID) AS lignes,"
             + " (SELECT COUNT(*) FROM t_preenregistrement_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
             + "   WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND d.int_PRICE_UNITAIR <> f.int_PRICE) AS prixDiff,"
-            + " (SELECT COUNT(DISTINCT cpt2.lg_CLIENT_ID) FROM t_compte_client_tiers_payant cl2"
-            + "   JOIN t_compte_client cpt2 ON cpt2.lg_COMPTE_CLIENT_ID = cl2.lg_COMPTE_CLIENT_ID"
-            + "   WHERE cl2.lg_TIERS_PAYANT_ID = tp.lg_TIERS_PAYANT_ID AND TRIM(cl2.str_NUMERO_SECURITE_SOCIAL) = TRIM(cl.str_NUMERO_SECURITE_SOCIAL)"
-            + "   AND TRIM(cl.str_NUMERO_SECURITE_SOCIAL) <> '' AND cpt2.lg_CLIENT_ID <> clt.lg_CLIENT_ID) AS autresMatricule,"
-            + " (SELECT COUNT(*) FROM t_preenregistrement_compte_client_tiers_payent c3"
-            + "   JOIN t_compte_client_tiers_payant cl3 ON cl3.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c3.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
-            + "   JOIN t_preenregistrement p3 ON p3.lg_PREENREGISTREMENT_ID = c3.lg_PREENREGISTREMENT_ID"
-            + "   WHERE cl3.lg_TIERS_PAYANT_ID = tp.lg_TIERS_PAYANT_ID AND c3.str_REF_BON = cp.str_REF_BON AND TRIM(cp.str_REF_BON) <> ''"
-            + "   AND p3.b_IS_CANCEL = 0 AND p3.str_STATUT = 'is_Closed'"
-            + "   AND c3.lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID <> cp.lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID) AS doublons,"
+            /*
+             * demande du 15/11 (liste et fiche lentes) : matricule partage et n° de bon en double comptes une fois pour
+             * tout l'organisme (tables derivees mat et dbl) au lieu d'une sous-requete par bon sans index : 14 s -> 0,3
+             * s pour un mois de 352 bons sur la copie ; memes valeurs (le bon lui-meme est retire du compte)
+             */
+            + " CASE WHEN TRIM(cl.str_NUMERO_SECURITE_SOCIAL) <> '' THEN COALESCE(mat.n, 0) - 1 ELSE 0 END AS autresMatricule,"
+            + " CASE WHEN TRIM(cp.str_REF_BON) <> '' THEN COALESCE(dbl.n, 0) - 1 ELSE 0 END AS doublons,"
             + " tp.int_DELAI_SAISIE_BON AS delaiTp, grp.int_DELAI_SAISIE_BON AS delaiGroupe,"
             + " pb.str_RESULTAT AS resultat, pb.int_BLOC AS bloc, pb.str_MOTIF AS motif, pb.int_PRICE_POINTE AS prixPointe,"
             + " pb.dt_BON_UPDATED AS majPointee, cp.dt_UPDATED AS majBon, pb.dt_UPDATED AS dtPointage,"
@@ -89,9 +86,18 @@ public class PointageBonService {
             + " LEFT JOIN t_ayant_droit ayd ON ayd.lg_AYANTS_DROITS_ID = p.lg_AYANTS_DROITS_ID"
             + " LEFT JOIN t_pointage_bon pb ON pb.lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID = cp.lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID"
             + " LEFT JOIN t_user u ON u.lg_USER_ID = pb.lg_USER_ID"
+            + " LEFT JOIN (SELECT TRIM(cl2.str_NUMERO_SECURITE_SOCIAL) AS m, COUNT(DISTINCT cpt2.lg_CLIENT_ID) AS n"
+            + "   FROM t_compte_client_tiers_payant cl2 JOIN t_compte_client cpt2 ON cpt2.lg_COMPTE_CLIENT_ID = cl2.lg_COMPTE_CLIENT_ID"
+            + "   WHERE cl2.lg_TIERS_PAYANT_ID = ?5 GROUP BY TRIM(cl2.str_NUMERO_SECURITE_SOCIAL)) mat"
+            + "   ON mat.m = TRIM(cl.str_NUMERO_SECURITE_SOCIAL)"
+            + " LEFT JOIN (SELECT c3.str_REF_BON AS ref, COUNT(*) AS n FROM t_preenregistrement_compte_client_tiers_payent c3"
+            + "   JOIN t_compte_client_tiers_payant cl3 ON cl3.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c3.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
+            + "   JOIN t_preenregistrement p3 ON p3.lg_PREENREGISTREMENT_ID = c3.lg_PREENREGISTREMENT_ID"
+            + "   WHERE cl3.lg_TIERS_PAYANT_ID = ?5 AND p3.b_IS_CANCEL = 0 AND p3.str_STATUT = 'is_Closed'"
+            + "   GROUP BY c3.str_REF_BON) dbl ON dbl.ref = cp.str_REF_BON"
             + " WHERE tp.lg_TIERS_PAYANT_ID = ?5 AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2 AND p.str_STATUT = 'is_Closed'"
-            + " AND p.lg_TYPE_VENTE_ID <> ?3 AND p.imported = 0 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-            + " ORDER BY p.dt_UPDATED, cp.str_REF_BON";
+            + " AND p.lg_TYPE_VENTE_ID <> ?3 AND p.imported = 0 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0";
+    private static final String ORDRE = " ORDER BY p.dt_UPDATED, cp.str_REF_BON";
 
     /* rang des colonnes de BONS */
     private static final int ID = 0, BON = 1, VENTE = 2, REF_VENTE = 3, DATE_VENTE = 4, DATE_ORDO = 5, TAUX = 6,
@@ -111,7 +117,16 @@ public class PointageBonService {
     }
 
     public List<Bon> bons(TUser user, String tiersPayantId, LocalDate debut, LocalDate fin) {
-        Query q = em.createNativeQuery(BONS);
+        return bons(user, tiersPayantId, debut, fin, null);
+    }
+
+    /** Bons de la periode ; avec bonId, ce seul bon (fiche : on ne recalcule plus toute la periode a chaque clic). */
+    public List<Bon> bons(TUser user, String tiersPayantId, LocalDate debut, LocalDate fin, String bonId) {
+        Query q = em.createNativeQuery(
+                BONS + (bonId == null ? "" : " AND cp.lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID = ?6") + ORDRE);
+        if (bonId != null) {
+            q.setParameter(6, bonId);
+        }
         q.setParameter(1, Timestamp.valueOf(debut.atStartOfDay()));
         q.setParameter(2, Timestamp.valueOf(fin.atTime(23, 59, 59)));
         q.setParameter(3, DateConverter.DEPOT_EXTENSION);
@@ -276,7 +291,7 @@ public class PointageBonService {
 
     /** Fiche de controle d'un bon : le bon, ses controles et ses produits. */
     public JSONObject fiche(TUser user, String tp, LocalDate debut, LocalDate fin, String bonId) {
-        for (Bon b : bons(user, tp, debut, fin)) {
+        for (Bon b : bons(user, tp, debut, fin, bonId == null ? "" : bonId)) {
             if (b.json.optString("id").equals(bonId)) {
                 return new JSONObject().put("success", true).put("bon", b.json)
                         .put("produits", produits(b.json.getString("vente")))
@@ -476,6 +491,8 @@ public class PointageBonService {
         }
         java.util.Set<String> trouves = new java.util.HashSet<>();
         JSONArray absentsChezNous = new JSONArray(), ecarts = new JSONArray();
+        /* demande du 15/11 : vue de comparaison, une ligne par ligne du releve puis par bon absent du releve */
+        JSONArray comparaison = new JSONArray();
         int apparies = 0;
         for (Map<String, Object> l : releve) {
             String n = txt(l.get("bon")).toUpperCase(Locale.FRANCE);
@@ -494,17 +511,26 @@ public class PointageBonService {
                     }
                 }
             }
+            JSONObject ligne = new JSONObject().put("bonReleve", txt(l.get("bon")))
+                    .put("matricule", txt(l.get("matricule"))).put("date", txt(l.get("date")))
+                    .put("montantReleve", montant == null ? JSONObject.NULL : montant);
             if (b == null || trouves.contains(b.json.getString("id"))) {
                 absentsChezNous.put(new JSONObject().put("bon", txt(l.get("bon")))
                         .put("matricule", txt(l.get("matricule"))).put("date", txt(l.get("date")))
                         .put("montant", montant == null ? JSONObject.NULL : montant));
+                comparaison.put(ligne.put("statut", "ABSENT_CHEZ_NOUS"));
                 continue;
             }
             trouves.add(b.json.getString("id"));
             apparies++;
+            ligne.put("id", b.json.getString("id")).put("bon", b.json.optString("bon")).put("part", b.part).put("etat",
+                    b.etat);
             if (montant != null && montant != b.part) {
                 ecarts.put(new JSONObject().put("id", b.json.getString("id")).put("bon", b.json.optString("bon"))
                         .put("chezNous", b.part).put("chezLui", montant).put("ecart", b.part - montant));
+                comparaison.put(ligne.put("statut", "ECART").put("ecart", b.part - montant));
+            } else {
+                comparaison.put(ligne.put("statut", "APPARIE"));
             }
         }
         JSONArray absentsChezLui = new JSONArray();
@@ -513,12 +539,18 @@ public class PointageBonService {
                 absentsChezLui
                         .put(new JSONObject().put("id", b.json.getString("id")).put("bon", b.json.optString("bon"))
                                 .put("part", b.part).put("dateVente", b.json.opt("dateVente")));
+                comparaison.put(new JSONObject().put("id", b.json.getString("id")).put("bon", b.json.optString("bon"))
+                        .put("part", b.part).put("etat", b.etat).put("matricule", b.json.optString("matricule"))
+                        .put("date",
+                                b.json.optString("dateVente").length() >= 10
+                                        ? b.json.optString("dateVente").substring(0, 10) : "")
+                        .put("statut", "ABSENT_DU_RELEVE"));
             }
         }
         fixerAnnonces(user, tp, debut, fin, releve.size(), "RELEVE");
         return new JSONObject().put("success", true).put("lignesReleve", releve.size()).put("apparies", apparies)
                 .put("absentsChezNous", absentsChezNous).put("absentsChezLui", absentsChezLui).put("ecarts", ecarts)
-                .put("compteurs", compteurs(user, tp, debut, fin, tous));
+                .put("comparaison", comparaison).put("compteurs", compteurs(user, tp, debut, fin, tous));
     }
 
     public String nomOrganisme(String tp) {

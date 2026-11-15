@@ -2642,8 +2642,12 @@ Ext.define('testextjs.controller.VenteCtr', {
             if (!me.getTicketCaisse()) {
                 me.onPrintTicket(param, typeVenteCombo);
                 me.resetAll(montantRemis);
-                me.getVnoproduitCombo().focus(false, 100, function () {
-                });
+                if (me.retourApres) {
+                    me.retourApresCloture();
+                } else {
+                    me.getVnoproduitCombo().focus(false, 100, function () {
+                    });
+                }
                 return;
             }
             Ext.MessageBox.show({
@@ -2655,8 +2659,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.onPrintTicket(param, typeVenteCombo);
                     }
                     me.resetAll(montantRemis);
-                    me.getVnoproduitCombo().focus(false, 100, function () {
-                    });
+                    if (me.retourApres) {
+                        me.retourApresCloture();
+                    } else {
+                        me.getVnoproduitCombo().focus(false, 100, function () {
+                        });
+                    }
                 },
                 icon: Ext.MessageBox.QUESTION
             });
@@ -4371,7 +4379,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const copieId = me.current && me.current.lgPREENREGISTREMENTID;
                 const ouvrirListe = function () {
                     me.resetAll();
-                    testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                    me.versListeApresModification();
                 };
                 me.libererRappelVente();
                 if (!copieId) {
@@ -4399,7 +4407,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.resetAll();
                     /* demande du 29/10 : retour a « Ventes terminées » avec les criteres de recherche d'avant (et non
                      * aux ventes en attente) */
-                    testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                    me.versListeApresModification();
                 }
             });
             return;
@@ -4624,6 +4632,23 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.appliquerLibellesTiersPayant(typeVente);
 
     },
+    /* Apres une modification (abandonnee, refusee, sans changement) : l'ecran qui l'a lancee (demande du 15/11 :
+     * pointage des bons), sinon « Ventes terminées » avec les criteres d'avant. */
+    versListeApresModification: function () {
+        const r = this.retourApres;
+        this.retourApres = null;
+        if (r && r.xtype) {
+            testextjs.app.getController('App').onRedirectTo(r.xtype, r.data || {});
+            return;
+        }
+        testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+    },
+    /* Cloture reussie d'une vente modifiee depuis le pointage : retour au pointage (sinon, comme avant, nouvelle vente) */
+    retourApresCloture: function () {
+        if (this.retourApres) {
+            this.versListeApresModification();
+        }
+    },
     chargerCopieDeVenteAmodifier: function (venteId) {
         const me = this;
         Ext.Ajax.request({
@@ -4642,7 +4667,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
                         fn: function () {
                             me.resetAll();
-                            testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                            me.versListeApresModification();
                         }});
                 }
 
@@ -4654,6 +4679,8 @@ Ext.define('testextjs.controller.VenteCtr', {
     goToVenteView: function () {
         const me = this, view = me.getDoventemanager(), contenu = me.getContenu();
         const data = view.getData();
+        /* demande du 15/11 : modification lancee depuis le pointage des bons -> retour au pointage ensuite */
+        me.retourApres = data && data.isEdit && data.categorie === 'COPY' && data.retour ? data.retour : null;
         if (data) {
             const isEdit = data.isEdit;
             me.categorie = data.categorie;
@@ -7281,8 +7308,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (!me.getTicketCaisse()) {
                     me.onPrintTicket(param, typeVenteCombo);
                     me.resetAll(montantRemis);
-                    me.getVnoproduitCombo().focus(false, 100, function () {
-                    });
+                    if (me.retourApres) {
+                        me.retourApresCloture();
+                    } else {
+                        me.getVnoproduitCombo().focus(false, 100, function () {
+                        });
+                    }
                     return;
                 }
                 Ext.MessageBox.show({
@@ -7294,8 +7325,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                             me.onPrintTicket(param, typeVenteCombo);
                         }
                         me.resetAll(montantRemis);
-                        me.getVnoproduitCombo().focus(false, 100, function () {
-                        });
+                        if (me.retourApres) {
+                            me.retourApresCloture();
+                        } else {
+                            me.getVnoproduitCombo().focus(false, 100, function () {
+                            });
+                        }
                     },
                     icon: Ext.MessageBox.QUESTION
                 });

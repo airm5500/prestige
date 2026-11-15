@@ -8,7 +8,11 @@
  *    le logiciel (vert = verifie, orange = a comparer au papier, rouge = alerte) ;
  *  - dans la fiche : Entree = conforme, 1 a 6 = bloc faux (puis motif et Entree), A = absent du papier ; le curseur
  *    revient sur le n° de bon pour le suivant ;
- *  - releve de l'organisme (Excel ou CSV) facultatif ; delai maximal de saisie de l'organisme et de son groupe (vide =
+ *  - releve de l'organisme (Excel, CSV ou PDF) facultatif : colonnes reconnues puis modifiables, vue de comparaison
+ *    ligne par ligne (demande du 15/11) ;
+ *  - correction pendant le controle (demande du 15/11) : « Modifier infos client » et « Modifier la vente » (prix,
+ *    quantites) appellent les boutons existants de « Ventes terminées », avec les memes droits ; on revient ensuite
+ *    sur la fiche du bon ; delai maximal de saisie de l'organisme et de son groupe (vide =
  *    sans delai, comme avant) ; Excel complet et PDF des anomalies.
  * Aucune fenetre surgissante : chaque enregistrement se confirme dans son bouton.
  */
@@ -47,7 +51,9 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                 '.pt-OK .pt-etat { color:#1e7b34; } .pt-INFO .pt-etat { color:#b45309; } .pt-ALERTE .pt-etat { color:#b42318; }',
                 '.pt-fiche-corps:focus { outline:2px solid #2b5287; }',
                 '.pt-pointage .x-btn-disabled.x-btn-disabled { opacity:1 !important; }',
-                '.pt-pointage .x-btn-disabled.x-btn-disabled .x-btn-inner { color:#4a5868 !important; }'
+                '.pt-pointage .x-btn-disabled.x-btn-disabled .x-btn-inner { color:#4a5868 !important; }',
+                '.pt-apercu { border-collapse:collapse; font-size:11px; margin:2px 0; } .pt-apercu td, .pt-apercu th { border:1px solid #d5dde6; padding:1px 5px; white-space:nowrap; }',
+                '.pt-apercu th { background:#f3f5f8; } .pt-apercu th.pt-col-choisie { background:#dbeafe; }'
             ].join('\n');
             document.head.appendChild(s);
         }
@@ -113,9 +119,13 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                     {xtype: 'button', itemId: 'ptAnnoncesOk', text: 'Enregistrer', handler: function (b) {
                             me.enregistrerAnnonces(b);
                         }},
-                    {xtype: 'button', itemId: 'ptReleve', text: '⤒ Importer le relevé de l\'organisme', tooltip: 'Excel ou CSV téléchargé sur la plateforme de l\'organisme (facultatif)',
+                    {xtype: 'button', itemId: 'ptReleve', text: '⤒ Importer le relevé de l\'organisme', tooltip: 'Excel, CSV ou PDF téléchargé sur la plateforme de l\'organisme (facultatif)',
                         handler: function (b) {
                             me.importerReleve(b);
+                        }},
+                    {xtype: 'button', itemId: 'ptVoirComparaison', text: 'Comparaison du relevé', hidden: true,
+                        tooltip: 'Tableau du dernier relevé importé, ligne par ligne', handler: function () {
+                            me.centre.getLayout().setActiveItem(me.comparaison);
                         }}
                 ]
             }, {
@@ -147,7 +157,7 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
             return r.get('modifieDepuis') ? '<span style="color:#b45309;font-weight:bold">modifié : à repointer</span>' : 'à pointer';
         };
         me.grille = Ext.create('Ext.grid.Panel', {
-            region: 'center', itemId: 'ptGrille', store: me.store, columnLines: true,
+            itemId: 'ptGrille', store: me.store, columnLines: true,
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'textfield', itemId: 'ptScan', emptyText: '▮▮ Scanner ou taper le n° de bon… (Entrée)', width: 300, enableKeyEvents: true,
@@ -238,10 +248,25 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                             }}
                     ]
                 }, {
+                    /* demande du 15/11 : corriger tout de suite ce que le controle montre, avec les boutons existants */
+                    xtype: 'toolbar', dock: 'bottom', itemId: 'ptCorriger', items: [
+                        {xtype: 'tbtext', text: 'Corriger :'},
+                        {xtype: 'button', itemId: 'ptModifClient', text: 'Modifier infos client', disabled: true,
+                            handler: function () {
+                                me.modifierInfosClient();
+                            }},
+                        {xtype: 'button', itemId: 'ptModifVente', text: 'Modifier la vente (prix, quantités)', disabled: true,
+                            handler: function (b) {
+                                me.modifierVente(b);
+                            }}
+                    ]
+                }, {
                     xtype: 'toolbar', dock: 'bottom', items: [{xtype: 'tbtext', itemId: 'ptMessage', text: ''}]
                 }]
         });
-        me.items = [me.grille, me.panneau];
+        me.comparaison = me.vueComparaison();
+        me.centre = Ext.create('Ext.container.Container', {region: 'center', layout: 'card', itemId: 'ptCentre', items: [me.grille, me.comparaison]});
+        me.items = [me.centre, me.panneau];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.panneau.body.on('click', function (e) {
@@ -250,6 +275,163 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                     me.choisirBloc(parseInt(b.getAttribute('data-bloc'), 10));
                 }
             });
+        });
+    },
+
+    /* demande du 15/11 : « Modifier infos client » de la liste des bons (meme fenetre, memes droits) ; la fiche du bon est
+       relue ensuite (le bon peut avoir change d'identifiant : on le retrouve par sa vente ou son numero) */
+    modifierInfosClient: function () {
+        var me = this, b = me.fiche && me.fiche.bon;
+        if (!b) {
+            return;
+        }
+        var reprise = {bonId: b.id, bon: b.bon, vente: b.vente};
+        Ext.create('testextjs.view.vente.user.UpdateVenteClientTpForm', {venteId: b.vente,
+            onSaved: function () {
+                me.reprendre(Ext.apply({message: 'Infos client modifiées : vérifiez puis pointez.'}, reprise));
+            }}).show();
+    },
+
+    /* demande du 15/11 : « Modifier » de « Ventes terminées » (verification, motif, ecran de vente) ; apres la
+       modification ou son abandon, retour sur ce pointage et sur la fiche du bon */
+    modifierVente: function (bouton) {
+        var me = this, b = me.fiche && me.fiche.bon, p = me.parametres();
+        if (!b || !p) {
+            return;
+        }
+        var combo = me.down('#ptOrganisme'), rec = combo.findRecordByValue(combo.getValue());
+        testextjs.app.getController('VenteFinisCtr').modifierVente(b.vente, bouton.getEl ? bouton.getEl().dom : null, {
+            retour: {xtype: 'facturesubrogatoireother', data: {pointage: {tiersPayantId: p.tiersPayantId,
+                        organisme: rec ? rec.get('strFULLNAME') : '', dtStart: p.dtStart, dtEnd: p.dtEnd,
+                        bonId: b.id, bon: b.bon, vente: b.vente, message: 'Vente modifiée : vérifiez puis pointez.'}}},
+            refus: function (msg) {
+                me.message(Ext.String.htmlEncode(msg), false);
+            }
+        });
+    },
+
+    /* Reprise du pointage : organisme, periode, liste, puis fiche du bon (par identifiant, sinon numero, sinon vente) */
+    reprendre: function (x) {
+        var me = this;
+        if (x.tiersPayantId) {
+            var combo = me.down('#ptOrganisme');
+            if (combo.getStore().findExact('lgTIERSPAYANTID', x.tiersPayantId) < 0) {
+                combo.getStore().loadData([{lgTIERSPAYANTID: x.tiersPayantId, strFULLNAME: x.organisme || ''}], true);
+            }
+            combo.setValue(x.tiersPayantId);
+            me.down('#ptDebut').setValue(Ext.Date.parse(x.dtStart, 'Y-m-d'));
+            me.down('#ptFin').setValue(Ext.Date.parse(x.dtEnd, 'Y-m-d'));
+            me.chargerDelais();
+        }
+        var filtre = me.down('#ptFiltre').query('button');
+        me.filtre = 'TOUS';
+        Ext.each(filtre, function (bt) {
+            bt.toggle(bt.valeur === 'TOUS', true);
+        });
+        me.store.load({callback: function () {
+                var i = me.store.findBy(function (r) {
+                    return r.get('id') === x.bonId;
+                });
+                if (i < 0 && x.bon) {
+                    i = me.store.findBy(function (r) {
+                        return (r.get('bon') || '').toUpperCase() === String(x.bon).toUpperCase();
+                    });
+                }
+                if (i < 0 && x.vente) {
+                    i = me.store.findBy(function (r) {
+                        return r.get('vente') === x.vente;
+                    });
+                }
+                if (i < 0) {
+                    me.message('Bon ' + Ext.String.htmlEncode(x.bon || '') + ' introuvable après la modification (période ou organisme changé ?).', false);
+                    return;
+                }
+                me.grille.getSelectionModel().select(i);
+                me.ouvrir(me.store.getAt(i), function () {
+                    if (x.message) {
+                        me.message(x.message, true);
+                    }
+                });
+            }});
+    },
+
+    /* demande du 15/11 : vue de comparaison du releve (une ligne par ligne du releve, puis les bons absents du releve),
+       avec les colonnes reconnues, modifiables avant de relancer le rapprochement */
+    vueComparaison: function () {
+        var me = this;
+        me.storeComparaison = new Ext.data.Store({
+            fields: ['statut', 'bonReleve', 'bon', 'matricule', 'date', {name: 'montantReleve', useNull: true},
+                {name: 'part', useNull: true}, {name: 'ecart', useNull: true}, 'etat', 'id']
+        });
+        var colonne = function (champ, libelle) {
+            return {xtype: 'combobox', itemId: 'ptCol-' + champ, fieldLabel: libelle, labelWidth: 70, width: 230, editable: false,
+                queryMode: 'local', valueField: 'rang', displayField: 'nom',
+                store: new Ext.data.Store({fields: ['rang', 'nom']})};
+        };
+        var nb = function (v) {
+            return v === null || v === undefined ? '' : Ext.util.Format.number(v, '0,000').replace(/,/g, ' ');
+        };
+        var STATUTS = {APPARIE: ['apparié', '#1e7b34'], ECART: ['écart de montant', '#b45309'],
+            ABSENT_CHEZ_NOUS: ['absent chez nous', '#b42318'], ABSENT_DU_RELEVE: ['absent du relevé', '#b42318']};
+        return Ext.create('Ext.grid.Panel', {
+            itemId: 'ptComparaison', store: me.storeComparaison, columnLines: true,
+            dockedItems: [{
+                    xtype: 'toolbar', dock: 'top', itemId: 'ptColonnes', items: [
+                        {xtype: 'tbtext', text: '<b>Colonnes du relevé</b>'},
+                        colonne('bon', 'N° de bon'), colonne('matricule', 'Matricule'), colonne('date', 'Date'), colonne('montant', 'Montant'),
+                        {xtype: 'button', itemId: 'ptRapprocher', text: 'Relancer le rapprochement', handler: function (b) {
+                                me.rapprocherReleve(b);
+                            }}
+                    ]
+                }, {
+                    xtype: 'toolbar', dock: 'top', items: [{xtype: 'component', itemId: 'ptApercu', html: ''}]
+                }, {
+                    xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'container', itemId: 'ptFiltreComp', layout: 'hbox', items: Ext.Array.map([['', 'Toutes'], ['ECART', 'Écarts'],
+                                ['ABSENT_CHEZ_NOUS', 'Absents chez nous'], ['ABSENT_DU_RELEVE', 'Absents du relevé'], ['APPARIE', 'Appariés']], function (x) {
+                                return {xtype: 'button', text: x[1], valeur: x[0], enableToggle: true, toggleGroup: 'ptFiltreComp' + me.id,
+                                    allowDepress: false, pressed: x[0] === '', margin: '0 2 0 0', handler: function (b) {
+                                        me.storeComparaison.clearFilter();
+                                        if (b.valeur) {
+                                            me.storeComparaison.filter('statut', b.valeur);
+                                        }
+                                    }};
+                            })},
+                        '->',
+                        {xtype: 'tbtext', itemId: 'ptResumeComp', text: ''},
+                        {xtype: 'button', text: '← Retour aux bons', handler: function () {
+                                me.centre.getLayout().setActiveItem(me.grille);
+                            }}
+                    ]
+                }],
+            columns: [
+                {text: 'Statut', dataIndex: 'statut', width: 130, renderer: function (v) {
+                        var s = STATUTS[v] || [v, '#1e3a5f'];
+                        return '<span style="color:' + s[1] + ';font-weight:bold">' + s[0] + '</span>';
+                    }},
+                {text: 'N° bon (relevé)', dataIndex: 'bonReleve', width: 120},
+                {text: 'N° bon (chez nous)', dataIndex: 'bon', width: 120},
+                {text: 'Matricule', dataIndex: 'matricule', width: 110},
+                {text: 'Date', dataIndex: 'date', width: 90, renderer: function (v) {
+                        var d = v ? Ext.Date.parse(String(v).substring(0, 10), 'Y-m-d') : null;
+                        return d ? Ext.Date.format(d, 'd/m/Y') : (v || '');
+                    }},
+                {text: 'Montant relevé', dataIndex: 'montantReleve', width: 105, align: 'right', renderer: nb},
+                {text: 'Part chez nous', dataIndex: 'part', width: 105, align: 'right', renderer: nb},
+                {text: 'Écart', dataIndex: 'ecart', width: 80, align: 'right', renderer: function (v) {
+                        return v ? '<b style="color:#b45309">' + (v > 0 ? '+' : '') + nb(v) + '</b>' : '';
+                    }},
+                {text: 'Pointage', dataIndex: 'etat', flex: 1, minWidth: 90, renderer: function (v) {
+                        return v === 'A_POINTER' ? 'à pointer' : (v ? String(v).toLowerCase() : '');
+                    }}
+            ],
+            listeners: {
+                itemclick: function (v, rec) {
+                    if (rec.get('id')) {
+                        me.ouvrir(rec);
+                    }
+                }
+            }
         });
     },
 
@@ -364,7 +546,7 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
         }
         var input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.xlsx,.xls,.csv,.txt';
+        input.accept = '.xlsx,.xls,.csv,.txt,.pdf';
         input.style.display = 'none';
         input.className = 'pt-fichier-releve';
         document.body.appendChild(input);
@@ -374,8 +556,10 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
             if (!f) {
                 return;
             }
-            var fin = PrestigeChargement.occuper(b, 'Rapprochement');
-            fetch('../api/v1/pointage-bons/releve?' + Ext.Object.toQueryString(p), {method: 'POST', credentials: 'same-origin',
+            /* demande du 15/11 : 1) colonnes reconnues et apercu (rien n'est ecrit), 2) rapprochement avec ces colonnes,
+               modifiables ensuite dans la vue de comparaison */
+            var fin = PrestigeChargement.occuper(b, 'Lecture du relevé');
+            fetch('../api/v1/pointage-bons/releve/analyse', {method: 'POST', credentials: 'same-origin',
                 headers: {'Content-Type': 'application/octet-stream'}, body: f}).then(function (r) {
                 return r.json();
             }).then(function (d) {
@@ -383,9 +567,15 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                     fin((d && d.msg) || 'Relevé illisible', false);
                     return;
                 }
-                fin(d.lignesReleve + ' ligne(s) lue(s)', true);
-                me.afficherRapprochement(d);
-                me.recharger();
+                fin(d.lignes + ' ligne(s) lue(s) (' + d.format + ')', true);
+                me.fichierReleve = f;
+                me.afficherAnalyse(d);
+                if (me.colonnesSuffisantes()) {
+                    me.rapprocherReleve(me.down('#ptRapprocher'));
+                } else {
+                    me.storeComparaison.removeAll();
+                    me.message('Colonnes non reconnues : choisissez-les au-dessus du tableau, puis « Relancer le rapprochement ».', false);
+                }
             })['catch'](function () {
                 fin('Le serveur ne répond pas', false);
             });
@@ -393,7 +583,109 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
         input.click();
     },
 
+    /* Colonnes reconnues (modifiables) et apercu des premieres lignes du releve, colonnes choisies surlignees */
+    afficherAnalyse: function (d) {
+        var me = this, e = Ext.String.htmlEncode, choix = [{rang: -1, nom: '— aucune —'}];
+        me.analyseReleve = d;
+        Ext.each(d.entetes, function (t, i) {
+            choix.push({rang: i, nom: (i + 1) + ' · ' + (t || 'Colonne ' + (i + 1))});
+        });
+        Ext.each(['bon', 'matricule', 'date', 'montant'], function (c) {
+            var cb = me.down('#ptCol-' + c);
+            cb.getStore().loadData(choix);
+            cb.setValue(d.colonnes[c] === undefined ? -1 : d.colonnes[c]);
+            if (!cb.surveille) {
+                cb.surveille = true;
+                cb.on('select', function () {
+                    me.majApercu();
+                });
+            }
+        });
+        me.down('#ptVoirComparaison').show();
+        me.centre.getLayout().setActiveItem(me.comparaison);
+        me.majApercu();
+    },
+
+    colonnesChoisies: function () {
+        var me = this, r = {};
+        Ext.each(['bon', 'matricule', 'date', 'montant'], function (c) {
+            var v = me.down('#ptCol-' + c).getValue();
+            r[c] = v === null || v === undefined ? -1 : v;
+        });
+        return r;
+    },
+
+    colonnesSuffisantes: function () {
+        var c = this.colonnesChoisies();
+        return c.bon >= 0 || (c.matricule >= 0 && c.date >= 0 && c.montant >= 0);
+    },
+
+    majApercu: function () {
+        var me = this, d = me.analyseReleve, e = Ext.String.htmlEncode;
+        if (!d) {
+            return;
+        }
+        var c = me.colonnesChoisies(), role = {};
+        role[c.bon] = 'N° de bon';
+        role[c.matricule] = 'Matricule';
+        role[c.date] = 'Date';
+        role[c.montant] = 'Montant';
+        var tete = Ext.Array.map(d.entetes, function (t, i) {
+            return '<th class="' + (role[i] ? 'pt-col-choisie' : '') + '">' + e(t || '') + (role[i] ? '<br><i>' + role[i] + '</i>' : '') + '</th>';
+        }).join('');
+        var corps = Ext.Array.map(d.apercu, function (l) {
+            return '<tr>' + Ext.Array.map(d.entetes, function (t, i) {
+                return '<td class="' + (role[i] ? 'pt-col-choisie' : '') + '">' + e(l[i] === null || l[i] === undefined ? '' : String(l[i])) + '</td>';
+            }).join('') + '</tr>';
+        }).join('');
+        me.down('#ptApercu').update('<div style="max-height:170px;overflow:auto"><table class="pt-apercu"><tr>' + tete + '</tr>' + corps + '</table></div>');
+        me.down('#ptRapprocher').setDisabled(!me.colonnesSuffisantes());
+    },
+
+    rapprocherReleve: function (b) {
+        var me = this, p = me.parametres();
+        if (!p || !me.fichierReleve) {
+            me.message('Choisissez un organisme et une période, puis importez le relevé.', false);
+            return;
+        }
+        if (!me.colonnesSuffisantes()) {
+            me.message('Choisissez la colonne du n° de bon, ou à défaut celles du matricule, de la date et du montant.', false);
+            return;
+        }
+        var c = me.colonnesChoisies();
+        var q = Ext.apply({cBon: c.bon, cMatricule: c.matricule, cDate: c.date, cMontant: c.montant}, p);
+        var fin = PrestigeChargement.occuper(b, 'Rapprochement');
+        fetch('../api/v1/pointage-bons/releve?' + Ext.Object.toQueryString(q), {method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/octet-stream'}, body: me.fichierReleve}).then(function (r) {
+            return r.json();
+        }).then(function (d) {
+            if (!d || !d.success) {
+                fin((d && d.msg) || 'Relevé illisible', false);
+                return;
+            }
+            fin(d.lignesReleve + ' ligne(s), ' + d.apparies + ' appariée(s)', true);
+            me.afficherRapprochement(d);
+            me.recharger();
+        })['catch'](function () {
+            fin('Le serveur ne répond pas', false);
+        });
+    },
+
     afficherRapprochement: function (d) {
+        var me = this;
+        me.storeComparaison.clearFilter();
+        me.storeComparaison.loadData(d.comparaison || []);
+        Ext.each(me.down('#ptFiltreComp').query('button'), function (bt) {
+            bt.toggle(bt.valeur === '', true);
+        });
+        me.down('#ptResumeComp').setText(d.lignesReleve + ' ligne(s) au relevé · ' + d.apparies + ' appariée(s) · '
+                + d.ecarts.length + ' écart(s) · ' + d.absentsChezNous.length + ' absent(s) chez nous · ' + d.absentsChezLui.length + ' absent(s) du relevé');
+        me.down('#ptVoirComparaison').show();
+        me.centre.getLayout().setActiveItem(me.comparaison);
+        me.afficherResumeRapprochement(d);
+    },
+
+    afficherResumeRapprochement: function (d) {
         var me = this, liste = function (a, f) {
             return a.length ? '<ul style="margin:2px 0 6px 18px">' + Ext.Array.map(a.slice(0, 50), f).join('') + (a.length > 50 ? '<li>…</li>' : '') + '</ul>' : ' aucun<br>';
         }, e = Ext.String.htmlEncode;
@@ -446,7 +738,7 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
             }});
     },
 
-    ouvrir: function (rec) {
+    ouvrir: function (rec, apres) {
         var me = this, p = me.parametres();
         Ext.Ajax.request({url: '../api/v1/pointage-bons/fiche', method: 'GET', params: Ext.apply({id: rec.get('id')}, p),
             callback: function (o, ok, r) {
@@ -462,6 +754,9 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                 me.message('', true);
                 me.down('#ptScan').setValue('');
                 me.focusFiche();
+                if (apres) {
+                    apres();
+                }
             }});
     },
 
@@ -549,6 +844,14 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
         me.down('#ptConforme').setDisabled(!ouvert);
         me.down('#ptAbsent').setDisabled(!ouvert);
         me.down('#ptAnomalie').setDisabled(!ouvert);
+        var droits = (me.fiche && me.fiche.droits) || {};
+        var bc = me.down('#ptModifClient'), bv = me.down('#ptModifVente');
+        bc.setDisabled(!ouvert || !droits.clientTp);
+        bv.setDisabled(!ouvert || !droits.vente);
+        bc.setTooltip(ouvert && !droits.clientTp ? 'Droit requis : modifier les infos client d\'une vente terminée'
+                : 'Assuré, ayant droit, organisme, taux, n° de bon (même fenêtre que « Ventes terminées »)');
+        bv.setTooltip(ouvert && !droits.vente ? 'Droit requis : modification de vente'
+                : 'Même modification que « Ventes terminées » : motif, puis écran de vente ; retour ici ensuite');
         var m = me.down('#ptMotif');
         m.setDisabled(!ouvert || !me.blocChoisi);
         if (!me.blocChoisi) {
