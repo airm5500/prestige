@@ -100,7 +100,7 @@ async function modifierBon(p, ecran, bon, nouveau) {
     await attendreChargement(p);
     const onglets = await p.evaluate(() => Ext.ComponentQuery.query('bonsorganismeonglets').filter((x) => x.isVisible(true)).map((x) =>
       Ext.ComponentQuery.query('button[cls=cec-onglet]', x).filter((b) => b.isVisible(true)).map((b) => b.getText())));
-    ok('c. l\'écran s\'ouvre avec deux onglets « Bons » et « Bordereaux / suivi »', onglets.length === 1 && onglets[0].join('|') === 'Bons|Bordereaux / suivi', JSON.stringify(onglets));
+    ok('c. l\'écran s\'ouvre avec les onglets « Bons », « Bordereaux / suivi » et « Pointage » (15/11)',onglets.length === 1 && onglets[0].join('|') === 'Bons|Bordereaux / suivi|Pointage', JSON.stringify(onglets));
 
     /* b. groupe choisi dans sa liste, puis croix */
     await vues.choisir(p, ECRAN + ' #groupeId', GROUPE);

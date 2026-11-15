@@ -11,7 +11,8 @@
 Ext.define('testextjs.view.sm_user.journalvente.BonsOrganismeOnglets', {
     extend: 'Ext.panel.Panel',
     xtype: 'bonsorganismeonglets',
-    requires: ['testextjs.view.sm_user.journalvente.FactureSubrogatoireBisManager', 'testextjs.view.vente.VenteTiersPayant'],
+    requires: ['testextjs.view.sm_user.journalvente.FactureSubrogatoireBisManager', 'testextjs.view.vente.VenteTiersPayant',
+        'testextjs.view.sm_user.journalvente.PointageBons'],
     layout: 'card',
     border: false,
     header: false,
@@ -23,7 +24,9 @@ Ext.define('testextjs.view.sm_user.journalvente.BonsOrganismeOnglets', {
     },
 
     ONGLETS: [{cle: 'bons', texte: 'Bons', aide: 'Bons par organisme : recherche, modification, impression'},
-        {cle: 'suivi', texte: 'Bordereaux / suivi', aide: 'Suivi des bons par tiers payant (bordereaux)', composant: 'tpventes'}],
+        {cle: 'suivi', texte: 'Bordereaux / suivi', aide: 'Suivi des bons par tiers payant (bordereaux)', composant: 'tpventes'},
+        /* 15/11 : pointage des bons, bon par bon, avant l'envoi de la facture */
+        {cle: 'pointage', texte: 'Pointage', aide: 'Pointer chaque bon contre le papier, organisme par organisme, avant la facture'}],
 
     initComponent: function () {
         var me = this;
@@ -80,6 +83,14 @@ Ext.define('testextjs.view.sm_user.journalvente.BonsOrganismeOnglets', {
                 b.toggle(x.cle === cle, true);
             }
         });
+        if (cle === 'pointage') {
+            if (!me.pointage || me.pointage.isDestroyed) {
+                me.pointage = Ext.create('testextjs.view.sm_user.journalvente.PointageBons', {itemId: 'ongletPointage'});
+                me.add(me.pointage);
+            }
+            me.getLayout().setActiveItem(me.pointage);
+            return me.pointage;
+        }
         if (cle === 'suivi') {
             if (!me.suivi || me.suivi.isDestroyed) {
                 // cree au premier clic seulement : son controleur charge la liste a l'affichage (viewready)
