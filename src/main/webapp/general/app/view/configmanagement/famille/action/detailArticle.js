@@ -1539,8 +1539,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             }
         });
     },
+    /*
+     * Journal de capitale du 15/11 (n° 18, « Ext.getCmp(...) is undefined ») : la fiche arrivait apres la fermeture de
+     * sa fenetre et remplissait des champs detruits ; si une autre fiche avait ete ouverte entre-temps, elle recevait
+     * les valeurs du premier article. La reponse n'est appliquee qu'a la fenetre qui l'a demandee, encore ouverte.
+     */
     loadArticle: function (produitId) {
-        const me = this;
+        const me = this, fenetre = winDetailArticleOuverte;
+        const encoreOuverte = function () {
+            return !!fenetre && !fenetre.isDestroyed && winDetailArticleOuverte === fenetre;
+        };
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/produit-search/fiche',
@@ -1550,9 +1558,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             },
 
             success: function (response, options) {
-                if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
-                    winDetailArticleOuverte.setLoading(false);
+                if (!encoreOuverte()) {
+                    return;
                 }
+                fenetre.setLoading(false);
                 const result = Ext.JSON.decode(response.responseText, true);
 
                 const produit = result && result.results ? result.results[0] : null;
@@ -1561,8 +1570,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 }
             },
             failure: function () {
-                if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
-                    winDetailArticleOuverte.setLoading(false);
+                if (encoreOuverte()) {
+                    fenetre.setLoading(false);
                 }
             }
 
