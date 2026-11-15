@@ -1793,11 +1793,12 @@ public class SuggestionImpl implements SuggestionService {
                     "SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgGROSSISTEID.lgGROSSISTEID = ?2  AND t.strSTATUT = ?3 ")
                     .setParameter(1, lgFAMILLEID).setParameter(2, lgGROSSISTEID).setParameter(3, STATUT_ENABLE);
             qry.setMaxResults(1);
-            familleGrossiste = (TFamilleGrossiste) qry.getSingleResult();
-
+            // exploitation du 14/11, S1 : un produit sans fiche chez le grossiste est un cas normal (5 186 piles SEVERE
+            // dans la journee d'appaul) ; on lit la liste au lieu d'attendre une exception
+            List<?> r = qry.getResultList();
+            familleGrossiste = r.isEmpty() ? null : (TFamilleGrossiste) r.get(0);
         } catch (Exception e) {
-
-            LOG.log(Level.SEVERE, null, e);
+            LOG.log(Level.WARNING, "fiche du produit " + lgFAMILLEID + " chez le grossiste " + lgGROSSISTEID, e);
         }
 
         return familleGrossiste;
@@ -1843,20 +1844,23 @@ public class SuggestionImpl implements SuggestionService {
 
         long t0 = System.currentTimeMillis();
         int count = fetchItemsCount(searchValue, suggestionId);
-        LOG.info("SUGGESTION PERF - fetchItemsCount = " + (System.currentTimeMillis() - t0) + " ms, count=" + count);
+        LOG.fine(() -> "SUGGESTION PERF - fetchItemsCount = " + (System.currentTimeMillis() - t0) + " ms, count="
+                + count);
 
         if (count == 0) {
-            LOG.info("SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
+            LOG.fine(
+                    () -> "SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
             return data.put("total", count).put("data", Collections.emptyList());
         }
 
         long t1 = System.currentTimeMillis();
         List<TSuggestionOrderDetails> detailses = fetchSuggestionOrderDetails(searchValue, suggestionId, start, limit);
-        LOG.info("SUGGESTION PERF - fetchSuggestionOrderDetails = " + (System.currentTimeMillis() - t1) + " ms, size="
-                + detailses.size());
+        LOG.fine(() -> "SUGGESTION PERF - fetchSuggestionOrderDetails = " + (System.currentTimeMillis() - t1)
+                + " ms, size=" + detailses.size());
 
         if (detailses.isEmpty()) {
-            LOG.info("SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
+            LOG.fine(
+                    () -> "SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
             return data.put("total", count).put("data", Collections.emptyList());
         }
 
@@ -1889,18 +1893,18 @@ public class SuggestionImpl implements SuggestionService {
 
                 long stockStart = System.currentTimeMillis();
                 TFamilleStock oTFamillestock = getTProductItemStock(famille.getLgFAMILLEID(), empl);
-                LOG.info("SUGGESTION PERF - stock produit " + famille.getLgFAMILLEID() + " = "
+                LOG.fine(() -> "SUGGESTION PERF - stock produit " + famille.getLgFAMILLEID() + " = "
                         + (System.currentTimeMillis() - stockStart) + " ms");
 
                 if (oTFamillestock == null) {
-                    LOG.info("SUGGESTION PERF - produit ignore sans stock : " + famille.getLgFAMILLEID());
+                    LOG.fine(() -> "SUGGESTION PERF - produit ignore sans stock : " + famille.getLgFAMILLEID());
                     continue;
                 }
 
                 long fgStart = System.currentTimeMillis();
                 TFamilleGrossiste familleGrossiste = findFamilleGrossiste(famille.getLgFAMILLEID(),
                         grossiste.getLgGROSSISTEID());
-                LOG.info("SUGGESTION PERF - familleGrossiste produit " + famille.getLgFAMILLEID() + " = "
+                LOG.fine(() -> "SUGGESTION PERF - familleGrossiste produit " + famille.getLgFAMILLEID() + " = "
                         + (System.currentTimeMillis() - fgStart) + " ms");
 
                 json.put("lg_SUGGESTION_ORDER_DETAILS_ID", order.getLgSUGGESTIONORDERDETAILSID());
@@ -1929,7 +1933,7 @@ public class SuggestionImpl implements SuggestionService {
 
                 long etatStart = System.currentTimeMillis();
                 json.put("produitState", new JSONObject(productStateService.getEtatProduit(famille.getLgFAMILLEID())));
-                LOG.info("SUGGESTION PERF - etatProduit produit " + famille.getLgFAMILLEID() + " = "
+                LOG.fine(() -> "SUGGESTION PERF - etatProduit produit " + famille.getLgFAMILLEID() + " = "
                         + (System.currentTimeMillis() - etatStart) + " ms");
 
                 json.put("int_SEUIL", famille.getIntSEUILMIN());
@@ -1964,34 +1968,34 @@ public class SuggestionImpl implements SuggestionService {
                 long q0 = System.currentTimeMillis();
                 json.put("int_VALUE0",
                         getProduitQuantity(famille.getLgFAMILLEID(), moisUn.getMonthValue(), moisUn.getYear(), empl));
-                LOG.info("SUGGESTION PERF - qte mois courant produit " + famille.getLgFAMILLEID() + " = "
+                LOG.fine(() -> "SUGGESTION PERF - qte mois courant produit " + famille.getLgFAMILLEID() + " = "
                         + (System.currentTimeMillis() - q0) + " ms");
 
                 long q1 = System.currentTimeMillis();
                 json.put("int_VALUE1", getProduitQuantity(famille.getLgFAMILLEID(), nMoinsUn.getMonthValue(),
                         nMoinsUn.getYear(), empl));
-                LOG.info("SUGGESTION PERF - qte M-1 produit " + famille.getLgFAMILLEID() + " = "
+                LOG.fine(() -> "SUGGESTION PERF - qte M-1 produit " + famille.getLgFAMILLEID() + " = "
                         + (System.currentTimeMillis() - q1) + " ms");
 
                 long q2 = System.currentTimeMillis();
                 json.put("int_VALUE2", getProduitQuantity(famille.getLgFAMILLEID(), nMoinsDeux.getMonthValue(),
                         nMoinsDeux.getYear(), empl));
-                LOG.info("SUGGESTION PERF - qte M-2 produit " + famille.getLgFAMILLEID() + " = "
+                LOG.fine(() -> "SUGGESTION PERF - qte M-2 produit " + famille.getLgFAMILLEID() + " = "
                         + (System.currentTimeMillis() - q2) + " ms");
 
                 long q3 = System.currentTimeMillis();
                 json.put("int_VALUE3", getProduitQuantity(famille.getLgFAMILLEID(), nMoinsTrois.getMonthValue(),
                         nMoinsTrois.getYear(), empl));
-                LOG.info("SUGGESTION PERF - qte M-3 produit " + famille.getLgFAMILLEID() + " = "
+                LOG.fine(() -> "SUGGESTION PERF - qte M-3 produit " + famille.getLgFAMILLEID() + " = "
                         + (System.currentTimeMillis() - q3) + " ms");
 
                 arrayObj.put(json);
 
-                LOG.info("SUGGESTION PERF - ligne produit " + famille.getLgFAMILLEID() + " total = "
+                LOG.fine(() -> "SUGGESTION PERF - ligne produit " + famille.getLgFAMILLEID() + " total = "
                         + (System.currentTimeMillis() - lineStart) + " ms");
             }
 
-            LOG.info("SUGGESTION PERF - boucle totale = " + (System.currentTimeMillis() - boucleStart) + " ms");
+            LOG.fine(() -> "SUGGESTION PERF - boucle totale = " + (System.currentTimeMillis() - boucleStart) + " ms");
             ajouterColisage(arrayObj);
             ajouterInfosExtranet(arrayObj, produitsExtranet, grossiste, data);
 
@@ -2001,7 +2005,7 @@ public class SuggestionImpl implements SuggestionService {
             LOG.log(Level.SEVERE, null, e);
         }
 
-        LOG.info("SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
+        LOG.fine(() -> "SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
 
         return data;
     }
