@@ -6,6 +6,21 @@ var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tiersp
  * non la fenetre, la source de donnees n'y est donc pas accessible. */
 var consommationEnCoursTiersPayant = 0;
 
+/* Enregistrer la fiche sans rien modifier ne doit rien reecrire (demande du 15/11). Bons par page et police
+   s'affichent 20 et 7 quand rien n'est regle (0 en base = automatique) : en modification, un de ces champs laisse tel
+   qu'a l'ouverture n'est pas transmis, et le serveur garde la valeur enregistree. En creation, tout part. */
+function sansReglagesInchanges(params) {
+    if (params.lg_TIERS_PAYANT_ID) {
+        ['int_NB_BONS_PAR_PAGE', 'int_TAILLE_POLICE'].forEach(function (id) {
+            var champ = Ext.getCmp(id);
+            if (champ && !champ.isDirty()) {
+                delete params[id];
+            }
+        });
+    }
+    return params;
+}
+
 /* Plan du 14/11, point 4 : en mode Email, il faut au moins une adresse et toutes valides (separees par ; , ou des
    espaces) ; meme regle que le serveur (rest.service.facture.EnvoiFacture). */
 function modeEnvoiFactureValide(mode, champMail) {
@@ -965,10 +980,14 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             // Un tiers payant deja regle garde SA valeur. Celui qui n'a jamais ete regle
             // (0 en base = automatique) affiche la valeur par defaut de la fiche : 20 bons par
             // page et 7 points. Tant qu'on n'enregistre pas, rien n'est ecrit en base.
+            // Enregistrer sans toucher a ces deux reglages n'ecrit rien : la valeur affichee devient la reference
+            // du champ, et un champ inchange n'est pas transmis (cf. sansReglagesInchanges).
             var bonsParPage = this.getOdatasource().int_NB_BONS_PAR_PAGE;
             Ext.getCmp('int_NB_BONS_PAR_PAGE').setValue(bonsParPage > 0 ? bonsParPage : 20);
+            Ext.getCmp('int_NB_BONS_PAR_PAGE').resetOriginalValue();
             var taillePolice = this.getOdatasource().int_TAILLE_POLICE;
             Ext.getCmp('int_TAILLE_POLICE').setValue(taillePolice > 0 ? taillePolice : 7);
+            Ext.getCmp('int_TAILLE_POLICE').resetOriginalValue();
             Ext.getCmp('cmu').setValue(this.getOdatasource().cmu);
             Ext.getCmp('caution').setValue(this.getOdatasource().caution);
             
@@ -1057,7 +1076,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.Ajax.request({
                 url: internal_url,
                 method: 'POST',
-                params: {
+                params: sansReglagesInchanges({
                     lg_TIERS_PAYANT_ID: (Omode === "create" ? '' : ref),
                     str_CODE_ORGANISME: Ext.getCmp('str_CODE_ORGANISME').getValue(),
                     str_NAME: Ext.getCmp('str_NAME_ADD').getValue(),
@@ -1119,7 +1138,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                     // Gere comme depot : n'a de sens que pour un carnet, d'ou le controle de
                     // visibilite. En modification, le service REST le pose avec le reste.
                     is_depot: Ext.getCmp('is_depot').isVisible() && Ext.getCmp('is_depot').getValue()
-                },
+                }),
                 success: function (response)
                 {
                     testextjs.app.getController('App').StopWaitingProcess();

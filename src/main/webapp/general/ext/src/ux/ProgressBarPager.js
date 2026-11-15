@@ -67,16 +67,26 @@ Ext.define('Ext.ux.ProgressBarPager', {
     },
     // private
     // This method handles the click for the progress bar
+    // Prestige (15/11) : la taille de page est celle du MAGASIN (la barre n'en a pas : pages valait NaN et la page
+    // demandee aussi, d'ou « Page NaN » et une demande rejetee) ; page bornee au nombre de pages ; et le changement
+    // passe par « beforechange », comme les fleches de la barre, pour que les ecrans y reposent leurs filtres.
     handleProgressBarClick : function(e){
         var parent = this.parent,
-            displayItem = parent.displayItem,
+            store = parent.store,
             box = this.progressBar.getBox(),
             xy = e.getXY(),
             position = xy[0]- box.x,
-            pages = Math.ceil(parent.store.getTotalCount() / parent.pageSize),
-            newPage = Math.max(Math.ceil(position / (displayItem.width / pages)), 1);
+            taille = store.pageSize,
+            pages = taille > 0 ? Math.ceil(store.getTotalCount() / taille) : 0,
+            newPage;
 
-        parent.store.loadPage(newPage);
+        if (!(pages > 0) || !(box.width > 0)) {
+            return;
+        }
+        newPage = Math.min(pages, Math.max(Math.ceil(position / (box.width / pages)), 1));
+        if (parent.fireEvent('beforechange', parent, newPage) !== false) {
+            store.loadPage(newPage);
+        }
     },
 
     // private, overriddes

@@ -310,7 +310,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                             lg_TYPE_TIERS_PAYANT_ID = cmp.getValue();
                             var search_value = Ext.getCmp('rechecher').getValue();
 
-                            Ext.getCmp('OGrid').getStore().load({
+                            // nouveau filtre : on repart de la page 1, comme la recherche
+                            Ext.getCmp('OGrid').getStore().loadPage(1, {
 
                                 params: {
                                     lg_TYPE_TIERS_PAYANT_ID: lg_TYPE_TIERS_PAYANT_ID,
@@ -626,8 +627,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
         if (lg_TYPE == null) {
             lg_TYPE = "";
         }
-        /* page 1 explicitement : sans elle, la page courante valait NaN (« Page courante NaN »), la demande partait
-           avec page=NaN&start=NaN, le serveur la rejetait et la recherche restait sans effet */
+        /* une nouvelle recherche repart de la page 1 : sinon elle reprenait la page courante (vide si le resultat
+           tient en moins de pages, NaN apres un clic sur la barre de progression, corrige dans ProgressBarPager) */
         this.getStore().loadPage(1, {
             params: {
                 search_value: val.getValue(),
