@@ -8962,6 +8962,22 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.toastVente('Ligne en promotion : une ligne au comptant d\'une vente assurance ne porte pas de promotion.');
             return false;
         }
+        /* demande du 15/11 : jamais toute la vente au comptant (le serveur refuse aussi) */
+        if (checked && record) {
+            const grid = me.getVnogrid && me.getVnogrid();
+            const lignes = grid ? grid.getStore().getRange() : [];
+            if (lignes.length <= 1) {
+                me.toastVente('Vente d\'un seul produit : elle ne se coche pas au comptant. Passez la vente au comptant.');
+                return false;
+            }
+            const resteAssurance = lignes.some(function (r) {
+                return r !== record && !r.get('comptant');
+            });
+            if (!resteAssurance) {
+                me.toastVente('Toutes les lignes seraient au comptant : passez la vente au comptant, ou laissez au moins une ligne à l\'assurance.');
+                return false;
+            }
+        }
         return true;
     },
 
