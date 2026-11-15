@@ -61,6 +61,12 @@ import toolkits.utils.logger;
  */
 public class reglementManager extends bll.bllBase {
 
+    /*
+     * Exploitation du 14/11, S5 : les traces « paiement total » (une par dossier, 1 341 lignes chez appaul) passent en
+     * FINE, invisible par defaut ; l'ancien journal (toolkits) ecrivait toujours, quel que soit le niveau.
+     */
+    private static final Logger LOG_REGLEMENT = Logger.getLogger(reglementManager.class.getName());
+
     public final date pkey = new date();
 
     public reglementManager(dataManager OdataManager, TUser OTuser) {
@@ -298,7 +304,7 @@ public class reglementManager extends bll.bllBase {
                 TDossierReglementDetail ODossierReglementDetail = null;
                 TPreenregistrementCompteClientTiersPayent OTPreenregistrementCompteClientTiersPayent = null;
                 if (lg_NATURE_PAIEMENT.equals("2")) {
-                    new logger().OCategory.info("paiement total -----------------------------------------------");
+                    LOG_REGLEMENT.fine("paiement total -----------------------------------------------");
                     lstTFactureDetail = this.getDetailsFactureByTiersPayant(facture.getLgFACTUREID());
 
                     for (TFactureDetail tFactureDetail : lstTFactureDetail) {
@@ -313,7 +319,7 @@ public class reglementManager extends bll.bllBase {
                                 .getLgCOMPTECLIENTTIERSPAYANTID(); // code ajotué 18/08/2016
 
                         if (int_AMOUNT >= detailAmount) {
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT >= detailAmount-------------- amount "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
                             tFactureDetail.setDblMONTANTPAYE(tFactureDetail.getDblMONTANTPAYE() + detailAmount);
@@ -341,14 +347,14 @@ public class reglementManager extends bll.bllBase {
                             OTPreenregistrementCompteClientTiersPayent.setIntPRICERESTE(0);
                             OTPreenregistrementCompteClientTiersPayent.setDtUPDATED(new Date());
                             this.persiste(tFactureDetail);
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT >= detailAmount------------------------------------------ amount decrementer "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
                             this.persiste(OTPreenregistrementCompteClientTiersPayent);
                             ODossierReglementDetail = this.createDossierReglementDetail(tFactureDetail,
                                     dossierReglement, AmountReglement);
                         } else if (int_AMOUNT < detailAmount && int_AMOUNT > 0) {
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT <  detailAmount && int_AMOUNT >0------------------------------------------ amount "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
                             tFactureDetail.setDblMONTANTPAYE(tFactureDetail.getDblMONTANTPAYE() + int_AMOUNT);
@@ -385,7 +391,7 @@ public class reglementManager extends bll.bllBase {
                                     dossierReglement, AmountReglement);
                         }
 
-                        new logger().OCategory.info(
+                        LOG_REGLEMENT.fine(
                                 "paiement total   Traitement de chaque dossiers de la facture-----------------------------------------------");
 
                     }
@@ -1126,7 +1132,7 @@ public class reglementManager extends bll.bllBase {
                     for (TPreenregistrementCompteClient OPreenregistrementCompteClient : listpreenregistrementCompteClient) {
                         Integer detailAmount = OPreenregistrementCompteClient.getIntPRICERESTE();
                         if (int_AMOUNT >= detailAmount) {
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT >= detailAmount-------------- amount "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
                             // OPreenregistrementCompteClient.setIntPRICE(OPreenregistrementCompteClient.getIntPRICE() +
@@ -1136,7 +1142,7 @@ public class reglementManager extends bll.bllBase {
                             AmountReglement = detailAmount;
                             int_AMOUNT -= detailAmount;
                             this.persiste(OPreenregistrementCompteClient);
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT >= detailAmount------------------------------------------ amount decrementer "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
 
@@ -1144,7 +1150,7 @@ public class reglementManager extends bll.bllBase {
                                     OPreenregistrementCompteClient.getLgPREENREGISTREMENTCOMPTECLIENTID(),
                                     dossierReglement, AmountReglement);
                         } else if (int_AMOUNT < detailAmount && int_AMOUNT > 0) {
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT <  detailAmount && int_AMOUNT >0------------------------------------------ amount "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
                             // OPreenregistrementCompteClient.setIntPRICE(OPreenregistrementCompteClient.getIntPRICE() +
@@ -1161,7 +1167,7 @@ public class reglementManager extends bll.bllBase {
                                     dossierReglement, AmountReglement);
                         }
 
-                        new logger().OCategory.info(
+                        LOG_REGLEMENT.fine(
                                 "paiement total   Traitement de chaque dossiers de la facture-----------------------------------------------");
 
                     }
@@ -1567,7 +1573,7 @@ public class reglementManager extends bll.bllBase {
                             OTPreenregistrementCompteClientTiersPayent.setDtUPDATED(new Date());
 
                             this.getOdataManager().getEm().merge(tFactureDetail);
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT >= detailAmount------------------------------------------ amount decrementer "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
 
@@ -1576,7 +1582,7 @@ public class reglementManager extends bll.bllBase {
                                     (int) amountReglement);
                             this.createReglementDetail(tFactureDetail, dossierReglement, amountReglement);
                         } else if (int_AMOUNT < detailAmount && int_AMOUNT > 0) {
-                            new logger().OCategory.info(
+                            LOG_REGLEMENT.fine(
                                     "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT <  detailAmount && int_AMOUNT >0------------------------------------------ amount "
                                             + int_AMOUNT + " montant restant details facture " + detailAmount);
                             tFactureDetail.setDblMONTANTPAYE(tFactureDetail.getDblMONTANTPAYE() + int_AMOUNT);
@@ -1839,7 +1845,7 @@ public class reglementManager extends bll.bllBase {
                                 OTPreenregistrementCompteClientTiersPayent.setDtUPDATED(new Date());
 
                                 this.getOdataManager().getEm().merge(tFactureDetail);
-                                new logger().OCategory.info(
+                                LOG_REGLEMENT.fine(
                                         "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT >= detailAmount------------------------------------------ amount decrementer "
                                                 + int_AMOUNT + " montant restant details facture " + detailAmount);
 
@@ -1848,7 +1854,7 @@ public class reglementManager extends bll.bllBase {
                                         (int) amountReglement);
                                 this.createReglementDetail(tFactureDetail, dossierReglement, amountReglement);
                             } else if (int_AMOUNT_RECU < detailAmount && int_AMOUNT_RECU > 0) {
-                                new logger().OCategory.info(
+                                LOG_REGLEMENT.fine(
                                         "paiement total   Traitement de chaque dossiers de la facture-----int_AMOUNT <  detailAmount && int_AMOUNT >0------------------------------------------ amount "
                                                 + int_AMOUNT + " montant restant details facture " + detailAmount);
                                 tFactureDetail.setDblMONTANTPAYE(tFactureDetail.getDblMONTANTPAYE() + int_AMOUNT_RECU);
