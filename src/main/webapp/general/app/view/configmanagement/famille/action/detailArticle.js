@@ -598,6 +598,17 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             fieldStyle: 'color:red;font-weight:bold;font-size:13.5px'
                                         },
                                         {
+                                            // Plan du 14/11, point 7 : visibles dans le detail (itemId, pas d'id global)
+                                            fieldLabel: 'Ordonnancier',
+                                            itemId: 'detail_ordonnancier',
+                                            value: ''
+                                        },
+                                        {
+                                            fieldLabel: 'Produit sensible',
+                                            itemId: 'detail_sensible',
+                                            value: ''
+                                        },
+                                        {
                                             fieldLabel: 'Quantite.Detail/Article',
                                             name: 'int_QTEDETAIL',
                                             id: 'int_QTEDETAIL',
@@ -1516,6 +1527,18 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             f.setValue(rec.codeEanFabriquant ? Ext.String.htmlEncode(rec.codeEanFabriquant) : 'aucun');
         }
     },
+    /** Plan du 14/11, point 7 : Ordonnancier et Produit sensible, en clair (Oui en rouge, Non). */
+    afficherOrdonnancier: function (rec) {
+        const fenetre = (typeof winDetailArticleOuverte !== 'undefined' && winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed)
+            ? winDetailArticleOuverte : null;
+        [['detail_ordonnancier', rec.scheduled], ['detail_sensible', rec.sensible]].forEach(function (c) {
+            const champs = fenetre ? fenetre.query('#' + c[0]) : Ext.ComponentQuery.query('#' + c[0]);
+            const f = champs[champs.length - 1];
+            if (f && !f.isDestroyed) {
+                f.setValue(c[1] === true ? '<span style="color:#c0392b;font-weight:bold">Oui</span>' : 'Non');
+            }
+        });
+    },
     loadArticle: function (produitId) {
         const me = this;
         Ext.Ajax.request({
@@ -1692,6 +1715,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         this.afficherPeremptionProche(rec.dt_PEREMPTION_PROCHE, rec.lot_PEREMPTION_PROCHE, rec.qte_PEREMPTION_PROCHE);
         Ext.getCmp('str_CODE_TVA').setValue(rec.lg_CODE_TVA_ID);
         Ext.getCmp('int_T').setValue(rec.int_T);
+        this.afficherOrdonnancier(rec);
         Ext.getCmp('int_TAUX_MARQUE').setValue(tauxMarqueFiche(rec.int_PRICE, rec.int_PAF, rec.int_TAUX_MARQUE));
         Ext.getCmp('int_PAF').setValue(formatMillier(rec.int_PAF));
         Ext.getCmp('int_PAT').setValue(rec.int_PAT);

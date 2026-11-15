@@ -350,6 +350,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         { xtype: 'combobox', margin: '0 0 8 0', fieldLabel: 'Code.Remise', name: 'str_CODE_REMISE', itemId: 'str_CODE_REMISE', store: ['0', '1', '2', '3', '4'], valueField: 'str_CODE_REMISE', displayField: 'str_CODE_REMISE', value: 0, typeAhead: true, queryMode: 'local', emptyText: 'Choisir une Remise...' },
                         { fieldLabel: 'Code.Tableau', emptyText: 'Code Tableau', name: 'int_T', itemId: 'int_T' },
                         {
+                            // Plan du 14/11, point 7 : ordonnancier et produit sensible, modifiables ici sous le droit
+                            // du menu Ordonnancier (cases grisees sans ce droit). Hors du formulaire envoye : chaque case
+                            // changee part apres l'enregistrement vers v1/fichearticle/ordonnancier/{id}.
+                            xtype: 'fieldcontainer', fieldLabel: 'Ordonnancier', itemId: 'ordo_container', layout: 'hbox',
+                            items: [
+                                { xtype: 'checkbox', itemId: 'cb_ordonnancier', boxLabel: "inscrit à l'ordonnancier", submitValue: false, disabled: true, valeurOrigine: false, margin: '0 18 0 0' },
+                                { xtype: 'checkbox', itemId: 'cb_sensible', boxLabel: 'produit sensible', submitValue: false, disabled: true, valeurOrigine: false }
+                            ]
+                        },
+                        {
                             // Reserve : la case, puis seuil reserve, seuil mini rayon et quantite reservee (affiches si cochee)
                             xtype: 'fieldset', itemId: 'info_reserve', layout: 'anchor', defaults: { anchor: '-14', maxWidth: 366, labelAlign: 'right', labelWidth: FA_LIBELLE - 6 },
                             padding: '4 6 2 6', margin: '2 0 0 0', style: { borderColor: '#d5dce6' },
@@ -527,6 +537,21 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
         // ("items is undefined") dans les handlers.
         this._form = form;
 
+        // Plan du 14/11, point 7 : les cases Ordonnancier et Sensible ne s'ouvrent qu'avec le droit du menu Ordonnancier.
+        Ext.Ajax.request({
+            url: '../api/v1/fichearticle/ordonnancier/droit',
+            method: 'GET',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true), droit = !!(o && o.droit === true);
+                ['cb_ordonnancier', 'cb_sensible'].forEach(function (qid) {
+                    var c = g(qid);
+                    if (c && !c.isDestroyed) { c.setDisabled(!droit); }
+                });
+                var ct = g('ordo_container');
+                if (!droit && ct && !ct.isDestroyed) { ct.setFieldLabel('Ordonnancier (droit requis)'); }
+            }
+        });
+
         // Masquer bouton assoc si update + déjà déconditionné (optionnel)
         if (Omode === 'update' && bool_DECONDITIONNE == '1') {
             var assoc = g('associate');
@@ -609,6 +634,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             }
             g('lg_FABRIQUANT_ID').setValue(ds.lg_FABRIQUANT_ID); g('lg_FABRIQUANT_ID').show();
             g('int_T').setValue(ds.int_T);
+            if (Omode === 'update') {
+                var cbOrdo = g('cb_ordonnancier'), cbSens = g('cb_sensible');
+                if (cbOrdo) { cbOrdo.valeurOrigine = ds.scheduled === true; cbOrdo.setValue(cbOrdo.valeurOrigine); }
+                if (cbSens) { cbSens.valeurOrigine = ds.sensible === true; cbSens.setValue(cbSens.valeurOrigine); }
+            }
             g('str_CODE_TAUX_REMBOURSEMENT').setValue(ds.str_CODE_TAUX_REMBOURSEMENT);
             g('lg_CODE_ACTE_ID').setValue(ds.lg_CODE_ACTE_ID);
             g('int_TAUX_MARQUE').setValue(ds.int_TAUX_MARQUE);
@@ -965,6 +995,39 @@ Ext.Ajax.request({
                             Ext.MessageBox.show({ title: 'Message d\'erreur', width: 320, msg: object.errors, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING });
                         }, 10);
                     } else {
+                        // Plan du 14/11, point 7 : une ecriture par case reellement changee (chacune laisse sa trace
+                        // dans le journal). Les ecritures sur la fiche partent l'une apres l'autre : envoyees ensemble,
+                        // elles se percutaient sur la version de la ligne produit (OptimisticLockException, rien d'ecrit).
+                        var envoisOrdo = [];
+                        try {
+                            var idOrdo = (Omode === 'update') ? ref : (object && object.ref);
+                            [['cb_ordonnancier', 'ordonnancier', "inscrit à l'ordonnancier"], ['cb_sensible', 'sensible', 'produit sensible']].forEach(function (c) {
+                                var cb = g(c[0]);
+                                if (idOrdo && cb && !cb.isDisabled() && !!cb.getValue() !== !!cb.valeurOrigine) {
+                                    envoisOrdo.push({ id: idOrdo, champ: c[1], libelle: c[2], valeur: !!cb.getValue() });
+                                }
+                            });
+                        } catch (e) { /* noop */ }
+                        var envoyerOrdo = function () {
+                            var c = envoisOrdo.shift();
+                            if (!c) { return; }
+                            Ext.Ajax.request({
+                                url: '../api/v1/fichearticle/ordonnancier/' + encodeURIComponent(c.id),
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                params: Ext.JSON.encode({ champ: c.champ, valeur: c.valeur }),
+                                callback: function (opt, reussi, response) {
+                                    var o = reussi ? Ext.JSON.decode(response.responseText, true) : null;
+                                    if (o && o.success === true) {
+                                        envoyerOrdo();
+                                    } else {
+                                        Ext.MessageBox.show({ title: 'Ordonnancier', width: 360, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                                            msg: 'La case « ' + c.libelle + ' » n\'a pas été enregistrée' + (o && o.msg ? ' : ' + Ext.String.htmlEncode(o.msg) : '.') });
+                                    }
+                                }
+                            });
+                        };
+                        var ordoApresCodeGeo = false;
                         // Socle ABC (Lot 0) : persistance du Code Geo article via endpoint REST dedie.
                         // N'impacte pas le flux create/update existant (familleManagement reste intact).
                         try {
@@ -978,10 +1041,12 @@ Ext.Ajax.request({
                                     params: Ext.JSON.encode({ id: produitId, codeGeoArticle: codeGeoFld.getValue() || '',
                                         codeGeoReserve: g('str_CODE_GEO_ARTICLE_RESERVE') ? (g('str_CODE_GEO_ARTICLE_RESERVE').getValue() || '') : null,
                                         colisage: g('int_COLISAGE') ? (g('int_COLISAGE').getValue() || 0) : null }),
-                                    callback: function () { /* ignore */ }
+                                    callback: function () { envoyerOrdo(); }
                                 });
+                                ordoApresCodeGeo = true;
                             }
                         } catch (e) { /* noop */ }
+                        if (!ordoApresCodeGeo) { envoyerOrdo(); }
                         win.close();
                         // Pas de popup de confirmation au succes : on garde le flux d'origine, fluide.
                         // (Supprime aussi la course hide()/show() du MessageBox singleton qui pouvait

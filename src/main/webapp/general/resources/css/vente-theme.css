@@ -3589,3 +3589,10 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pilotage-ardoise .pilotage-liste-kpi .x-form-cb-label {
     white-space: nowrap;
 }
+
+/* Plan du 14/11, point 9 : recherche produit de l'ecran de vente (et de la vente en depot).
+   Une ligne par produit, nom entier ; colonne CIP d'au moins 110 px suivie d'un ecart (un CIP de 13 chiffres ne
+   chevauche plus le nom) ; prix a droite. */
+.vente-recherche-produit .vrp-ligne { display: block; white-space: nowrap; }
+.vente-recherche-produit .vrp-cip { display: inline-block; min-width: 110px; padding-right: 12px; white-space: nowrap; }
+.vente-recherche-produit .vrp-prix { float: right; margin-left: 16px; }

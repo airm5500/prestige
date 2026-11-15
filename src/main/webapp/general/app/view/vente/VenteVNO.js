@@ -77,7 +77,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         });
         let produit = new Ext.data.Store({
             model: 'testextjs.model.caisse.Produit',
-            pageSize: 10,
+            /* plan du 14/11, point 9 : 15 produits par recherche */
+            pageSize: 15,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
@@ -428,7 +429,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     margin: '3 10 3 0',
                                                     itemId: 'produit',
                                                     store: produit,
-                                                    pageSize: 10,
+                                                    pageSize: 15,
                                                     valueField: 'lgFAMILLEID',
                                                     displayField: 'strNAME',
                                                     flex: 2,
@@ -440,12 +441,21 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     minChars: 3,
                                                     queryCaching: false,
                                                     emptyText: 'Choisir un article par Nom ou Cip...',
+                                                    /* plan du 14/11, point 9 : liste plus large que la saisie si les noms le demandent
+                                                     * (nom entier, sur une ligne), 15 produits sans barre de defilement */
+                                                    matchFieldWidth: false,
                                                     listConfig: {
                                                         loadingText: 'Recherche...',
                                                         emptyText: 'Pas de données trouvées.',
+                                                        cls: 'vente-recherche-produit',
+                                                        minWidth: 560,
+                                                        maxWidth: 1100,
+                                                        maxHeight: 560,
                                                         getInnerTpl: function () {
-                                                            /* couleur du texte selon le stock : <0 rouge, =0 violet, >0 vert */
-                                                            return '<tpl for="."><tpl if="intNUMBERAVAILABLE < 0"><span style="color:#D32F2F;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right;"> ( {intPRICE} )</span></span><tpl elseif="intNUMBERAVAILABLE == 0"><span style="color:#8E24AA;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right;"> ( {intPRICE} )</span></span><tpl else><span style="color:#2E7D32;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right; "> ( {intPRICE} )</span></span></tpl></tpl>';
+                                                            /* couleur du texte selon le stock : <0 rouge, =0 violet, >0 vert ;
+                                                             * plan du 14/11, point 9 : colonne CIP d'au moins 110 px, sans retour a la ligne,
+                                                             * suivie d'un ecart : un CIP de 13 chiffres ne chevauche plus le nom */
+                                                            return '<tpl for="."><tpl if="intNUMBERAVAILABLE < 0"><span class="vrp-ligne" style="color:#D32F2F;font-weight:bold;"><span class="vrp-cip">{intCIP}</span>{strNAME} <span class="vrp-prix"> ( {intPRICE} )</span></span><tpl elseif="intNUMBERAVAILABLE == 0"><span class="vrp-ligne" style="color:#8E24AA;font-weight:bold;"><span class="vrp-cip">{intCIP}</span>{strNAME} <span class="vrp-prix"> ( {intPRICE} )</span></span><tpl else><span class="vrp-ligne" style="color:#2E7D32;font-weight:bold;"><span class="vrp-cip">{intCIP}</span>{strNAME} <span class="vrp-prix"> ( {intPRICE} )</span></span></tpl></tpl>';
 
                                                         }
                                                     }
@@ -456,7 +466,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     value: 1,
                                                     itemId: 'qtyField',
                                                     fieldLabel: 'QD:',
-                                                    flex: 1,
+                                                    /* plan du 14/11, point 9 : largeur fixe (elle prenait un tiers de la ligne) */
+                                                    width: 110,
                                                     height: 30,
                                                     margin: '3 0 3 0',
                                                     labelWidth: 30,
