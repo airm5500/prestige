@@ -142,6 +142,20 @@ public class SupportWatchdog {
         }
     }
 
+    /** Purges du releve de sante : celle du poste a chaque heure, la generale a 3 h ; un echec attend la suivante. */
+    private void purger(LocalDateTime t) {
+        try {
+            if (rest.service.impl.serveur.ServeurVieService.purgeDuPoste(t)) {
+                vie.purgerMesures(hote);
+            }
+            if (rest.service.impl.serveur.ServeurVieService.purgeGenerale(t)) {
+                vie.purgerMesuresAnciennes();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "watchdog purge des releves", e);
+        }
+    }
+
     @Schedule(hour = "*", minute = "*/2", persistent = false)
     public void battement() {
         if (!posteReleve) {
@@ -164,13 +178,17 @@ public class SupportWatchdog {
             m.requetes = enCours.size();
             Long connexions = vie.statutMariadb("Threads_connected");
             m.bddConnexions = connexions == null ? null : connexions.intValue();
-            vie.mesurer(hote, m);
+            // exploitation du 14/11, S2 : un interblocage est refait une fois ; la purge n'a plus lieu a chaque releve
+            if (!vie.mesurer(hote, m) && !vie.mesurer(hote, m)) {
+                LOG.info("Releve de sante perdu : interblocage MariaDB repete");
+            }
             if (vieId >= 0) {
                 vie.signe(vieId);
             }
         } catch (Exception e) {
             LOG.log(Level.FINE, "watchdog releve", e);
         }
+        purger(LocalDateTime.now());
     }
 
     /**

@@ -4,7 +4,10 @@
   Constat : de 07:24 a 07:42, les premieres requetes de chaque caisse prenaient 6 a 16 s. Chaque caisse demarrait son
   Payara a l'ouverture, et le prechauffage (factory JPA 23-25 s, scripts des ecrans 12-14 s) tournait en meme temps que
   les premieres connexions. En service Windows a demarrage automatique, Payara demarre avec le PC, avant l'arrivee de
-  la caissiere ; s'il s'arrete, Windows le relance (1 min apres, trois fois, compteur remis a zero chaque jour).
+  la caissiere ; s'il s'arrete, Windows le relance : 5 s apres le premier arret, 30 s apres le deuxieme, 2 min apres
+  les suivants (compteur remis a zero chaque jour). Les 5 s laissent Windows liberer les ports et les fichiers de
+  l'ancien processus ; les delais croissants evitent de relancer en boucle un serveur qui retombe aussitot (base
+  arretee, disque plein) et de saturer le poste.
   La page de connexion affiche « Demarrage en cours » tant que le prechauffage n'est pas fini.
 
   Modes :
@@ -96,8 +99,9 @@ if ($Installer) {
         Write-Host "  service deja present : $($s.Name)"
     }
     Set-Service -Name $s.Name -StartupType Automatic
-    # relance 1 min apres un arret, trois fois ; compteur remis a zero chaque jour (86 400 s)
-    & sc.exe failure $s.Name reset= 86400 actions= restart/60000/restart/60000/restart/60000 | Out-Null
+    # relance 5 s apres le premier arret, 30 s apres le deuxieme, 2 min apres les suivants ; compteur remis a zero
+    # chaque jour (86 400 s). Windows applique la derniere action a tous les arrets suivants.
+    & sc.exe failure $s.Name reset= 86400 actions= restart/5000/restart/30000/restart/120000 | Out-Null
     $s.Refresh()
     if ($s.Status -ne 'Running') {
         # le domaine lance a la main occupe les ports : on l'arrete avant de demarrer le service

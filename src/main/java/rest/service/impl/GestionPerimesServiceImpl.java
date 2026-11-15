@@ -492,14 +492,17 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
                 PerimesDTO perimesDTO = new PerimesDTO();
                 perimesDTO.setProduitId(objects[0] + "");
                 perimesDTO.setLot(objects[1] + "");
-                perimesDTO.setQuantity(Integer.parseInt(objects[2] + ""));
+                Integer quantite = entier(objects[2]);
+                perimesDTO.setQuantity(quantite == null ? 0 : quantite);
                 perimesDTO.setDatePeremption(objects[5] + "");
                 perimesDTO.setProduitCip(objects[4] + "");
                 perimesDTO.setProduitLibelle(objects[6] + "");
                 perimesDTO.setDateEntree(objects[3] + "");
                 perimesDTO.setId(objects[7] + "");
-                perimesDTO.setStockInitial(Integer.valueOf(objects[8] + ""));
-                perimesDTO.setStockFinal(Integer.valueOf(objects[9] + ""));
+                // exploitation du 14/11, S4 : lignes saisies avant la colonne (2022) sans stock initial ni final ;
+                // une seule faisait echouer toute la liste
+                perimesDTO.setStockInitial(entier(objects[8]));
+                perimesDTO.setStockFinal(entier(objects[9]));
                 datas.add(perimesDTO);
 
             }
@@ -507,6 +510,14 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
             LOG.log(Level.SEVERE, "fetchPerimesSaisiEnCours {0}", e);
         }
         return datas;
+    }
+
+    /** Valeur entiere d'une colonne, ou null si la colonne est vide. */
+    static Integer entier(Object v) {
+        if (v == null) {
+            return null;
+        }
+        return v instanceof Number ? ((Number) v).intValue() : Integer.valueOf(v.toString().trim());
     }
 
     private long fetchPerimesSaisiEnCoursCount(String empl) {

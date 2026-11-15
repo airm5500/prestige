@@ -12,6 +12,10 @@ var lg_CLIENT_ID = "";
 lg_TYPE_TIERS_PAYANT_ID = "";
 
 function amountformat(val) {
+    // exploitation du 14/11, S4 : stock initial absent (lignes de 2022) affiche vide, pas 0
+    if (val === null || val === undefined || val === '') {
+        return '';
+    }
     return Ext.util.Format.number(val, '0,000.');
 }
 
@@ -79,8 +83,8 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                 {name: 'produitCip', type: 'string'},
                 {name: 'produitLibelle', type: 'string'},
                 {name: 'quantity', type: 'number'},
-                {name: 'stockInitial', type: 'number'},
-                {name: 'stockFinal', type: 'number'}
+                {name: 'stockInitial', type: 'number', useNull: true},
+                {name: 'stockFinal', type: 'number', useNull: true}
             ],
             pageSize: 20,
             autoLoad: true,
@@ -437,9 +441,9 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     html += '<tr><td>' + (r.produitCip || '') + '</td>'
                             + '<td>' + (r.produitLibelle || '') + '</td>'
                             + '<td>' + (r.lot || '') + '</td>'
-                            + '<td class="num">' + amountformat(r.stockInitial || 0) + '</td>'
+                            + '<td class="num">' + amountformat(r.stockInitial) + '</td>'
                             + '<td class="num">' + amountformat(r.quantity || 0) + '</td>'
-                            + '<td class="num">' + amountformat(r.stockFinal || 0) + '</td>'
+                            + '<td class="num">' + amountformat(r.stockFinal) + '</td>'
                             + '<td>' + (r.dateEntree || '') + '</td>'
                             + '<td>' + (r.datePeremption || '') + '</td></tr>';
                 });

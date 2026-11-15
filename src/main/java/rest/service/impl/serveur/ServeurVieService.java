@@ -99,8 +99,78 @@ public class ServeurVieService {
                 + " WHERE id = ?1").setParameter(1, id).executeUpdate();
     }
 
+    /*
+     * Exploitation du 14/11, S2 : 57 interblocages MariaDB dans la journee, a minute paire et seconde 00. Chaque Payara
+     * (serveur et caisses) faisait son releve et purgeait TOUTE la table dans la meme transaction, a la meme seconde :
+     * les purges des postes se croisaient et le releve du moment etait perdu. Desormais le releve est ecrit seul,
+     * chaque poste ne purge que ses propres lignes, une fois par heure, et la purge generale (postes disparus) a lieu
+     * une fois par jour, a 3 h. Banc : 8 postes x 30 releves, ancienne purge 58 a 69 releves perdus, nouvelle 0.
+     */
+    /** Purge des releves du poste (une fois par heure). */
+    static final String SQL_PURGE_POSTE = "DELETE FROM t_serveur_mesure WHERE hote = ?1 AND mesure_at < ?2 LIMIT 2000";
+    /** Purge generale, pour les postes disparus (une fois par jour, a 3 h). */
+    static final String SQL_PURGE_GENERALE = "DELETE FROM t_serveur_mesure WHERE mesure_at < ?1 LIMIT 2000";
+
+    /** Premier battement de l'heure (le battement a lieu toutes les 2 min) : purge des releves du poste. */
+    public static boolean purgeDuPoste(LocalDateTime t) {
+        return t.getMinute() < 2;
+    }
+
+    /** Premier battement de 3 h : purge generale. */
+    public static boolean purgeGenerale(LocalDateTime t) {
+        return t.getHour() == 3 && t.getMinute() < 2;
+    }
+
+    /** L'erreur (ou l'une de ses causes) est un interblocage MariaDB (1213 / 40001) : l'operation peut etre refaite. */
+    public static boolean estInterblocage(Throwable e) {
+        java.util.Set<Throwable> vus = new java.util.HashSet<>();
+        for (Throwable c = e; c != null && vus.add(c); c = c.getCause()) {
+            if (c instanceof java.sql.SQLException) {
+                java.sql.SQLException q = (java.sql.SQLException) c;
+                if (q.getErrorCode() == 1213 || "40001".equals(q.getSQLState())) {
+                    return true;
+                }
+            }
+            if (c.getClass().getSimpleName().contains("LockAcquisition")
+                    || (c.getMessage() != null && c.getMessage().contains("Deadlock found"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Ecrit le releve. Rend false si MariaDB l'a refuse pour interblocage (l'appelant le refait une fois) ; la
+     * transaction est alors annulee sans pile au journal.
+     */
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
-    public void mesurer(String hote, Mesure m) {
+    public boolean mesurer(String hote, Mesure m) {
+        try {
+            inserer(hote, m);
+            return true;
+        } catch (javax.persistence.PersistenceException e) {
+            if (estInterblocage(e)) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /** Purge les releves du poste plus vieux que la duree de conservation. Rend le nombre de lignes retirees. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public int purgerMesures(String hote) {
+        return em.createNativeQuery(SQL_PURGE_POSTE).setParameter(1, StringUtils.left(hote, 80))
+                .setParameter(2, ts(LocalDateTime.now().minusDays(JOURS_MESURES))).executeUpdate();
+    }
+
+    /** Purge les releves de tous les postes (postes disparus), un jour apres la duree de conservation. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public int purgerMesuresAnciennes() {
+        return em.createNativeQuery(SQL_PURGE_GENERALE)
+                .setParameter(1, ts(LocalDateTime.now().minusDays(JOURS_MESURES + 1L))).executeUpdate();
+    }
+
+    private void inserer(String hote, Mesure m) {
         em.createNativeQuery("INSERT INTO t_serveur_mesure (vie_id, hote, mesure_at, memoire_mo, memoire_max_mo, fils,"
                 + " fils_http_actifs, gc_nombre, gc_ms, cpu_serveur_pct, cpu_machine_pct, ram_libre_mo, ram_totale_mo,"
                 + " disque_libre_mo, requetes, bdd_connexions) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,"
@@ -111,8 +181,6 @@ public class ServeurVieService {
                 .setParameter(11, arrondi(m.cpuMachinePct)).setParameter(12, m.ramLibreMo)
                 .setParameter(13, m.ramTotaleMo).setParameter(14, m.disqueLibreMo).setParameter(15, m.requetes)
                 .setParameter(16, m.bddConnexions).executeUpdate();
-        em.createNativeQuery("DELETE FROM t_serveur_mesure WHERE mesure_at < ?1 LIMIT 2000")
-                .setParameter(1, ts(LocalDateTime.now().minusDays(JOURS_MESURES))).executeUpdate();
     }
 
     private static BigDecimal arrondi(Double d) {
