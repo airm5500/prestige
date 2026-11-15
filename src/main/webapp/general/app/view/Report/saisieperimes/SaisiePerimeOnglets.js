@@ -101,6 +101,16 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
                             tooltip: 'Produits qui se périment le plus souvent (nombre de saisies)', handler: function () {
                                 me.redessiner();
                             }},
+                        /* retour du 15/11 : imprimer et exporter l'analyse affichee */
+                        {xtype: 'tbseparator'},
+                        {xtype: 'button', itemId: 'spImprimer', text: 'Imprimer', iconCls: 'printable', tooltip: 'Imprimer l’analyse affichée (période, tuiles et tableaux)',
+                            handler: function (b) {
+                                me.imprimerAnalyse(b);
+                            }},
+                        {xtype: 'button', itemId: 'spExcel', text: 'Excel', iconCls: 'export_excel_icon', tooltip: 'Exporter l’analyse de la période dans un classeur Excel',
+                            handler: function (b) {
+                                me.exporterAnalyse(b);
+                            }},
                         '->',
                         /* objectif du taux de peremption */
                         {xtype: 'numberfield', itemId: 'spObjectif', fieldLabel: 'Objectif taux &lt;', labelSeparator: '', labelWidth: 96, width: 150, labelStyle: 'white-space:nowrap', minValue: 0.01, maxValue: 20,
@@ -148,6 +158,62 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
                     contenu.update('<span style="color:#b42318">Le serveur n\'a pas répondu (' + r.status + ').</span>');
                 }
             }});
+    },
+
+    /** Parametres de l'analyse affichee (ceux du dernier calcul). */
+    parametresAnalyse: function () {
+        var a = this.analyse;
+        return {dtStart: a.down('#spDebut').getSubmitValue(), dtEnd: a.down('#spFin').getSubmitValue(), pas: a.down('#spPas').getValue()};
+    },
+
+    /** Retour du 15/11 : impression de l'analyse telle qu'elle est a l'ecran, avec la periode en titre. */
+    imprimerAnalyse: function (b) {
+        var me = this, o = me.donnees;
+        if (!o) {
+            PrestigeChargement.occuper(b, 'Imprimer')('Analyse en cours de calcul', false);
+            return;
+        }
+        var jour = function (iso) {
+            var p = String(iso || '').split('-');
+            return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
+        };
+        var css = 'body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#2c3e50;margin:18px}'
+                + 'h1{font-size:17px;margin:0 0 2px}.sp-imp-periode{font-size:13px;margin:0 0 2px}.sp-imp-date{color:#7f8c8d;font-size:11px;margin:0 0 12px}'
+                + '.pml-tuiles{display:flex;flex-wrap:wrap;gap:8px}.pml-tuile{flex:1 1 150px;border:1px solid #ccd3da;border-radius:6px;padding:8px 10px}'
+                + '.pml-tuile-valeur{font-size:16px;font-weight:bold}.pml-tuile-titre{font-weight:bold;margin-top:2px}.pml-tuile-detail{color:#5b6b7c;font-size:11px}'
+                + '.ac-bloc-t{font-weight:bold;margin:14px 0 6px}.ac-table{border-collapse:collapse;width:100%;font-size:11px}'
+                + '.ac-table th,.ac-table td{padding:4px 6px;border-bottom:1px solid #d5dbe1;text-align:left}.ac-table th{background:#eef1f4}'
+                + '.ac-table .n{text-align:right;white-space:nowrap}tr{page-break-inside:avoid}'
+                + '@media print{body{margin:8mm}.pml-tuile,.ac-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Analyse des produits périmés</title><style>' + css + '</style></head><body>'
+                + '<h1>Analyse des produits périmés</h1>'
+                + '<p class="sp-imp-periode">Période du ' + jour(o.debut) + ' au ' + jour(o.fin) + '</p>'
+                + '<p class="sp-imp-date">Imprimé le ' + Ext.Date.format(new Date(), 'd/m/Y à H:i') + '</p>'
+                + me.htmlAnalyse(o) + '</body></html>';
+        var w = window.open('', '_blank');
+        if (!w) {
+            PrestigeChargement.occuper(b, 'Imprimer')('Fenêtre bloquée par le navigateur', false);
+            return;
+        }
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        setTimeout(function () {
+            if (!w.closed) {
+                w.print();
+            }
+        }, 300);
+    },
+
+    /** Retour du 15/11 : classeur Excel de l'analyse (meme calcul que l'ecran, construit cote serveur). */
+    exporterAnalyse: function (b) {
+        var me = this, p = me.parametresAnalyse();
+        if (p.dtStart && p.dtEnd && p.dtStart > p.dtEnd) {
+            PrestigeChargement.occuper(b, 'Excel')('Dates inversées', false);
+            return;
+        }
+        PrestigeChargement.telecharger(b, '../api/v1/gestionperime/analyse/excel?' + Ext.Object.toQueryString(p), 'Export Excel', 'analyse_perimes.xlsx');
     },
 
     redessiner: function () {

@@ -68,6 +68,38 @@ public class GestionPerimesResource {
         return Response.ok(analyse.analyser(debut, fin, pas).toString()).build();
     }
 
+    /**
+     * Retour du 15/11 : export Excel de l'onglet Analyse, construit a partir du meme calcul que l'ecran (memes
+     * parametres : periode de saisie et intervalle d'evolution).
+     */
+    @GET
+    @Path("analyse/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response analyserExcel(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("pas") String pas) throws java.io.IOException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type("application/json")
+                    .entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        java.time.LocalDate debut, fin;
+        try {
+            fin = dtEnd == null || dtEnd.isBlank() ? java.time.LocalDate.now() : java.time.LocalDate.parse(dtEnd);
+            debut = dtStart == null || dtStart.isBlank() ? fin.withDayOfYear(1) : java.time.LocalDate.parse(dtStart);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.status(Response.Status.BAD_REQUEST).type("application/json")
+                    .entity(new JSONObject().put("success", false).put("msg", "Dates invalides.").toString()).build();
+        }
+        if (debut.isAfter(fin)) {
+            return Response.status(Response.Status.BAD_REQUEST).type("application/json").entity(new JSONObject()
+                    .put("success", false).put("msg", "La date de début doit précéder la date de fin.").toString())
+                    .build();
+        }
+        byte[] classeur = rest.report.excel.AnalysePerimesExcel.construire(analyse.analyser(debut, fin, pas));
+        return Response.ok(classeur).header("Content-Disposition",
+                "attachment; filename=\"analyse_perimes_" + debut + "_" + fin + ".xlsx\"").build();
+    }
+
     /** Retours du 13/10 (point 4) : objectif du taux de peremption (%), reglable depuis l'onglet Analyse. */
     @POST
     @Path("analyse/objectif")
