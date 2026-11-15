@@ -235,7 +235,12 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                         buttons: Ext.MessageBox.OK,
                         icon: Ext.MessageBox.INFO,
                         fn: function (buttonId) {
-                            if (buttonId === "ok") {
+                            /* Plan du 14/11, point 5 : ouverte depuis l'ecran « Ouverture / clôture de caisse », la
+                             * fenetre rend la main a cet ecran, qui relit son etat ; sinon, retour a l'accueil (avant). */
+                            const appelant = Me_dobilletage && Me_dobilletage.getParentview ? Me_dobilletage.getParentview() : null;
+                            if (appelant && Ext.isFunction(appelant.apresCloture)) {
+                                appelant.apresCloture();
+                            } else if (buttonId === "ok") {
                                 testextjs.app.getController('App').onLoadNewComponent(xtypeload, "", "");
                             }
                         }

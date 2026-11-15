@@ -248,6 +248,7 @@ Ext.application({
         'testextjs.model.Ouverturecaisse',
         'testextjs.model.Caisse',
         'testextjs.view.sm_user.caisse.CaisseManager',
+        'testextjs.view.sm_user.caisse.CaisseOuvertureCloture',
         // 'testextjs.model.Caisse',
         'testextjs.model.ResumeCaisse',
         'testextjs.model.Familleorder',

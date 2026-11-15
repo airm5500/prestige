@@ -33,6 +33,15 @@ async function ouvrirMenu(p, parent, entree) {
   await item.click();
 }
 
+/* ecran dont le menu peut etre masque au profit d'un menu qui le remplace (correctifs-affichage.js, MENUS_REMPLACES ;
+   plan du 14/11 : « Ouverture de Caisse » et « Cloture de Caisse » remplaces par « Ouverture / clôture caisse ») :
+   par son menu s'il est affiche, sinon par son composant, comme l'application ouvre un ecran */
+async function ouvrirEcran(p, parent, entree, xtype) {
+  const affiche = await p.evaluate((x) => { let t = false; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { if (n.get('id') === x) { t = true; } }); return t; }, xtype);
+  if (affiche) { return ouvrirMenu(p, parent, entree); }
+  return p.evaluate(([x, t]) => testextjs.app.getController('App').onLoadNewComponent(x, t, ''), [xtype, entree]);
+}
+
 /* vrai clic de souris sur le composant visible designe (requete de composants ExtJS) */
 async function cliquer(p, requete, options) {
   const id = await p.evaluate((r) => { const c = Ext.ComponentQuery.query(r).filter((x) => x.isVisible(true))[0]; return c ? c.getId() : null; }, requete);
@@ -95,4 +104,4 @@ async function choisirMotif(p, motif) {
   if (await item.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) { await item.click(); }
 }
 
-module.exports = { BASE, connexion, ouvrirMenu, cliquer, choisir, saisir, texteMessage, attendreMessage, repondre, confirmerAnnulation, choisirMotif };
+module.exports = { BASE, connexion, ouvrirMenu, ouvrirEcran, cliquer, choisir, saisir, texteMessage, attendreMessage, repondre, confirmerAnnulation, choisirMotif };

@@ -3596,3 +3596,10 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .vente-recherche-produit .vrp-ligne { display: block; white-space: nowrap; }
 .vente-recherche-produit .vrp-cip { display: inline-block; min-width: 110px; padding-right: 12px; white-space: nowrap; }
 .vente-recherche-produit .vrp-prix { float: right; margin-left: 16px; }
+
+/* Plan du 14/11, point 5 : ecran « Ouverture / clôture de caisse ». Bandeau d'etat ; bouton de cloture en attente de
+   confirmation (second clic) bien visible ; le cote grise garde le masque ExtJS habituel. */
+.caisse-oc-etat { font-size: 14px; padding: 8px 12px; background: #eef4fb; border-left: 4px solid #1a5f9e; border-radius: 4px; }
+.caisse-oc-erreur { color: #c0392b; font-weight: bold; }
+.caisse-oc .x-btn.caisse-oc-confirmer { background: #c0392b !important; border-color: #a93226 !important; }
+.caisse-oc .x-btn.caisse-oc-confirmer .x-btn-inner { color: #fff !important; }
