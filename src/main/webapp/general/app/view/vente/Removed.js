@@ -369,7 +369,8 @@ Ext.define('testextjs.view.vente.Removed', {
                     + '.va-analyse td{padding:4px 8px;border:1px solid #e1e6ee}'
                     + '.va-analyse .n{text-align:right;white-space:nowrap}'
                     + '.va-analyse tfoot th{background:#f3f6fa}'
-                    + '.va-analyse-vide{color:#64748b;font-style:italic;padding:8px}', 'va-analyse-styles');
+                    + '.va-analyse-vide{color:#64748b;font-style:italic;padding:8px}'
+                    + '.va-analyse-note{max-width:1100px;margin:-2px 0 10px;color:#5b6b7c;font-size:11.5px}', 'va-analyse-styles');
         }
     },
     /* plan du 08/11, point 18 : onglets de l'ecran */
@@ -435,11 +436,26 @@ Ext.define('testextjs.view.vente.Removed', {
             return '<tr><td>' + e(x.date) + '</td><td>' + e(x.type) + '</td><td>' + e(x.ref) + '</td><td class="n">' + n(x.montant)
                     + '</td><td>' + e(x.motif) + '</td><td>' + e(x.commentaire) + '</td><td>' + e(x.auteur) + '</td><td>' + e(x.operateur) + '</td></tr>';
         });
+        /* retour du 15/11 : « quelle caissiere occasionne le plus d'annulations » */
+        var classement = (o.classementAnnulations || []).map(function (c) {
+            return '<tr><td class="n">' + c.rang + '</td><td>' + e(c.caissier) + '</td><td class="n"><b>' + n(c.annulations) + '</b></td><td class="n">'
+                    + (c.ventes ? n(c.ventes) : '—') + '</td><td class="n">' + (typeof c.taux === 'number' ? String(c.taux).replace('.', ',') + ' %' : '—')
+                    + '</td><td class="n">' + n(c.montant) + '</td></tr>';
+        });
+        var note = function (texte) {
+            return '<div class="va-analyse-note">' + texte + '</div>';
+        };
         var entetes = ['Annulations', 'Modifications', 'Total', 'Part', 'Montant'];
         return '<div class="va-analyse-bloc">'
                 + tableau('Par motif', 'va-par-motif', ['Motif'].concat(entetes), motifs, pied)
+                + tableau('Caissières : qui occasionne le plus d\'annulations', 'va-classement-caissieres',
+                        ['Rang', 'Caissière', 'Annulations', 'Ventes encaissées', 'Taux d\'annulation', 'Montant annulé'], classement)
+                + note('Chaque annulation est comptée pour la caissière qui avait <b>encaissé</b> la vente annulée. Le taux rapporte ses annulations '
+                        + 'aux ventes qu\'elle a encaissées sur la période (comptant et crédit) : une caissière qui encaisse beaucoup annule mécaniquement plus.')
                 + tableau('Par auteur de la vente d\'origine', 'va-par-auteur', ['Auteur de la vente'].concat(entetes), auteurs, pied)
+                + note('Auteur = le vendeur qui a <b>saisi</b> la vente au comptoir. Une même vente peut avoir été saisie par un vendeur et encaissée par une caissière.')
                 + tableau('Par caissière de la vente d\'origine', 'va-par-caissier', ['Caissière'].concat(entetes), caissiers, pied)
+                + note('Caissière = celle qui a <b>encaissé</b> la vente ; annulations et modifications ensemble.')
                 + tableau('Détail', 'va-detail', ['Date', 'Opération', 'Référence', 'Montant', 'Motif', 'Précision', 'Auteur de la vente', 'Fait par'], detail)
                 + '</div>';
     },

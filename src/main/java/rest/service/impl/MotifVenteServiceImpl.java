@@ -260,6 +260,75 @@ public class MotifVenteServiceImpl implements MotifVenteService {
                         .put("nb", annulations + modifications).put("montant", montant));
     }
 
+    /**
+     * Retour du 15/11 : « quelle caissiere occasionne le plus d'annulations ». Classement des caissieres (celle qui a
+     * encaisse la vente d'origine) par nombre d'annulations, rapporte aux ventes qu'elles ont encaissees sur la periode
+     * (meme definition que l'Activite des equipes : ventes cloturees au comptant et a credit, hors ventes remplacees
+     * par une modification).
+     * <ul>
+     * <li>une ligne par caissiere ayant au moins une annulation ; les modifications ne comptent pas ;</li>
+     * <li>taux = annulations / ventes encaissees, au dixieme ; absent (null) sans vente encaissee ;</li>
+     * <li>ordre : annulations, puis taux, puis montant annule (decroissants), puis nom ; rang partage a egalite
+     * d'annulations (1, 2, 2, 4).</li>
+     * </ul>
+     */
+    static JSONArray classementAnnulations(List<Ligne> lignes, Map<String, Long> ventes) {
+        Map<String, long[]> parCaissier = new LinkedHashMap<>();
+        Map<String, String> noms = new LinkedHashMap<>();
+        for (Ligne l : lignes) {
+            if (!ANNULATION.equals(l.type)) {
+                continue;
+            }
+            long[] c = parCaissier.computeIfAbsent(l.caissierId, k -> new long[2]);
+            c[0]++;
+            c[1] += l.montant;
+            noms.put(l.caissierId, l.caissier);
+        }
+        List<JSONObject> l = new ArrayList<>();
+        parCaissier.forEach((id, c) -> {
+            long v = ventes == null || id.isEmpty() ? 0 : Math.max(0, ventes.getOrDefault(id, 0L));
+            JSONObject o = new JSONObject().put("caissierId", id).put("caissier", noms.get(id)).put("annulations", c[0])
+                    .put("montant", c[1]).put("ventes", v);
+            if (v > 0) {
+                o.put("taux", Math.round(1000.0 * c[0] / v) / 10.0);
+            }
+            l.add(o);
+        });
+        l.sort((x, y) -> {
+            int r = Long.compare(y.getLong("annulations"), x.getLong("annulations"));
+            if (r == 0) {
+                r = Double.compare(y.optDouble("taux", -1), x.optDouble("taux", -1));
+            }
+            if (r == 0) {
+                r = Long.compare(y.getLong("montant"), x.getLong("montant"));
+            }
+            return r != 0 ? r : x.getString("caissier").compareTo(y.getString("caissier"));
+        });
+        JSONArray t = new JSONArray();
+        for (int i = 0; i < l.size(); i++) {
+            JSONObject o = l.get(i);
+            boolean exAequo = i > 0 && l.get(i - 1).getLong("annulations") == o.getLong("annulations");
+            o.put("rang", exAequo ? t.getJSONObject(i - 1).getInt("rang") : i + 1);
+            t.put(o);
+        }
+        return t;
+    }
+
+    /** Ventes encaissees par caissiere sur [debut, fin] (denominateur du taux, comme l'Activite des equipes). */
+    private Map<String, Long> ventesEncaissees(LocalDate debut, LocalDate fin) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT p.lg_USER_CAISSIER_ID, COUNT(*) FROM t_preenregistrement p"
+                + " WHERE p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID IN ('1', '2', '3')"
+                + " AND COALESCE(p.completion_date, p.dt_UPDATED) >= ?1 AND COALESCE(p.completion_date, p.dt_UPDATED) < ?2"
+                + " AND p.lg_USER_CAISSIER_ID IS NOT NULL AND NOT EXISTS (SELECT 1 FROM vente_modifiee vm"
+                + " WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID) GROUP BY p.lg_USER_CAISSIER_ID")
+                .setParameter(1, java.sql.Date.valueOf(debut)).setParameter(2, java.sql.Date.valueOf(fin.plusDays(1)))
+                .getResultList();
+        Map<String, Long> m = new LinkedHashMap<>();
+        l.forEach(x -> m.put(String.valueOf(x[0]), ((Number) x[1]).longValue()));
+        return m;
+    }
+
     @Override
     public JSONObject recap(String dtStart, String dtEnd, String type, String vendeurId) {
         LocalDate debut = date(dtStart, LocalDate.now()), fin = date(dtEnd, debut);
@@ -282,7 +351,13 @@ public class MotifVenteServiceImpl implements MotifVenteService {
         l.forEach(x -> lignes
                 .add(new Ligne((String) x[0], (String) x[1], (String) x[2], (String) x[3], (String) x[4], (String) x[5],
                         (String) x[6], (String) x[7], ((Number) x[8]).intValue(), (String) x[9], (String) x[10])));
-        return agreger(lignes).put("dtStart", debut.toString()).put("dtEnd", fin.toString());
+        JSONObject o = agreger(lignes).put("dtStart", debut.toString()).put("dtEnd", fin.toString());
+        if (lignes.stream().anyMatch(x -> ANNULATION.equals(x.type))) {
+            o.put("classementAnnulations", classementAnnulations(lignes, ventesEncaissees(debut, fin)));
+        } else {
+            o.put("classementAnnulations", new JSONArray());
+        }
+        return o;
     }
 
     private static LocalDate date(String s, LocalDate defaut) {
