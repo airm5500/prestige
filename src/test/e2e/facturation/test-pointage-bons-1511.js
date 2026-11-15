@@ -20,6 +20,11 @@
  *  - bons annonces : ecart affiche = base - annonces, valeur en base ;
  *  - releve : appariement par n°, absents des deux cotes, ecart de montant ;
  *  - Excel complet / base et PDF des anomalies / base, ligne par ligne ; delais d'affichage sous plafond (regle du 15/11) ;
+ *  - demande du 15/11 : PB-2 sur PTB (taux 90), deux lignes, la premiere a un prix de reference : la fiche montre les
+ *    lignes comme le ticket qui imprime le detail (KEY_LIGNE_COMPTANT_VO a 1) : designation, quantite x prix, montant,
+ *    « P[reference] * T[90%] : part » sous la ligne a reference, « Taux 90 % : part » sous l'autre ; la fiche est la
+ *    meme avec le parametre a 0 et a 1 ; rapprochement fiche / apercu du ticket / base (part = reference x quantite x
+ *    90 %, somme des parts du ticket = part de l'organisme en base) ;
  *  - aucune fenetre surgissante, aucune erreur JavaScript.
  * Lancement seul : node src/test/e2e/facturation/test-pointage-bons-1511.js
  */
@@ -56,11 +61,15 @@ const pointages = (tp) => q("SELECT CONCAT_WS('|', b.str_REF_BON, pb.str_RESULTA
   const groupeId = q("SELECT lg_GROUPE_ID FROM t_groupe_tierspayant WHERE str_LIBELLE = '" + GROUPE + "'");
   const TPA = C.tiersPayant('PTA', '1', 'lg_GROUPE_ID = ' + groupeId), TPB = C.tiersPayant('PTB', '1');
   const P1 = C.produit(6, 200), P2 = C.produit(7, 200), P3 = C.produit(8, 200), P4 = C.produit(9, 200);
+  const SANS_REF = ' AND NOT EXISTS (SELECT 1 FROM prix_reference r WHERE r.produit_id = f.lg_FAMILLE_ID)';
+  const P5 = C.produit(10, 200, SANS_REF), P6 = C.produit(11, 200, SANS_REF);
+  const REF5 = Math.round(P5.pu * 0.6);
   const sess = await C.connecter();
   const { p, api, erreurs } = sess;
   const VO = C.venteAssurance(api);
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'pointage-'));
-  const nettoyerPointage = () => exec(`DELETE FROM t_pointage_bon WHERE lg_TIERS_PAYANT_ID IN ('${TPA}', '${TPB}'); DELETE FROM t_pointage_annonce WHERE lg_TIERS_PAYANT_ID IN ('${TPA}', '${TPB}')`);
+  const ID_REF = MARQUE + '-PTREF';
+  const nettoyerPointage = () => exec(`DELETE FROM prix_reference WHERE id = '${ID_REF}'; DELETE FROM t_pointage_bon WHERE lg_TIERS_PAYANT_ID IN ('${TPA}', '${TPB}'); DELETE FROM t_pointage_annonce WHERE lg_TIERS_PAYANT_ID IN ('${TPA}', '${TPB}')`);
   try {
     const clA = await C.clientAssure(api, 'PTA', [{ tp: TPA, taux: 80 }]);
     const clB = await C.clientAssure(api, 'PTB', [{ tp: TPA, taux: 70 }]);
@@ -75,6 +84,13 @@ const pointages = (tp) => q("SELECT CONCAT_WS('|', b.str_REF_BON, pb.str_RESULTA
     exec(`UPDATE t_preenregistrement_compte_client_tiers_payent SET str_REF_BON = 'PT-3' WHERE str_REF_BON = 'PT-3B' AND lg_COMPTE_CLIENT_TIERS_PAYANT_ID = '${clB.lien(TPA)}'`);
     await VO.vendre(clC, [{ lien: clC.lien(TPA), taux: 80, bon: 'PT-4' }], P1, 1);
     await VO.vendre(clD, [{ lien: clD.lien(TPB), taux: 90, bon: 'PB-1' }], P2, 2);
+    /* PB-2 : deux lignes, la premiere avec un prix de reference de l'organisme (60 % du prix), quantites 3 et 2 */
+    exec(`INSERT INTO prix_reference (id, type_prix, valeur, produit_id, tiersPayant_id, enabled, valeur_taux) VALUES ('${ID_REF}', 'PRIX_REFERENCE', ${REF5}, '${P5.id}', '${TPB}', 1, NULL)`);
+    const tpsB2 = [{ lien: clD.lien(TPB), taux: 90, bon: 'PB-2' }];
+    const vB2 = await VO.ajouter(clD, tpsB2, P5, 3);
+    await VO.ajouter(clD, tpsB2, P6, 2, vB2);
+    const cB2 = await VO.cloturer(clD, vB2, tpsB2);
+    if (!cB2.success) { throw new Error('clôture PB-2 : ' + JSON.stringify(cB2).slice(0, 300)); }
     const venteDe = (bon) => q(`SELECT t.lg_PREENREGISTREMENT_ID FROM t_preenregistrement_compte_client_tiers_payent t WHERE t.str_REF_BON = '${bon}'`
       + ` AND t.lg_COMPTE_CLIENT_TIERS_PAYANT_ID IN (SELECT lg_COMPTE_CLIENT_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE lg_TIERS_PAYANT_ID = '${TPA}') LIMIT 1`);
     exec(`UPDATE t_preenregistrement SET dt_CREATED_ORDONNANCE = CURDATE() - INTERVAL 1 DAY WHERE lg_PREENREGISTREMENT_ID = '${venteDe('PT-1')}';`
@@ -83,7 +99,7 @@ const pointages = (tp) => q("SELECT CONCAT_WS('|', b.str_REF_BON, pb.str_RESULTA
     const base = bonsEnBase(TPA);
     const lb = Object.values(base).map((b) => b.bon + '=' + b.part).sort();
     const parts = Object.values(base).map((b) => b.part);
-    ok('Jeu d\'essai : 5 bons pour PTA (parts différentes), 1 pour PTB', lb.length === 5 && new Set(parts).size >= 4 && Object.keys(bonsEnBase(TPB)).length === 1, lb.join(', '));
+    ok('Jeu d\'essai : 5 bons pour PTA (parts différentes), 2 pour PTB', lb.length === 5 && new Set(parts).size >= 4 && Object.keys(bonsEnBase(TPB)).length === 2, lb.join(', '));
 
     /* menu, onglet Pointage */
     await vues.ouvrirMenu(p, 'GESTION COURANTE', 'Bons par organisme');
@@ -278,6 +294,51 @@ const pointages = (tp) => q("SELECT CONCAT_WS('|', b.str_REF_BON, pb.str_RESULTA
     ok('Rapprochement PDF des anomalies / base : PT-2 et PT-4, part et motif ; rien d\'autre', o.lignes === 2 && lp.length === 0 && !/PT-1|PT-3/.test(tp) && /ANOMALIES DU POINTAGE DES BONS/.test(tp),
       JSON.stringify(lp) + ' | ' + tp.slice(0, 900));
     ok('Délai : PDF des anomalies affiché en moins de ' + PLAFOND_PDF_MS + ' ms', dPdf < PLAFOND_PDF_MS, dPdf + ' ms');
+
+    /* demande du 15/11 : vente a prix de reference, lignes de la fiche comme sur le ticket */
+    await vues.choisir(p, P + ' #ptOrganisme', TPB);
+    await charge();
+    await filtre('TOUS');
+    const PARAM = 'KEY_LIGNE_COMPTANT_VO';
+    const paramAvant = q(`SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${PARAM}'`);
+    const lireFiche = () => p.evaluate((x) => Array.from(Ext.ComponentQuery.query(x)[0].panneau.body.dom.querySelectorAll('.pt-bloc[data-bloc="4"] .pt-art')).map((a) => ({
+      designation: a.querySelector('.pt-art-l span').textContent, montant: a.querySelector('.pt-art-l b').textContent,
+      detail: a.querySelector('.pt-art-d').textContent, lignes: Array.from(a.querySelectorAll('.pt-art-t')).map((t) => t.textContent) })), P);
+    const fiches = {};
+    let ticket = [];
+    try {
+      for (const v of ['0', '1']) {
+        exec(`UPDATE t_parameters SET str_VALUE = '${v}' WHERE str_KEY = '${PARAM}'`);
+        await scanner('PB-2');
+        fiches[v] = await lireFiche();
+        await p.keyboard.press('Escape');
+        await p.evaluate((x) => { const c = Ext.ComponentQuery.query(x)[0]; c.fiche = null; }, P);
+      }
+      /* le ticket de reference : celui qui imprime le detail des lignes (parametre a 1) */
+      const apercu = await api('GET', '../api/v1/vente/ticket/vo/' + vB2 + '/apercu');
+      const doc = (apercu.tickets || []).find((t) => t.modele === 'VENTE_ASSURANCE') || (apercu.tickets || [])[0] || { blocs: [] };
+      const corps = (doc.blocs.find((b) => b.id === 'CORPS') || { elements: [] }).elements;
+      corps.forEach((e) => { if (e.genre === 'ARTICLE') { ticket.push({ designation: e.a, montant: e.d, detail: e.b + (e.c ? ' · lot ' + e.c : ''), lignes: [] }); }
+        else if (e.genre === 'TEXTE' && ticket.length) { ticket[ticket.length - 1].lignes.push(e.a); } });
+    } finally {
+      exec(`UPDATE t_parameters SET str_VALUE = '${paramAvant}' WHERE str_KEY = '${PARAM}'`);
+    }
+    const fiche = fiches['0'];
+    ok('PB-2 : la fiche montre les lignes du ticket à l\'identique (désignation, quantité × prix, montant, prix de référence, taux et part)',
+      fiche.length === 2 && JSON.stringify(fiche) === JSON.stringify(ticket), JSON.stringify(fiche) + ' / ' + JSON.stringify(ticket));
+    ok('PB-2 : même fiche avec ' + PARAM + ' à 0 et à 1 (le détail ne dépend pas du réglage du ticket)', JSON.stringify(fiches['0']) === JSON.stringify(fiches['1']), JSON.stringify(fiches['1']));
+    const num = (t) => Number(String(t).replace(/[^\d]/g, ''));
+    const nomP5 = q(`SELECT UPPER(str_DESCRIPTION) FROM t_famille WHERE lg_FAMILLE_ID = '${P5.id}'`), nomP6 = q(`SELECT UPPER(str_DESCRIPTION) FROM t_famille WHERE lg_FAMILLE_ID = '${P6.id}'`);
+    const l5 = fiche.find((x) => x.designation === nomP5) || { lignes: [] }, l6 = fiche.find((x) => x.designation === nomP6) || { lignes: [] };
+    const part5 = Math.round(REF5 * 3 * 0.9), part6 = Math.round(P6.pu * 2 * 0.9);
+    const t5 = l5.lignes.join(' | '), t6 = l6.lignes.join(' | ');
+    ok('PB-2, ligne à prix de référence : « P[' + REF5 + '] * T[90%] : ' + part5 + ' » (référence × 3 × 90 %) ; autre ligne : « Taux 90 % : ' + part6 + ' »',
+      l5.lignes.length === 1 && /^P\[[\d\s\u00a0\u202f]+\] \* T\[90%\] : /.test(t5) && num((t5.match(/^P\[([^\]]+)\]/) || [])[1]) === REF5 && num(t5.split(':').pop()) === part5
+      && l6.lignes.length === 1 && /^Taux 90 % : /.test(t6) && num(t6.split(':').pop()) === part6, t5 + ' || ' + t6);
+    const partBase = Number(q(`SELECT int_PRICE FROM t_preenregistrement_compte_client_tiers_payent WHERE lg_PREENREGISTREMENT_ID = '${vB2}'`));
+    const baseCalc = q(`SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, '=', IFNULL(calculation_base_price, 'NULL'), 'x', int_QUANTITY) ORDER BY lg_FAMILLE_ID) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '${vB2}'`);
+    ok('PB-2 : somme des parts de la fiche = part de l\'organisme en base (' + (part5 + part6) + ')', partBase === num(t5.split(':').pop()) + num(t6.split(':').pop()) && Math.abs(partBase - (part5 + part6)) <= 1, partBase + ' | ' + baseCalc);
+    ok('Paramètre ' + PARAM + ' remis', q(`SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${PARAM}'`) === paramAvant, paramAvant);
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     ok('Déroulé sans exception', false, e.stack);

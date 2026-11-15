@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -41,6 +42,8 @@ public class PointageBonService {
 
     public static final String CONFORME = "CONFORME", ANOMALIE = "ANOMALIE", ABSENT = "ABSENT";
 
+    @EJB
+    private rest.service.GenerateTicketService tickets;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
@@ -275,12 +278,59 @@ public class PointageBonService {
     public JSONObject fiche(TUser user, String tp, LocalDate debut, LocalDate fin, String bonId) {
         for (Bon b : bons(user, tp, debut, fin)) {
             if (b.json.optString("id").equals(bonId)) {
-                return new JSONObject().put("success", true).put("bon", b.json).put("produits",
-                        produits(b.json.getString("vente")));
+                return new JSONObject().put("success", true).put("bon", b.json)
+                        .put("produits", produits(b.json.getString("vente")))
+                        .put("ticket", corpsTicket(b.json.getString("vente")));
             }
         }
         return new JSONObject().put("success", false).put("msg",
                 "Bon introuvable pour cet organisme et cette période.");
+    }
+
+    /**
+     * Demande du 15/11 : les lignes de la vente telles que le ticket les imprime (meme construction que la
+     * reimpression, sans impression) : designation, « quantite × prix », lot, montant, puis les lignes propres a
+     * l'article (« Taux 70 % : part », « P[…] * T[…%] : part »), comme le ticket les imprime quand
+     * KEY_LIGNE_COMPTANT_VO vaut 1, quel que soit ce parametre. Vide si le ticket ne peut pas etre construit.
+     */
+    private JSONArray corpsTicket(String vente) {
+        JSONArray a = new JSONArray();
+        try {
+            List<rest.service.ticket.TicketDocument> docs = tickets.apercuTicketVoDetaille(vente);
+            if (docs == null || docs.isEmpty()) {
+                return a;
+            }
+            rest.service.ticket.TicketDocument doc = docs.get(0);
+            for (rest.service.ticket.TicketDocument d : docs) {
+                if ("VENTE_ASSURANCE".equals(d.ticket().name())) {
+                    doc = d;
+                    break;
+                }
+            }
+            rest.service.ticket.TicketDocument.Bloc corps = doc.existant(rest.service.ticket.TicketDocument.CORPS);
+            if (corps == null) {
+                return a;
+            }
+            JSONObject article = null;
+            for (rest.service.ticket.TicketDocument.Element e : corps.elements) {
+                if (e.genre == rest.service.ticket.TicketDocument.Genre.ARTICLE) {
+                    article = new JSONObject().put("designation", sansGras(e.a)).put("detail", sansGras(e.b))
+                            .put("lot", sansGras(e.c)).put("montant", sansGras(e.d)).put("lignes", new JSONArray());
+                    a.put(article);
+                } else if (e.genre == rest.service.ticket.TicketDocument.Genre.TEXTE && article != null) {
+                    article.getJSONArray("lignes").put(sansGras(e.a));
+                }
+            }
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(PointageBonService.class.getName()).log(java.util.logging.Level.WARNING,
+                    "corps du ticket de la vente {0} : {1}", new Object[] { vente, e.getMessage() });
+        }
+        return a;
+    }
+
+    private static String sansGras(String t) {
+        return t == null ? "" : t.replace(String.valueOf(rest.service.ticket.TicketDocument.GRAS_DEBUT), "")
+                .replace(String.valueOf(rest.service.ticket.TicketDocument.GRAS_FIN), "");
     }
 
     private JSONArray produits(String vente) {

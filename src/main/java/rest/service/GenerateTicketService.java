@@ -57,6 +57,12 @@ public interface GenerateTicketService {
     List<rest.service.ticket.TicketDocument> apercuTicketVo(String id) throws JSONException;
 
     /**
+     * Pointage des bons (15/11) : le meme ticket, avec le detail de chaque ligne (prix de reference, taux, part) meme
+     * quand KEY_LIGNE_COMPTANT_VO vaut 0. Lecture seule, rien n'est imprime.
+     */
+    List<rest.service.ticket.TicketDocument> apercuTicketVoDetaille(String id) throws JSONException;
+
+    /**
      * Ticket client combine (vente assurance + vente comptant liee) construit sans l'imprimer, par le meme chemin que
      * la cloture (tests de rapprochement du cas 1). Vide sans vente liee.
      */

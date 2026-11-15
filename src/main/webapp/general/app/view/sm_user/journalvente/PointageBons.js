@@ -40,6 +40,9 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                 '.pt-bloc.pt-OK { border-left-color:#1e7b34; } .pt-bloc.pt-INFO { border-left-color:#b45309; }',
                 '.pt-bloc.pt-ALERTE { border-left-color:#b42318; background:#fff4f2; }',
                 '.pt-bloc.pt-choisi { outline:3px solid #2b5287; }',
+                '.pt-ticket { margin-top:4px; font-family:Consolas,monospace; font-size:12px; }',
+                '.pt-art { border-top:1px dashed #c9d2dc; padding:3px 0; } .pt-art-l { display:flex; justify-content:space-between; gap:8px; }',
+                '.pt-art-d { color:#4a5868; } .pt-art-t { color:#1e3a5f; font-weight:bold; padding-left:12px; }',
                 '.pt-bloc .pt-tete { font-weight:bold; color:#1e3a5f; } .pt-bloc .pt-etat { float:right; font-size:11px; }',
                 '.pt-OK .pt-etat { color:#1e7b34; } .pt-INFO .pt-etat { color:#b45309; } .pt-ALERTE .pt-etat { color:#b42318; }',
                 '.pt-fiche-corps:focus { outline:2px solid #2b5287; }',
@@ -475,6 +478,15 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                 detail = e(b.assure) + ' · ' + detail;
             } else if (c.bloc === 2 && b.ayantDroit) {
                 detail = e(b.ayantDroit) + ' · ' + detail;
+            } else if (c.bloc === 4 && me.fiche.ticket && me.fiche.ticket.length) {
+                /* demande du 15/11 : les lignes comme sur le ticket (prix de reference, taux et part de chaque ligne) */
+                detail += '<div class="pt-ticket">' + Ext.Array.map(me.fiche.ticket, function (x) {
+                    return '<div class="pt-art"><div class="pt-art-l"><span>' + e(x.designation) + '</span><b>' + e(x.montant) + '</b></div>'
+                            + '<div class="pt-art-d">' + e(x.detail) + (x.lot ? ' · lot ' + e(x.lot) : '') + '</div>'
+                            + Ext.Array.map(x.lignes || [], function (l) {
+                                return '<div class="pt-art-t">' + e(l) + '</div>';
+                            }).join('') + '</div>';
+                }).join('') + '</div>';
             } else if (c.bloc === 4) {
                 detail += '<br>' + Ext.Array.map(me.fiche.produits, function (x) {
                     return e(x.produit) + ' × ' + x.quantite + ' à ' + x.prix + (x.prix !== x.prixFiche ? ' <span style="color:#b45309">(fiche ' + x.prixFiche + ')</span>' : '');
