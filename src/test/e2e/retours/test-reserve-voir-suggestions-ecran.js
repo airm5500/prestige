@@ -94,7 +94,7 @@ function creerProfil(p) {
   try {
     /* ---- SANS */
     let p = await ouvrir(PROFILS.sans);
-    ok('SANS : onglets TOUT, REAPPRO, REASSORT, HISTORIQUE, sans SUGGESTIONS', await onglets(p) === 'TOUT,REAPPRO RESERVE (ENVOI EN RESERVE),REASSORT RAYON (ENVOI EN RAYON),HISTORIQUE', await onglets(p));
+    ok('SANS : onglets TOUT, REAPPRO, REASSORT, HISTORIQUE, sans SUGGESTIONS', await onglets(p) === 'TOUT,REAPPRO RESERVE (ENVOI EN RESERVE),REASSORT RAYON (ENVOI EN RAYON),HISTORIQUE,LISTE RÉSERVE', await onglets(p));
     await creerParLaSelection(p, 0, PROFILS.sans.com);
     const msg = await attendreMessage(p, 'elle sera traitée par une personne habilitée', 20000);
     const cree = q("SELECT CONCAT_WS('|', str_REF, lg_USER_CREATEUR_ID, str_STATUT, (SELECT COUNT(*) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID)) FROM t_suggestion_reserve s WHERE str_COMMENTAIRE = '" + PROFILS.sans.com + "'").split('|');
@@ -110,7 +110,7 @@ function creerProfil(p) {
 
     /* ---- AVEC */
     p = await ouvrir(PROFILS.avec);
-    ok('AVEC : les cinq onglets, comme avant', await onglets(p) === 'TOUT,REAPPRO RESERVE (ENVOI EN RESERVE),REASSORT RAYON (ENVOI EN RAYON),SUGGESTIONS,HISTORIQUE', await onglets(p));
+    ok('AVEC : les cinq onglets, plus LISTE RÉSERVE (15/11)', await onglets(p) === 'TOUT,REAPPRO RESERVE (ENVOI EN RESERVE),REASSORT RAYON (ENVOI EN RAYON),SUGGESTIONS,HISTORIQUE,LISTE RÉSERVE', await onglets(p));
     await creerParLaSelection(p, 1, PROFILS.avec.com);
     await p.waitForFunction(() => { const m = Ext.getCmp('reservemanagerID'); return m.getActiveTab() === m.down('#ongletSuggestions'); }, null, { timeout: 20000 }).catch(() => {});
     const refAvec = q("SELECT str_REF FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + PROFILS.avec.com + "' AND lg_USER_CREATEUR_ID = '" + PROFILS.avec.id + "'");
