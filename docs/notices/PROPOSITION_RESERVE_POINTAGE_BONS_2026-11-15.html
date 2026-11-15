@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propositions du 15/11 : liste réserve et pointage des bons</title>
+<style>
+:root{--fond:#eef2f7;--texte:#1b2a3a;--doux:#5b6b7c;--trait:#d9e1ea;--navy:#1e3a5f;--bleu:#2563eb;--vert:#17795f;--orange:#a35400;--rouge:#b42318;--violet:#5b3fa0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font:13px/1.45 "Segoe UI",Arial,sans-serif}
+header.page{background:var(--navy);color:#fff;padding:22px 28px}
+header.page h1{margin:0 0 4px;font-size:21px}
+header.page p{margin:0;color:#c9d6e6;max-width:980px}
+nav{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--trait);display:flex;gap:6px;padding:10px 28px}
+nav a{color:var(--navy);text-decoration:none;padding:6px 12px;border-radius:7px;font-weight:600}
+nav a:hover{background:#e3edf7}
+main{padding:10px 28px 60px;max-width:1400px;margin:0 auto}
+h2{font-size:19px;color:var(--navy);margin:28px 0 6px}
+h3{font-size:15px;color:var(--navy);margin:20px 0 6px}
+.doux{color:var(--doux)}
+.carte{background:#fff;border:1px solid var(--trait);border-radius:10px;padding:14px 16px;margin:10px 0}
+ul.regles li{margin:3px 0}
+/* maquette */
+.ecran{background:#fff;border:1px solid #b9c6d4;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(30,58,95,.08);margin:12px 0}
+.onglets{display:flex;gap:2px;background:#e7edf4;padding:6px 8px 0}
+.onglets span{padding:6px 12px;border-radius:6px 6px 0 0;color:var(--doux);font-weight:600;font-size:12px}
+.onglets span.actif{background:#fff;color:var(--navy);box-shadow:inset 0 3px 0 var(--bleu)}
+.barre{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--trait)}
+.champ{border:1px solid #c3cfdb;border-radius:5px;padding:4px 8px;background:#fff;color:var(--doux);min-width:120px}
+.champ.large{min-width:260px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #c3cfdb;background:#f4f7fa;color:var(--navy);border-radius:6px;padding:4px 10px;font-weight:600;white-space:nowrap}
+.btn.bleu{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.vert{background:var(--vert);border-color:var(--vert);color:#fff}
+.seg{display:inline-flex;border:1px solid #c3cfdb;border-radius:6px;overflow:hidden}
+.seg span{padding:4px 10px;border-right:1px solid #c3cfdb;font-weight:600;color:var(--navy)}
+.seg span:last-child{border-right:0}
+.seg span.on{background:var(--navy);color:#fff}
+.bandeau{display:flex;gap:14px;align-items:center;padding:8px 10px;background:#fff7e6;border-bottom:1px solid #f1d9a8}
+.bandeau b{color:var(--orange)}
+.pastille{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11.5px;font-weight:700}
+.p-vert{background:#e6f4ee;color:var(--vert)}.p-rouge{background:#fdecea;color:var(--rouge)}.p-orange{background:#fff1dc;color:var(--orange)}.p-gris{background:#eef2f6;color:var(--doux)}.p-bleu{background:#e3edf7;color:#1f5f9e}
+table.g{border-collapse:collapse;width:100%;font-size:12px}
+table.g th{background:#f3f6fa;color:var(--navy);text-align:left;padding:5px 7px;border-bottom:1px solid var(--trait);white-space:nowrap}
+table.g td{padding:5px 7px;border-bottom:1px solid #eef1f4;white-space:nowrap}
+table.g .n{text-align:right}
+tr.coche td{background:#f2f8ff}
+tr.verrou td{background:#f7f7f7}
+.prop{color:var(--bleu);font-weight:700}
+.main{color:var(--violet);font-weight:700}
+.pied{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;color:var(--doux);border-top:1px solid var(--trait)}
+.deux{display:grid;grid-template-columns:1.25fr 1fr;gap:0}
+.deux>div{min-width:0}
+.fiche{border-left:1px solid var(--trait);padding:10px 12px;background:#fbfcfe}
+.bloc{border:1px solid var(--trait);border-radius:7px;padding:7px 9px;margin-bottom:8px;background:#fff}
+.bloc .t{display:flex;justify-content:space-between;font-weight:700;color:var(--navy);margin-bottom:3px}
+.ok{color:var(--vert);font-weight:700}.ko{color:var(--rouge);font-weight:700}
+.compteurs{display:flex;gap:8px;flex-wrap:wrap;padding:10px}
+.cpt{border:1px solid var(--trait);border-radius:8px;padding:6px 12px;background:#fff;min-width:118px}
+.cpt b{display:block;font-size:18px}
+.question{border-left:4px solid var(--orange);background:#fff;padding:8px 12px;margin:8px 0;border-radius:0 8px 8px 0}
+kbd{border:1px solid #c3cfdb;border-bottom-width:2px;border-radius:4px;padding:0 5px;background:#fff;font-size:11px}
+</style>
+</head>
+<body>
+<header class="page">
+<h1>Propositions du 15/11 : liste réserve et pointage des bons</h1>
+<p>Deux écrans pensés pour les grandes séries : on recherche, on coche ou on pointe au clavier, on voit tout de suite le résultat, on enregistre une seule fois. Aucune fenêtre surgissante : chaque confirmation se fait dans le bouton lui-même. Tout passe par des API REST, sans nouvelle JSP.</p>
+</header>
+<nav><a href="#reserve">1. Onglet « Liste réserve »</a><a href="#bons">2. Pointage des bons par organisme</a><a href="#questions">Questions</a></nav>
+<main>
+
+<h2 id="reserve">1. Onglet « LISTE RÉSERVE » (Gestion des réserves)</h2>
+<p class="doux">Objectif : mettre en réserve une longue liste de produits en une fois (première configuration, ex. base d'Appaul), sans ouvrir la fiche de chaque produit.</p>
+
+<div class="ecran">
+  <div class="onglets"><span>TOUT</span><span>REAPPRO RÉSERVE</span><span>REASSORT RAYON</span><span>SUGGESTIONS</span><span>HISTORIQUE</span><span class="actif">LISTE RÉSERVE</span></div>
+  <div class="barre">
+    <span class="champ large">🔎 CIP, désignation… (Entrée)</span>
+    <span class="champ">Emplacement ▾</span><span class="champ">Famille ▾</span><span class="champ">Grossiste ▾</span>
+    <span class="seg"><span class="on">Tous</span><span>Cochés</span><span>Non cochés</span><span>Avec stock réserve</span></span>
+  </div>
+  <div class="barre">
+    <b>Règle :</b> Capacité maxi rayon = VMJ × <span class="champ" style="min-width:44px">1</span> jour(s)
+    &nbsp;·&nbsp; Seuil mini rayon =
+    <span class="seg"><span>½</span><span class="on">⅔</span><span>= capacité</span></span>
+    &nbsp;·&nbsp; VMJ sur <span class="champ" style="min-width:60px">90 j ▾</span>
+    <span style="flex:1"></span>
+    <span class="btn">☑ Cocher toute la recherche (248)</span><span class="btn">☐ Décocher la recherche</span>
+  </div>
+  <div class="bandeau"><span><b>37 produits cochés</b> sur toutes les pages : 12 nouveaux, 2 retirés, 23 inchangés</span><span style="flex:1"></span><span class="btn">Annuler les changements</span><span class="btn vert">Enregistrer 14 changements</span></div>
+  <table class="g">
+    <tr><th>☑</th><th>CIP</th><th>Désignation</th><th>Emplacement</th><th>Famille</th><th>Grossiste</th><th class="n">Stock rayon</th><th class="n">Stock réserve</th><th class="n">VMJ</th><th class="n">Capacité maxi rayon</th><th class="n">Seuil mini rayon</th><th>État</th></tr>
+    <tr class="coche"><td>☑</td><td>3400936</td><td>DOLIPRANE 1000MG CPR B/8</td><td>COMPRIMÉS</td><td>ANTALGIQUES</td><td>LABOREX</td><td class="n">42</td><td class="n">0</td><td class="n">18,4</td><td class="n">— → <span class="prop">19</span></td><td class="n">— → <span class="prop">13</span></td><td><span class="pastille p-bleu">Nouveau</span></td></tr>
+    <tr class="coche"><td>☑</td><td>3010222</td><td>AMOXICILLINE 500MG GEL B/12</td><td>COMPRIMÉS</td><td>ANTIBIOTIQUES</td><td>COPHARMED</td><td class="n">15</td><td class="n">0</td><td class="n">4,2</td><td class="n">— → <span class="main">10 ✎</span></td><td class="n">— → <span class="prop">7</span></td><td><span class="pastille p-bleu">Nouveau</span> <span class="pastille p-gris">ajusté à la main</span></td></tr>
+    <tr class="verrou"><td title="Stock réserve 24 : videz d'abord la réserve">🔒</td><td>3655311</td><td>EFFERALGAN 500MG CPR EFF</td><td>COMPRIMÉS</td><td>ANTALGIQUES</td><td>LABOREX</td><td class="n">30</td><td class="n"><b>24</b></td><td class="n">9,6</td><td class="n">10</td><td class="n">7</td><td><span class="pastille p-gris">En réserve, verrouillé</span></td></tr>
+    <tr><td>☐</td><td>3400411</td><td>SPASFON LYOC 80MG</td><td>COMPRIMÉS</td><td>ANTISPASMODIQUES</td><td>DPCI</td><td class="n">8</td><td class="n">0</td><td class="n">0,0</td><td class="n">—</td><td class="n">—</td><td><span class="pastille p-orange">Aucune vente : à saisir</span></td></tr>
+    <tr class="coche"><td>☑</td><td>3586120</td><td>SMECTA SACHETS B/30</td><td>SIROPS</td><td>DIGESTIF</td><td>LABOREX</td><td class="n">12</td><td class="n">0</td><td class="n">2,1</td><td class="n">3</td><td class="n">2</td><td><span class="pastille p-vert">Déjà en réserve</span></td></tr>
+  </table>
+  <div class="pied"><span>Page 3 sur 13 · 248 produits trouvés · les coches sont gardées en changeant de page ou de filtre</span><span><span class="btn">⤓ Excel</span> <span class="btn">🖨 PDF</span></span></div>
+</div>
+
+<h3>Comment ça marche</h3>
+<div class="carte"><ul class="regles">
+<li><b>À l'ouverture</b>, les produits déjà en réserve sont cochés. Les coches sont gardées en mémoire sur toutes les pages et tous les filtres, et leur nombre reste affiché dans le bandeau orange.</li>
+<li><b>Verrou</b> : un produit qui a du stock en réserve ne peut pas être décoché. Il montre un cadenas, et son infobulle donne le stock réserve et la démarche (vider d'abord la réserve). « Décocher la recherche » saute ces lignes et dit combien sont restées cochées.</li>
+<li><b>Règle de calcul</b> visible en haut : capacité maxi rayon = VMJ × N jours, arrondie au supérieur, au moins 1 ; seuil mini rayon = ½, ⅔ ou = capacité, au choix (boutons). Les valeurs proposées s'affichent en bleu dans la grille dès qu'on coche ou qu'on change la règle, avant tout enregistrement.</li>
+<li><b>Ajustement à la main</b> : clic sur la cellule, saisie, <kbd>Entrée</kbd>. La valeur passe en violet avec ✎ et la règle ne l'écrase plus. Le seuil ne peut pas dépasser la capacité ; un refus éventuel est affiché dans la cellule.</li>
+<li><b>VMJ nulle</b> : aucune capacité n'est proposée, la ligne est marquée « Aucune vente : à saisir », et un filtre permet de toutes les retrouver.</li>
+<li><b>Enregistrer</b> : un seul envoi pour tous les changements. Premier clic : le bouton devient « Confirmer : 12 mis en réserve, 2 retirés ? ». Second clic : enregistrement, puis « ✓ 14 produits enregistrés » dans le bouton. Chaque changement est inscrit dans l'historique de la réserve.</li>
+<li><b>Excel / PDF</b> : la recherche en cours, ou seulement les cochés, avec un modèle jrxml propre (<code>rp_liste_reserve</code>) : en-têtes, filtres appliqués, totaux.</li>
+<li>Raccourcis : <kbd>Espace</kbd> coche ou décoche la ligne, <kbd>Ctrl</kbd>+<kbd>A</kbd> coche la page, <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistre.</li>
+</ul></div>
+
+<h2 id="bons">2. Pointage des bons par organisme</h2>
+<p class="doux">Objectif : avant d'envoyer la facture, s'assurer que chaque bon est juste (assuré, ayant droit, taux, produits et prix, montant attendu par l'organisme, date) et qu'on a le même nombre de bons que l'organisme. Le principe : <b>le logiciel contrôle tout ce qui peut l'être, l'agent ne pointe que ce que seul le papier peut confirmer.</b></p>
+
+<div class="ecran">
+  <div class="onglets"><span>LISTE DES BONS</span><span class="actif">POINTAGE</span><span>ANOMALIES</span></div>
+  <div class="barre"><span class="champ">Organisme : MUGEF-CI ▾</span><span class="champ">Du 01/11/2026 au 15/11/2026</span><span class="champ">Facture / bordereau : tous ▾</span><span class="champ">Bons annoncés par l'organisme : 212</span><span style="flex:1"></span><span class="btn">⤒ Importer le relevé de l'organisme</span></div>
+  <div class="compteurs">
+    <div class="cpt"><span class="doux">Bons en base</span><b>214</b></div>
+    <div class="cpt"><span class="doux">Annoncés</span><b>212</b><span class="ko">écart +2</span></div>
+    <div class="cpt"><span class="doux">Pointés</span><b>148</b></div>
+    <div class="cpt"><span class="doux">Conformes</span><b class="ok">139</b></div>
+    <div class="cpt"><span class="doux">Anomalies</span><b class="ko">9</b></div>
+    <div class="cpt"><span class="doux">Alertes auto</span><b style="color:var(--orange)">17</b></div>
+    <div class="cpt"><span class="doux">Montant attendu</span><b>1 284 650</b></div>
+  </div>
+  <div class="barre"><span class="champ large">▮▮ Scanner ou taper le n° de bon… (Entrée)</span><span class="seg"><span class="on">À pointer</span><span>Tous</span><span>Alertes</span><span>Anomalies</span></span></div>
+  <div class="deux">
+    <div>
+      <table class="g">
+        <tr><th>N° bon</th><th>Date bon</th><th>Saisi le</th><th>Assuré</th><th>Ayant droit</th><th class="n">Taux</th><th class="n">Attendu</th><th>Contrôle</th></tr>
+        <tr class="coche"><td><b>B-45821</b></td><td>03/11</td><td>03/11</td><td>KOUA… 0045872A</td><td>— (lui-même)</td><td class="n">80 %</td><td class="n">12 480</td><td><span class="pastille p-gris">à pointer</span></td></tr>
+        <tr><td>B-45790</td><td>28/10</td><td>06/11</td><td>YAO… 0031245C</td><td>YAO… (enfant)</td><td class="n">80 %</td><td class="n">8 960</td><td><span class="pastille p-orange">date : 9 j de délai</span></td></tr>
+        <tr><td>B-45803</td><td>04/11</td><td>04/11</td><td>N'GU… 0098811B</td><td>—</td><td class="n">70 %</td><td class="n">5 250</td><td><span class="pastille p-rouge">taux ≠ contrat (80 %)</span></td></tr>
+        <tr><td>B-45811</td><td>05/11</td><td>05/11</td><td>KONE… 0045872A</td><td>—</td><td class="n">80 %</td><td class="n">22 100</td><td><span class="pastille p-rouge">matricule déjà pris par un autre nom</span></td></tr>
+        <tr><td>B-45760</td><td>02/11</td><td>02/11</td><td>TRA… 0077120D</td><td>—</td><td class="n">80 %</td><td class="n">3 600</td><td><span class="pastille p-vert">conforme</span></td></tr>
+      </table>
+    </div>
+    <div class="fiche">
+      <div class="bloc"><div class="t"><span>Bon B-45821 · vente 3 nov. 10:42</span><span class="pastille p-gris">à pointer</span></div><span class="doux">Comparez avec le papier ; <kbd>Entrée</kbd> = tout conforme, <kbd>1</kbd>…<kbd>6</kbd> = bloc faux</span></div>
+      <div class="bloc"><div class="t"><span>1 · Assuré</span><span class="ok">✓ auto</span></div>Matricule 0045872A · KOUAME Jean · même nom sur ses 6 autres bons</div>
+      <div class="bloc"><div class="t"><span>2 · Ayant droit</span><span class="ok">✓ auto</span></div>L'assuré lui-même</div>
+      <div class="bloc"><div class="t"><span>3 · Taux</span><span class="ok">✓ auto</span></div>80 % = contrat du client pour cet organisme</div>
+      <div class="bloc"><div class="t"><span>4 · Produits et prix</span><span class="ok">✓ auto</span></div>DOLIPRANE 1000 × 2 à 1 050 (prix du jour 1 050)<br>AMOXICILLINE 500 × 1 à 3 450 (prix du jour 3 450)<br>… 3 lignes, total 15 600</div>
+      <div class="bloc"><div class="t"><span>5 · Montant attendu</span><span class="ok">✓ recalculé</span></div>15 600 × 80 % = <b>12 480</b> = part enregistrée 12 480</div>
+      <div class="bloc"><div class="t"><span>6 · Date</span><span class="ok">✓ auto</span></div>Bon du 03/11, saisi le 03/11 (délai 0 j, maximum de l'organisme : 7 j)</div>
+      <div><span class="btn vert">✓ Conforme (Entrée)</span> <span class="btn">✗ Anomalie…</span> <span class="btn">Absent du papier</span></div>
+    </div>
+  </div>
+</div>
+
+<h3>Ce que le logiciel contrôle tout seul (alertes avant même le pointage)</h3>
+<div class="carte"><ul class="regles">
+<li><b>Assuré</b> : un même matricule porte toujours le même nom et les mêmes prénoms sur tous les bons et sur la fiche client ; matricule vide ou de format inhabituel pour l'organisme.</li>
+<li><b>Ayant droit</b> : rattaché à cet assuré sur la fiche ; même contrôle matricule ↔ nom.</li>
+<li><b>Taux client</b> : égal au taux du contrat client ↔ organisme à la date du bon ; la part client est le complément.</li>
+<li><b>Produits et prix</b> : prix de vente sur le bon = prix du produit à la date de la vente (ou prix de référence de l'organisme s'il en a un) ; produit exclu ou non remboursé par l'organisme.</li>
+<li><b>Montant attendu</b> : recalculé ligne par ligne (prix × quantité × taux, arrondi de l'organisme), comparé à la part enregistrée, avec l'écart au franc près. C'est le contrôle principal.</li>
+<li><b>Date</b> : écart entre la date du bon (ou de l'ordonnance) et la date de saisie supérieur au délai de l'organisme (réglable par organisme) ; bon hors de la période facturée.</li>
+<li><b>Nombre de bons</b> : nombre en base comparé au nombre annoncé par l'organisme (saisi ou issu du relevé importé) ; doublons de n° de bon ; bons annulés ou modifiés après facturation.</li>
+</ul></div>
+
+<h3>Comment on pointe</h3>
+<div class="carte"><ul class="regles">
+<li><b>Pile de papiers en main</b> : on scanne ou on tape le n° du bon, et la fiche de contrôle s'ouvre à droite. Les blocs déjà vérifiés par le logiciel sont verts ; il ne reste qu'à comparer au papier. <kbd>Entrée</kbd> = conforme, et le curseur revient sur le champ n° de bon pour le suivant. Rythme visé : quelques secondes par bon.</li>
+<li><b>Anomalie</b> : un chiffre de <kbd>1</kbd> à <kbd>6</kbd> marque le bloc faux, avec un motif court (liste + précision). Le bon part dans l'onglet ANOMALIES, avec un lien pour corriger la vente.</li>
+<li><b>Relevé de l'organisme</b> (Excel ou CSV, s'il en fournit un) : appariement automatique par n° de bon, sinon par matricule + date + montant. Il fait ressortir les bons de l'organisme absents chez nous, les nôtres absents chez lui et les écarts de montant.</li>
+<li>Le pointage est <b>gardé en base</b> (qui, quand, résultat, motif). On peut reprendre le lendemain là où on s'est arrêté. Un bon modifié après pointage repasse « à pointer ».</li>
+<li><b>Sorties</b> : PDF des anomalies à joindre au bordereau, Excel complet, et compteurs repris sur la facture.</li>
+</ul></div>
+
+<h2 id="questions">Questions avant de développer</h2>
+<div class="question"><b>Réserve, capacité maxi rayon = VMJ × 1 jour ?</b> Une capacité égale à une seule journée de ventes oblige à réassortir le rayon chaque jour. Je propose de garder le multiplicateur réglable à l'écran (1 par défaut, comme demandé), avec une VMJ calculée sur 90 jours. Faut-il une autre période ?</div>
+<div class="question"><b>Réserve, retirer un produit de la réserve</b> (décocher un produit sans stock en réserve) : faut-il aussi remettre à vide sa capacité et son seuil, ou les garder pour plus tard ?</div>
+<div class="question"><b>Bons, délai maximal de saisie</b> : faut-il un délai par organisme (réglé dans la fiche organisme) ou un délai unique pour tous ?</div>
+<div class="question"><b>Bons, relevé de l'organisme</b> : les organismes vous envoient-ils un fichier (Excel, CSV, PDF) ? Avec un exemple anonymisé, l'import peut se faire dès la première version.</div>
+</main>
+</body>
+</html>
