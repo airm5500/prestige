@@ -4413,6 +4413,11 @@ Ext.define('testextjs.controller.VenteCtr', {
             return;
         }
         me.resetAll();
+        /* demande du 15/11 : ecran de vente ouvert en fenetre depuis le pointage -> on ferme la fenetre */
+        if (me.retourApres && me.retourApres.fenetreCmp) {
+            me.versListeApresModification();
+            return;
+        }
         let xtype = 'cloturerventemanager';
         if (me.getCategorie() === 'PREVENTE') {
             xtype = 'preenregistrementmanager';
@@ -4637,6 +4642,14 @@ Ext.define('testextjs.controller.VenteCtr', {
     versListeApresModification: function () {
         const r = this.retourApres;
         this.retourApres = null;
+        /* demande du 15/11 : modification en fenetre au-dessus du pointage : la fenetre se ferme, le pointage reste */
+        if (r && r.fenetreCmp) {
+            if (!r.fenetreCmp.destroyed && !r.fenetreCmp.isDestroyed) {
+                r.fenetreCmp.fermeParCode = true;
+                r.fenetreCmp.close();
+            }
+            return;
+        }
         if (r && r.xtype) {
             testextjs.app.getController('App').onRedirectTo(r.xtype, r.data || {});
             return;
@@ -4801,6 +4814,14 @@ Ext.define('testextjs.controller.VenteCtr', {
 
         });
     },
+    /* demande du 15/11 : la vente modifiee en fenetre depuis le pointage peut etre fermee avant le retour de
+       l'impression : plus de champ produit, rien a focaliser */
+    focusProduitSiPresent: function () {
+        const combo = this.getVnoproduitCombo();
+        if (combo && !combo.destroyed && !combo.isDestroyed) {
+            combo.focus(true, 100);
+        }
+    },
     onPrintTicket: function (params, typeVenteCombo) {
         const me = this;
         let url = (typeVenteCombo === '1' ? '../api/v1/vente/ticket/vno' : '../api/v1/vente/ticket/vo');
@@ -4822,12 +4843,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         icon: Ext.MessageBox.ERROR
                     });
                 }
-                me.getVnoproduitCombo()
-                        .focus(true, 100);
+                me.focusProduitSiPresent();
             },
             failure: function (response, options) {
-                me.getVnoproduitCombo()
-                        .focus(true, 100);
+                me.focusProduitSiPresent();
             }
 
         });

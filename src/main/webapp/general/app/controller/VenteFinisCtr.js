@@ -212,7 +212,42 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
         }
 
     },
+    /* Demande du 15/11 : l'ecran de vente (le meme, memes controles) dans une fenetre modale au-dessus de l'ecran qui
+       l'a lance (pointage des bons), qui reste charge derriere. La croix vaut « Retour » (copie supprimee) ; la cloture,
+       l'abandon ou le refus ferment la fenetre (VenteCtr.versListeApresModification) ; retour.apres est appele a la
+       fermeture. */
+    ouvrirEnFenetre: function (xtype, data) {
+        const Cls = Ext.ClassManager.get(Ext.ClassManager.getNameByAlias('widget.' + xtype));
+        const vue = new Cls({data: data});
+        if (window.PrestigeAffichage) {
+            window.PrestigeAffichage.appliquerSiConcerne(vue);
+        }
+        const taille = Ext.getBody().getViewSize();
+        const fenetre = Ext.create('Ext.window.Window', {
+            title: 'Modification de la vente' + (data.record && data.record.strREF ? ' ' + Ext.String.htmlEncode(data.record.strREF) : ''),
+            cls: 'prestige-fenetre-vente', modal: true, layout: 'fit', closable: true, resizable: false, draggable: false,
+            width: Math.max(900, taille.width - 30), height: Math.max(560, taille.height - 30),
+            onEsc: Ext.emptyFn, items: [vue]
+        });
+        data.retour.fenetreCmp = fenetre;
+        fenetre.on('beforeclose', function () {
+            if (fenetre.fermeParCode) {
+                return true;
+            }
+            /* croix : meme sortie que le bouton Retour de l'ecran de vente (la copie en attente est supprimee) */
+            testextjs.app.getController('VenteCtr').goBack();
+            return false;
+        });
+        fenetre.on('close', function () {
+            if (typeof data.retour.apres === 'function') {
+                data.retour.apres();
+            }
+        });
+        fenetre.show();
+        return fenetre;
+    },
     enregistrerMotifPuisOuvrir: function (rec, motif, xtype, data) {
+        const me = this;
         Ext.Ajax.request({
             method: 'POST', url: '../api/v1/vente-motifs/modification/' + rec.get('lgPREENREGISTREMENTID'),
             jsonData: {motifId: motif.motifId, commentaire: motif.commentaire},
@@ -222,6 +257,10 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
                     if (window.PrestigeToast) {
                         PrestigeToast.afficher(m.msg || 'Motif refusé.', {niveau: 'erreur', titre: 'Modification de la vente'});
                     }
+                    return;
+                }
+                if (data.retour && data.retour.fenetre) {
+                    me.ouvrirEnFenetre(xtype, data);
                     return;
                 }
                 testextjs.app.getController('App').onRedirectTo(xtype, data);

@@ -156,10 +156,10 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
             }
             return r.get('modifieDepuis') ? '<span style="color:#b45309;font-weight:bold">modifié : à repointer</span>' : 'à pointer';
         };
-        me.grille = Ext.create('Ext.grid.Panel', {
-            itemId: 'ptGrille', store: me.store, columnLines: true,
-            dockedItems: [{
-                    xtype: 'toolbar', dock: 'top', items: [
+        /* barre de la liste (scan, filtres, Excel, PDF) : au-dessus des deux vues (bons, comparaison du releve), toujours
+           visible pendant le controle */
+        var barreBons = {
+                    xtype: 'toolbar', dock: 'top', itemId: 'ptBarreBons', items: [
                         {xtype: 'textfield', itemId: 'ptScan', emptyText: '▮▮ Scanner ou taper le n° de bon… (Entrée)', width: 300, enableKeyEvents: true,
                             listeners: {specialkey: function (f, e) {
                                     if (e.getKey() === e.ENTER) {
@@ -170,6 +170,7 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                                 return {xtype: 'button', text: x[1], valeur: x[0], enableToggle: true, toggleGroup: 'ptFiltre' + me.id, allowDepress: false,
                                     pressed: x[0] === me.filtre, margin: '0 2 0 0', handler: function (b) {
                                         me.filtre = b.valeur;
+                                        me.centre.getLayout().setActiveItem(me.grille);
                                         me.recharger();
                                     }};
                             })},
@@ -185,7 +186,9 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                                 me.pdf(b);
                             }}
                     ]
-                }],
+                };
+        me.grille = Ext.create('Ext.grid.Panel', {
+            itemId: 'ptGrille', store: me.store, columnLines: true,
             columns: [
                 {text: 'N° bon', dataIndex: 'bon', width: 110},
                 {text: 'Date vente', dataIndex: 'dateVente', width: 120, renderer: function (v) {
@@ -265,7 +268,8 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                 }]
         });
         me.comparaison = me.vueComparaison();
-        me.centre = Ext.create('Ext.container.Container', {region: 'center', layout: 'card', itemId: 'ptCentre', items: [me.grille, me.comparaison]});
+        me.centre = Ext.create('Ext.panel.Panel', {region: 'center', layout: 'card', itemId: 'ptCentre', header: false, border: false,
+            dockedItems: [barreBons], items: [me.grille, me.comparaison]});
         me.items = [me.centre, me.panneau];
         me.callParent(arguments);
         me.on('afterrender', function () {
@@ -299,11 +303,16 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
         if (!b || !p) {
             return;
         }
-        var combo = me.down('#ptOrganisme'), rec = combo.findRecordByValue(combo.getValue());
+        /* demande du 15/11 (« oui, fenetre modale ») : l'ecran de vente s'ouvre dans une fenetre au-dessus du pointage,
+           qui reste charge ; a la fermeture, la liste et la fiche du bon sont relues (la vente modifiee est une copie :
+           le bon est retrouve par son numero) */
         testextjs.app.getController('VenteFinisCtr').modifierVente(b.vente, bouton.getEl ? bouton.getEl().dom : null, {
-            retour: {xtype: 'facturesubrogatoireother', data: {pointage: {tiersPayantId: p.tiersPayantId,
-                        organisme: rec ? rec.get('strFULLNAME') : '', dtStart: p.dtStart, dtEnd: p.dtEnd,
-                        bonId: b.id, bon: b.bon, vente: b.vente, message: 'Vente modifiée : vérifiez puis pointez.'}}},
+            record: {lgPREENREGISTREMENTID: b.vente, strREF: b.refVente},
+            retour: {fenetre: true, apres: function () {
+                    if (!me.isDestroyed && !me.destroyed) {
+                        me.reprendre({bonId: b.id, bon: b.bon, vente: b.vente, message: 'Fenêtre de modification fermée : vérifiez la fiche puis pointez.'});
+                    }
+                }},
             refus: function (msg) {
                 me.message(Ext.String.htmlEncode(msg), false);
             }

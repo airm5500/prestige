@@ -45,6 +45,20 @@ wb=openpyxl.load_workbook(sys.argv[1])
 print(json.dumps({ws.title:[[c.value for c in r] for r in ws.iter_rows()] for ws in wb.worksheets},ensure_ascii=False,default=str))`, f], { encoding: 'utf8', maxBuffer: 1 << 28 }));
 const textePdf = (f) => execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', f, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 });
 
+/* PDF texte minimal (Helvetica, une page) : [[x, y, texte], ...] ; sert de releve d'organisme en PDF (demande du 15/11) */
+const pdfTexte = (cellules) => {
+  const flux = cellules.map(([x, y, t]) => 'BT /F1 9 Tf ' + x + ' ' + y + ' Td (' + String(t).replace(/[()\\]/g, '\\$&') + ') Tj ET').join('\n');
+  const objets = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    '<< /Length ' + Buffer.byteLength(flux, 'latin1') + ' >>\nstream\n' + flux + '\nendstream',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'];
+  let s = '%PDF-1.4\n';
+  const pos = objets.map((o, i) => { const d = Buffer.byteLength(s, 'latin1'); s += (i + 1) + ' 0 obj\n' + o + '\nendobj\n'; return d; });
+  const xref = Buffer.byteLength(s, 'latin1');
+  s += 'xref\n0 ' + (objets.length + 1) + '\n0000000000 65535 f \n' + pos.map((d) => String(d).padStart(10, '0') + ' 00000 n \n').join('')
+    + 'trailer\n<< /Size ' + (objets.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n';
+  return Buffer.from(s, 'latin1');
+};
 /* bons de l'organisme en base (vente terminee, non annulee) : id -> {bon, part} */
 const bonsEnBase = (tp) => Object.fromEntries(q("SELECT CONCAT_WS('|', t.lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID, t.str_REF_BON, t.int_PRICE)"
   + " FROM t_preenregistrement_compte_client_tiers_payent t JOIN t_compte_client_tiers_payant l ON l.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = t.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
@@ -246,16 +260,67 @@ const pointages = (tp) => q("SELECT CONCAT_WS('|', b.str_REF_BON, pb.str_RESULTA
     const csv = path.join(dossier, 'releve.csv');
     fs.writeFileSync(csv, 'Relevé ' + TPA + ';;;\n\nN° bon;Matricule;Date;Montant\nPT-1;;' + new Date().toLocaleDateString('fr-FR') + ';' + partDe('PT-1')
       + '\nPT-2;;;' + (partDe('PT-2') + 100) + '\nPT-99;M-INCONNU;01/11/2026;5 000\n', 'latin1');
-    const choix = p.waitForEvent('filechooser', { timeout: 30000 });
-    await vues.cliquer(p, P + ' #ptReleve');
-    await (await choix).setFiles(csv);
-    await p.waitForFunction((x) => /ligne\(s\) lue\(s\)|illisible/.test(Ext.ComponentQuery.query(x + ' #ptReleve')[0].getText()), P, { timeout: 30000 });
+    /* demande du 15/11 : import en deux temps (colonnes reconnues, puis rapprochement) et tableau de comparaison */
+    const importer = async (fichier) => {
+      await p.evaluate((x) => { const c = Ext.ComponentQuery.query(x)[0]; c.storeComparaison.removeAll(); c.analyseReleve = null; }, P);
+      const choix = p.waitForEvent('filechooser', { timeout: 30000 });
+      await vues.cliquer(p, P + ' #ptReleve');
+      await (await choix).setFiles(fichier);
+      await p.waitForFunction((x) => { const c = Ext.ComponentQuery.query(x)[0]; return !!c.analyseReleve || /illisible|PDF/.test(Ext.ComponentQuery.query(x + ' #ptReleve')[0].getText()); }, P, { timeout: 30000 });
+    };
+    const attendreComparaison = () => p.waitForFunction((x) => Ext.ComponentQuery.query(x)[0].storeComparaison.getCount() > 0, P, { timeout: 30000 });
+    const comparaison = () => p.evaluate((x) => { const c = Ext.ComponentQuery.query(x)[0];
+      return { visible: c.comparaison.isVisible(true), lignes: c.storeComparaison.getRange().map((r) => r.get('statut') + ':' + (r.get('bonReleve') || r.get('bon')) + ':' + (r.get('ecart') || 0)).sort(),
+        colonnes: c.colonnesChoisies(), apercu: c.down('#ptApercu').getEl().dom.querySelectorAll('tr').length, resume: c.down('#ptResumeComp').text,
+        scanVisible: c.down('#ptScan').isVisible(true), excelVisible: c.down('#ptExcel').isVisible(true) }; }, P);
+    const attendu = ['ABSENT_CHEZ_NOUS:PT-99:0', 'ABSENT_DU_RELEVE:PT-3:0', 'ABSENT_DU_RELEVE:PT-3:0', 'ABSENT_DU_RELEVE:PT-4:0', 'APPARIE:PT-1:0', 'ECART:PT-2:-100'];
+    await importer(csv);
+    await attendreComparaison();
     const rap = await p.evaluate((x) => Ext.ComponentQuery.query(x)[0].panneau.body.dom.innerText, P);
     await charge();
     c = await compteurs();
+    let cmp = await comparaison();
     ok('Relevé : 3 lignes, 2 appariées, PT-99 absent chez nous, 3 bons absents du relevé, écart +100 sur PT-2 ; annoncés = 3',
       /3 ligne\(s\) au relevé, 2 appariée\(s\)/.test(rap) && /absents chez nous \(1\)[\s\S]*PT-99/.test(rap) && /absents du relevé \(3\)/.test(rap)
       && new RegExp('PT-2 : chez nous ' + partDe('PT-2') + ', relevé ' + (partDe('PT-2') + 100) + ' \\(écart -100\\)').test(rap) && c.annonces === 3, rap.slice(0, 600));
+    ok('Après import : tableau de comparaison affiché, colonnes reconnues (bon 1, matricule 2, date 3, montant 4), aperçu des lignes',
+      cmp.visible && JSON.stringify(cmp.colonnes) === '{"bon":0,"matricule":1,"date":2,"montant":3}' && cmp.apercu === 4, JSON.stringify(cmp));
+    ok('Rapprochement tableau / relevé / base : une ligne par ligne du relevé, une par bon absent du relevé, écart = part − montant du relevé',
+      JSON.stringify(cmp.lignes) === JSON.stringify(attendu), JSON.stringify(cmp.lignes));
+    ok('Ergonomie : le scan du n° de bon, Excel et PDF restent visibles au-dessus du tableau', cmp.scanVisible && cmp.excelVisible, JSON.stringify(cmp));
+    await vues.cliquer(p, P + ' #ptFiltreComp button[valeur=ECART]');
+    const ecarts = await p.evaluate((x) => Ext.ComponentQuery.query(x)[0].storeComparaison.getRange().map((r) => r.get('bon')), P);
+    ok('Filtre « Écarts » du tableau : PT-2 seul', JSON.stringify(ecarts) === '["PT-2"]', JSON.stringify(ecarts));
+    const ligneEcart = await p.evaluate((x) => '#' + Ext.ComponentQuery.query(x)[0].comparaison.getView().getNode(0).id, P);
+    await p.click(ligneEcart + ' td:nth-child(3)');
+    const ficheEcart = await p.waitForFunction((x) => { const c = Ext.ComponentQuery.query(x)[0]; return c.fiche && c.fiche.bon.bon === 'PT-2'; }, P, { timeout: 30000 }).then(() => true, () => false);
+    ok('Clic sur la ligne en écart : la fiche de PT-2 s\'ouvre à droite', ficheEcart);
+
+    /* releve PDF, en-tetes inconnus, colonnes dans un autre ordre : choisies a l'ecran puis rapprochement relance */
+    const pdfReleve = path.join(dossier, 'releve.pdf');
+    fs.writeFileSync(pdfReleve, pdfTexte([[40, 800, 'RELEVE ORGANISME'], [40, 760, 'Montant'], [160, 760, 'Reference'], [300, 760, 'Jour'], [420, 760, 'Assure'],
+      [40, 740, String(partDe('PT-1'))], [160, 740, 'PT-1'], [300, 740, new Date().toLocaleDateString('fr-FR')], [420, 740, 'X'],
+      [40, 725, String(partDe('PT-2') + 100)], [160, 725, 'PT-2'], [300, 725, '01/11/2026'], [420, 725, 'Y'],
+      [40, 710, '5 000'], [160, 710, 'PT-99'], [300, 710, '01/11/2026'], [420, 710, 'Z']]));
+    await importer(pdfReleve);
+    await p.waitForTimeout(500);
+    cmp = await comparaison();
+    ok('Relevé PDF sans en-tête connu : seul le montant reconnu, rien de rapproché, message pour choisir les colonnes, « Relancer » grisé',
+      cmp.lignes.length === 0 && JSON.stringify(cmp.colonnes) === '{"bon":-1,"matricule":-1,"date":-1,"montant":0}'
+      && /Colonnes non reconnues/.test(await p.evaluate((x) => Ext.ComponentQuery.query(x + ' #ptMessage')[0].text, P))
+      && await p.evaluate((x) => Ext.ComponentQuery.query(x + ' #ptRapprocher')[0].isDisabled(), P), JSON.stringify(cmp));
+    await vues.choisir(p, P + ' #ptCol-bon', '2 · Reference');
+    await vues.choisir(p, P + ' #ptCol-montant', '1 · Montant');
+    await vues.choisir(p, P + ' #ptCol-date', '3 · Jour');
+    const surligne = await p.evaluate((x) => Array.from(Ext.ComponentQuery.query(x + ' #ptApercu')[0].getEl().dom.querySelectorAll('th.pt-col-choisie')).map((t) => t.textContent), P);
+    ok('Colonnes choisies : surlignées dans l\'aperçu avec leur rôle', JSON.stringify(surligne) === JSON.stringify(['MontantMontant', 'ReferenceN° de bon', 'JourDate']), JSON.stringify(surligne));
+    await vues.cliquer(p, P + ' #ptRapprocher');
+    await attendreComparaison();
+    cmp = await comparaison();
+    ok('Relevé PDF, colonnes choisies : même comparaison que le CSV (rapprochement PDF / CSV / base)', JSON.stringify(cmp.lignes) === JSON.stringify(attendu), JSON.stringify(cmp.lignes));
+    await vues.cliquer(p, P + ' #ptFiltre button[valeur=TOUS]');
+    await charge();
+    ok('Un filtre de la liste ramène aux bons', await p.evaluate((x) => Ext.ComponentQuery.query(x)[0].grille.isVisible(true), P));
 
     /* Excel complet */
     let tele = p.waitForEvent('download', { timeout: 60000 }); tele.catch(() => {});
