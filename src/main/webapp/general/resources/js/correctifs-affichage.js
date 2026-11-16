@@ -1673,6 +1673,29 @@ Ext.onReady(function () {
                 change = true;
             }
         });
+        /*
+         * 2 bis (16/11, « Factures » a 1366 px) : ExtJS repartit la place des champs extensibles (flex) avec des
+         * largeurs de boutons arrondies, alors que les boutons mesurent quelques fractions de pixel de plus : la barre
+         * debordait de 1 a 2 px et coupait son dernier bouton. Un champ extensible plus large que son plancher cede
+         * ce debord (largeur maximale posee ici) ; quand la place revient, cette largeur maximale remonte d'autant,
+         * seulement si c'est elle qui retient le champ.
+         */
+        Ext.each(champs, function (champ) {
+            if (!champ.flex || champ.largeurPrevue || !champ.el) {
+                return;
+            }
+            var actuelle = champ.el.getWidth();
+            if (debord > 1 && actuelle - debord >= champ.plancherLisible) {
+                champ.maxWidth = actuelle - debord;
+                champ.maxLisiblePose = true;
+                debord = 0;
+                change = true;
+            } else if (libre > 1 && champ.maxLisiblePose && actuelle >= champ.maxWidth - 1) {
+                champ.maxWidth += libre;
+                libre = 0;
+                change = true;
+            }
+        });
         if (change) {
             return true;
         }
