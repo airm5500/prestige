@@ -218,6 +218,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/etat-control-bon/list',
+                /* demande du 14/11 : en-tetes des bons seuls ; les lignes se chargent a l'ouverture du detail */
+                extraParams: {lignes: 0},
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -762,11 +764,44 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 + 'color:' + s.color + ';background:' + s.bg + ';font-weight:bold;">'
                 + s.libelle + '</span>';
     },
+    /*
+     * Demande du 14/11 : la liste ne porte plus les lignes des bons. La fenetre s'ouvre aussitot et
+     * charge les lignes du seul bon choisi (../api/v1/etat-control-bon/{id}/lignes).
+     */
     onDetailControleClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-        var details = rec.get('bonLivraisonDetails') || [];
-
-        var rows = Ext.Array.map(details, function (d) {
+        var fenetre = MeControleAchats.fenetreDetailControle(rec);
+        fenetre.setLoading('Chargement des lignes du bon...');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/etat-control-bon/' + encodeURIComponent(rec.get('lgBONLIVRAISONID')) + '/lignes',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                if (fenetre.isDestroyed) {
+                    return;
+                }
+                fenetre.setLoading(false);
+                if (!o.success) {
+                    fenetre.down('grid').getView().emptyText = '<div style="padding:10px;color:#b42318">'
+                            + Ext.String.htmlEncode(o.msg || 'Les lignes du bon n’ont pas pu être lues.') + '</div>';
+                    fenetre.down('grid').getView().refresh();
+                    return;
+                }
+                fenetre.down('grid').getStore().loadData(MeControleAchats.lignesDetailControle(o.data || []));
+            },
+            failure: function (response) {
+                if (fenetre.isDestroyed) {
+                    return;
+                }
+                fenetre.setLoading(false);
+                fenetre.down('grid').getView().emptyText = '<div style="padding:10px;color:#b42318">'
+                        + 'Erreur lors de la lecture des lignes du bon (code ' + response.status + ').</div>';
+                fenetre.down('grid').getView().refresh();
+            }
+        });
+    },
+    lignesDetailControle: function (details) {
+        return Ext.Array.map(details, function (d) {
             var produit = d.produit || {};
             var comptage = d.quantiteControle || 0;
             var stock = d.intINITSTOCK || 0;
@@ -781,7 +816,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 checked: d.checked === true
             };
         });
-
+    },
+    fenetreDetailControle: function (rec) {
         var detailStore = Ext.create('Ext.data.Store', {
             fields: [
                 {name: 'cip', type: 'string'},
@@ -793,15 +829,16 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 {name: 'ecart', type: 'number'},
                 {name: 'checked', type: 'boolean'}
             ],
-            data: rows
+            data: []
         });
 
         var fournisseur = rec.get('fournisseur') || {};
         var grossisteName = fournisseur.fournisseurLibelle || rec.get('fournisseurLibelle') || '';
 
-        Ext.create('Ext.window.Window', {
+        return Ext.create('Ext.window.Window', {
             autoShow: true,
             modal: true,
+            itemId: 'fenetreDetailControle',
             width: '90%',
             height: 480,
             maximizable: true,

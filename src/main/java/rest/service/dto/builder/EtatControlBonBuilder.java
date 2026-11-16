@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import rest.service.dto.BonLivraisonDetail;
 import rest.service.dto.EtatControlBon;
+import rest.service.dto.ResumeLignes;
 import static rest.service.dto.builder.CommonBuilder.produit;
 import static rest.service.dto.builder.CommonBuilder.user;
 import util.DateUtil;
@@ -30,6 +31,19 @@ public final class EtatControlBonBuilder extends CommonBuilder {
      * disparue. Le bon incoherent est desormais ecarte : la liste s'affiche, sans lui.
      */
     public static EtatControlBon build(TBonLivraison bonLivraison) {
+        return build(bonLivraison, null);
+    }
+
+    /**
+     * En-tete du bon seul (demande du 14/11) : ni lignes ni produits. Le statut du controle, l'avoir, la presence d'un
+     * ecart et le nombre de lignes viennent du resume calcule en base (voir {@link ResumeLignes}) ; un bon sans resume
+     * n'a aucune ligne. Les lignes se chargent a la demande, quand on ouvre le detail du bon.
+     */
+    public static EtatControlBon buildEntete(TBonLivraison bonLivraison, ResumeLignes resume) {
+        return build(bonLivraison, resume == null ? ResumeLignes.VIDE : resume);
+    }
+
+    private static EtatControlBon build(TBonLivraison bonLivraison, ResumeLignes resume) {
         TOrder order;
         TGrossiste grossiste;
         TUser oUserVerifie;
@@ -45,8 +59,22 @@ public final class EtatControlBonBuilder extends CommonBuilder {
             return null;
         }
         TUser oUser = oUserVerifie;
+        if (resume != null) {
+            return entete(bonLivraison, order, grossiste, oUser).bonLivraisonDetails(null).items(null)
+                    .montantAvoir(resume.getAvoir()).checked(resume.statut()).avecEcart(resume.isEcart())
+                    .nombreLignes(resume.getNombre()).build();
+        }
         List<BonLivraisonDetail> bonLivraisonDetails = bonLivraison.getTBonLivraisonDetailCollection().stream()
                 .map(EtatControlBonBuilder::buildItem).collect(Collectors.toList());
+        return entete(bonLivraison, order, grossiste, oUser).bonLivraisonDetails(bonLivraisonDetails)
+                .items(buildItems(bonLivraisonDetails)).montantAvoir(computeAvoirAmount(bonLivraisonDetails))
+                .checked(computeBlControlStatus(bonLivraisonDetails))
+                .avecEcart(rest.service.filtre.FiltresControleAchat.unDesDetailsEnEcart(bonLivraisonDetails))
+                .nombreLignes(bonLivraisonDetails.size()).build();
+    }
+
+    private static EtatControlBon.EtatControlBonBuilder entete(TBonLivraison bonLivraison, TOrder order,
+            TGrossiste grossiste, TUser oUser) {
         return EtatControlBon.builder().dtCREATED(DateUtil.convertDateToDD_MM_YYYY_HH_mm(bonLivraison.getDtCREATED()))
                 .dtUPDATED(DateUtil.convertDateToDD_MM_YYYY_HH_mm(bonLivraison.getDtUPDATED()))
                 .dtDATELIVRAISON(DateUtil.convertDateToDD_MM_YYYY_HH_mm(bonLivraison.getDtDATELIVRAISON()))
@@ -56,15 +84,12 @@ public final class EtatControlBonBuilder extends CommonBuilder {
                 .intMONTANTRESTANT(bonLivraison.getIntMONTANTRESTANT()).fournisseur(new ErpFournisseur(grossiste))
                 .orderId(order.getLgORDERID()).orderRef(order.getStrREFORDER())
                 .lgBONLIVRAISONID(bonLivraison.getLgBONLIVRAISONID()).strREFLIVRAISON(bonLivraison.getStrREFLIVRAISON())
-                .strSTATUT(bonLivraison.getStrSTATUT()).bonLivraisonDetails(bonLivraisonDetails)
-                .items(buildItems(bonLivraisonDetails)).montantAvoir(computeAvoirAmount(bonLivraisonDetails))
-                .user(user(oUser)).fournisseurLibelle(grossiste.getStrLIBELLE())
+                .strSTATUT(bonLivraison.getStrSTATUT()).user(user(oUser)).fournisseurLibelle(grossiste.getStrLIBELLE())
                 .userName(oUser.getStrFIRSTNAME().charAt(0) + ".".concat(oUser.getStrLASTNAME()))
-                .dateLivraison(DateUtil.convertDateToISO(bonLivraison.getDtDATELIVRAISON()))
-                .checked(computeBlControlStatus(bonLivraisonDetails)).build();
+                .dateLivraison(DateUtil.convertDateToISO(bonLivraison.getDtDATELIVRAISON()));
     }
 
-    private static String computeBlControlStatus(List<BonLivraisonDetail> details) {
+    static String computeBlControlStatus(List<BonLivraisonDetail> details) {
         if (details == null || details.isEmpty()) {
             return "NON_TRAITE";
         }

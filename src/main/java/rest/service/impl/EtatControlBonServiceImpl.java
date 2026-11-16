@@ -52,6 +52,7 @@ import rest.service.dto.EtatControlAnnuelWrapperDTO;
 import rest.service.dto.EtatControlBon;
 import rest.service.dto.EtatControlBonEditDto;
 import rest.service.dto.GenericExcelDTO;
+import rest.service.dto.ResumeLignes;
 import rest.service.dto.builder.EtatControlBonBuilder;
 import util.Constant;
 import util.FunctionUtils;
@@ -110,17 +111,28 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @Override
     public List<EtatControlBon> list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
             int start, int limit, boolean all, String dateType) {
-        return lister(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, all, dateType, null);
+        return lister(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, all, dateType, null, true);
     }
 
+    /**
+     * @param avecLignes
+     *            false (demande du 14/11) : en-tetes seuls, sans les lignes ni les produits ; le statut du controle,
+     *            l'avoir, l'ecart et le nombre de lignes sont agreges en base (voir {@link #resumes}).
+     */
     private List<EtatControlBon> lister(boolean fullAuth, String search, String dtStart, String dtEnd,
-            String grossisteId, int start, int limit, boolean all, String dateType, String userId) {
+            String grossisteId, int start, int limit, boolean all, String dateType, String userId, boolean avecLignes) {
 
         SingularAttribute<TBonLivraison, Date> dateAttr = dateAttribute(dateType);
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<TBonLivraison> cq = cb.createQuery(TBonLivraison.class);
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
-        cq.select(root).distinct(true).orderBy(cb.desc(root.get(dateAttr)));
+        /*
+         * Demande du 14/11 : la date du BL n'a pas d'heure (minuit) ; triee sur elle seule, une page de 20 sur des BL
+         * du meme jour n'avait pas d'ordre garanti et un BL pouvait paraitre sur deux pages, ou sur aucune. Departage
+         * par la date d'entree, puis par l'identifiant.
+         */
+        cq.select(root).distinct(true).orderBy(cb.desc(root.get(dateAttr)), cb.desc(root.get(TBonLivraison_.dtCREATED)),
+                cb.desc(root.get(TBonLivraison_.lgBONLIVRAISONID)));
         List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
                 grossisteId, search, dateAttr, userId);
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
@@ -132,7 +144,12 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         }
         // Un bon dont la commande a disparu est ecarte plutot que de faire echouer tout l'ecran
         // (voir EtatControlBonBuilder.build).
-        List<EtatControlBon> bons = q.getResultList().stream().map(EtatControlBonBuilder::build)
+        List<TBonLivraison> entites = q.getResultList();
+        Map<String, ResumeLignes> resumes = avecLignes ? null
+                : resumes(entites.stream().map(TBonLivraison::getLgBONLIVRAISONID).collect(Collectors.toList()));
+        List<EtatControlBon> bons = entites.stream()
+                .map(b -> avecLignes ? EtatControlBonBuilder.build(b)
+                        : EtatControlBonBuilder.buildEntete(b, resumes.get(b.getLgBONLIVRAISONID())))
                 .filter(Objects::nonNull)
                 .peek(e1 -> e1.setReturnFullBl((!DELETE.equals(e1.getStrSTATUT()) && e1.getIntHTTC() > 0) && fullAuth))
                 .collect(Collectors.toList());
@@ -149,6 +166,88 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             }
         }
         return bons;
+    }
+
+    /**
+     * Resume des lignes de chaque bon (statut du controle, avoir, ecart, nombre de lignes), en une requete par paquet
+     * de 500 bons. Memes regles que EtatControlBonBuilder et FiltresControleAchat : voir {@link ResumeLignes}. Un bon
+     * sans ligne n'a pas d'entree.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, ResumeLignes> resumes(List<String> bonIds) {
+        Map<String, ResumeLignes> r = new java.util.HashMap<>();
+        for (int i = 0; i < bonIds.size(); i += 500) {
+            List<String> paquet = bonIds.subList(i, Math.min(bonIds.size(), i + 500));
+            List<Object[]> lignes = em.createNativeQuery(RESUME_LIGNES_SQL).setParameter(1, paquet).getResultList();
+            for (Object[] l : lignes) {
+                r.put(String.valueOf(l[0]), new ResumeLignes(entier(l[1]), entier(l[2]) > 0, entier(l[3]) > 0,
+                        entier(l[4]), entier(l[5]) > 0));
+            }
+        }
+        return r;
+    }
+
+    private static int entier(Object o) {
+        if (o instanceof Boolean) {
+            return ((Boolean) o) ? 1 : 0;
+        }
+        return o == null ? 0 : ((Number) o).intValue();
+    }
+
+    static final String RESUME_LIGNES_SQL = "SELECT d.lg_BON_LIVRAISON_ID, COUNT(*),"
+            + " MAX(CASE WHEN d.`checked` = 1 OR d.quantite_controle > 0 THEN 1 ELSE 0 END),"
+            + " MIN(CASE WHEN d.`checked` = 1 OR (d.quantite_controle IS NOT NULL AND d.int_QTE_RECUE IS NOT NULL"
+            + " AND d.quantite_controle >= d.int_QTE_RECUE) THEN 1 ELSE 0 END),"
+            + " SUM(CASE WHEN d.int_QTE_RETURN IS NOT NULL THEN d.int_QTE_RETURN * d.int_PAF ELSE 0 END),"
+            + " MAX(CASE WHEN d.quantite_controle > 0 AND d.int_QTE_RECUE IS NOT NULL"
+            + " AND d.quantite_controle <> d.int_QTE_RECUE THEN 1 ELSE 0 END)"
+            + " FROM t_bon_livraison_detail d WHERE d.lg_BON_LIVRAISON_ID IN (?1) GROUP BY d.lg_BON_LIVRAISON_ID";
+
+    /**
+     * Lignes d'un bon, chargees a la demande quand on ouvre son detail (demande du 14/11). Une seule requete : la
+     * ligne, son produit et son emplacement ; memes champs que les lignes que portait la liste complete.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject lignesDuBon(String bonId) {
+        org.json.JSONArray data = new org.json.JSONArray();
+        if (StringUtils.isBlank(bonId)) {
+            return new JSONObject().put("success", false).put("total", 0).put("data", data);
+        }
+        List<Object[]> lignes = em.createNativeQuery(LIGNES_DU_BON_SQL).setParameter(1, bonId.trim()).getResultList();
+        for (Object[] l : lignes) {
+            JSONObject produit = new JSONObject().put("intCIP", texte(l[1])).put("strNAME", texte(l[2]))
+                    .put("strDESCRIPTION", texte(l[3])).put("intEAN13", texte(l[4]));
+            JSONObject ligne = new JSONObject().put("lgBONLIVRAISONDETAIL", l[0]).put("produit", produit)
+                    .put("intQTECMDE", nombre(l[5])).put("intQTERECUE", nombre(l[6])).put("intQTEUG", nombre(l[7]))
+                    .put("intQTERETURN", nombre(l[8])).put("intQTEMANQUANT", nombre(l[9])).put("intPAF", nombre(l[10]))
+                    .put("intPAREEL", nombre(l[11])).put("intPRIXVENTE", nombre(l[12]))
+                    .put("intPRIXREFERENCE", nombre(l[13])).put("intINITSTOCK", nombre(l[14]))
+                    .put("prixTarif", nombre(l[15])).put("prixUni", nombre(l[16]))
+                    .put("quantiteControle", nombre(l[17])).put("checked", entier(l[18]) > 0)
+                    .put("lgZONEGEONom", texte(l[19]));
+            if (l[8] != null && l[10] != null) {
+                ligne.put("montantAvoir", entier(l[8]) * entier(l[10]));
+            }
+            data.put(ligne);
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    static final String LIGNES_DU_BON_SQL = "SELECT d.lg_BON_LIVRAISON_DETAIL, f.int_CIP, f.str_NAME,"
+            + " f.str_DESCRIPTION, f.int_EAN13, d.int_QTE_CMDE, d.int_QTE_RECUE, d.int_QTE_UG, d.int_QTE_RETURN,"
+            + " d.int_QTE_MANQUANT, d.int_PAF, d.int_PA_REEL, d.int_PRIX_VENTE, d.int_PRIX_REFERENCE,"
+            + " d.int_INITSTOCK, d.prixTarif, d.prixUni, d.quantite_controle, d.`checked`, z.str_LIBELLEE"
+            + " FROM t_bon_livraison_detail d LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+            + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = d.lg_ZONE_GEO_ID"
+            + " WHERE d.lg_BON_LIVRAISON_ID = ?1 ORDER BY d.lg_BON_LIVRAISON_DETAIL";
+
+    private static Object nombre(Object o) {
+        return o == null ? JSONObject.NULL : ((Number) o).longValue();
+    }
+
+    private static Object texte(Object o) {
+        return o == null ? JSONObject.NULL : String.valueOf(o);
     }
 
     private long count(String search, String dtStart, String dtEnd, String grossisteId, String dateType,
@@ -215,14 +314,14 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @Override
     public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
             int limit, String dateType) {
-        return listePaginee(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, null);
+        return listePaginee(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, null, true);
     }
 
     private JSONObject listePaginee(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
-            int start, int limit, String dateType, String userId) {
+            int start, int limit, String dateType, String userId, boolean avecLignes) {
         long count = count(search, dtStart, dtEnd, grossisteId, dateType, userId);
-        return FunctionUtils.returnData(
-                lister(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, false, dateType, userId), count);
+        return FunctionUtils.returnData(lister(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, false,
+                dateType, userId, avecLignes), count);
     }
 
     /**
@@ -243,13 +342,21 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @Override
     public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
             int limit, String dateType, String statutControle, String ecart, String userId) {
+        return list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, statutControle, ecart,
+                userId, true);
+    }
+
+    @Override
+    public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
+            int limit, String dateType, String statutControle, String ecart, String userId, boolean avecLignes) {
         rest.service.filtre.FiltresControleAchat filtres = new rest.service.filtre.FiltresControleAchat(statutControle,
                 ecart);
         if (filtres.inactif()) {
-            return listePaginee(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, userId);
+            return listePaginee(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, userId,
+                    avecLignes);
         }
-        List<EtatControlBon> retenus = filtres
-                .appliquer(lister(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId));
+        List<EtatControlBon> retenus = filtres.appliquer(
+                lister(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId, avecLignes));
         int debut = Math.max(0, Math.min(start, retenus.size()));
         int fin = limit > 0 ? Math.min(debut + limit, retenus.size()) : retenus.size();
         return FunctionUtils.returnData(retenus.subList(debut, fin), retenus.size());
@@ -267,7 +374,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         if (filtres.inactif()) {
             return count(search, dtStart, dtEnd, grossisteId, dateType, userId);
         }
-        return filtres.appliquer(lister(false, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId))
+        return filtres
+                .appliquer(lister(false, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId, false))
                 .size();
     }
 
@@ -275,8 +383,9 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @Override
     public List<EtatControlBon> tous(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
             String dateType, String statutControle, String ecart) {
+        /* demande du 14/11 : l'impression n'imprime que l'en-tete des bons, statut et ecart compris */
         return new rest.service.filtre.FiltresControleAchat(statutControle, ecart)
-                .appliquer(list(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType));
+                .appliquer(lister(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, null, false));
     }
 
     @Override
@@ -711,7 +820,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     private GenericExcelDTO buildExeclData(String search, String dtStart, String dtEnd, String grossisteId,
             String dateType) {
         GenericExcelDTO genericExcel = new GenericExcelDTO();
-        List<EtatControlBon> data = this.list(false, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType);
+        List<EtatControlBon> data = lister(false, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, null,
+                false);
 
         genericExcel.addColumn("Grossiste", "No Commande", "Réf Bon", "Montant Ht", "Montant Tva", "Montant Ttc",
                 "Date livraison", "Date d'entrée", "Montant avoir", "Opérateur");
@@ -850,7 +960,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
      */
     @Override
     public JSONObject tableauBord(boolean fullAuth, String dtStart, String dtEnd, String grossisteId, String dateType) {
-        List<EtatControlBon> bons = list(fullAuth, null, dtStart, dtEnd, grossisteId, 0, 0, true, dateType);
+        List<EtatControlBon> bons = lister(fullAuth, null, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, null,
+                false);
         int seuil = delaiSaisie();
         Map<String, Integer> delais = new java.util.HashMap<>();
         List<String> ids = bons.stream().map(EtatControlBon::getLgBONLIVRAISONID).collect(Collectors.toList());

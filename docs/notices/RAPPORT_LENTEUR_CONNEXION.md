@@ -489,3 +489,35 @@ Contrôles :
 - `CacheEtatsTest` : 10/10 ;
 - `retours/test-cache-edition-balance.js` : 7/7 ;
 - `retours/test-cache-edition-etats.js` : 7/7.
+
+## État de contrôle des achats : liste des en-têtes, détail d'un bon à la demande (14/11)
+
+Mesure de l'utilisateur sur son poste : 709 ms d'attente pour un seul BL du jour (BL 95623, plus de 130 lignes).
+`GET etat-control-bon/list` renvoyait tout le bon : chaque ligne et son produit, pour chaque BL de la page. La grille
+n'en affiche que l'en-tête ; seules la fenêtre « Voir le détail du contrôle » et quatre valeurs de l'en-tête (statut du
+contrôle, avoir, écart, nombre de lignes) se servaient des lignes.
+
+Correction :
+
+- l'écran demande `list?lignes=0` : en-têtes seuls, les quatre valeurs étant agrégées en base (une requête par paquet
+  de 500 BL, mêmes règles que le calcul Java, `ResumeLignes`) ;
+- `GET etat-control-bon/{id}/lignes` : lignes d'un bon, en une requête, quand on ouvre son détail ;
+- l'impression, l'export Excel, le nombre et le tableau de bord passent eux aussi par les en-têtes seuls ;
+- sans le paramètre `lignes`, la réponse de `list` est inchangée (applications mobiles) ;
+- la liste est triée par date du BL, puis par date d'entrée et identifiant : la date du BL n'ayant pas d'heure, des BL
+  du même jour pouvaient paraître sur deux pages, ou sur aucune.
+
+Mesures sur domain3 (copie `laborex_audit`), test `achats/test-controle-bons-a-la-demande.js` :
+
+| Cas | Avant | Après |
+|---|---|---|
+| Jeu d'essai, page de 20 BL dont un de 150 lignes (écran) | 617 ms, 211 093 octets | 354 ms, 17 478 octets |
+| 21/12/2023, 15 BL dont un de 445 lignes (écran) | 2 416 ms, 1 868 410 octets | 338 ms, 12 792 octets |
+| 12 au 23/10/2026, page de 20 BL (écran) | 563 ms, 198 283 octets | 341 ms, 17 776 octets |
+| 12 au 23/10/2026, 253 BL et 1 952 lignes d'un coup (impression, export, tableau de bord) | 2 932 ms, 2 302 674 octets | 362 ms, 225 906 octets |
+| Détail à la demande, BL de 445 lignes | (dans la liste) | 267 ms, 208 065 octets |
+| Détail à la demande, BL de 150 lignes | (dans la liste) | 255 ms, 68 105 octets |
+| Détail à la demande, BL de 98 lignes | (dans la liste) | 181 ms, 47 425 octets |
+
+Les temps « écran » vont du clic sur Rechercher à la grille affichée ; ceux du détail, du clic sur l'icône aux lignes
+affichées.
