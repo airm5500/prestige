@@ -68,14 +68,30 @@ public class EtatControlBonResource {
             @QueryParam(value = "dateType") String dateType,
             @DefaultValue("") @QueryParam(value = "statutControle") String statutControle,
             @DefaultValue("") @QueryParam(value = "ecart") String ecart,
-            @QueryParam(value = "groupeId") String groupeId, @QueryParam(value = "userId") String userId) {
+            @QueryParam(value = "groupeId") String groupeId, @QueryParam(value = "userId") String userId,
+            @DefaultValue("1") @QueryParam(value = "lignes") String lignes) {
         grossisteId = cible(grossisteId, groupeId);
         boolean returnFullBLLAuthority = Utils.hasAuthorityByName(Utils.getconnectedUserPrivileges(servletRequest),
                 Parameter.ACTION_RETURN_FULL_BL);
-
+        /*
+         * Demande du 14/11 : lignes=0 (l'ecran) ne renvoie que les en-tetes des bons ; le detail d'un bon se lit par
+         * {id}/lignes, a la demande. Sans le parametre, la reponse reste celle d'avant (applications mobiles).
+         */
+        boolean avecLignes = !"0".equals(lignes.trim()) && !"false".equalsIgnoreCase(lignes.trim());
         return Response.ok().entity(etatControlBonService.list(returnFullBLLAuthority, search, dtStart, dtEnd,
-                grossisteId, start, limit, dateType, statutControle, ecart, userId).toString()).build();
+                grossisteId, start, limit, dateType, statutControle, ecart, userId, avecLignes).toString()).build();
 
+    }
+
+    /** Demande du 14/11 : lignes d'un bon de livraison, chargees quand on ouvre son detail. */
+    @GET
+    @Path("{id}/lignes")
+    public Response lignesDuBon(@javax.ws.rs.PathParam("id") String id) {
+        if (servletRequest.getSession().getAttribute(util.Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", util.Constant.DECONNECTED_MESSAGE).toString()).build();
+        }
+        return Response.ok().entity(etatControlBonService.lignesDuBon(id).toString()).build();
     }
 
     /**

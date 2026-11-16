@@ -82,7 +82,16 @@ public final class FiltresControleAchat {
      * Une ligne jamais comptee n'est pas un ecart : c'est un controle a faire, ce que dit deja le statut.
      */
     public static boolean presenteUnEcart(EtatControlBon bon) {
-        List<BonLivraisonDetail> details = bon == null ? null : bon.getBonLivraisonDetails();
+        if (bon == null) {
+            return false;
+        }
+        List<BonLivraisonDetail> details = bon.getBonLivraisonDetails();
+        /* demande du 14/11 : bon charge sans ses lignes, l'ecart a ete calcule en base (ResumeLignes) */
+        return details == null ? bon.isAvecEcart() : unDesDetailsEnEcart(details);
+    }
+
+    /** La regle, sur les lignes du bon. */
+    public static boolean unDesDetailsEnEcart(List<BonLivraisonDetail> details) {
         if (details == null) {
             return false;
         }

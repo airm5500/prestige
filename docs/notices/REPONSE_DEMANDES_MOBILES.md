@@ -179,7 +179,7 @@ Chaque point est couvert par un test de bout en bout (`src/test/e2e/…`), pass�
 | N° | Demande | Fait | Notes pour l'application |
 |---|---|---|---|
 | 25 | Mobile Money par opérateur dans `/ca-all` | **Fait** | `detailMobile:[{modeId, libelle, montant}]` dans chaque ligne |
-| 26 | Visualisation BL : filtres | **Partiel** | `groupeId` et **`userId`** pris en compte sur `etat-control-bon/list` (pagination et total justes). **`checked` non lu** (partie 3) |
+| 26 | Visualisation BL : filtres | **Partiel** | `groupeId` et **`userId`** pris en compte sur `etat-control-bon/list` (pagination et total justes). **`checked` non lu** (partie 3) ; 14/11 : `lignes=0` ne renvoie que les en-têtes (`checked`, `montantAvoir`, `avecEcart`, `nombreLignes` calculés en base), `GET etat-control-bon/{id}/lignes` donne les lignes d'un bon à la demande ; sans `lignes`, réponse inchangée |
 | 27 | Inventaire : auteur et heure de chaque saisie | **Partiel** | **écriture faite** (`str_UPDATED_ID` renseigné sur `PUT ws/inventaires/details`, jamais effacé) ; **lecture non faite** (`auteurId`, `auteurLogin`, `auteurNom` dans les 7 routes de lecture) |
 | 28 | Réserve : emplacement, suggestion annulée | **Fait** | `liste`, `{id}` et `ouvrir` limités à l'emplacement de l'utilisateur (une suggestion d'un autre site → « introuvable ») ; `ANNULEE` ouverte en lecture seule, sans verrou |
 | 29 | Routes de comptage | **Fait** (3 sur 4) | `GET v1/etat-control-bon/nombre`, `GET v1/avis-clients/nombre`, `GET v1/pointage-bl/nombre` → `{success, nombre}`, mêmes paramètres que la liste. `pointage-bl/nombre` sans grossiste ni groupe : tous les grossistes actifs. `fichearticle/perimes/nombre` non fait : `tableau-bord/alertes` le remplace (contradiction 12) |

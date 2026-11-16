@@ -78,5 +78,11 @@ public class EtatControlBon {
     private int manquants;
     private int lignesManquantes;
     private String manquantsDetail;
+    /**
+     * Demande du 14/11 : la liste ne porte plus les lignes du bon. Ce qu'on en tirait (ecart, nombre de lignes) est
+     * calcule en base et porte ici ; les lignes se chargent a la demande.
+     */
+    private boolean avecEcart;
+    private int nombreLignes;
 
 }
