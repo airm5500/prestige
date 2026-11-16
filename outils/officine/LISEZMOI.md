@@ -21,12 +21,20 @@ Règles communes :
 | 6 | désactiver l'ancienne tâche `SAUVEGARDE_COMPRESSION.bat`, que `5-planifier.ps1` signale | après une journée de sauvegardes vérifiées | aucun |
 | 7 | `6-essai-restauration.ps1 -Base laborex_v1_db -OptionsCible <instance d'essai>` | chaque mois | aucun (autre serveur) |
 | 8 | `7-service-payara.ps1 -Installer`, sur le serveur **et sur chaque caisse qui a son propre Payara** | hors des heures d'ouverture | Payara redémarre en service Windows, puis démarre avec le PC |
+| 9 | `8-lanceur-caisse.ps1 -CreerRaccourci`, sur chaque caisse (`-Url http://serveur:8080/prestige` si Prestige est sur un autre poste) | une fois | le raccourci « Prestige » remplace l'ancien |
 
 **`7-service-payara.ps1`** (rapport d'exploitation du 13/11, point 4) : sans option, il affiche seulement l'état
 (service, démarrage automatique, relance si arrêt). `-Installer` crée le service (`asadmin create-service`), le règle en
 démarrage automatique avec relance une minute après un arrêt, arrête le domaine lancé à la main et démarre le service.
 `-Retirer` revient au lancement à la main. Payara est ainsi prêt avant l'arrivée de la caissière ; si elle se connecte
 pendant le préchauffage, la page de connexion affiche « Démarrage en cours » et sa connexion part dès qu'il est fini.
+
+**`8-lanceur-caisse.ps1`** (retour du 16/11) : Windows affiche le service « en cours d'exécution » bien avant que
+Prestige soit prêt. Le lanceur ouvre la caisse tout de suite si Prestige est prêt ; sinon il affiche « Prestige
+démarre » avec l'étape en cours et ouvre la caisse dès que `api/v1/app/info` dit « prêt ». Si rien ne répond et que
+Prestige tourne sur ce poste, il démarre le service, ou lance Payara lui-même (`asadmin start-domain`) quand il n'y a
+pas de service ou que Windows refuse ; il ne démarre jamais le serveur d'un autre poste. Au bout de 10 min, il propose
+« Réessayer ». Essai : `essais/essai-lanceur-caisse.py` (faux serveur, 10 cas, aucun vrai Payara lancé).
 
 `E:\` désigne ici un **autre disque** que celui de la base (second disque, clé USB, NAS) : une panne du disque de la
 base ne doit pas emporter ses sauvegardes.
