@@ -291,6 +291,27 @@ public class CaisseRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Plan du 14/11, point 5 : l'ecran unique « Ouverture / clôture de caisse » garde a chaque cote le droit de son
+     * ancien menu (P_SM_OUVERTURECAISSE pour l'ouverture, P_SM_CAISSE pour la cloture).
+     */
+    @GET
+    @Path("droits-ecran")
+    public Response droitsEcranCaisse() throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        @SuppressWarnings("unchecked")
+        List<TPrivilege> privileges = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean ouverture = privileges != null && DateConverter.hasAuthorityByName(privileges, "P_SM_OUVERTURECAISSE");
+        boolean cloture = privileges != null && DateConverter.hasAuthorityByName(privileges, "P_SM_CAISSE");
+        return Response.ok().entity(
+                new JSONObject().put("success", true).put("ouverture", ouverture).put("cloture", cloture).toString())
+                .build();
+    }
+
     @POST
     @Path("ouvrir-caisse")
     public Response validationFondCaisse(CoffreCaisseDTO coffreCaisse) throws JSONException {

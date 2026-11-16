@@ -11,7 +11,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
     requires: [
         'testextjs.view.stockmanagement.reserve.ReserveGrid',
         'testextjs.view.stockmanagement.reserve.SuggestionsGrid',
-        'testextjs.view.stockmanagement.reserve.HistoriqueGrid'
+        'testextjs.view.stockmanagement.reserve.HistoriqueGrid',
+        'testextjs.view.stockmanagement.reserve.ListeReserveGrid'
     ],
     title: 'Gestion des reserves',
     width: '98%',
@@ -53,7 +54,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 // Pastille sur l'onglet ACTIF (copie isolee de la pastille des avoirs)
                 '.reserve-pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid rgba(0,0,0,0.35); margin-right:7px; vertical-align:middle; box-shadow:0 0 0 2px rgba(255,255,255,0.65); animation:reservePastille 1.1s infinite; }',
                 '@keyframes reservePastille { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.3); opacity:0.7; } }',
-                '.reserve-tab-on-label { text-decoration:underline; text-underline-offset:3px; }'
+                '.reserve-tab-on-label { text-decoration:underline; text-underline-offset:3px; }',
+                // Onglet LISTE RESERVE : bleu nuit
+                '.tab-liste-reserve.x-tab { background-color: #1e3a5f !important; border-color: #152a45 !important; }',
+                '.tab-liste-reserve.x-tab .x-tab-inner, .tab-liste-reserve.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
+                '.tab-liste-reserve.x-tab-active { background-color: #2b5287 !important; border-top: 3px solid #fff !important; }',
+                // Boutons inactifs de l'onglet LISTE RESERVE (rien a enregistrer) : grises mais lisibles (contraste >= 4,5)
+                '.lr-grille .x-btn-disabled.x-btn-disabled { opacity: 1 !important; }',
+                '.lr-grille .x-btn-disabled.x-btn-disabled .x-btn-inner { color: #4a5868 !important; }'
             ].join('\n');
             document.head.appendChild(s);
         }
@@ -124,6 +132,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                     tooltip: tip('Tous les mouvements entre le rayon et la reserve.<br>'
                             + 'Rien n\'y est jamais supprime : une erreur se corrige<br>'
                             + 'par un mouvement inverse, qui s\'ajoute a la suite.')
+                }
+            },
+            {
+                /* 15/11 : premiere configuration de la reserve sur une longue liste de produits */
+                xtype: 'reservelistegrid', itemId: 'ongletListe',
+                title: 'LISTE RÉSERVE', baseTitle: 'LISTE RÉSERVE',
+                tabConfig: {
+                    cls: 'tab-liste-reserve',
+                    tooltip: tip('Mettre en réserve une longue liste de produits en une fois.<br>'
+                            + 'On coche, la capacité et le seuil sont proposés (VMJ),<br>'
+                            + 'on enregistre une seule fois.')
                 }
             }
         ];

@@ -161,10 +161,33 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         if (!me.getBalanceGrid() || !me.getDtStart() || !me.getDtEnd()) {
             return;
         }
-        me.getBalanceGrid().getStore().load({
+        /* plan du 14/11, point 8 : la grille chargee est cachee, son masque ne se voyait pas et le bouton restait
+           actif ; chaque clic relancait le calcul. Masque sur la ventilation affichee, bouton desactive jusqu'a la
+           reponse (succes ou echec), et aucun second appel pendant un calcul en cours. */
+        const store = me.getBalanceGrid().getStore();
+        if (store.isLoading()) {
+            return;
+        }
+        const bouton = me.getRechercherButton();
+        const zone = me.getVentilationBalance() || me.getBalancesalecahs();
+        if (bouton) {
+            bouton.disable();
+        }
+        if (zone) {
+            zone.setLoading('Recherche en cours...');
+        }
+        store.load({
             params: {
                 dtStart: me.getDtStart().getSubmitValue(),
                 dtEnd: me.getDtEnd().getSubmitValue()
+            },
+            callback: function () {
+                if (zone && !zone.isDestroyed) {
+                    zone.setLoading(false);
+                }
+                if (bouton && !bouton.isDestroyed) {
+                    bouton.enable();
+                }
             }
         });
     },

@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Pointage des bons (15/11) : anomalies du pointage d'un organisme sur une periode, a joindre au bordereau. A4 paysage.
+  Lignes : commonTasks.dto.LignePointageBonDTO, valeurs deja mises en forme. Embarque dans le war.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_pointage_anomalies" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <style name="cellule" fontSize="8"/>
+    <style name="titre" fontSize="8" isBold="true" mode="Opaque" backcolor="#EFEFEF"/>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_INDICATEURS" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="bon" class="java.lang.String"/>
+    <field name="dateVente" class="java.lang.String"/>
+    <field name="dateOrdonnance" class="java.lang.String"/>
+    <field name="matricule" class="java.lang.String"/>
+    <field name="assure" class="java.lang.String"/>
+    <field name="taux" class="java.lang.String"/>
+    <field name="part" class="java.lang.String"/>
+    <field name="pointage" class="java.lang.String"/>
+    <field name="motif" class="java.lang.String"/>
+
+    <title>
+        <band height="112" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="520" height="16"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="560" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="14" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="34" width="802" height="18"/>
+                <textElement textAlignment="Center"><font size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="0" y="54" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement positionType="Float" mode="Opaque" x="0" y="74" width="802" height="30" backcolor="#EEF8EE"/>
+                <box leftPadding="6" rightPadding="6" topPadding="3" bottomPadding="3"/>
+                <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INDICATEURS}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="22">
+            <staticText>
+                <reportElement style="titre" x="0" y="0" width="80" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[N° bon]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="80" y="0" width="80" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Date vente]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="160" y="0" width="65" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Ordonnance]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="225" y="0" width="85" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Matricule]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="310" y="0" width="170" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Assuré]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="480" y="0" width="40" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <text><![CDATA[Taux]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="520" y="0" width="65" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <text><![CDATA[Part]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="585" y="0" width="110" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Pointage]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="695" y="0" width="107" height="22"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Motif]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="14" splitType="Stretch">
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="0" y="0" width="80" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Left"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{bon}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="80" y="0" width="80" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Left"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{dateVente}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="160" y="0" width="65" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Left"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{dateOrdonnance}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="225" y="0" width="85" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Left"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{matricule}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="310" y="0" width="170" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Left"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{assure}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="480" y="0" width="40" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{taux}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="520" y="0" width="65" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{part}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="585" y="0" width="110" height="14" forecolor="#B42318"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Left"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{pointage}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="695" y="0" width="107" height="14"/>
+                <box leftPadding="2" rightPadding="2"><bottomPen lineWidth="0.25" lineColor="#CCCCCC"/></box>
+                <textElement textAlignment="Left"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{motif}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="14">
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>

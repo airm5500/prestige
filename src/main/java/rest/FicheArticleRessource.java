@@ -288,6 +288,18 @@ public class FicheArticleRessource {
         return tu;
     }
 
+    /**
+     * Plan du 14/11, point 7 : la fiche produit coche « Ordonnancier » et « Sensible » sous le meme droit que le menu
+     * Ordonnancier ; l'ecran grise les deux cases sans ce droit.
+     */
+    @GET
+    @Path("ordonnancier/droit")
+    public Response droitOrdonnancier() throws JSONException {
+        JSONObject refus = new JSONObject();
+        TUser tu = utilisateurOrdonnancier(refus);
+        return Response.ok().entity(new JSONObject().put("success", true).put("droit", tu != null).toString()).build();
+    }
+
     @GET
     @Path("ordonnancier")
     public Response produitsOrdonnancier(@QueryParam(value = "query") String query,

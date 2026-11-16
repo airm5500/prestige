@@ -117,6 +117,19 @@ public class TiersPayantRessource {
                 .put("errors", Constant.DECONNECTED_MESSAGE).put("total", 0).toString()).build();
     }
 
+    /**
+     * Plan du 14/11, point 4 : mode d'envoi des factures recu de la fiche. Vide : null (inchange ; IMPRESSION a la
+     * creation). En mode MAIL, l'adresse de la fiche doit etre valide. IllegalArgumentException : motif du refus.
+     */
+    static String modeEnvoiControle(String modeRecu, String mail, String mobile) {
+        String mode = rest.service.facture.EnvoiFacture.normaliserMode(modeRecu);
+        String motif = rest.service.facture.EnvoiFacture.controlerFiche(mode, mail, mobile);
+        if (motif != null) {
+            throw new IllegalArgumentException(motif);
+        }
+        return mode;
+    }
+
     private Response reponseSimple(String success, String errors) {
         return Response.ok().entity(
                 new JSONObject().put("success", success).put("errors", StringUtils.defaultString(errors)).toString())
@@ -182,16 +195,24 @@ public class TiersPayantRessource {
             @DefaultValue("false") @FormParam("cmu") boolean cmu, @DefaultValue("0") @FormParam("caution") int caution,
             @DefaultValue("ALPHABETIQUE") @FormParam("str_MODE_TRI_FACTURE") String strModeTriFacture,
             @DefaultValue("0") @FormParam("int_NB_BONS_PAR_PAGE") int nbBonsParPage,
-            @DefaultValue("0") @FormParam("int_TAILLE_POLICE") int taillePolice) {
+            @DefaultValue("0") @FormParam("int_TAILLE_POLICE") int taillePolice,
+            @DefaultValue("") @FormParam("str_MODE_ENVOI_FACTURE") String modeEnvoiFacture) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
             return reponseDeconnecte();
+        }
+        String modeEnvoi;
+        try {
+            modeEnvoi = modeEnvoiControle(modeEnvoiFacture, mail, mobile);
+        } catch (IllegalArgumentException e) {
+            return reponseSimple(commonparameter.PROCESS_FAILED, e.getMessage());
         }
         dataManager odm = new dataManager();
         odm.initEntityManager();
         try {
             TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
             tierspayantManagement otm = new tierspayantManagement(odm, user);
+            otm.setModeEnvoiFacture(modeEnvoi);
             dal.TSequencier sequencier = new bll.facture.factureManagement(odm, user).CreateSequencier();
             String risque = StringUtils.isNotBlank(risqueId) ? risqueId : RISQUE_DEFAUT;
             otm.create(codeOrganisme, name, fullName, adresse, mobile, telephone, mail, plafondCredit,
@@ -269,16 +290,24 @@ public class TiersPayantRessource {
             @FormParam("int_NB_BONS_PAR_PAGE") Integer nbBonsParPage,
             @FormParam("int_TAILLE_POLICE") Integer taillePolice,
             @DefaultValue("false") @FormParam("is_depot") boolean isDepot,
-            @DefaultValue("-1") @FormParam("dbl_PLAFOND_VENTE") double plafondVente) {
+            @DefaultValue("-1") @FormParam("dbl_PLAFOND_VENTE") double plafondVente,
+            @DefaultValue("") @FormParam("str_MODE_ENVOI_FACTURE") String modeEnvoiFacture) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
             return reponseDeconnecte();
+        }
+        String modeEnvoi;
+        try {
+            modeEnvoi = modeEnvoiControle(modeEnvoiFacture, mail, mobile);
+        } catch (IllegalArgumentException e) {
+            return reponseSimple(commonparameter.PROCESS_FAILED, e.getMessage());
         }
         dataManager odm = new dataManager();
         odm.initEntityManager();
         try {
             TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
             tierspayantManagement otm = new tierspayantManagement(odm, user);
+            otm.setModeEnvoiFacture(modeEnvoi);
             String risque = StringUtils.isNotBlank(risqueId) ? risqueId : RISQUE_DEFAUT;
             otm.update(tiersPayantId, codeOrganisme, name, fullName, adresse, mobile, telephone, mail, plafondCredit,
                     tauxRemboursement, numeroCaisseOfficiel, centrePayeur, codeRegroupement, seuilMinimum, interdiction,

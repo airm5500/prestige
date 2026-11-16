@@ -40,7 +40,9 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         plain: true,
         maximizable: true,
         closable: false,
-        nameintern: ''
+        nameintern: '',
+        /* retour du 15/11 : ouvert dans la fenetre modale de la liste des perimes (son titre suffit) */
+        dansFenetre: false
     },
     xtype: 'addPerimer',
     id: 'addPerimerID',
@@ -51,6 +53,11 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
 
     initComponent: function () {
         Me = this;
+        if (this.getDansFenetre()) {
+            this.title = undefined;
+            this.frame = false;
+            this.autoScroll = true;
+        }
         var itemsPerPage = 20;
         ref = this.getNameintern();
         titre = this.getTitre();
@@ -465,6 +472,12 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
     },
 
     onbtncancel: function () {
+        /* retour du 15/11 : dans la fenetre modale, RETOUR la ferme (la liste, restee derriere, est rechargee) */
+        var fenetre = this.getDansFenetre && this.getDansFenetre() ? this.up('window') : null;
+        if (fenetre) {
+            fenetre.close();
+            return;
+        }
         var xtype = "saisieperime";
         testextjs.app.getController('App').onLoadNewComponent(xtype, "", "");
     },
@@ -597,6 +610,9 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                         });
                     } else {
                         myAppController.StopWaitingProcess();
+                        /* retour du 15/11 : un refus de la cloture est annonce (il etait muet) */
+                        Ext.MessageBox.show({title: 'Saisie non clôturée', width: 520, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR,
+                            msg: object.message || 'La clôture n’a pas abouti : aucune ligne n’a été retirée du stock.'});
                     }
                     store.load();
                     if (typeof refreshNotificationBadge === 'function') {
@@ -604,6 +620,9 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     }
                 }, failure: function (response, options) {
                     myAppController.StopWaitingProcess();
+                    Ext.MessageBox.show({title: 'Saisie non clôturée', width: 420, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR,
+                        msg: 'Le serveur n’a pas pu clôturer la saisie (erreur ' + response.status + ') : aucune ligne n’a été retirée du stock.'});
+                    store.load();
                 }
             });
         }

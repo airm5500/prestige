@@ -810,12 +810,8 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                                         me.down('form').down('#prenomAssure').setValue(client.strLASTNAME);
                                                         me.down('form').down('#nomAssure').setValue(client.strFIRSTNAME);
                                                         me.down('form').down('#numAssure').setValue(client.strNUMEROSECURITESOCIAL);
-                                                        if (client.ayantDroits.length > 0) {
-                                                            if (client.ayantDroits.length == 0) {
-                                                                ayantDroitRecord = client.ayantDroits[0];
-                                                            } else {
-                                                                ayantDroitRecord = client.ayantDroits.filter(e => e.strNUMEROSECURITESOCIAL == client.strNUMEROSECURITESOCIAL)[0];
-                                                            }
+                                                        if (client.ayantDroits && client.ayantDroits.length > 0) {
+                                                            ayantDroitRecord = me.choisirAyantDroit(client.ayantDroits, client.strNUMEROSECURITESOCIAL, me.ayantDroit);
                                                             me.updateAyantDroitInfosContainer(me, ayantDroitRecord);
                                                             me.ayantDroit = ayantDroitRecord;
                                                         } else {
@@ -999,6 +995,24 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
 
 
     },
+    /*
+     * Journal de capitale du 15/11 (n° 25, « strFIRSTNAME de undefined ») : l'ayant droit etait cherche par le seul
+     * numero d'assure ; quand aucun ayant droit du client ne porte ce numero (numero modifie, ayants droit de la seule
+     * famille), la fiche ayant droit recevait « undefined ». Ordre : meme numero que l'assure, sinon l'ayant droit deja
+     * choisi s'il est de ce client, sinon le premier.
+     */
+    choisirAyantDroit: function (ayantDroits, numeroAssure, actuel) {
+        const liste = (ayantDroits || []).filter(function (e) {
+            return !!e;
+        });
+        const memeNumero = numeroAssure ? liste.filter(function (e) {
+            return e.strNUMEROSECURITESOCIAL === numeroAssure;
+        })[0] : null;
+        const dejaChoisi = actuel && actuel.lgAYANTSDROITSID ? liste.filter(function (e) {
+            return e.lgAYANTSDROITSID === actuel.lgAYANTSDROITSID;
+        })[0] : null;
+        return memeNumero || dejaChoisi || liste[0] || null;
+    },
     changeClient: function (btn) {
         let me = btn.up('window');
         let url = '../api/v1/client/bytype/' + me.getTypeVente();
@@ -1057,12 +1071,8 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                             me.down('form').down('#prenomAssure').setValue(clientRecord.get('strLASTNAME'));
                                             me.down('form').down('#nomAssure').setValue(clientRecord.get('strFIRSTNAME'));
                                             me.down('form').down('#numAssure').setValue(clientRecord.get('strNUMEROSECURITESOCIAL'));
-                                            if (ayantDroits.length > 0) {
-                                                if (ayantDroits.length == 0) {
-                                                    ayantDroitRecord = ayantDroits[0];
-                                                } else {
-                                                    ayantDroitRecord = ayantDroits.filter(e => e.strNUMEROSECURITESOCIAL == clientRecord.get('strNUMEROSECURITESOCIAL'))[0];
-                                                }
+                                            if (ayantDroits && ayantDroits.length > 0) {
+                                                ayantDroitRecord = me.choisirAyantDroit(ayantDroits, clientRecord.get('strNUMEROSECURITESOCIAL'), null);
                                                 me.updateAyantDroitInfosContainer(me, ayantDroitRecord);
                                                 me.ayantDroit = ayantDroitRecord;
                                             } else {
@@ -1423,9 +1433,16 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                             },
                             icon: Ext.MessageBox.QUESTION
                         });
+                        // Plan du 14/11, point 3 : l'ecran appelant peut demander a rester ouvert (rappel onSaved) ;
+                        // sans rappel, retour aux ventes terminees comme avant.
+                        const rappel = wind.onSaved;
                         wind.destroy();
-                        const xtype = "ventemanager";
-                        testextjs.app.getController('App').onRedirectTo(xtype, {});
+                        if (Ext.isFunction(rappel)) {
+                            rappel(result);
+                        } else {
+                            const xtype = "ventemanager";
+                            testextjs.app.getController('App').onRedirectTo(xtype, {});
+                        }
                     } else {
                         Ext.MessageBox.show({
                             title: 'Message d\'erreur',

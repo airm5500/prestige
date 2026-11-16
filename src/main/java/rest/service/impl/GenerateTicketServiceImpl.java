@@ -139,6 +139,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
     /** Documents captures par {@link #apercuTicketVo(String)} pendant l'appel en cours ; null en impression normale. */
     private static final ThreadLocal<List<rest.service.ticket.TicketDocument>> APERCU = new ThreadLocal<>();
+    /**
+     * Pointage des bons (15/11) : detail prix de reference / taux / part sous chaque ligne, quel que soit le parametre.
+     */
+    private static final ThreadLocal<Boolean> DETAIL_LIGNES = new ThreadLocal<>();
 
     /**
      * Apercu du 05/11 (tests de rapprochement ecran / ticket / base) : le ticket de reimpression de la vente, construit
@@ -148,6 +152,16 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     @Override
     public List<rest.service.ticket.TicketDocument> apercuTicketVo(String id) throws JSONException {
         return apercu(() -> lunchPrinterForTicketVo(id));
+    }
+
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketVoDetaille(String id) throws JSONException {
+        DETAIL_LIGNES.set(Boolean.TRUE);
+        try {
+            return apercuTicketVo(id);
+        } finally {
+            DETAIL_LIGNES.remove();
+        }
     }
 
     @Override
@@ -276,7 +290,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private Map<String, List<String>> creditsParLigne(TPreenregistrement op, List<TPreenregistrementDetail> lignes) {
         try {
             if (op == null || lignes == null || lignes.isEmpty() || modeleVente(op) != ModeleTicket.VENTE_ASSURANCE
-                    || !rest.service.vente.LigneComptant.actif(getEntityManager())) {
+                    || !(Boolean.TRUE.equals(DETAIL_LIGNES.get())
+                            || rest.service.vente.LigneComptant.actif(getEntityManager()))) {
                 return Collections.emptyMap();
             }
             List<TPreenregistrementCompteClientTiersPayent> tps = listeVenteTiersPayantsByIdVente(

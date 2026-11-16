@@ -37,6 +37,8 @@ public class ReserveRessource {
     @Inject
     private HttpServletRequest servletRequest;
     private @EJB ReserveService reserveService;
+    private @EJB rest.service.impl.ListeReserveService listeReserveService;
+    private @EJB rest.report.ReportUtil reportUtilListe;
     private @EJB rest.service.mobile.MobileClientRefService mobileClientRefService;
 
     /* demande 61 : droit controle seulement s'il existe en base */
@@ -406,5 +408,117 @@ public class ReserveRessource {
         }
         JSONObject json = reserveService.mouvements(familleId, dtStart, dtEnd, start, limit > 0 ? limit : 200);
         return Response.ok().entity(json.toString()).build();
+    }
+    /* ------------------------------------------------------------------ onglet LISTE RESERVE (15/11) */
+
+    private static rest.service.impl.ListeReserveService.Filtres filtresListe(String search, String zoneId,
+            String familleId, String grossisteId, String etat) {
+        return rest.service.impl.ListeReserveService.Filtres.de(search, zoneId, familleId, grossisteId, etat);
+    }
+
+    /** Une page de la liste : produits, stocks, VMJ, capacite et seuil en base. */
+    @GET
+    @Path("liste")
+    public Response liste(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("etat") String etat, @QueryParam("start") int start, @QueryParam("limit") Integer limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok()
+                .entity(listeReserveService.liste(user, filtresListe(search, zoneId, familleId, grossisteId, etat),
+                        start, limit == null ? 20 : Math.max(1, limit)).toString())
+                .build();
+    }
+
+    /** Toute la recherche (identifiant, VMJ, etat) pour « Cocher toute la recherche ». */
+    @GET
+    @Path("liste/tout")
+    public Response listeTout(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("etat") String etat) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(
+                listeReserveService.tout(user, filtresListe(search, zoneId, familleId, grossisteId, etat)).toString())
+                .build();
+    }
+
+    /** Enregistrement en un seul envoi : mises en reserve, retraits, reglages ; refus ligne par ligne. */
+    @POST
+    @Path("liste/enregistrer")
+    public Response listeEnregistrer(String body) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject corps;
+        try {
+            corps = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        } catch (JSONException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new JSONObject().put("success", false).put("msg", "Requête illisible.").toString()).build();
+        }
+        return Response.ok().entity(listeReserveService.enregistrer(user, corps).toString()).build();
+    }
+
+    /** Excel de toute la recherche, construit sur le meme JSON que la grille. */
+    @GET
+    @Path("liste/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response listeExcel(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("etat") String etat) throws java.io.IOException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        rest.service.impl.ListeReserveService.Filtres f = filtresListe(search, zoneId, familleId, grossisteId, etat);
+        byte[] data = rest.report.excel.ListeReserveExcel.construire(listeReserveService.liste(user, f, 0, 0),
+                f.libelle());
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"liste_reserve.xlsx\"").build();
+    }
+
+    /** PDF de toute la recherche (rp_liste_reserve.jrxml) : renvoie l'adresse du fichier, comme les autres editions. */
+    @GET
+    @Path("liste/pdf")
+    public Response listePdf(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("etat") String etat) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        rest.service.impl.ListeReserveService.Filtres f = filtresListe(search, zoneId, familleId, grossisteId, etat);
+        JSONArray data = listeReserveService.liste(user, f, 0, 0).getJSONArray("data");
+        List<commonTasks.dto.LigneListeReserveDTO> lignes = new ArrayList<>();
+        int enReserve = 0, stockReserve = 0;
+        for (int i = 0; i < data.length(); i++) {
+            JSONObject l = data.getJSONObject(i);
+            lignes.add(new commonTasks.dto.LigneListeReserveDTO(l));
+            enReserve += l.optBoolean("enReserve") ? 1 : 0;
+            stockReserve += l.optInt("stockReserve", 0);
+        }
+        java.util.Map<String, Object> params = reportUtilListe.officineData(user);
+        params.put("P_H_CLT_INFOS", "LISTE RÉSERVE");
+        params.put("P_PERIODE", f.libelle());
+        params.put("P_INDICATEURS",
+                data.length() + " produit(s) · " + enReserve + " en réserve · stock réserve total : " + stockReserve);
+        String url = reportUtilListe.buildReport(params, "rp_liste_reserve", lignes);
+        if (!reportUtilListe.editionEcrite(url)) {
+            return Response.ok(
+                    new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée.").toString())
+                    .build();
+        }
+        return Response
+                .ok(new JSONObject().put("success", true).put("url", url).put("lignes", lignes.size()).toString())
+                .build();
     }
 }

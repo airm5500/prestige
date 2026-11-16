@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Onglet « Liste réserve » (15/11) : liste imprimee, A4 paysage. Memes colonnes que la grille ; capacite maxi rayon en
+  bleu gras, seuil mini rayon en rouge gras. Lignes : commonTasks.dto.LigneListeReserveDTO, valeurs deja mises en forme.
+  Embarque dans le war : ReportUtil le compile depuis le classpath lorsqu'il n'est pas copie dans le repertoire des
+  rapports de l'officine.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_liste_reserve" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <style name="cellule" fontSize="8"/>
+    <style name="titre" fontSize="8" isBold="true" mode="Opaque" backcolor="#EFEFEF"/>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_INDICATEURS" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="cip" class="java.lang.String"/>
+    <field name="designation" class="java.lang.String"/>
+    <field name="emplacement" class="java.lang.String"/>
+    <field name="famille" class="java.lang.String"/>
+    <field name="grossiste" class="java.lang.String"/>
+    <field name="stockRayon" class="java.lang.String"/>
+    <field name="stockReserve" class="java.lang.String"/>
+    <field name="vmj" class="java.lang.String"/>
+    <field name="enReserve" class="java.lang.String"/>
+    <field name="capacite" class="java.lang.String"/>
+    <field name="seuilMini" class="java.lang.String"/>
+
+    <title>
+        <band height="112" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="520" height="16"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="560" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="14" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="34" width="802" height="18"/>
+                <textElement textAlignment="Center"><font size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="0" y="54" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement positionType="Float" mode="Opaque" x="0" y="74" width="802" height="30" backcolor="#EEF8EE"/>
+                <box leftPadding="6" rightPadding="6" topPadding="3" bottomPadding="3"/>
+                <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INDICATEURS}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="22">
+            <staticText>
+                <reportElement style="titre" x="0" y="0" width="60" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[CIP]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="60" y="0" width="210" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Désignation]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="270" y="0" width="90" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Emplacement]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="360" y="0" width="95" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Famille]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="455" y="0" width="85" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"/>
+                <text><![CDATA[Grossiste]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="540" y="0" width="45" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <text><![CDATA[Rayon]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="585" y="0" width="45" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <text><![CDATA[Réserve]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="630" y="0" width="40" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <text><![CDATA[VMJ]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="670" y="0" width="42" height="22"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <text><![CDATA[En réserve]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="712" y="0" width="45" height="22" forecolor="#1A5F9E"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <text><![CDATA[Capacité maxi]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="titre" x="757" y="0" width="45" height="22" forecolor="#C62828"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <text><![CDATA[Seuil mini]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="16" splitType="Prevent">
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="0" y="0" width="60" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="60" y="0" width="210" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="270" y="0" width="90" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{emplacement}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="360" y="0" width="95" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{famille}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="455" y="0" width="85" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{grossiste}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="540" y="0" width="45" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{stockRayon}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="585" y="0" width="45" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{stockReserve}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="630" y="0" width="40" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{vmj}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="670" y="0" width="42" height="16"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"></textElement>
+                <textFieldExpression><![CDATA[$F{enReserve}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="712" y="0" width="45" height="16" forecolor="#1A5F9E"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{capacite}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="cellule" stretchType="RelativeToTallestObject" x="757" y="0" width="45" height="16" forecolor="#C62828"/>
+                <box leftPadding="3" rightPadding="3"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{seuilMini}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+            </line>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="14">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="700" height="12"/>
+                <textElement><font size="6"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="702" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+</jasperReport>

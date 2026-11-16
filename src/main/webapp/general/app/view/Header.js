@@ -285,8 +285,30 @@ Ext.define('testextjs.view.Header', {
             }
         }, this, {delay: 500, single: true});
     },
+    /*
+     * Journal de capitale du 15/11 (n° 61, Header.js:297 et :314) : une reponse vide (serveur coupe, requete
+     * interrompue, session deja fermee) faisait echouer le decodage (« invalid JSON String ») ou la lecture de
+     * « success » ; un second clic envoyait une seconde deconnexion. Une seule deconnexion a la fois ; session deja
+     * fermee (401, 403) = deconnexion faite ; sinon un message lisible, et l'on peut recommencer.
+     */
     Deconnexion: function () {
-//        var internal_url = '../webservices/usermanagement/ws_transaction.jsp?mode=deconnexion';
+        if (window.PRESTIGE_DECONNEXION_EN_COURS) {
+            return;
+        }
+        window.PRESTIGE_DECONNEXION_EN_COURS = true;
+        const terminer = function () {
+            /* plan du 09/11, point 7 : la deconnexion vide les donnees de la session, pas le nom du poste */
+            if (window.PrestigePoste && window.PrestigePoste.viderSession) {
+                window.PrestigePoste.viderSession();
+            } else {
+                localStorage.clear();
+            }
+            window.location.replace("../index.jsp?content=panelInfos.jsp&lng=fr&action=logout");
+        };
+        const echec = function (texte) {
+            window.PRESTIGE_DECONNEXION_EN_COURS = false;
+            Ext.MessageBox.alert('Déconnexion', texte);
+        };
         Ext.Ajax.request({
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -294,27 +316,22 @@ Ext.define('testextjs.view.Header', {
 
             success: function (response, options)
             {
-                var result = Ext.JSON.decode(response.responseText, true);
-                if (!result.success) {
-                    Ext.MessageBox.alert('Error Message', result.errors);
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success) {
+                    terminer();
                     return;
                 }
-                /* plan du 09/11, point 7 : la deconnexion vide les donnees de la session, pas le nom du poste */
-                if (window.PrestigePoste && window.PrestigePoste.viderSession) {
-                    window.PrestigePoste.viderSession();
-                } else {
-                    localStorage.clear();
-                }
-                window.location.replace("../index.jsp?content=panelInfos.jsp&lng=fr&action=logout");
-
+                echec('La déconnexion n\'a pas abouti. Réessayez.');
             },
             failure: function (response)
             {
-
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
-
+                if (response.status === 401 || response.status === 403) {
+                    terminer();
+                    return;
+                }
+                echec(response.status
+                        ? 'La déconnexion n\'a pas abouti (erreur ' + response.status + ' du serveur). Réessayez.'
+                        : 'Le serveur ne répond pas : la déconnexion n\'a pas été faite. Réessayez dans un instant.');
             }
         });
 

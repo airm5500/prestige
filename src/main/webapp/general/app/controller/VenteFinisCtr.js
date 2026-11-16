@@ -164,20 +164,36 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
     /* plan du 08/11, point 18 : la vente est d'abord verifiee (facturee : message, pas de motif demande) ; le motif est
        ensuite choisi dans un menu ancre sur l'icone, garde (en cours), puis l'ecran de vente s'ouvre */
     ouvrirModification: function (rec, cible) {
-        const me = this;
+        /* demande du 28/10 (point 7) : la liste est rouverte avec ces criteres si la modification est refusee */
+        this.filtresRetour = this.etatFiltres();
+        this.modifierVente(rec.get('lgPREENREGISTREMENTID'), cible, {record: rec.data});
+    },
+    /* Demande du 15/11 : la meme modification, lancee aussi depuis le pointage des bons (pas une nouvelle
+       fonctionnalite). options : record (donnees de la vente), retour {xtype, data} (ecran rouvert apres la
+       modification ou son abandon), refus (fonction qui affiche le refus a la place de la boite de message). */
+    modifierVente: function (venteId, cible, options) {
+        const me = this, opt = options || {};
         {
-            /* demande du 28/10 (point 7) : la liste est rouverte avec ces criteres si la modification est refusee */
-            this.filtresRetour = this.etatFiltres();
-            const data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'COPY'};
+            const data = {'isEdit': true, 'record': opt.record || {lgPREENREGISTREMENTID: venteId}, 'isDevis': false, 'categorie': 'COPY'};
+            if (opt.retour) {
+                data.retour = opt.retour;
+            }
             const xtype = "doventemanager";
+            const rec = {get: function (k) {
+                    return k === 'lgPREENREGISTREMENTID' ? venteId : data.record[k];
+                }};
             /* demande du 29/10 (point 5) : vente facturee (ou differe regle) : le motif s'affiche, l'ecran de vente ne
                s'ouvre pas */
             Ext.Ajax.request({
                 method: 'GET',
-                url: '../api/v1/vente/modifiable/' + rec.get('lgPREENREGISTREMENTID'),
+                url: '../api/v1/vente/modifiable/' + venteId,
                 success: function (response) {
                     const r = Ext.JSON.decode(response.responseText, true) || {};
                     if (r.success === false) {
+                        if (opt.refus) {
+                            opt.refus(r.msg || 'La vente ne peut pas être modifiée.');
+                            return;
+                        }
                         Ext.MessageBox.show({title: 'Modification impossible', width: 460, msg: Ext.String.htmlEncode(r.msg || ''),
                             buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
                         return;
@@ -196,7 +212,42 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
         }
 
     },
+    /* Demande du 15/11 : l'ecran de vente (le meme, memes controles) dans une fenetre modale au-dessus de l'ecran qui
+       l'a lance (pointage des bons), qui reste charge derriere. La croix vaut « Retour » (copie supprimee) ; la cloture,
+       l'abandon ou le refus ferment la fenetre (VenteCtr.versListeApresModification) ; retour.apres est appele a la
+       fermeture. */
+    ouvrirEnFenetre: function (xtype, data) {
+        const Cls = Ext.ClassManager.get(Ext.ClassManager.getNameByAlias('widget.' + xtype));
+        const vue = new Cls({data: data});
+        if (window.PrestigeAffichage) {
+            window.PrestigeAffichage.appliquerSiConcerne(vue);
+        }
+        const taille = Ext.getBody().getViewSize();
+        const fenetre = Ext.create('Ext.window.Window', {
+            title: 'Modification de la vente' + (data.record && data.record.strREF ? ' ' + Ext.String.htmlEncode(data.record.strREF) : ''),
+            cls: 'prestige-fenetre-vente', modal: true, layout: 'fit', closable: true, resizable: false, draggable: false,
+            width: Math.max(900, taille.width - 30), height: Math.max(560, taille.height - 30),
+            onEsc: Ext.emptyFn, items: [vue]
+        });
+        data.retour.fenetreCmp = fenetre;
+        fenetre.on('beforeclose', function () {
+            if (fenetre.fermeParCode) {
+                return true;
+            }
+            /* croix : meme sortie que le bouton Retour de l'ecran de vente (la copie en attente est supprimee) */
+            testextjs.app.getController('VenteCtr').goBack();
+            return false;
+        });
+        fenetre.on('close', function () {
+            if (typeof data.retour.apres === 'function') {
+                data.retour.apres();
+            }
+        });
+        fenetre.show();
+        return fenetre;
+    },
     enregistrerMotifPuisOuvrir: function (rec, motif, xtype, data) {
+        const me = this;
         Ext.Ajax.request({
             method: 'POST', url: '../api/v1/vente-motifs/modification/' + rec.get('lgPREENREGISTREMENTID'),
             jsonData: {motifId: motif.motifId, commentaire: motif.commentaire},
@@ -206,6 +257,10 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
                     if (window.PrestigeToast) {
                         PrestigeToast.afficher(m.msg || 'Motif refusé.', {niveau: 'erreur', titre: 'Modification de la vente'});
                     }
+                    return;
+                }
+                if (data.retour && data.retour.fenetre) {
+                    me.ouvrirEnFenetre(xtype, data);
                     return;
                 }
                 testextjs.app.getController('App').onRedirectTo(xtype, data);

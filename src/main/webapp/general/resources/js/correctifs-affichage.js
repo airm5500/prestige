@@ -880,12 +880,30 @@ window.PrestigeAffichage.MENUS_MASQUES = [
     'devisemanager'                     // Gestion des devises
 ];
 
+/**
+ * Menus remplaces par un nouveau menu (par leur ecran) : les anciens ne sont masques que si l'utilisateur a le nouveau,
+ * pour que personne ne perde un acces (droit pas encore donne, migration pas encore passee).
+ * Plan du 14/11, point 5 : « Ouverture / clôture de caisse » remplace « Ouverture de Caisse » et « Cloture de Caisse ».
+ */
+window.PrestigeAffichage.MENUS_REMPLACES = {
+    'caisseouverturecloture': ['ouverturecaissemanger', 'caissemanger']
+};
+
 /** Retire de l'arbre du menu charge les entrees masquees (et un module qui n'aurait plus aucune entree). */
 window.PrestigeAffichage.masquerMenus = function (racine) {
-    var masques = window.PrestigeAffichage.MENUS_MASQUES, aRetirer = [];
+    var masques = window.PrestigeAffichage.MENUS_MASQUES.slice(), aRetirer = [], presents = {},
+        remplaces = window.PrestigeAffichage.MENUS_REMPLACES || {};
     if (!racine || !racine.cascadeBy) {
         return 0;
     }
+    racine.cascadeBy(function (n) {
+        presents[n.get('id')] = true;
+    });
+    Ext.Object.each(remplaces, function (nouveau, anciens) {
+        if (presents[nouveau]) {
+            masques = masques.concat(anciens);
+        }
+    });
     racine.cascadeBy(function (n) {
         if (n !== racine && masques.indexOf(n.get('id')) >= 0) {
             aRetirer.push(n);
@@ -932,6 +950,12 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'myaccountmanager',
     // facturation
     'facturemanager', 'facturesubrogatoireother', 'groupeInvoices', 'factureprovisoire',
+    // plan du 14/11 (point 5) : menu « Ouverture / clôture de caisse » (SERVICE CLIENT)
+    'caisseouverturecloture',
+    // plan du 14/11 (point 2) : menu « En-tête des factures » (FACTURATION)
+    'entetefacture',
+    // plan du 14/11 (point 3) : conteneur de la liste des bons par organisme (bons + bordereaux / suivi)
+    'bonsorganismeonglets',
     'recapOrganisme',
     // parametrage et administration
     'parametermanager', 'kobysky', 'zonegeographiquemanager', 'usermanager',
@@ -1033,6 +1057,12 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
     // lot 4 : facture subrogatoire, ventes ratees, mouchard des prix de vente
     'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente', 'produitscodegeo', 'rappelshabitude', 'whatsappcomptes', 'rhmanager', 'analysecommande',
+    // plan du 14/11 (point 3) : conteneur de la liste des bons par organisme
+    'bonsorganismeonglets',
+    // plan du 14/11 (point 5) : menu « Ouverture / clôture de caisse »
+    'caisseouverturecloture',
+    // plan du 14/11 (point 2) : menu « En-tête des factures »
+    'entetefacture',
     // retours du 05/10, lot A : facturation et caisse
     'facturemanager', 'listecaissemanager', 'visualisercaissemanager', 'caisserecetterecap', 'facturesubrogatoire', 'delayed',
     'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',

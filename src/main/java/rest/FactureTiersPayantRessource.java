@@ -78,6 +78,33 @@ public class FactureTiersPayantRessource {
      * Liste des factures : MEME logique que ws_data.jsp, sans le parametre CODEGROUPE (retire de l'API ; la methode
      * metier recoit une chaine vide, comme quand le champ n'etait pas renseigne).
      */
+    /**
+     * Plan du 14/11, point 4 : dernier envoi par email (identifiant de facture, date, statut, destinataires, motif) de
+     * chaque facture, lu dans t_facture_envoi.
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object[]> derniersEnvois(javax.persistence.EntityManager em, List<String> ids) {
+        Map<String, Object[]> m = new java.util.HashMap<>();
+        if (ids == null || ids.isEmpty()) {
+            return m;
+        }
+        StringBuilder marques = new StringBuilder();
+        for (int i = 1; i <= ids.size(); i++) {
+            marques.append(i == 1 ? "" : ",").append('?').append(i);
+        }
+        javax.persistence.Query q = em.createNativeQuery("SELECT e.lg_FACTURE_ID, e.dt_CREATED, e.str_STATUT,"
+                + " e.str_DESTINATAIRE, e.str_ERREUR, e.str_MODE FROM t_facture_envoi e WHERE e.lg_FACTURE_ID IN ("
+                + marques + ") ORDER BY e.dt_CREATED, e.id");
+        for (int i = 0; i < ids.size(); i++) {
+            q.setParameter(i + 1, ids.get(i));
+        }
+        // dans l'ordre chronologique : le dernier ecrase les precedents
+        for (Object[] l : (List<Object[]>) q.getResultList()) {
+            m.put((String) l[0], l);
+        }
+        return m;
+    }
+
     @GET
     @Path("list")
     public Response list(@DefaultValue("") @QueryParam("search_value") String searchValue,
@@ -128,6 +155,8 @@ public class FactureTiersPayantRessource {
                 idsFacture.add(of.getLgFACTUREID());
             }
             Map<String, Date[]> datesFne = ofm.getDatesFne(idsFacture);
+            // Plan du 14/11, point 4 : dernier envoi par email de chaque facture de la page, en une requete
+            Map<String, Object[]> derniersEnvois = derniersEnvois(odm.getEm(), idsFacture);
 
             JSONArray arrayObj = new JSONArray();
             for (TFacture of : lstTFacture) {
@@ -173,6 +202,21 @@ public class FactureTiersPayantRessource {
                 json.put("lg_TYPE_TIERS_PAYANT_ID", otp.getLgTYPETIERSPAYANTID().getStrLIBELLETYPETIERSPAYANT());
                 json.put("isALLOWED", isALLOWED);
                 json.put("ACTION_REGLER_FACTURE", actionReglerFacture);
+                json.put("modeEnvoi", otp == null ? rest.service.facture.EnvoiFacture.IMPRESSION
+                        : rest.service.facture.EnvoiFacture.modeEffectif(otp.getStrMODEENVOIFACTURE()));
+                json.put("mailTp", otp == null ? ""
+                        : String.join("; ", rest.service.facture.EnvoiFacture.adresses(otp.getStrMAIL())));
+                Object[] envoi = derniersEnvois.get(of.getLgFACTUREID());
+                json.put("envoiDate", envoi == null || envoi[1] == null ? ""
+                        : new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format((Date) envoi[1]));
+                json.put("envoiStatut", envoi == null ? "" : StringUtils.defaultString((String) envoi[2]));
+                json.put("envoiDestinataire", envoi == null ? "" : StringUtils.defaultString((String) envoi[3]));
+                json.put("envoiErreur", envoi == null ? "" : StringUtils.defaultString((String) envoi[4]));
+                // demande du 15/11 : canal du dernier envoi, et numero WhatsApp de la fiche (vide s'il n'est pas
+                // valide)
+                json.put("envoiMode", envoi == null ? "" : StringUtils.defaultString((String) envoi[5]));
+                json.put("mobileTp", otp == null ? "" : StringUtils
+                        .defaultString(rest.service.facture.EnvoiFacture.numeroWhatsApp(otp.getStrMOBILE())));
                 arrayObj.put(json);
             }
             String result = "{\"total\":\"" + count + " \",\"results\":" + arrayObj.toString() + "}";

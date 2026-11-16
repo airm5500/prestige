@@ -23,7 +23,7 @@
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
-const { BASE: URL, connexion, ouvrirMenu, cliquer, choisir, texteMessage, repondre } = require('../outils/vues');
+const { BASE: URL, connexion, ouvrirMenu, ouvrirEcran, cliquer, choisir, texteMessage, repondre } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
@@ -76,7 +76,7 @@ function nettoyer() {
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
 
     /* G5 : fond negatif refuse ; fond de 0, l'usage de l'officine, accepte */
-    await ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture de Caisse');
+    await ouvrirEcran(p, 'SERVICE CLIENT', 'Ouverture de Caisse', 'ouverturecaissemanger');
     await p.waitForFunction(() => Ext.getCmp('btnValidate') && Ext.getCmp('btnValidate').isVisible(true), null, { timeout: 60000 });
     await p.waitForTimeout(800);
     await champ(p, 'coffreCaisseAmount', '-500');
@@ -132,7 +132,7 @@ function nettoyer() {
     await p2.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation')[0], null, { timeout: 240000 });
     await p2.waitForLoadState('networkidle').catch(() => {});
     const billetage = async (page) => {
-      await ouvrirMenu(page, 'SERVICE CLIENT', 'Cloture de Caisse');
+      await ouvrirEcran(page, 'SERVICE CLIENT', 'Cloture de Caisse', 'caissemanger');
       await page.waitForFunction(() => Ext.getCmp('btn_validate') && Ext.getCmp('btn_validate').isVisible(true), null, { timeout: 60000 });
       await page.waitForTimeout(800);
       await cliquer(page, '#btn_validate');

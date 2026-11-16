@@ -234,6 +234,13 @@ public class TTiersPayant implements Serializable {
     @Column(name = "int_TAILLE_POLICE", nullable = false)
     private Integer intTAILLEPOLICE = 0;
 
+    /**
+     * Mode d'envoi des factures (plan du 14/11, point 4) : IMPRESSION (par defaut), MAIL ou API. Voir
+     * rest.service.facture.EnvoiFacture.
+     */
+    @Column(name = "str_MODE_ENVOI_FACTURE", nullable = false, length = 12)
+    private String strMODEENVOIFACTURE = "IMPRESSION";
+
     // Rattachement optionnel a un modele de facture dynamique (NULL = circuit Jasper historique)
 
     @OneToMany(mappedBy = "tiersPayant")
@@ -297,6 +304,14 @@ public class TTiersPayant implements Serializable {
     /**
      * Taille de police utilisable a l'impression : 0 (taille propre au modele) si le reglage est absent ou aberrant.
      */
+    public String getStrMODEENVOIFACTURE() {
+        return strMODEENVOIFACTURE;
+    }
+
+    public void setStrMODEENVOIFACTURE(String strMODEENVOIFACTURE) {
+        this.strMODEENVOIFACTURE = strMODEENVOIFACTURE;
+    }
+
     public int taillePoliceEffective() {
         return rest.report.MiseEnPageFacture.taillePolice(intTAILLEPOLICE);
     }

@@ -58,8 +58,13 @@ public class ListDesBonServiceImpl implements ListDesBonService {
             + "AND p.`lg_PREENREGISTREMENT_ID`=cp.`lg_PREENREGISTREMENT_ID` AND m.pkey=p.`lg_PREENREGISTREMENT_ID` AND p.`dt_UPDATED` >= ?1 AND p.`dt_UPDATED` <= ?2  AND m.`typeTransaction`=1 AND m.pkey=p.`lg_PREENREGISTREMENT_ID` AND p.`str_STATUT`='is_Closed' AND p.`lg_TYPE_VENTE_ID` <> ?3 AND m.`lg_EMPLACEMENT_ID` =?4 "
             + " AND p.imported=0 AND p.`b_IS_CANCEL`=0 AND p.`int_PRICE` >0 {excludeStatement} {search} {tierspayantId} {typeTp} {groupeTp} ORDER BY  libelleTiersPayant,p.`dt_UPDATED`  ";
 
-    private static final String RAPPORT_SQL_LIKE = " AND (cp.`str_REF_BON` LIKE '%s' OR cl.`str_NUMERO_SECURITE_SOCIAL` LIKE '%s' OR tp.str_NAME LIKE '%s' OR clt.`str_FIRST_NAME` LIKE '%s' OR clt.`str_FIRST_NAME` LIKE '%s') ";
-    private static final String TIERS_PAYANT_ID = " AND tp.`lg_TIERS_PAYANT_ID`= %s ";
+    /*
+     * Plan du 14/11, point 3 : la recherche et le tiers payant passent en parametres lies (?5 a ?10). Colles dans le
+     * SQL, le tiers payant (sans guillemets) faisait echouer la requete pour un identifiant non numerique (liste vide)
+     * et etait compare en nombre ; une apostrophe dans la recherche cassait la requete. Memes conditions qu'avant.
+     */
+    private static final String RAPPORT_SQL_LIKE = " AND (cp.`str_REF_BON` LIKE ?6 OR cl.`str_NUMERO_SECURITE_SOCIAL` LIKE ?7 OR tp.str_NAME LIKE ?8 OR clt.`str_FIRST_NAME` LIKE ?9 OR clt.`str_FIRST_NAME` LIKE ?10) ";
+    private static final String TIERS_PAYANT_ID = " AND tp.`lg_TIERS_PAYANT_ID`= ?5 ";
     private static final String TYPE_TIERS_PAYANT_ID = " AND tp.`lg_TYPE_TIERS_PAYANT_ID`= '%s' ";
     private static final String GROUPE_TIERS_PAYANT_ID = " AND tp.`lg_GROUPE_ID`= %s ";
 
@@ -97,8 +102,8 @@ public class ListDesBonServiceImpl implements ListDesBonService {
             // TIMESTAMP (et non DATE) : les bornes gardent leurs heures. Avec DATE, la borne de fin
             // etait tronquee a minuit (les bons du dernier jour etaient exclus) et les champs
             // heure debut/fin de l'ecran etaient ignores.
-            Query query = em.createNativeQuery(sql, Tuple.class).setParameter(3, DateConverter.DEPOT_EXTENSION)
-                    .setParameter(4, bonsParam.getEmplacementId())
+            Query query = lierFiltres(em.createNativeQuery(sql, Tuple.class), bonsParam)
+                    .setParameter(3, DateConverter.DEPOT_EXTENSION).setParameter(4, bonsParam.getEmplacementId())
                     .setParameter(1, DateCommonUtils.convertLocalDateTimeToDate(dateParams.getLeft()),
                             TemporalType.TIMESTAMP)
                     .setParameter(2, DateCommonUtils.convertLocalDateTimeToDate(dateParams.getRight()),
@@ -124,15 +129,12 @@ public class ListDesBonServiceImpl implements ListDesBonService {
             sql = sql.replace("{excludeStatement}", EXCLUDE_STATEMENT);
         }
         if (StringUtils.isNotEmpty(search)) {
-
-            sql = sql.replace("{search}", String.format(RAPPORT_SQL_LIKE, search + "%", search + "%", search + "%",
-                    search + "%", search + "%"));
+            sql = sql.replace("{search}", RAPPORT_SQL_LIKE);
         } else {
             sql = sql.replace("{search}", "");
         }
         if (StringUtils.isNotEmpty(tiersPayantId)) {
-
-            sql = sql.replace("{tierspayantId}", String.format(TIERS_PAYANT_ID, tiersPayantId));
+            sql = sql.replace("{tierspayantId}", TIERS_PAYANT_ID);
         } else {
             sql = sql.replace("{tierspayantId}", "");
         }
@@ -152,14 +154,28 @@ public class ListDesBonServiceImpl implements ListDesBonService {
         return sql;
     }
 
+    /** Valeurs des parametres lies poses par replacePlaceHolder (memes conditions de presence). */
+    private static Query lierFiltres(Query query, BonsParam bonsParam) {
+        if (StringUtils.isNotEmpty(bonsParam.getTiersPayantId())) {
+            query.setParameter(5, bonsParam.getTiersPayantId());
+        }
+        if (StringUtils.isNotEmpty(bonsParam.getSearch())) {
+            String debut = bonsParam.getSearch() + "%";
+            for (int i = 6; i <= 10; i++) {
+                query.setParameter(i, debut);
+            }
+        }
+        return query;
+    }
+
     private List<Tuple> listBonsList(BonsParam bonsParam) {
         Pair<LocalDateTime, LocalDateTime> dateParams = buildDateParams(bonsParam);
         String sql = replacePlaceHolder(QUERY, bonsParam);
         LOG.log(Level.INFO, "sql--- listAllBons {0}", sql);
         try {
             // TIMESTAMP : memes bornes exactes que la requete des totaux (heures respectees)
-            Query query = em.createNativeQuery(sql, Tuple.class).setParameter(3, DateConverter.DEPOT_EXTENSION)
-                    .setParameter(4, bonsParam.getEmplacementId())
+            Query query = lierFiltres(em.createNativeQuery(sql, Tuple.class), bonsParam)
+                    .setParameter(3, DateConverter.DEPOT_EXTENSION).setParameter(4, bonsParam.getEmplacementId())
                     .setParameter(1, DateCommonUtils.convertLocalDateTimeToDate(dateParams.getLeft()),
                             TemporalType.TIMESTAMP)
                     .setParameter(2, DateCommonUtils.convertLocalDateTimeToDate(dateParams.getRight()),

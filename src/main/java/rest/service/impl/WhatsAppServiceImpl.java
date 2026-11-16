@@ -322,7 +322,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
 
     @Override
     public JSONObject repondreDiscussion(String numero, String texte, PieceJointe piece, String userId) {
-        return envoyerDansLeFil(numero, texte, piece, userId, true);
+        return envoyerDansLeFil(numero, texte, piece, userId, true, rest.service.impl.whatsapp.OrigineEnvoi.DISCUSSION);
     }
 
     /**
@@ -332,11 +332,22 @@ public class WhatsAppServiceImpl implements WhatsAppService {
      */
     @Override
     public JSONObject repondreAvis(String numero, String texte, String userId) {
-        return envoyerDansLeFil(numero, texte, null, userId, false);
+        return envoyerDansLeFil(numero, texte, null, userId, false, rest.service.impl.whatsapp.OrigineEnvoi.AVIS);
+    }
+
+    @Override
+    public JSONObject envoyerDocument(String numero, String legende, PieceJointe piece, String origine, String userId) {
+        if (piece == null) {
+            return refus("Aucun document à envoyer.");
+        }
+        String o = rest.service.impl.whatsapp.OrigineEnvoi.valide(origine);
+        return envoyerDansLeFil(numero, legende, piece, userId, false,
+                o != null ? o : rest.service.impl.whatsapp.OrigineEnvoi.DISCUSSION);
     }
 
     @SuppressWarnings("unchecked")
-    private JSONObject envoyerDansLeFil(String numero, String texte, PieceJointe piece, String userId, boolean modele) {
+    private JSONObject envoyerDansLeFil(String numero, String texte, PieceJointe piece, String userId, boolean modele,
+            String origine) {
         String refus = rest.service.impl.whatsapp.DiscussionRegles.refusReponse(texte, piece != null);
         if (refus != null) {
             return refus(refus);
@@ -371,9 +382,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                 .nettoyer(modele ? personnaliser(texte, r.clientId) : texte);
         WhatsAppEnvoi.Resultat res = WhatsAppEnvoi.envoyer(c, TelephoneCi.controler(r.numero).getInternational(), t,
                 piece);
-        journaliser(null, r.clientId, r.numero, c == null ? modeDefaut() : c.mode, res, false, modele
-                ? rest.service.impl.whatsapp.OrigineEnvoi.DISCUSSION : rest.service.impl.whatsapp.OrigineEnvoi.AVIS,
-                userId);
+        journaliser(null, r.clientId, r.numero, c == null ? modeDefaut() : c.mode, res, false, origine, userId);
         rest.service.impl.whatsapp.DiscussionStockage.sortant(em, r, t, piece == null ? null : piece.nomFichier,
                 piece == null ? "TEXTE" : ("IMAGE".equalsIgnoreCase(piece.type) ? "IMAGE" : "DOCUMENT"), res, userId);
         String statut = res.accepte ? (res.simule ? "SIMULE" : "ENVOYE") : "ECHEC";

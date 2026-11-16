@@ -111,8 +111,8 @@ public class SalesStatsRessource {
     @Path("annulations")
     public Response annulations(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "statut") String statut)
-            throws JSONException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "statut") String statut,
+            @QueryParam(value = "motif") String motif, @QueryParam(value = "tri") String tri) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
@@ -135,7 +135,9 @@ public class SalesStatsRessource {
         } catch (Exception e) {
         }
 
-        JSONObject jsono = salesService.annulations(body);
+        /* plan du 14/11, point 10 : filtre par motif, tri « motif » = motifs les plus utilises d'abord */
+        boolean triMotif = "motif".equals(tri);
+        JSONObject jsono = salesService.annulations(body, motif, triMotif);
         return Response.ok().entity(jsono.toString()).build();
     }
 

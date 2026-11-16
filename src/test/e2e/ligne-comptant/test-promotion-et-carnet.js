@@ -18,6 +18,9 @@ const { ok, q, exec, A } = C;
   const TP = A.tiersPayant('C3', '1');
   const P = C.produitSimple(4);
   const CIP = C.cip(P);
+  /* demande du 15/11 : une vente d'un seul produit ne se coche plus ; un second article reste a l'assurance */
+  const P2 = C.produitSimple(5);
+  const CIP2 = C.cip(P2);
   A.ouvrirCaisse();
   const sess = await C.connecterEtOuvrirVente();
   const { p, api } = sess;
@@ -59,6 +62,7 @@ const { ok, q, exec, A } = C;
     /* 3. marque retiree */
     exec("UPDATE t_preenregistrement_detail SET promotion_produit_id = NULL WHERE lg_PREENREGISTREMENT_DETAIL_ID = '" + l0.detailId + "'");
     await recharger();
+    await C.taperArticle(p, CIP2);
     const put3 = await C.cocher(p, CIP);
     const l3 = await C.ligne(p, CIP);
     ok('Sans promotion : le clic coche la ligne (PUT accepté, fond jaune, pastille)', put3 && put3.success === true && l3 && l3.comptant && l3.fondJaune && l3.pastille, JSON.stringify(put3) + ' ' + JSON.stringify(l3));

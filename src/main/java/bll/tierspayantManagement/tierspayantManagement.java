@@ -43,6 +43,16 @@ import toolkits.utils.logger;
  */
 public class tierspayantManagement extends bllBase {
 
+    /**
+     * Plan du 14/11, point 4 : mode d'envoi des factures a poser par create ou update (IMPRESSION, MAIL ou API, deja
+     * controle par l'appelant) ; null = inchange (creation : IMPRESSION).
+     */
+    private String modeEnvoiFacture;
+
+    public void setModeEnvoiFacture(String modeEnvoiFacture) {
+        this.modeEnvoiFacture = modeEnvoiFacture;
+    }
+
     Object Otable = TTiersPayant.class;
 
     /**
@@ -256,6 +266,9 @@ public class tierspayantManagement extends bllBase {
             OTTiersPayant.setStrMODETRIFACTURE(normalizeModeTriFacture(str_MODE_TRI_FACTURE));
             OTTiersPayant.setIntNBBONSPARPAGE(rest.report.MiseEnPageFacture.bonsParPage(int_NB_BONS_PAR_PAGE));
             OTTiersPayant.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(int_TAILLE_POLICE));
+            if (modeEnvoiFacture != null) {
+                OTTiersPayant.setStrMODEENVOIFACTURE(modeEnvoiFacture);
+            }
             OTTiersPayant.setStrSTATUT(commonparameter.statut_enable);
             OTTiersPayant.setDtCREATED(new Date());
 
@@ -394,8 +407,13 @@ public class tierspayantManagement extends bllBase {
             } catch (Exception e) {
             }
 
-            OTTiersPayant.setIntMONTANTFAC(montantFact);
-            OTTiersPayant.setIntNBREBONS(nbrbons);
+            /*
+             * Enregistrer la fiche sans rien modifier ne reecrit rien : -1 (aucune limite) s'affiche 0 sur la fiche, la
+             * base est conservee tant que la valeur recue a le meme sens (cf. ConservationFicheTiersPayant).
+             */
+            OTTiersPayant.setIntMONTANTFAC(
+                    ConservationFicheTiersPayant.limite(montantFact, OTTiersPayant.getIntMONTANTFAC()));
+            OTTiersPayant.setIntNBREBONS(ConservationFicheTiersPayant.limite(nbrbons, OTTiersPayant.getIntNBREBONS()));
             OTTiersPayant.setStrCODEORGANISME(str_CODE_ORGANISME);
             OTTiersPayant.setStrNAME(str_NAME);
             OTTiersPayant.setStrFULLNAME(str_FULLNAME);
@@ -444,12 +462,23 @@ public class tierspayantManagement extends bllBase {
             OTTiersPayant.setStrCODECOMPTABLE(str_CODE_COMPTABLE);
             OTTiersPayant.setBoolPRENUMFACTSUBROGATOIRE(bool_PRENUM_FACT_SUBROGATOIRE);
             OTTiersPayant.setIntNUMERODECOMPTE(int_NUMERO_DECOMPTE);
-            OTTiersPayant.setStrCODEPAIEMENT(str_CODE_COMPTABLE);
-            OTTiersPayant.setDtDELAIPAIEMENT(dt_DELAI_PAIEMENT);
+            /*
+             * Code paiement : c'etait le code COMPTABLE qui etait pose ici, ce qui ecrasait le code paiement a chaque
+             * enregistrement. Delai vide sur la fiche et absent en base : NULL conserve.
+             */
+            OTTiersPayant.setStrCODEPAIEMENT(
+                    ConservationFicheTiersPayant.texte(str_CODE_PAIEMENT, OTTiersPayant.getStrCODEPAIEMENT()));
+            OTTiersPayant.setDtDELAIPAIEMENT(
+                    ConservationFicheTiersPayant.delai(dt_DELAI_PAIEMENT, OTTiersPayant.getDtDELAIPAIEMENT()));
             OTTiersPayant.setDblPOURCENTAGEREMISE(dbl_POURCENTAGE_REMISE);
             OTTiersPayant.setDblREMISEFORFETAIRE(dbl_REMISE_FORFETAIRE);
-            OTTiersPayant.setStrCODEEDITBORDEREAU(str_CODE_EDIT_BORDEREAU);
             TModelFacture OTModelFacture = this.getModelFacture(str_CODE_EDIT_BORDEREAU);
+            // le code d'edition suit le modele : modele inchange, code inchange
+            OTTiersPayant.setStrCODEEDITBORDEREAU(ConservationFicheTiersPayant.codeBordereau(str_CODE_EDIT_BORDEREAU,
+                    OTTiersPayant.getStrCODEEDITBORDEREAU(),
+                    OTTiersPayant.getLgMODELFACTUREID() != null
+                            ? OTTiersPayant.getLgMODELFACTUREID().getLgMODELFACTUREID() : null,
+                    OTModelFacture != null ? OTModelFacture.getLgMODELFACTUREID() : null));
             if (OTModelFacture != null) {
                 OTTiersPayant.setLgMODELFACTUREID(OTModelFacture);
             }
@@ -466,6 +495,9 @@ public class tierspayantManagement extends bllBase {
             OTTiersPayant.setStrMODETRIFACTURE(normalizeModeTriFacture(str_MODE_TRI_FACTURE));
             if (int_NB_BONS_PAR_PAGE != null) {
                 OTTiersPayant.setIntNBBONSPARPAGE(rest.report.MiseEnPageFacture.bonsParPage(int_NB_BONS_PAR_PAGE));
+            }
+            if (modeEnvoiFacture != null) {
+                OTTiersPayant.setStrMODEENVOIFACTURE(modeEnvoiFacture);
             }
             if (int_TAILLE_POLICE != null) {
                 OTTiersPayant.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(int_TAILLE_POLICE));

@@ -2242,8 +2242,12 @@ public class SalesServiceImpl implements SalesService {
                         "Ce produit n'est plus dans la vente : actualisez l'écran avant de continuer.");
             }
             TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
+            // demande du 15/11 : jamais toute la vente au comptant (vente d'une ligne, derniere ligne a l'assurance)
+            List<TPreenregistrementDetail> lignesVente = emg.createQuery(
+                    "SELECT d FROM TPreenregistrementDetail d WHERE d.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = :v",
+                    TPreenregistrementDetail.class).setParameter("v", tp.getLgPREENREGISTREMENTID()).getResultList();
             String refus = rest.service.vente.LigneComptant.refusCochage(true, tp, detail, comptant,
-                    controleVenteModifiable(tp.getLgPREENREGISTREMENTID()));
+                    controleVenteModifiable(tp.getLgPREENREGISTREMENTID()), lignesVente);
             if (refus != null) {
                 return json.put("success", false).put("msg", refus);
             }

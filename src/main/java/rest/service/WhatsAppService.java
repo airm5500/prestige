@@ -73,4 +73,13 @@ public interface WhatsAppService {
      * Resultat : success, simule, statut (ENVOYE, SIMULE, ECHEC), message.
      */
     JSONObject repondreAvis(String numero, String texte, String userId);
+
+    /**
+     * Demande du 15/11 : envoi d'un document (facture d'un tiers payant en PDF) avec sa legende, par le mode par defaut
+     * (pieces jointes : WhatsApp Web seulement ; simule si le compte est en mode test). Garde dans le fil du numero et
+     * dans le journal des envois avec son origine ; le texte n'est jamais journalise. Resultat : success, simule,
+     * statut (ENVOYE, SIMULE, ECHEC), message.
+     */
+    JSONObject envoyerDocument(String numero, String legende, util.whatsapp.PieceJointe piece, String origine,
+            String userId);
 }

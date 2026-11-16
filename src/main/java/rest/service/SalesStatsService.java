@@ -70,6 +70,14 @@ public interface SalesStatsService {
 
     JSONObject annulations(SalesStatsParams params) throws JSONException;
 
+    /**
+     * Plan du 14/11, point 10 : liste des ventes annulees avec le motif de chaque vente ; motif non vide = seulement
+     * les ventes de ce motif ; triMotif = motifs les plus utilises d'abord.
+     */
+    default JSONObject annulations(SalesStatsParams params, String motif, boolean triMotif) throws JSONException {
+        return annulations(params);
+    }
+
     long countListeAnnulations(SalesStatsParams params);
 
     JSONObject listeVentes(SalesStatsParams params) throws JSONException;

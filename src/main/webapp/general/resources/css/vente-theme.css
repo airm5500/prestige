@@ -3591,3 +3591,37 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pilotage-ardoise .pilotage-liste-kpi .x-form-cb-label {
     white-space: nowrap;
 }
+
+/* Plan du 14/11, point 9 : recherche produit de l'ecran de vente (et de la vente en depot).
+   Une ligne par produit, nom entier ; colonne CIP d'au moins 110 px suivie d'un ecart (un CIP de 13 chiffres ne
+   chevauche plus le nom) ; prix a droite. */
+.vente-recherche-produit .vrp-ligne { display: block; white-space: nowrap; }
+.vente-recherche-produit .vrp-cip { display: inline-block; min-width: 110px; padding-right: 12px; white-space: nowrap; }
+.vente-recherche-produit .vrp-prix { float: right; margin-left: 16px; }
+
+/* Plan du 14/11, point 5 : ecran « Ouverture / clôture de caisse ». Bandeau d'etat ; bouton de cloture en attente de
+   confirmation (second clic) bien visible ; le cote grise garde le masque ExtJS habituel. */
+.caisse-oc-etat { font-size: 14px; padding: 8px 12px; background: #eef4fb; border-left: 4px solid #1a5f9e; border-radius: 4px; }
+.caisse-oc-erreur { color: #c0392b; font-weight: bold; }
+.caisse-oc .x-btn.caisse-oc-confirmer { background: #c0392b !important; border-color: #a93226 !important; }
+.caisse-oc .x-btn.caisse-oc-confirmer .x-btn-inner { color: #fff !important; }
+
+/* Plan du 14/11, point 4 : confirmation dans le bouton (fiche tiers payant) et colonne « Envoi email » des factures */
+.x-btn.bouton-confirmer { background: #c0392b !important; border-color: #a93226 !important; }
+.x-btn.bouton-confirmer .x-btn-inner { color: #fff !important; }
+.fm-btn { display: inline-block; padding: 1px 8px; border-radius: 10px; border: 1px solid #1e3a5f; color: #1e3a5f;
+    background: #eef3f9; cursor: pointer; font-size: 11px; line-height: 16px; white-space: nowrap; }
+.fm-btn:hover { background: #dbe7f5; }
+.fm-btn.fm-confirmer { background: #c0392b; border-color: #a93226; color: #fff; font-weight: bold; }
+.fm-btn.fm-encours { opacity: .6; cursor: progress; }
+.fm-btn.fm-envoyee { background: #e3f4e8; border-color: #1b7f3b; color: #1b7f3b; }
+.fm-btn.fm-echec { background: #fde2e1; border-color: #c62828; color: #c62828; }
+.fm-btn.fm-sans { background: #f4f4f4; border-color: #999; color: #777; cursor: not-allowed; }
+.fm-info { color: #888; font-size: 11px; }
+/* demande du 15/11 : envoi des factures par WhatsApp */
+.fm-btn.fm-whatsapp { background: #e7f8ee; border-color: #128c4a; color: #0b6b37; }
+.fm-btn.fm-simulee { background: #fff6dd; border-color: #b7791f; color: #8a5a12; }
+/* Retour du 15/11 : barre de pagination des listes (Ext.ux.ProgressBarPager) agrandie et centree */
+.prestige-pager-barre.x-progress { height: 24px !important; border-radius: 4px; }
+.prestige-pager-barre .x-progress-bar, .prestige-pager-barre .x-progress-text { height: 22px !important; line-height: 22px !important; }
+.prestige-pager-barre .x-progress-text { font-size: 13px !important; font-weight: 600; text-align: center; }

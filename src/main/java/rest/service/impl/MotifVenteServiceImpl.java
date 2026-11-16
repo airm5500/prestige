@@ -172,9 +172,18 @@ public class MotifVenteServiceImpl implements MotifVenteService {
     static final class Ligne {
         final String type, motif, auteurId, auteur, operateur, ref, commentaire, date;
         final int montant;
+        /* plan du 14/11, point 10 : caissier(e) de la vente d'origine */
+        final String caissierId, caissier;
 
         Ligne(String type, String motif, String auteurId, String auteur, String operateur, String ref,
                 String commentaire, String date, int montant) {
+            this(type, motif, auteurId, auteur, operateur, ref, commentaire, date, montant, "", INCONNU);
+        }
+
+        Ligne(String type, String motif, String auteurId, String auteur, String operateur, String ref,
+                String commentaire, String date, int montant, String caissierId, String caissier) {
+            this.caissierId = caissierId == null ? "" : caissierId;
+            this.caissier = caissier == null || caissier.trim().isEmpty() ? INCONNU : caissier;
             this.type = type;
             this.motif = motif;
             this.auteurId = auteurId;
@@ -187,19 +196,37 @@ public class MotifVenteServiceImpl implements MotifVenteService {
         }
     }
 
-    /** Agregation : par motif, par auteur de la vente d'origine (le plus d'operations d'abord), totaux. */
+    static final String INCONNU = "Inconnu";
+
+    /** Ordre d'un bloc : le plus d'operations d'abord, a egalite par libelle (ordre stable d'un appel a l'autre). */
+    private static java.util.Comparator<Map.Entry<String, int[]>> ordre(Map<String, String> libelles) {
+        return (x, y) -> {
+            int c = (y.getValue()[0] + y.getValue()[1]) - (x.getValue()[0] + x.getValue()[1]);
+            return c != 0 ? c : String.valueOf(libelles.getOrDefault(x.getKey(), x.getKey()))
+                    .compareTo(String.valueOf(libelles.getOrDefault(y.getKey(), y.getKey())));
+        };
+    }
+
+    /**
+     * Agregation : par motif, par auteur de la vente d'origine, par caissier(e) de la vente d'origine (le plus
+     * d'operations d'abord), totaux.
+     */
     static JSONObject agreger(List<Ligne> lignes) {
         Map<String, int[]> parMotif = new LinkedHashMap<>();
         Map<String, int[]> parAuteur = new LinkedHashMap<>();
+        Map<String, int[]> parCaissier = new LinkedHashMap<>();
         Map<String, String> noms = new LinkedHashMap<>();
+        Map<String, String> caissiers = new LinkedHashMap<>();
         int annulations = 0, modifications = 0, montant = 0;
         JSONArray detail = new JSONArray();
         for (Ligne l : lignes) {
             boolean annulation = ANNULATION.equals(l.type);
             int[] m = parMotif.computeIfAbsent(l.motif, k -> new int[3]);
             int[] a = parAuteur.computeIfAbsent(l.auteurId, k -> new int[3]);
+            int[] c = parCaissier.computeIfAbsent(l.caissierId, k -> new int[3]);
             noms.put(l.auteurId, l.auteur);
-            for (int[] t : new int[][] { m, a }) {
+            caissiers.put(l.caissierId, l.caissier);
+            for (int[] t : new int[][] { m, a, c }) {
                 t[annulation ? 0 : 1]++;
                 t[2] += l.montant;
             }
@@ -209,25 +236,97 @@ public class MotifVenteServiceImpl implements MotifVenteService {
             detail.put(new JSONObject().put("date", l.date).put("type", annulation ? "Annulation" : "Modification")
                     .put("ref", l.ref).put("montant", l.montant).put("motif", l.motif)
                     .put("commentaire", l.commentaire == null ? "" : l.commentaire).put("auteur", l.auteur)
-                    .put("operateur", l.operateur));
+                    .put("operateur", l.operateur).put("caissier", l.caissier));
         }
         JSONArray motifs = new JSONArray();
-        parMotif.entrySet().stream()
-                .sorted((x, y) -> (y.getValue()[0] + y.getValue()[1]) - (x.getValue()[0] + x.getValue()[1]))
+        parMotif.entrySet().stream().sorted(ordre(java.util.Collections.emptyMap()))
                 .forEach(e -> motifs.put(new JSONObject().put("motif", e.getKey()).put("annulations", e.getValue()[0])
                         .put("modifications", e.getValue()[1]).put("nb", e.getValue()[0] + e.getValue()[1])
                         .put("montant", e.getValue()[2])));
         JSONArray auteurs = new JSONArray();
-        parAuteur.entrySet().stream()
-                .sorted((x, y) -> (y.getValue()[0] + y.getValue()[1]) - (x.getValue()[0] + x.getValue()[1]))
-                .forEach(e -> auteurs
-                        .put(new JSONObject().put("auteurId", e.getKey()).put("auteur", noms.get(e.getKey()))
+        parAuteur.entrySet().stream().sorted(ordre(noms)).forEach(
+                e -> auteurs.put(new JSONObject().put("auteurId", e.getKey()).put("auteur", noms.get(e.getKey()))
+                        .put("annulations", e.getValue()[0]).put("modifications", e.getValue()[1])
+                        .put("nb", e.getValue()[0] + e.getValue()[1]).put("montant", e.getValue()[2])));
+        JSONArray caisse = new JSONArray();
+        parCaissier.entrySet().stream().sorted(ordre(caissiers))
+                .forEach(e -> caisse
+                        .put(new JSONObject().put("caissierId", e.getKey()).put("caissier", caissiers.get(e.getKey()))
                                 .put("annulations", e.getValue()[0]).put("modifications", e.getValue()[1])
                                 .put("nb", e.getValue()[0] + e.getValue()[1]).put("montant", e.getValue()[2])));
         return new JSONObject().put("success", true).put("parMotif", motifs).put("parAuteur", auteurs)
-                .put("detail", detail)
+                .put("parCaissier", caisse).put("detail", detail)
                 .put("total", new JSONObject().put("annulations", annulations).put("modifications", modifications)
                         .put("nb", annulations + modifications).put("montant", montant));
+    }
+
+    /**
+     * Retour du 15/11 : « quelle caissiere occasionne le plus d'annulations ». Classement des caissieres (celle qui a
+     * encaisse la vente d'origine) par nombre d'annulations, rapporte aux ventes qu'elles ont encaissees sur la periode
+     * (meme definition que l'Activite des equipes : ventes cloturees au comptant et a credit, hors ventes remplacees
+     * par une modification).
+     * <ul>
+     * <li>une ligne par caissiere ayant au moins une annulation ; les modifications ne comptent pas ;</li>
+     * <li>taux = annulations / ventes encaissees, au dixieme ; absent (null) sans vente encaissee ;</li>
+     * <li>ordre : annulations, puis taux, puis montant annule (decroissants), puis nom ; rang partage a egalite
+     * d'annulations (1, 2, 2, 4).</li>
+     * </ul>
+     */
+    static JSONArray classementAnnulations(List<Ligne> lignes, Map<String, Long> ventes) {
+        Map<String, long[]> parCaissier = new LinkedHashMap<>();
+        Map<String, String> noms = new LinkedHashMap<>();
+        for (Ligne l : lignes) {
+            if (!ANNULATION.equals(l.type)) {
+                continue;
+            }
+            long[] c = parCaissier.computeIfAbsent(l.caissierId, k -> new long[2]);
+            c[0]++;
+            c[1] += l.montant;
+            noms.put(l.caissierId, l.caissier);
+        }
+        List<JSONObject> l = new ArrayList<>();
+        parCaissier.forEach((id, c) -> {
+            long v = ventes == null || id.isEmpty() ? 0 : Math.max(0, ventes.getOrDefault(id, 0L));
+            JSONObject o = new JSONObject().put("caissierId", id).put("caissier", noms.get(id)).put("annulations", c[0])
+                    .put("montant", c[1]).put("ventes", v);
+            if (v > 0) {
+                o.put("taux", Math.round(1000.0 * c[0] / v) / 10.0);
+            }
+            l.add(o);
+        });
+        l.sort((x, y) -> {
+            int r = Long.compare(y.getLong("annulations"), x.getLong("annulations"));
+            if (r == 0) {
+                r = Double.compare(y.optDouble("taux", -1), x.optDouble("taux", -1));
+            }
+            if (r == 0) {
+                r = Long.compare(y.getLong("montant"), x.getLong("montant"));
+            }
+            return r != 0 ? r : x.getString("caissier").compareTo(y.getString("caissier"));
+        });
+        JSONArray t = new JSONArray();
+        for (int i = 0; i < l.size(); i++) {
+            JSONObject o = l.get(i);
+            boolean exAequo = i > 0 && l.get(i - 1).getLong("annulations") == o.getLong("annulations");
+            o.put("rang", exAequo ? t.getJSONObject(i - 1).getInt("rang") : i + 1);
+            t.put(o);
+        }
+        return t;
+    }
+
+    /** Ventes encaissees par caissiere sur [debut, fin] (denominateur du taux, comme l'Activite des equipes). */
+    private Map<String, Long> ventesEncaissees(LocalDate debut, LocalDate fin) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT p.lg_USER_CAISSIER_ID, COUNT(*) FROM t_preenregistrement p"
+                + " WHERE p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID IN ('1', '2', '3')"
+                + " AND COALESCE(p.completion_date, p.dt_UPDATED) >= ?1 AND COALESCE(p.completion_date, p.dt_UPDATED) < ?2"
+                + " AND p.lg_USER_CAISSIER_ID IS NOT NULL AND NOT EXISTS (SELECT 1 FROM vente_modifiee vm"
+                + " WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID) GROUP BY p.lg_USER_CAISSIER_ID")
+                .setParameter(1, java.sql.Date.valueOf(debut)).setParameter(2, java.sql.Date.valueOf(fin.plusDays(1)))
+                .getResultList();
+        Map<String, Long> m = new LinkedHashMap<>();
+        l.forEach(x -> m.put(String.valueOf(x[0]), ((Number) x[1]).longValue()));
+        return m;
     }
 
     @Override
@@ -238,8 +337,10 @@ public class MotifVenteServiceImpl implements MotifVenteService {
         List<Object[]> l = em.createNativeQuery("SELECT m.type_operation, m.motif_libelle, COALESCE(m.vendeur_id, ''),"
                 + " COALESCE(CONCAT_WS(' ', a.str_FIRST_NAME, a.str_LAST_NAME), 'Inconnu'),"
                 + " COALESCE(CONCAT_WS(' ', o.str_FIRST_NAME, o.str_LAST_NAME), ''), COALESCE(m.vente_ref, ''),"
-                + " m.commentaire, DATE_FORMAT(m.created_at, '%d/%m/%Y %H:%i'), m.montant"
+                + " m.commentaire, DATE_FORMAT(m.created_at, '%d/%m/%Y %H:%i'), m.montant, COALESCE(m.caissier_id, ''),"
+                + " COALESCE(CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), '')"
                 + " FROM vente_motif m LEFT JOIN t_user a ON a.lg_USER_ID = m.vendeur_id"
+                + " LEFT JOIN t_user c ON c.lg_USER_ID = m.caissier_id"
                 + " LEFT JOIN t_user o ON o.lg_USER_ID = m.operateur_id"
                 + " WHERE m.statut = 'VALIDEE' AND m.created_at >= ?1 AND m.created_at < ?2"
                 + " AND (?3 = '' OR m.type_operation = ?3) AND (?4 = '' OR m.vendeur_id = ?4) ORDER BY m.created_at DESC")
@@ -247,9 +348,16 @@ public class MotifVenteServiceImpl implements MotifVenteService {
                 .setParameter(3, t).setParameter(4, StringUtils.defaultString(StringUtils.trimToNull(vendeurId)))
                 .getResultList();
         List<Ligne> lignes = new ArrayList<>();
-        l.forEach(x -> lignes.add(new Ligne((String) x[0], (String) x[1], (String) x[2], (String) x[3], (String) x[4],
-                (String) x[5], (String) x[6], (String) x[7], ((Number) x[8]).intValue())));
-        return agreger(lignes).put("dtStart", debut.toString()).put("dtEnd", fin.toString());
+        l.forEach(x -> lignes
+                .add(new Ligne((String) x[0], (String) x[1], (String) x[2], (String) x[3], (String) x[4], (String) x[5],
+                        (String) x[6], (String) x[7], ((Number) x[8]).intValue(), (String) x[9], (String) x[10])));
+        JSONObject o = agreger(lignes).put("dtStart", debut.toString()).put("dtEnd", fin.toString());
+        if (lignes.stream().anyMatch(x -> ANNULATION.equals(x.type))) {
+            o.put("classementAnnulations", classementAnnulations(lignes, ventesEncaissees(debut, fin)));
+        } else {
+            o.put("classementAnnulations", new JSONArray());
+        }
+        return o;
     }
 
     private static LocalDate date(String s, LocalDate defaut) {

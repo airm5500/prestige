@@ -611,11 +611,31 @@ onCreateInventaireClick: function () {
 }
 ,
 
+    /*
+     * Retour du 15/11 : « Saisir des produits » s'ouvre dans une fenetre modale AU-DESSUS de la liste (il la
+     * remplacait). Fermer la fenetre (RETOUR, Echap, croix) recharge la liste.
+     */
     onAddCreate: function () {
-        var xtype = "addPerimer";
-        var alias = 'widget.' + xtype;
-        //A DECOMMENTER EN CAS DE PROBLEME
-        testextjs.app.getController('App').onLoadNewComponent(xtype, "Ajout de produits perimes", "0");
+        var me = this, vue = Ext.getBody().getViewSize();
+        var fenetre = Ext.create('Ext.window.Window', {
+            title: 'Saisie de produits p&eacute;rim&eacute;s',
+            itemId: 'fenetreSaisiePerimes',
+            modal: true,
+            closable: true,
+            closeAction: 'destroy',
+            width: Math.min(1200, vue.width - 30),
+            height: vue.height - 30,
+            layout: 'fit',
+            items: [{xtype: 'addPerimer', dansFenetre: true, titre: 'Saisie de produits périmés', nameintern: '0'}],
+            listeners: {
+                close: function () {
+                    if (!me.isDestroyed) {
+                        me.getStore().load();
+                    }
+                }
+            }
+        });
+        fenetre.show();
 
 
     },

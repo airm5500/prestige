@@ -974,6 +974,9 @@ public class VenteDetailsDTO implements Serializable {
         this.intPRICE = warehouse.getIntNUMBER() * famille.getIntPRICE();
         this.dateHeure = dateFormatHeure.format(warehouse.getDtCREATED());
         this.intPRICEUNITAIR = famille.getIntPRICE();
+        /* retour du 15/11 : prix d'achat et valeur d'achat de la ligne (edition valorisee des perimes) */
+        this.prixAchat = famille.getIntPAF() == null ? 0 : famille.getIntPAF();
+        this.montantAchat = (long) warehouse.getIntNUMBER() * this.prixAchat;
         this.ticketNum = warehouse.getIntNUMLOT();
         TGrossiste g = famille.getLgGROSSISTEID();
         if (g != null) {
@@ -995,7 +998,10 @@ public class VenteDetailsDTO implements Serializable {
                 this.lgPREENREGISTREMENTID = this.libelleGrossiste;
             }
         }
-        this.prixAchat = famille.getIntPAF();
+        /*
+         * retour du 15/11 : prixAchat est pose plus haut, sans erreur si le prix d'achat est vide (avant : erreur ici,
+         * et la liste des perimes revenait vide entiere)
+         */
     }
 
     public String getCodeTableau() {

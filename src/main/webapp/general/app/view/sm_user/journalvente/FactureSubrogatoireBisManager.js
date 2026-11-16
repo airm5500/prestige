@@ -235,6 +235,12 @@ requires: [
                             queryMode: 'remote',
                             enableKeyEvents: true,
                             emptyText: 'Selectionner tiers payant...',
+                            /* plan du 14/11, point 3 : croix de vidage, la recherche repart sans ce filtre */
+                            trigger2Cls: Ext.baseCSSPrefix + 'form-clear-trigger',
+                            onTrigger2Click: function () {
+                                this.clearValue();
+                                this.fireEvent('vide', this);
+                            },
                             listConfig: {
                                 loadingText: 'Recherche...',
                                 emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',
@@ -254,7 +260,12 @@ requires: [
                             queryMode: 'remote',
                             editable: false,
                             emptyText: 'Type de tiers payant...',
-                            triggerAction: 'all'
+                            triggerAction: 'all',
+                            trigger2Cls: Ext.baseCSSPrefix + 'form-clear-trigger',
+                            onTrigger2Click: function () {
+                                this.clearValue();
+                                this.fireEvent('vide', this);
+                            }
                         }, '-', {
                             /* Lot 3 : filtre par groupe de tiers payant */
                             xtype: 'combobox',
@@ -266,7 +277,12 @@ requires: [
                             queryMode: 'remote',
                             editable: false,
                             emptyText: 'Groupe de tiers payant...',
-                            triggerAction: 'all'
+                            triggerAction: 'all',
+                            trigger2Cls: Ext.baseCSSPrefix + 'form-clear-trigger',
+                            onTrigger2Click: function () {
+                                this.clearValue();
+                                this.fireEvent('vide', this);
+                            }
                         }, '-', {
                             text: 'rechercher',
                             itemId: 'rechercher',
@@ -492,9 +508,26 @@ requires: [
     },
 
 /* fonction appel ecran modification */
- onDetailClick: function (grid, rowIndex) {
-        const rec = grid.getStore().getAt(rowIndex);
-        Ext.create('testextjs.view.vente.user.UpdateVenteClientTpForm', {venteId: rec.get('lg_PREENREGISTREMENT_ID')}).show();
+    /* Journal de capitale du 15/11 (n° 27, « rec is undefined ») : dans la grille regroupee par organisme, la position
+       de la ligne affichee n'est pas celle du store des qu'un groupe est replie (l'enregistrement passe par la colonne
+       d'action et getRecord(ligne) lisent aussi par position). On prend l'enregistrement par l'identifiant que porte la
+       ligne cliquee (data-recordid). */
+ onDetailClick: function (grid, rowIndex, colIndex, item, e, record, row) {
+        const ligne = (e && e.getTarget && grid.itemSelector ? e.getTarget(grid.itemSelector) : null) || row;
+        const id = ligne && ligne.getAttribute ? ligne.getAttribute('data-recordid') : null;
+        const store = grid.getStore();
+        const parId = id ? (store.getByInternalId ? store.getByInternalId(id) : store.data.findBy(function (r) {
+            return r.internalId === id;
+        })) : null;
+        const rec = parId || (id ? null : record || store.getAt(rowIndex));
+        if (!rec) {
+            return;
+        }
+        // Plan du 14/11, point 3 : apres la modification, on reste sur la liste, avec ses filtres et sa page
+        Ext.create('testextjs.view.vente.user.UpdateVenteClientTpForm', {venteId: rec.get('lg_PREENREGISTREMENT_ID'),
+            onSaved: function () {
+                testextjs.app.getController('FactureSubrogatoireCtr').rechargerPage();
+            }}).show();
         
     }
 

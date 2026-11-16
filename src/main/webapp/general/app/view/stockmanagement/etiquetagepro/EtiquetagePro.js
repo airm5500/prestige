@@ -113,7 +113,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                        le clic (le libelle dit deja tout) */
                     {text: 'Retour à commande en cours', itemId: 'retourCommande', cls: 'btn-primary', iconCls: 'retour',
                         handler: function () {
-                            testextjs.app.getController('App').onLoadNewComponent('i_order_manager', 'Commande en cours', '');
+                            me.revenir();
                         }}]}
         ];
         if (!Ext.get('etqp-styles')) {
@@ -249,6 +249,34 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
         });
         me.down('#outilImpression').addCls('etqp-btn-vert');
         me.down('#barreRetour').show();
+    },
+
+    /**
+     * Retour du 15/11 : ouvert depuis une autre page (ancien bouton d'impression : panier, ligne d'etiquette...) ; le
+     * bouton en bas a droite ramene a cette page, et l'impression du PDF y ramene d'elle-meme (ImpressionPrestige).
+     */
+    modeRetour: function (retour) {
+        var me = this;
+        me.retour = retour;
+        me.down('#retourCommande').setText('Retour à ' + (retour.titre || 'la page précédente'));
+        me.down('#barreRetour').show();
+    },
+
+    /** Page d'origine : celle de modeRetour, sinon « Commande en cours » (apres une entree en stock). */
+    revenir: function () {
+        var r = this.retour, app = testextjs.app.getController('App');
+        if (!r) {
+            app.onLoadNewComponent('i_order_manager', 'Commande en cours', '');
+        } else if (r.odatasource !== undefined && r.odatasource !== null && r.odatasource !== '') {
+            app.onLoadNewComponentWithDataSource(r.xtype, r.titre, r.nameintern, r.odatasource);
+        } else {
+            app.onLoadNewComponent(r.xtype, r.titre, r.nameintern);
+        }
+    },
+
+    /** Apres un PDF : retour a la page d'origine s'il y en a une (ouvert par un ancien bouton ou apres une entree). */
+    aUnePageDOrigine: function () {
+        return !!this.retour || this.down('#barreRetour').isVisible();
     },
 
     /** Onglets Personnalisation (4) et Lire une etiquette (5) : hors de l'assistant, ils ne perdent rien de l'assistant. */

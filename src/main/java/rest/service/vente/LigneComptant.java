@@ -32,6 +32,11 @@ public final class LigneComptant {
     public static final String MSG_PROMOTION = "Cette ligne est en promotion : une ligne au comptant d'une vente assurance "
             + "ne porte pas de promotion.";
 
+    public static final String MSG_UNE_LIGNE = "Vente d'un seul produit : elle ne se coche pas au comptant. "
+            + "Passez la vente au comptant.";
+    public static final String MSG_TOUTES = "Toutes les lignes seraient au comptant : passez la vente au comptant, "
+            + "ou laissez au moins une ligne à l'assurance.";
+
     private LigneComptant() {
     }
 
@@ -76,6 +81,25 @@ public final class LigneComptant {
             return MSG_PROMOTION;
         }
         return null;
+    }
+
+    /**
+     * Demande du 15/11 : meme refus, plus la protection de la vente entiere : une vente d'une seule ligne ne se coche
+     * pas, et la derniere ligne restee a l'assurance non plus. Decocher reste toujours possible.
+     */
+    public static String refusCochage(boolean actif, TPreenregistrement tp, TPreenregistrementDetail d, boolean cocher,
+            String motifEtat, Collection<TPreenregistrementDetail> lignesDeLaVente) {
+        String refus = refusCochage(actif, tp, d, cocher, motifEtat);
+        if (refus != null || !cocher || lignesDeLaVente == null) {
+            return refus;
+        }
+        if (lignesDeLaVente.size() <= 1) {
+            return MSG_UNE_LIGNE;
+        }
+        String id = d == null ? null : d.getLgPREENREGISTREMENTDETAILID();
+        boolean resteAssurance = lignesDeLaVente.stream().anyMatch(
+                l -> l != d && (id == null || !id.equals(l.getLgPREENREGISTREMENTDETAILID())) && !l.isComptant());
+        return resteAssurance ? null : MSG_TOUTES;
     }
 
     public static boolean aDesLignesComptant(Collection<TPreenregistrementDetail> lignes) {

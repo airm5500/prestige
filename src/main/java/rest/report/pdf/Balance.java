@@ -1017,7 +1017,11 @@ public class Balance {
         } catch (Exception e) {
         }
 
-        String scr_report_file = "rp_perimev2";
+        /*
+         * retour du 15/11 : prix d'achat, prix de vente et valorisation a la derniere page, liste ou par groupe (un
+         * seul modele, nouveau nom : les modeles anciens de REPORTS restent pour les versions precedentes)
+         */
+        String scr_report_file = "rp_perimes_valorises";
         Map<String, Object> parameters = reportUtil.officineData(tu);
         String P_PERIODE = "PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         if (!dtEn.isEqual(dtSt)) {
@@ -1028,16 +1032,22 @@ public class Balance {
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         List<VenteDetailsDTO> data = ficheArticleService.saisiePerimes(query, dtStart, dtEnd, codeFamile, codeRayon,
                 codeGrossiste, grouby, 0, 0, true);
+        parameters.put("P_GROUPE", grouby != null);
+        parameters.put("P_LIBELLE_GROUPE",
+                grouby == null ? "" : grouby == 0 ? "Famille" : grouby == 1 ? "Rayon" : "Répartiteur");
         if (grouby != null) {
-            scr_report_file = "rp_perimegroup";
             if (grouby.compareTo(0) == 0) {
-                data.sort(Comparator.comparing(VenteDetailsDTO::getLibelleFamille)
+                data.sort(Comparator
+                        .comparing(VenteDetailsDTO::getLibelleFamille, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(VenteDetailsDTO::getDateOperation, Comparator.reverseOrder()));
             } else if (grouby.compareTo(1) == 0) {
-                data.sort(Comparator.comparing(VenteDetailsDTO::getLibelleRayon)
+                data.sort(Comparator
+                        .comparing(VenteDetailsDTO::getLibelleRayon, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(VenteDetailsDTO::getDateOperation, Comparator.reverseOrder()));
             } else if (grouby.compareTo(2) == 0) {
-                data.sort(Comparator.comparing(VenteDetailsDTO::getLibelleGrossiste)
+                data.sort(Comparator
+                        .comparing(VenteDetailsDTO::getLibelleGrossiste,
+                                Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(VenteDetailsDTO::getDateOperation, Comparator.reverseOrder()));
             }
         }

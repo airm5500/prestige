@@ -2687,8 +2687,12 @@ Ext.define('testextjs.controller.VenteCtr', {
             if (!me.getTicketCaisse()) {
                 me.onPrintTicket(param, typeVenteCombo);
                 me.resetAll(montantRemis);
-                me.getVnoproduitCombo().focus(false, 100, function () {
-                });
+                if (me.retourApres) {
+                    me.retourApresCloture();
+                } else {
+                    me.getVnoproduitCombo().focus(false, 100, function () {
+                    });
+                }
                 return;
             }
             Ext.MessageBox.show({
@@ -2700,8 +2704,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.onPrintTicket(param, typeVenteCombo);
                     }
                     me.resetAll(montantRemis);
-                    me.getVnoproduitCombo().focus(false, 100, function () {
-                    });
+                    if (me.retourApres) {
+                        me.retourApresCloture();
+                    } else {
+                        me.getVnoproduitCombo().focus(false, 100, function () {
+                        });
+                    }
                 },
                 icon: Ext.MessageBox.QUESTION
             });
@@ -4416,7 +4424,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const copieId = me.current && me.current.lgPREENREGISTREMENTID;
                 const ouvrirListe = function () {
                     me.resetAll();
-                    testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                    me.versListeApresModification();
                 };
                 me.libererRappelVente();
                 if (!copieId) {
@@ -4444,12 +4452,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.resetAll();
                     /* demande du 29/10 : retour a « Ventes terminées » avec les criteres de recherche d'avant (et non
                      * aux ventes en attente) */
-                    testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                    me.versListeApresModification();
                 }
             });
             return;
         }
         me.resetAll();
+        /* demande du 15/11 : ecran de vente ouvert en fenetre depuis le pointage -> on ferme la fenetre */
+        if (me.retourApres && me.retourApres.fenetreCmp) {
+            me.versListeApresModification();
+            return;
+        }
         let xtype = 'cloturerventemanager';
         if (me.getCategorie() === 'PREVENTE') {
             xtype = 'preenregistrementmanager';
@@ -4669,6 +4682,31 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.appliquerLibellesTiersPayant(typeVente);
 
     },
+    /* Apres une modification (abandonnee, refusee, sans changement) : l'ecran qui l'a lancee (demande du 15/11 :
+     * pointage des bons), sinon « Ventes terminées » avec les criteres d'avant. */
+    versListeApresModification: function () {
+        const r = this.retourApres;
+        this.retourApres = null;
+        /* demande du 15/11 : modification en fenetre au-dessus du pointage : la fenetre se ferme, le pointage reste */
+        if (r && r.fenetreCmp) {
+            if (!r.fenetreCmp.destroyed && !r.fenetreCmp.isDestroyed) {
+                r.fenetreCmp.fermeParCode = true;
+                r.fenetreCmp.close();
+            }
+            return;
+        }
+        if (r && r.xtype) {
+            testextjs.app.getController('App').onRedirectTo(r.xtype, r.data || {});
+            return;
+        }
+        testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+    },
+    /* Cloture reussie d'une vente modifiee depuis le pointage : retour au pointage (sinon, comme avant, nouvelle vente) */
+    retourApresCloture: function () {
+        if (this.retourApres) {
+            this.versListeApresModification();
+        }
+    },
     chargerCopieDeVenteAmodifier: function (venteId) {
         const me = this;
         Ext.Ajax.request({
@@ -4687,7 +4725,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
                         fn: function () {
                             me.resetAll();
-                            testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                            me.versListeApresModification();
                         }});
                 }
 
@@ -4699,6 +4737,8 @@ Ext.define('testextjs.controller.VenteCtr', {
     goToVenteView: function () {
         const me = this, view = me.getDoventemanager(), contenu = me.getContenu();
         const data = view.getData();
+        /* demande du 15/11 : modification lancee depuis le pointage des bons -> retour au pointage ensuite */
+        me.retourApres = data && data.isEdit && data.categorie === 'COPY' && data.retour ? data.retour : null;
         if (data) {
             const isEdit = data.isEdit;
             me.categorie = data.categorie;
@@ -4819,6 +4859,14 @@ Ext.define('testextjs.controller.VenteCtr', {
 
         });
     },
+    /* demande du 15/11 : la vente modifiee en fenetre depuis le pointage peut etre fermee avant le retour de
+       l'impression : plus de champ produit, rien a focaliser */
+    focusProduitSiPresent: function () {
+        const combo = this.getVnoproduitCombo();
+        if (combo && !combo.destroyed && !combo.isDestroyed) {
+            combo.focus(true, 100);
+        }
+    },
     onPrintTicket: function (params, typeVenteCombo) {
         const me = this;
         let url = (typeVenteCombo === '1' ? '../api/v1/vente/ticket/vno' : '../api/v1/vente/ticket/vo');
@@ -4840,12 +4888,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         icon: Ext.MessageBox.ERROR
                     });
                 }
-                me.getVnoproduitCombo()
-                        .focus(true, 100);
+                me.focusProduitSiPresent();
             },
             failure: function (response, options) {
-                me.getVnoproduitCombo()
-                        .focus(true, 100);
+                me.focusProduitSiPresent();
             }
 
         });
@@ -7338,8 +7384,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (!me.getTicketCaisse()) {
                     me.onPrintTicket(param, typeVenteCombo);
                     me.resetAll(montantRemis);
-                    me.getVnoproduitCombo().focus(false, 100, function () {
-                    });
+                    if (me.retourApres) {
+                        me.retourApresCloture();
+                    } else {
+                        me.getVnoproduitCombo().focus(false, 100, function () {
+                        });
+                    }
                     return;
                 }
                 Ext.MessageBox.show({
@@ -7351,8 +7401,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                             me.onPrintTicket(param, typeVenteCombo);
                         }
                         me.resetAll(montantRemis);
-                        me.getVnoproduitCombo().focus(false, 100, function () {
-                        });
+                        if (me.retourApres) {
+                            me.retourApresCloture();
+                        } else {
+                            me.getVnoproduitCombo().focus(false, 100, function () {
+                            });
+                        }
                     },
                     icon: Ext.MessageBox.QUESTION
                 });
@@ -9018,6 +9072,22 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (checked && record && record.get('promotion')) {
             me.toastVente('Ligne en promotion : une ligne au comptant d\'une vente assurance ne porte pas de promotion.');
             return false;
+        }
+        /* demande du 15/11 : jamais toute la vente au comptant (le serveur refuse aussi) */
+        if (checked && record) {
+            const grid = me.getVnogrid && me.getVnogrid();
+            const lignes = grid ? grid.getStore().getRange() : [];
+            if (lignes.length <= 1) {
+                me.toastVente('Vente d\'un seul produit : elle ne se coche pas au comptant. Passez la vente au comptant.');
+                return false;
+            }
+            const resteAssurance = lignes.some(function (r) {
+                return r !== record && !r.get('comptant');
+            });
+            if (!resteAssurance) {
+                me.toastVente('Toutes les lignes seraient au comptant : passez la vente au comptant, ou laissez au moins une ligne à l\'assurance.');
+                return false;
+            }
         }
         return true;
     },

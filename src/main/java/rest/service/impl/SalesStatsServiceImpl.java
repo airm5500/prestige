@@ -345,6 +345,106 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return json;
     }
 
+    /** Libelle du motif d'annulation de chaque vente (ventes sans motif absentes). */
+    Map<String, String> motifsAnnulation(Collection<String> ventes) {
+        Map<String, String> m = new HashMap<>();
+        List<String> l = new ArrayList<>(ventes);
+        for (int i = 0; i < l.size(); i += 500) {
+            @SuppressWarnings("unchecked")
+            List<Object[]> r = getEntityManager().createNativeQuery("SELECT vente_id, motif_libelle FROM vente_motif"
+                    + " WHERE type_operation = 'ANNULATION' AND statut = 'VALIDEE' AND vente_id IN ?1 ORDER BY created_at")
+                    .setParameter(1, l.subList(i, Math.min(l.size(), i + 500))).getResultList();
+            r.forEach(x -> m.put((String) x[0], (String) x[1]));
+        }
+        return m;
+    }
+
+    /**
+     * Plan du 14/11, point 10 : ventes gardees (motif donne : seulement celles de ce motif) et ordre (tri : le motif le
+     * plus utilise d'abord, a egalite par libelle, sans motif en dernier ; l'ordre d'origine est garde a l'interieur
+     * d'un motif). Aucune vente perdue ni doublee.
+     */
+    static List<String> ordonnerParMotif(List<String> ventes, Map<String, String> motifs, String motif, boolean tri) {
+        List<String> l = ventes.stream().distinct()
+                .filter(v -> StringUtils.isBlank(motif) || motif.equals(motifs.get(v))).collect(Collectors.toList());
+        if (!tri) {
+            return l;
+        }
+        Map<String, Long> usage = l.stream().filter(motifs::containsKey)
+                .collect(Collectors.groupingBy(motifs::get, Collectors.counting()));
+        Comparator<String> c = Comparator.comparing((String v) -> motifs.containsKey(v) ? 0 : 1)
+                .thenComparing(v -> -usage.getOrDefault(motifs.get(v), 0L))
+                .thenComparing(v -> StringUtils.defaultString(motifs.get(v)));
+        List<String> r = new ArrayList<>(l);
+        r.sort(c);
+        return r;
+    }
+
+    @Override
+    public JSONObject annulations(SalesStatsParams params, String motif, boolean triMotif) throws JSONException {
+        if (StringUtils.isBlank(motif) && !triMotif) {
+            JSONObject json = annulations(params);
+            JSONArray data = json.optJSONArray("data");
+            if (data != null && data.length() > 0) {
+                List<String> ids = new ArrayList<>();
+                for (int i = 0; i < data.length(); i++) {
+                    ids.add(data.getJSONObject(i).optString("lgPREENREGISTREMENTID"));
+                }
+                Map<String, String> m = motifsAnnulation(ids);
+                for (int i = 0; i < data.length(); i++) {
+                    JSONObject v = data.getJSONObject(i);
+                    v.put("motif", StringUtils.defaultString(m.get(v.optString("lgPREENREGISTREMENTID"))));
+                }
+            }
+            return json;
+        }
+        JSONObject json = new JSONObject();
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
+            Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
+            Join<TPreenregistrementDetail, TPreenregistrement> st = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
+            cq.select(root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID)).distinct(true)
+                    .orderBy(cb.asc(st.get(TPreenregistrement_.dtUPDATED)));
+            cq.where(cb.and(predicatesVentesAnnulees(params, cb, root, st).toArray(Predicate[]::new)));
+            @SuppressWarnings("unchecked")
+            List<TPreenregistrement> toutes = getEntityManager().createQuery(cq).getResultList();
+            List<String> ids = toutes.stream().map(TPreenregistrement::getLgPREENREGISTREMENTID)
+                    .collect(Collectors.toList());
+            Map<String, String> m = motifsAnnulation(ids);
+            List<String> gardees = ordonnerParMotif(ids, m, StringUtils.trimToNull(motif), triMotif);
+            int debut = Math.min(Math.max(0, params.getStart()), gardees.size());
+            int fin = params.isAll() || params.getLimit() <= 0 ? gardees.size()
+                    : Math.min(gardees.size(), debut + params.getLimit());
+            JSONArray data = new JSONArray();
+            for (String id : gardees.subList(debut, fin)) {
+                JSONObject v = new JSONObject(new VenteDTO(findById(id), findByParent(id)));
+                data.put(v.put("motif", StringUtils.defaultString(m.get(id))));
+            }
+            json.put("total", gardees.size()).put("data", data).put("metaData", StringUtils.isBlank(motif)
+                    ? montantVenteAnnulees(params) : montantAnnuleesEspeces(params, new HashSet<>(gardees)));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return json;
+    }
+
+    /** Montant en especes rendu pour les ventes annulees donnees (meme regle que montantVenteAnnulees). */
+    private long montantAnnuleesEspeces(SalesStatsParams params, Set<String> ventes) {
+        if (ventes.isEmpty()) {
+            return 0;
+        }
+        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        CriteriaQuery<Long> cm = cb.createQuery(Long.class);
+        Root<MvtTransaction> mv = cm.from(MvtTransaction.class);
+        cm.select(cb.sumAsLong(mv.get(MvtTransaction_.montantPaye)));
+        cm.where(cb.and(cb.greaterThan(mv.get(MvtTransaction_.montantPaye), 0),
+                cb.equal(mv.get(MvtTransaction_.reglement).get(TTypeReglement_.lgTYPEREGLEMENTID), Constant.MODE_ESP),
+                mv.get(MvtTransaction_.pkey).in(ventes)));
+        Long s = getEntityManager().createQuery(cm).getSingleResult();
+        return s == null ? 0 : s;
+    }
+
     private MvtTransaction findByVente(String id) {
         try {
             TypedQuery<MvtTransaction> q = getEntityManager()

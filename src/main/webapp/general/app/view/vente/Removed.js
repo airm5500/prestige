@@ -13,7 +13,9 @@ Ext.define('testextjs.view.vente.Removed', {
     width: '97%',
     height: 'auto',
     minHeight: 570,
-    cls: 'custompanel',
+    /* plan du 14/11, point 10 : « cec-hub » donne aux onglets leur style (onglet actif en bleu fonce, comme les
+       autres ecrans a onglets) ; sans lui, on ne voyait pas quel onglet etait ouvert */
+    cls: 'custompanel cec-hub',
     /* plan du 08/11, point 18 : deux onglets (liste, analyse par motif) */
     layout: {
         type: 'card'
@@ -113,6 +115,18 @@ Ext.define('testextjs.view.vente.Removed', {
                             height: 30,
                             enableKeyEvents: true,
                             emptyText: 'Recherche'
+                        }, '-',
+                        /* plan du 14/11, point 10 : filtre par motif (les plus utilises d'abord, avec leur nombre) et tri */
+                        {
+                            xtype: 'combobox', itemId: 'motifFiltre', width: 230, editable: false, queryMode: 'local',
+                            valueField: 'v', displayField: 't', value: '', emptyText: 'Tous les motifs',
+                            store: {fields: ['v', 't'], data: [{v: '', t: 'Tous les motifs'}]}
+                        },
+                        {
+                            xtype: 'combobox', itemId: 'triAnnulees', width: 230, editable: false, queryMode: 'local',
+                            valueField: 'v', displayField: 't', value: '',
+                            store: {fields: ['v', 't'], data: [{v: '', t: 'Tri : date d\'annulation'},
+                                    {v: 'motif', t: 'Tri : motifs les plus utilisés'}]}
                         }, '-',
 
                         {
@@ -261,6 +275,18 @@ Ext.define('testextjs.view.vente.Removed', {
                             flex: 1
                         },
                         {
+                            /* plan du 14/11, point 10 : motif de l'annulation (absent des anciennes annulations) */
+                            header: 'Motif',
+                            itemId: 'colonneMotif',
+                            sortable: false,
+                            menuDisabled: true,
+                            flex: 1,
+                            renderer: function (v, meta, rec) {
+                                var m = (rec.raw && rec.raw.motif) || '';
+                                return m ? Ext.String.htmlEncode(m) : '<span style="color:#94a3b8">—</span>';
+                            }
+                        },
+                        {
                             xtype: 'actioncolumn',
                             width: 30,
                             sortable: false,
@@ -343,7 +369,8 @@ Ext.define('testextjs.view.vente.Removed', {
                     + '.va-analyse td{padding:4px 8px;border:1px solid #e1e6ee}'
                     + '.va-analyse .n{text-align:right;white-space:nowrap}'
                     + '.va-analyse tfoot th{background:#f3f6fa}'
-                    + '.va-analyse-vide{color:#64748b;font-style:italic;padding:8px}', 'va-analyse-styles');
+                    + '.va-analyse-vide{color:#64748b;font-style:italic;padding:8px}'
+                    + '.va-analyse-note{max-width:1100px;margin:-2px 0 10px;color:#5b6b7c;font-size:11.5px}', 'va-analyse-styles');
         }
     },
     /* plan du 08/11, point 18 : onglets de l'ecran */
@@ -402,16 +429,63 @@ Ext.define('testextjs.view.vente.Removed', {
         var auteurs = (o.parAuteur || []).map(function (a) {
             return ligneTotal(a, a.auteur);
         });
+        var caissiers = (o.parCaissier || []).map(function (c) {
+            return ligneTotal(c, c.caissier);
+        });
         var detail = (o.detail || []).map(function (x) {
             return '<tr><td>' + e(x.date) + '</td><td>' + e(x.type) + '</td><td>' + e(x.ref) + '</td><td class="n">' + n(x.montant)
                     + '</td><td>' + e(x.motif) + '</td><td>' + e(x.commentaire) + '</td><td>' + e(x.auteur) + '</td><td>' + e(x.operateur) + '</td></tr>';
         });
+        /* retour du 15/11 : « quelle caissiere occasionne le plus d'annulations » */
+        var classement = (o.classementAnnulations || []).map(function (c) {
+            return '<tr><td class="n">' + c.rang + '</td><td>' + e(c.caissier) + '</td><td class="n"><b>' + n(c.annulations) + '</b></td><td class="n">'
+                    + (c.ventes ? n(c.ventes) : '—') + '</td><td class="n">' + (typeof c.taux === 'number' ? String(c.taux).replace('.', ',') + ' %' : '—')
+                    + '</td><td class="n">' + n(c.montant) + '</td></tr>';
+        });
+        var note = function (texte) {
+            return '<div class="va-analyse-note">' + texte + '</div>';
+        };
         var entetes = ['Annulations', 'Modifications', 'Total', 'Part', 'Montant'];
         return '<div class="va-analyse-bloc">'
                 + tableau('Par motif', 'va-par-motif', ['Motif'].concat(entetes), motifs, pied)
+                + tableau('Caissières : qui occasionne le plus d\'annulations', 'va-classement-caissieres',
+                        ['Rang', 'Caissière', 'Annulations', 'Ventes encaissées', 'Taux d\'annulation', 'Montant annulé'], classement)
+                + note('Chaque annulation est comptée pour la caissière qui avait <b>encaissé</b> la vente annulée. Le taux rapporte ses annulations '
+                        + 'aux ventes qu\'elle a encaissées sur la période (comptant et crédit) : une caissière qui encaisse beaucoup annule mécaniquement plus.')
                 + tableau('Par auteur de la vente d\'origine', 'va-par-auteur', ['Auteur de la vente'].concat(entetes), auteurs, pied)
+                + note('Auteur = le vendeur qui a <b>saisi</b> la vente au comptoir. Une même vente peut avoir été saisie par un vendeur et encaissée par une caissière.')
+                + tableau('Par caissière de la vente d\'origine', 'va-par-caissier', ['Caissière'].concat(entetes), caissiers, pied)
+                + note('Caissière = celle qui a <b>encaissé</b> la vente ; annulations et modifications ensemble.')
                 + tableau('Détail', 'va-detail', ['Date', 'Opération', 'Référence', 'Montant', 'Motif', 'Précision', 'Auteur de la vente', 'Fait par'], detail)
                 + '</div>';
+    },
+
+    /* plan du 14/11, point 10 : motifs d'annulation de la periode, les plus utilises d'abord, avec leur nombre */
+    chargerMotifs: function () {
+        var me = this, combo = me.down('#motifFiltre');
+        if (!combo) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/vente-motifs/recap', method: 'GET',
+            params: {dtStart: me.down('#dtStart').getSubmitValue(), dtEnd: me.down('#dtEnd').getSubmitValue(), type: 'ANNULATION'},
+            success: function (r) {
+                if (combo.isDestroyed) {
+                    return;
+                }
+                var o = Ext.decode(r.responseText, true) || {}, choix = combo.getValue() || '';
+                var data = [{v: '', t: 'Tous les motifs'}].concat((o.parMotif || []).map(function (m) {
+                    return {v: m.motif, t: m.motif + ' (' + m.nb + ')'};
+                }));
+                if (choix && !data.some(function (d) {
+                    return d.v === choix;
+                })) {
+                    data.push({v: choix, t: choix + ' (0)'});
+                }
+                combo.getStore().loadData(data);
+                combo.setValue(choix);
+            }
+        });
     },
 
     getGridStore: function () {
@@ -422,7 +496,8 @@ Ext.define('testextjs.view.vente.Removed', {
         return {
             dtStart: me.down('#dtStart').getSubmitValue() || '',
             dtEnd: me.down('#dtEnd').getSubmitValue() || '',
-            query: me.down('#query').getValue() || ''
+            query: me.down('#query').getValue() || '',
+            motif: me.down('#motifFiltre').getValue() || ''
         };
     },
     updateSelCounter: function () {
