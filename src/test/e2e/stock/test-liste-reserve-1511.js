@@ -129,7 +129,12 @@ const base = () => Object.fromEntries(q(`SELECT f.lg_FAMILLE_ID, CONCAT_WS('|', 
     await V.cliquer(p, G + ' #lrSeuil button[valeur=DEMI]');
     await p.waitForTimeout(300);
 
-    const caseDe = async (id) => p.locator('.x-grid-row').filter({ hasText: 'ZZLR' + id.slice(-1) }).first().locator('.lr-case, .lr-cadenas');
+    /* lignes de la seule grille « Liste réserve » : un autre onglet (masqué) de la gestion des réserves liste aussi
+       les produits en réserve ; sur une base où ils tiennent dans sa première page (appaul, 7 produits en réserve),
+       '.x-grid-row' seul prenait d'abord ses lignes, sans case à cocher */
+    const vueLR = await p.evaluate(() => Ext.getCmp('reservemanagerID').down('#ongletListe').getView().getEl().id);
+    const lignesLR = () => p.locator('#' + vueLR + ' .x-grid-row');
+    const caseDe = async (id) => lignesLR().filter({ hasText: 'ZZLR' + id.slice(-1) }).first().locator('.lr-case, .lr-cadenas');
     for (const k of [1, 2, 3]) { await (await caseDe(ID(k))).click(); await p.waitForTimeout(150); }
     await (await caseDe(ID(4))).click({ force: true }).catch(() => {});
     await (await caseDe(ID(5))).click();
@@ -147,7 +152,7 @@ const base = () => Object.fromEntries(q(`SELECT f.lg_FAMILLE_ID, CONCAT_WS('|', 
 
     /* saisies a la main : P2 seuil 3, P3 capacite 4 / seuil 2, P6 capacite 8 */
     const saisirCellule = async (k, col, valeur) => {
-      const td = p.locator('.x-grid-row').filter({ hasText: 'ZZLR' + k }).first().locator('td').nth(col);
+      const td = lignesLR().filter({ hasText: 'ZZLR' + k }).first().locator('td').nth(col);
       await td.click();
       await p.waitForTimeout(250);
       await p.keyboard.press('Control+A');
@@ -212,7 +217,7 @@ const base = () => Object.fromEntries(q(`SELECT f.lg_FAMILLE_ID, CONCAT_WS('|', 
     await V.cliquer(p, G + ' #lrAnnuler');
 
     /* raccourcis : Ctrl + A coche la page, Espace bascule la ligne choisie */
-    await p.locator('.x-grid-row').filter({ hasText: 'ZZLR5' }).first().locator('td').nth(1).click();
+    await lignesLR().filter({ hasText: 'ZZLR5' }).first().locator('td').nth(1).click();
     await p.keyboard.press('Control+A');
     await p.waitForTimeout(300);
     L = await lignes();
