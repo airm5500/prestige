@@ -155,6 +155,20 @@ public final class ReleveOrganisme {
         return r;
     }
 
+    /**
+     * Lignes brutes d'un classeur (premiere feuille) ou d'un CSV, sans en-tete reconnu : utilise aussi par l'import de
+     * codes de la liste reserve (retour du 16/11). Le PDF n'est pas lu ici.
+     */
+    public static List<List<String>> lignesBrutes(byte[] contenu) throws IOException {
+        if (contenu == null || contenu.length == 0) {
+            throw new IOException("Fichier vide.");
+        }
+        if (estPdf(contenu)) {
+            throw new IOException("Fichier PDF : utilisez un fichier Excel ou CSV.");
+        }
+        return estClasseur(contenu) ? classeur(contenu) : csv(contenu);
+    }
+
     static boolean estPdf(byte[] b) {
         return b.length > 4 && b[0] == '%' && b[1] == 'P' && b[2] == 'D' && b[3] == 'F';
     }

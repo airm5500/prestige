@@ -32,13 +32,30 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseOuvertureCloture', {
     initComponent: function () {
         var me = this;
         var valeur = {fieldStyle: 'color:#1a5f9e;font-size:1.25em;font-weight:bold;'};
+        /* Retour du 16/11 : le bloc est centre dans le panneau, sur LARGEUR_MAX au plus. Colle a gauche, il passait
+         * sous le volet de navigation deplie (bord droit mesure a 287 px, flottant) ; centre et limite a 780 px, il
+         * commence a 309 px sur un ecran de portable (1366 px) et laisse ce volet a sa gauche. */
         Ext.apply(me, {
-            layout: {type: 'vbox', align: 'stretch'},
+            layout: {type: 'hbox', pack: 'center', align: 'start'},
             items: [{
+                    xtype: 'container', itemId: 'ocBloc', flex: 1, maxWidth: me.LARGEUR_MAX,
+                    layout: {type: 'vbox', align: 'stretch'},
+                    items: me.contenu(valeur)
+                }]
+        });
+        me.callParent(arguments);
+        me.on('afterrender', me.charger, me, {single: true});
+    },
+
+    LARGEUR_MAX: 780,
+
+    contenu: function (valeur) {
+        var me = this;
+        return [{
                     xtype: 'component', itemId: 'ocEtat', margin: '0 0 10 0', cls: 'caisse-oc-etat',
                     html: 'Lecture de l\'état de la caisse…'
                 }, {
-                    xtype: 'container', layout: {type: 'hbox', align: 'stretch'}, maxWidth: 1100,
+                    xtype: 'container', layout: {type: 'hbox', align: 'stretch'},
                     defaults: {flex: 1, minWidth: 320, bodyPadding: 12, frame: true},
                     items: [{
                             xtype: 'form', itemId: 'ocOuverture', title: 'Ouverture de caisse', margin: '0 12 0 0',
@@ -80,10 +97,7 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseOuvertureCloture', {
                                         me.clicCloture(b);
                                     }}]
                         }]
-                }]
-        });
-        me.callParent(arguments);
-        me.on('afterrender', me.charger, me, {single: true});
+                }];
     },
 
     q: function (itemId) {

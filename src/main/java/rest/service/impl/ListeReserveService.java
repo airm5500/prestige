@@ -1,7 +1,10 @@
 package rest.service.impl;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -16,6 +19,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import dal.TUser;
+import rest.service.impl.pointage.ReleveOrganisme;
+import rest.service.impl.reserve.ImportCodesReserve;
 import rest.service.impl.reserve.RegleListeReserve;
 import util.IdGenerator;
 
@@ -219,6 +224,72 @@ public class ListeReserveService {
                     .put("capacite", l.get("capacite")).put("seuilMini", l.get("seuilMini")));
         }
         return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    private static final String CODE_NORMALISE = "TRIM(LEADING '0' FROM REPLACE(CAST(%s AS CHAR), ' ', ''))";
+
+    /**
+     * Import de codes CIP / EAN13 (16/11) : lecture du fichier, rapprochement par {@link ImportCodesReserve} sur tous
+     * les produits de la liste (sans les filtres de l'ecran). Rien n'est ecrit.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject importer(TUser user, byte[] contenu) {
+        ImportCodesReserve.Lecture lecture;
+        try {
+            lecture = ImportCodesReserve.lire(ReleveOrganisme.lignesBrutes(contenu));
+        } catch (IOException e) {
+            return new JSONObject().put("success", false).put("msg", e.getMessage());
+        }
+        if (lecture.codes.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Aucun code CIP ou EAN13 dans le fichier (une colonne de codes, en chiffres).");
+        }
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        List<String> distincts = new ArrayList<>(new LinkedHashSet<>(lecture.codes));
+        Map<String, Object[]> lignes = new LinkedHashMap<>();
+        List<ImportCodesReserve.Produit> produits = new ArrayList<>();
+        String cip = String.format(CODE_NORMALISE, "f.int_CIP");
+        String ean = String.format(CODE_NORMALISE, "f.int_EAN13");
+        for (int i = 0; i < distincts.size(); i += 500) {
+            List<String> lot = distincts.subList(i, Math.min(distincts.size(), i + 500));
+            List<Object> p = new ArrayList<>();
+            String from = depuis(Filtres.de(null, null, null, null, null), p);
+            String in = marques(lot.size());
+            Query q = em.createNativeQuery("SELECT " + COLONNES + ", " + cip + " AS cipn, " + ean + " AS eann" + from
+                    + " AND (" + cip + " IN (" + in + ") OR " + ean + " IN (" + in + "))");
+            q.setParameter(1, empl);
+            for (int k = 0; k < lot.size(); k++) {
+                q.setParameter(k + 2, lot.get(k));
+            }
+            for (Object[] r : (List<Object[]>) q.getResultList()) {
+                String id = String.valueOf(r[0]);
+                if (lignes.put(id, r) == null) {
+                    produits.add(new ImportCodesReserve.Produit(id,
+                            ImportCodesReserve.normaliser(r[12] == null ? null : String.valueOf(r[12])),
+                            ImportCodesReserve.normaliser(r[13] == null ? null : String.valueOf(r[13]))));
+                }
+            }
+        }
+        ImportCodesReserve.Resultat res = ImportCodesReserve.rapprocher(lecture.codes, produits);
+        JSONArray reconnus = new JSONArray();
+        for (ImportCodesReserve.Reconnu x : res.reconnus) {
+            reconnus.put(ligne(lignes.get(x.id)).put("code", x.code).put("par", x.par));
+        }
+        JSONArray ambigus = new JSONArray();
+        for (Map.Entry<String, List<String>> e : res.ambigus.entrySet()) {
+            JSONArray noms = new JSONArray();
+            for (String id : e.getValue()) {
+                Object[] r = lignes.get(id);
+                noms.put((r[1] == null ? "" : r[1]) + " " + (r[2] == null ? "" : r[2]));
+            }
+            ambigus.put(new JSONObject().put("code", e.getKey()).put("produits", noms));
+        }
+        int doublons = res.doublons.values().stream().mapToInt(Integer::intValue).sum();
+        LOG.log(Level.INFO, "liste reserve, import : {0} codes lus, {1} reconnus, {2} inconnus, {3} ambigus",
+                new Object[] { lecture.codes.size(), res.reconnus.size(), res.inconnus.size(), res.ambigus.size() });
+        return new JSONObject().put("success", true).put("lus", lecture.codes.size()).put("ignorees", lecture.ignorees)
+                .put("reconnus", reconnus).put("memeProduit", res.memeProduit.size())
+                .put("inconnus", new JSONArray(res.inconnus)).put("ambigus", ambigus).put("doublons", doublons);
     }
 
     private static String marques(int n) {

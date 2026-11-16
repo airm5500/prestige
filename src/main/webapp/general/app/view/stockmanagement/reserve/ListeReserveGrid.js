@@ -149,6 +149,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
                     }),
                     {xtype: 'tbtext', text: '<span style="color:#5b6b7c">· VMJ = prévision du mois / 30</span>'},
                     '->',
+                    {xtype: 'button', itemId: 'lrImporter', text: 'Importer CIP/EAN', iconCls: 'importicon',
+                        tooltip: 'Fichier Excel ou CSV d\'une colonne de codes CIP ou EAN13 : les produits reconnus sont proposés au cochage',
+                        handler: function (b) {
+                            me.importer(b);
+                        }},
                     {xtype: 'button', itemId: 'lrCocherTout', text: 'Cocher toute la recherche', iconCls: 'icon-check',
                         tooltip: 'Coche tous les produits de la recherche, sur toutes les pages', handler: function (b) {
                             me.cocherRecherche(b, true);
@@ -173,6 +178,37 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
                             me.enregistrer(b);
                         }}
                 ]
+            }, {
+                /* retour du 16/11 : resultat de l'import ancre au-dessus de la liste (pas de fenetre surgissante) */
+                xtype: 'panel', dock: 'top', itemId: 'lrImport', hidden: true, bodyPadding: 0,
+                style: 'border-bottom:2px solid #9cc3e6', layout: {type: 'vbox', align: 'stretch'},
+                dockedItems: [{xtype: 'toolbar', dock: 'top', style: 'background:#eef5fc', items: [
+                            {xtype: 'tbtext', itemId: 'lrImportResume', text: ''},
+                            '->',
+                            {xtype: 'button', itemId: 'lrImportValider', text: 'Cocher', cls: 'btn-primary', disabled: true,
+                                handler: function (b) {
+                                    me.validerImport(b);
+                                }},
+                            {xtype: 'button', itemId: 'lrImportFermer', text: 'Fermer', handler: function () {
+                                    me.fermerImport();
+                                }}]}],
+                items: [{xtype: 'grid', itemId: 'lrImportGrille', height: 170, border: false,
+                        store: new Ext.data.Store({fields: ['id', 'code', 'par', 'cip', 'designation', 'emplacement',
+                                {name: 'stockReserve', type: 'int'}, {name: 'enReserve', type: 'boolean'}]}),
+                        columns: [
+                            {text: 'Code lu', dataIndex: 'code', width: 120},
+                            {text: 'Par', dataIndex: 'par', width: 60},
+                            {text: 'CIP', dataIndex: 'cip', width: 85},
+                            {text: 'Désignation', dataIndex: 'designation', flex: 1},
+                            {text: 'Emplacement', dataIndex: 'emplacement', width: 110},
+                            {text: 'Stock réserve', dataIndex: 'stockReserve', width: 85, align: 'right'},
+                            {text: 'État', width: 130, renderer: function (v, meta, rec) {
+                                    var c = me.changements[rec.get('id')], coche = c ? c.enReserve : rec.get('enReserve');
+                                    return rec.get('enReserve') ? 'Déjà en réserve'
+                                            : coche ? '<b style="color:#17795f">Coché</b>' : 'À cocher';
+                                }}
+                        ]},
+                    {xtype: 'component', itemId: 'lrImportDetail', padding: '4 8', style: 'color:#5b6b7c', html: ''}]
             }, {
                 xtype: 'pagingtoolbar', dock: 'bottom', store: me.store, displayInfo: true,
                 displayMsg: 'Produits {0} à {1} sur {2} · les coches sont gardées en changeant de page ou de filtre',
@@ -497,6 +533,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
         if (a) {
             a.setDisabled(!n.total && !me.refus.length);
         }
+        if (me.importe) {
+            me.majImport();
+        }
     },
 
     cocherRecherche: function (b, coche) {
@@ -555,11 +594,128 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
                         }
                     });
                     me.changements = gardes;
+                    /* l'import est enregistre : son etat (deja en reserve) serait perime */
+                    if (me.importe) {
+                        me.fermerImport();
+                    }
                     fin(ok + ' produit(s) enregistré(s)' + (me.refus.length ? ', ' + me.refus.length + ' refus' : ''), !me.refus.length);
                     me.store.load();
                     me.compterBase();
                 }});
         });
+    },
+
+    /* retour du 16/11 : fichier Excel ou CSV de codes CIP / EAN13 ; rien n'est coche avant la validation */
+    importer: function (b) {
+        var me = this, input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx,.xls,.csv,.txt';
+        input.style.display = 'none';
+        input.className = 'lr-fichier-import';
+        document.body.appendChild(input);
+        input.addEventListener('change', function () {
+            var f = input.files && input.files[0];
+            document.body.removeChild(input);
+            if (!f) {
+                return;
+            }
+            var fin = PrestigeChargement.occuper(b, 'Lecture du fichier');
+            fetch('../api/v1/reserve/liste/import', {method: 'POST', credentials: 'same-origin',
+                headers: {'Content-Type': 'application/octet-stream'}, body: f}).then(function (r) {
+                return r.json();
+            }).then(function (d) {
+                if (!d || !d.success) {
+                    fin((d && d.msg) || 'Fichier illisible', false);
+                    return;
+                }
+                fin(d.reconnus.length + ' produit(s) reconnu(s)', true);
+                me.afficherImport(d);
+            })['catch'](function () {
+                fin('Le serveur ne répond pas', false);
+            });
+        });
+        input.click();
+    },
+
+    /* produits reconnus encore a cocher (ni deja en reserve, ni deja coches a l'ecran) */
+    aCocherImport: function () {
+        var me = this;
+        return Ext.Array.filter(me.importe ? me.importe.reconnus : [], function (x) {
+            var c = me.changements[x.id];
+            return !(c ? c.enReserve : x.enReserve);
+        });
+    },
+
+    afficherImport: function (d) {
+        var me = this, p = me.down('#lrImport'), e = Ext.String.htmlEncode;
+        me.importe = d;
+        me.down('#lrImportGrille').getStore().loadData(d.reconnus);
+        var deja = Ext.Array.filter(d.reconnus, function (x) {
+            return x.enReserve;
+        }).length;
+        var t = '<b>Import : ' + d.lus + ' code(s) lu(s), ' + d.reconnus.length + ' produit(s) reconnu(s)</b>';
+        if (deja) {
+            t += ' dont ' + deja + ' déjà en réserve';
+        }
+        if (d.inconnus.length) {
+            t += ' · <b style="color:#b42318">' + d.inconnus.length + ' inconnu(s)</b>';
+        }
+        if (d.ambigus.length) {
+            t += ' · <b style="color:#a35400">' + d.ambigus.length + ' ambigu(s)</b>';
+        }
+        if (d.doublons || d.memeProduit) {
+            t += ' · ' + (d.doublons + d.memeProduit) + ' en double';
+        }
+        me.down('#lrImportResume').setText(t);
+        var detail = [];
+        if (d.inconnus.length) {
+            detail.push('<b>Inconnus</b> : ' + e(d.inconnus.slice(0, 30).join(', ')) + (d.inconnus.length > 30 ? '…' : ''));
+        }
+        if (d.ambigus.length) {
+            detail.push('<b>Ambigus</b> (plusieurs produits, à cocher à la main) : ' + Ext.Array.map(d.ambigus.slice(0, 10), function (a) {
+                return e(a.code) + ' → ' + e(a.produits.join(' / '));
+            }).join(' ; ') + (d.ambigus.length > 10 ? '…' : ''));
+        }
+        if (d.ignorees) {
+            detail.push(d.ignorees + ' cellule(s) ignorée(s) (en-tête, texte, nombre trop court)');
+        }
+        var det = me.down('#lrImportDetail');
+        det.update(detail.join('<br>'));
+        det.setVisible(detail.length > 0);
+        me.majImport();
+        p.show();
+    },
+
+    majImport: function () {
+        var me = this, b = me.down('#lrImportValider'), n = me.aCocherImport().length;
+        if (b && !b.prestigeConfirmation) {
+            b.setText(n ? 'Cocher les ' + n + ' produit(s) reconnu(s)' : 'Rien à cocher');
+            b.setDisabled(!n);
+        }
+        me.down('#lrImportGrille').getView().refresh();
+    },
+
+    validerImport: function (b) {
+        var me = this, a = me.aCocherImport();
+        if (!a.length) {
+            return;
+        }
+        PrestigeConfirmation.bouton(b, 'Confirmer : cocher ' + a.length + ' produit(s) ?', function () {
+            Ext.Array.each(a, function (x) {
+                me.appliquer(x.id, x, true);
+            });
+            me.majBandeau();
+            me.getView().refresh();
+            me.majImport();
+            me.down('#lrImportResume').setText(me.down('#lrImportResume').text
+                    + ' · <b style="color:#17795f">' + a.length + ' coché(s) : enregistrez pour les mettre en réserve</b>');
+        });
+    },
+
+    fermerImport: function () {
+        this.importe = null;
+        this.down('#lrImportGrille').getStore().removeAll();
+        this.down('#lrImport').hide();
     },
 
     pdf: function (b) {

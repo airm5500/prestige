@@ -469,6 +469,31 @@ public class ReserveRessource {
         return Response.ok().entity(listeReserveService.enregistrer(user, corps).toString()).build();
     }
 
+    /**
+     * Import d'un fichier Excel ou CSV de codes CIP / EAN13 (16/11) : produits reconnus a cocher a l'ecran, codes
+     * inconnus, ambigus, doublons. Rien n'est ecrit : l'enregistrement reste celui de la liste.
+     */
+    @POST
+    @Path("liste/import")
+    @Consumes({ "application/octet-stream", "text/csv", "text/plain", "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    public Response listeImport(byte[] contenu) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (contenu != null && contenu.length > 10 * 1024 * 1024) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "Fichier trop gros (10 Mo au plus).").toString())
+                    .build();
+        }
+        return Response.ok().entity(listeReserveService.importer(user, contenu).toString()).build();
+    }
+
     /** Excel de toute la recherche, construit sur le meme JSON que la grille. */
     @GET
     @Path("liste/excel")
