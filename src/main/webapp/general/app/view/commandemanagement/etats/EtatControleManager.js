@@ -997,7 +997,16 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             Ext.MessageBox.alert('Erreur au niveau date', 'La date de d&eacute;but doit &ecirc;tre inf&eacute;rieur &agrave; la date fin');
             return;
         }
-        this.getStore().load({params: criteresControleAchat()});
+        /*
+         * 16/11 : les criteres passaient en parametres du seul chargement de la recherche ; tout rechargement qui ne
+         * passait pas par la barre de pagination (store.loadPage, reload) repartait sans le groupe, le statut ni les
+         * dates. Ils sont maintenant poses sur le proxy et suivent chaque chargement (lignes=0 garde).
+         */
+        var proxy = this.getStore().getProxy();
+        Ext.Object.each(criteresControleAchat(), function (k, v) {
+            proxy.setExtraParam(k, v);
+        });
+        this.getStore().load();
     },
 
     onGestionQuinzaine: function () {
