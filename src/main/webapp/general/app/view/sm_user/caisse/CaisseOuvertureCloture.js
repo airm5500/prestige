@@ -33,8 +33,8 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseOuvertureCloture', {
         var me = this;
         var valeur = {fieldStyle: 'color:#1a5f9e;font-size:1.25em;font-weight:bold;'};
         /* Retour du 16/11 : le bloc est centre dans le panneau, sur LARGEUR_MAX au plus. Colle a gauche, il passait
-         * sous le volet de navigation deplie (260 px, flottant) ; centre et limite, il laisse ce volet a sa gauche sur
-         * un ecran de portable (1366 px). */
+         * sous le volet de navigation deplie (bord droit mesure a 287 px, flottant) ; centre et limite a 780 px, il
+         * commence a 309 px sur un ecran de portable (1366 px) et laisse ce volet a sa gauche. */
         Ext.apply(me, {
             layout: {type: 'hbox', pack: 'center', align: 'start'},
             items: [{
@@ -47,7 +47,7 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseOuvertureCloture', {
         me.on('afterrender', me.charger, me, {single: true});
     },
 
-    LARGEUR_MAX: 860,
+    LARGEUR_MAX: 780,
 
     contenu: function (valeur) {
         var me = this;
