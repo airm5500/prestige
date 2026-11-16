@@ -673,3 +673,39 @@ Rapport dédié : [RAPPORT_LENTEURS_APPAUL_2026-11-12.md](RAPPORT_LENTEURS_APPAU
 - Les sauvegardes se font sur le serveur seul, aux horaires choisis, avec un verrou dans la base. Avant, chaque poste lançait un dump à hh:05 et marquait « interrompues » les sauvegardes des autres.
 - Tableau de bord : alertes de 4,6 s à 0,1 s, tuiles de 2,6 s à 0,1 s (« non vendus » limité aux ventes de la période, ruptures calculées une fois). Cloche : compteur des avoirs de 0,4–2 s à 3 ms.
 - Balance d'un mois : 0,98 s juste après le tableau de bord, au lieu de 4,2 à 5 s. Il reste une condition : un mois de ventes occupe environ 3,7 Go de pages (UUID aléatoires), donc la mémoire tampon de MariaDB d'appaul doit faire au moins 4 à 5 Go (réglage du serveur, à décider).
+
+## État de contrôle des achats : liste des en-têtes, détail d'un bon à la demande (14/11)
+
+Mesure de l'utilisateur sur son poste : 709 ms d'attente pour un seul BL du jour (BL 95623, plus de 130 lignes).
+`GET etat-control-bon/list` renvoyait tout le bon : chaque ligne et son produit, pour chaque BL de la page. La grille
+n'en affiche que l'en-tête ; seules la fenêtre « Voir le détail du contrôle » et quatre valeurs de l'en-tête (statut du
+contrôle, avoir, écart, nombre de lignes) se servaient des lignes.
+
+Correction :
+
+- l'écran demande `list?lignes=0` : en-têtes seuls, les quatre valeurs étant agrégées en base (une requête par paquet
+  de 500 BL, mêmes règles que le calcul Java, `ResumeLignes`) ;
+- `GET etat-control-bon/{id}/lignes` : lignes d'un bon, en une requête, quand on ouvre son détail ;
+- l'impression, l'export Excel, le nombre et le tableau de bord passent eux aussi par les en-têtes seuls ;
+- sans le paramètre `lignes`, la réponse de `list` est inchangée (applications mobiles) ;
+- la liste est triée par date du BL, puis par date d'entrée et identifiant : la date du BL n'ayant pas d'heure, des BL
+  du même jour pouvaient paraître sur deux pages, ou sur aucune.
+
+Mesures sur domain3 (copie `laborex_audit`), test `achats/test-controle-bons-a-la-demande.js` :
+
+| Cas | Avant | Après |
+|---|---|---|
+| Jeu d'essai, page de 20 BL dont un de 150 lignes (écran) | 617 ms, 211 093 octets | 354 ms, 17 478 octets |
+| 21/12/2023, 15 BL dont un de 445 lignes (écran) | 2 416 ms, 1 868 410 octets | 338 ms, 12 792 octets |
+| 12 au 23/10/2026, page de 20 BL (écran) | 563 ms, 198 283 octets | 341 ms, 17 776 octets |
+| 12 au 23/10/2026, 253 BL et 1 952 lignes d'un coup (impression, export, tableau de bord) | 2 932 ms, 2 302 674 octets | 362 ms, 225 906 octets |
+| Détail à la demande, BL de 445 lignes | (dans la liste) | 267 ms, 208 065 octets |
+| Détail à la demande, BL de 150 lignes | (dans la liste) | 255 ms, 68 105 octets |
+| Détail à la demande, BL de 98 lignes | (dans la liste) | 181 ms, 47 425 octets |
+
+Les temps « écran » vont du clic sur Rechercher à la grille affichée ; ceux du détail, du clic sur l'icône aux lignes
+affichées.
+
+Rejoué le 16/11 sur l'intégration (`integration/recette-2026-10-29`, 1991fe41c, puis la même avec la correction) :
+21/12/2023 à l'écran, 2 197 ms et 1 868 410 octets avant, 324 ms et 13 317 octets après ; 12 au 23/10/2026 à
+l'écran, 541 ms et 203 760 octets avant, 324 ms et 18 476 octets après ; détail d'un BL de 445 lignes : 322 ms.

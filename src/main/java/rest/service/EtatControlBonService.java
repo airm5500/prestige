@@ -106,4 +106,14 @@ public interface EtatControlBonService {
 
     /** Tableau de bord du controle des achats (Q7). */
     JSONObject tableauBord(boolean fullAuth, String dtStart, String dtEnd, String grossisteId, String dateType);
+
+    /**
+     * Demande du 14/11 : avecLignes=false ne renvoie que les en-tetes des bons (statut, avoir, ecart et nombre de
+     * lignes calcules en base) ; les lignes se lisent par {@link #lignesDuBon}.
+     */
+    JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
+            int limit, String dateType, String statutControle, String ecart, String userId, boolean avecLignes);
+
+    /** Lignes d'un bon, a la demande : {success, total, data:[ligne avec son produit]}. */
+    JSONObject lignesDuBon(String bonId);
 }
