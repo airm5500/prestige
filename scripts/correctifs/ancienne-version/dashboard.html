@@ -497,12 +497,25 @@
         url: '../webservices/dashboard/ws_achat_by_grossiste.jsp', type: 'GET', dataType: 'json', cache: false,
         success: function (data) {
           if (data && data.data && data.data.length > 0) { $('#moreAchat').show(); }
+          // Montant de la i-eme barre, quel que soit le nom de sa cle : selon la version du service, la premiere
+          // s'appelle LABOREX ou UBIPHARM. Lire la cle LABOREX seule affichait 0 quand le service en renvoyait une autre.
+          function montant(i){
+            var o = data && data.data && data.data[i];
+            if (!o) return 0;
+            for (var cle in o) {
+              if (Object.prototype.hasOwnProperty.call(o, cle)) {
+                var n = parseLocaleNumber(o[cle]);
+                if (n !== null) return n;
+              }
+            }
+            return 0;
+          }
           var s1 = [
-            ['UBIPHARM', parseLocaleNumber(data?.data?.[0]?.LABOREX) || 0],
-            ['DPCI', parseLocaleNumber(data?.data?.[1]?.DPCI) || 0],
-            ['COPHARMED', parseLocaleNumber(data?.data?.[2]?.COPHARMED) || 0],
-            ['TEDIS PHARMA', parseLocaleNumber(data?.data?.[3]?.TEDISPHARMA) || 0],
-            ['AUTRES', parseLocaleNumber(data?.data?.[4]?.AUTRES) || 0]
+            ['UBIPHARM', montant(0)],
+            ['DPCI', montant(1)],
+            ['COPHARMED', montant(2)],
+            ['TEDIS PHARMA', montant(3)],
+            ['AUTRES', montant(4)]
           ];
           $('#idachatgrossiste').empty();
           if ($.jqplot) {
