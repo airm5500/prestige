@@ -18,6 +18,7 @@
 <%@page import="java.util.Date"%>
 <%@page import="java.util.List"%>
 <%@page import="javax.persistence.TemporalType"%>
+<%@page import="bll.report.Dashboard"%>
 <%@page import="dal.dataManager"%>
 <%@page import="org.json.JSONObject"%>
 <%@page import="org.json.JSONArray"%>
@@ -49,6 +50,9 @@
     JSONArray data = new JSONArray();
     try {
         dataManager OdataManager = new dataManager();
+        // Comme l'ancienne JSP : c'est le constructeur de Dashboard qui ouvre la connexion a la base
+        // (checkDatamanager). Sans lui, getEm() renvoie null et le graphique reste a 0.
+        new Dashboard(OdataManager);
         List<Object[]> lignes = OdataManager.getEm().createNativeQuery(query)
                 .setParameter(1, debut.getTime(), TemporalType.TIMESTAMP)
                 .setParameter(2, new Date(), TemporalType.TIMESTAMP).getResultList();
