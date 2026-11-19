@@ -1,5 +1,7 @@
 package job;
 
+import config.AppConfig;
+import javax.inject.Inject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.security.PermitAll;
@@ -48,6 +50,8 @@ public class VenteAttenteExpiration {
 
     @EJB
     private SalesStatsService salesStatsService;
+    @Inject
+    private AppConfig appConfig;
     @EJB
     private SupportEventService supportEventService;
 
@@ -57,6 +61,9 @@ public class VenteAttenteExpiration {
      */
     @Schedule(hour = "0", minute = "10", second = "0", persistent = false)
     public void executer() {
+        if (!appConfig.isServerMode()) {
+            return; // retour du 18/11 : travail sur toute la base, fait une seule fois, sur le poste serveur
+        }
         try {
             int traitees = salesStatsService.supprimerVentesAttenteExpirees();
             LOG.log(Level.INFO, "Ventes en attente de la veille traitees : {0}", traitees);

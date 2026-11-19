@@ -59,12 +59,16 @@ public class AppConfig {
         File configFile = new File(
                 System.getProperty("user.home") + File.separator + "Documents" + File.separator + "dicisms.properties");
 
+        File surDisque = util.StockageDisque.sousDossier("config").resolve("dicisms.properties").toFile();
         if (!configFile.exists()) {
-            configFile = util.StockageDisque.sousDossier("config").resolve("dicisms.properties").toFile();
+            configFile = surDisque;
             if (!configFile.exists()) {
                 createDefaultConfig(configFile);
             }
+        } else if (surDisque.exists()) {
+            autreFichier = surDisque;
         }
+        fichierLu = configFile;
 
         try (InputStream in = new FileInputStream(configFile)) {
 
@@ -93,9 +97,51 @@ public class AppConfig {
         }
     }
 
+    /**
+     * Mode ecrit dans un fichier de configuration cree par defaut (retour du 18/11) : « server » seulement si la base
+     * est sur ce poste. Une caisse dont le Payara tourne en service Windows ne voit pas le fichier de Documents de la
+     * caissiere : elle en creait un sur D: en « server » et se declarait serveur.
+     */
+    public static String modeParDefaut(boolean baseLocale) {
+        return baseLocale ? "server" : "client";
+    }
+
+    /**
+     * Fichier de configuration lu au demarrage, et l'autre emplacement s'il existe aussi (affiche par
+     * l'auto-diagnostic).
+     */
+    private File fichierLu;
+    private File autreFichier;
+
+    public File getFichierLu() {
+        return fichierLu;
+    }
+
+    public File getAutreFichier() {
+        return autreFichier;
+    }
+
+    /** Mode lu dans un fichier, sans le modifier ; null s'il est illisible. */
+    public static String modeDuFichier(File f) {
+        Properties p = new Properties();
+        try (InputStream in = new FileInputStream(f)) {
+            p.load(in);
+            return p.getProperty("application.mode");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private void createDefaultConfig(File file) {
         Properties defaults = new Properties();
-        defaults.setProperty("application.mode", "server"); // server/client
+        String hote;
+        try {
+            hote = java.net.InetAddress.getLocalHost().getHostName();
+        } catch (java.io.IOException e) {
+            hote = job.PosteLocal.nomMachine();
+        }
+        defaults.setProperty("application.mode",
+                modeParDefaut(rest.service.impl.serveur.CalculReglages.baseLocale(hote)));
         defaults.setProperty("reappro.mode", "default"); // semois/default
         try (FileOutputStream out = new FileOutputStream(file)) {
             defaults.store(out, CONFIG_COMMENT);

@@ -51,6 +51,8 @@ public class SupportPreflight {
     private EntityManager em;
     @EJB
     private SupportEventService supportEventService;
+    @javax.inject.Inject
+    private config.AppConfig appConfig;
 
     /** Resultat d'un point de controle. Donnee inerte destinee a l'affichage et au detail de l'evenement. */
     public static final class Controle {
@@ -108,6 +110,8 @@ public class SupportPreflight {
         controles.add(evaluerMemoireMax(Runtime.getRuntime().maxMemory(), parametre("SUPPORT_HEAP_MIN_MO")));
         controles.add(evaluerAccesDepannage(parametre("ACCES_DEPANNAGE_ACTIF")));
         controles.add(verifierMigrations());
+        controles.add(verifierConfigurationPoste());
+        controles.add(verifierPool());
 
         boolean anomalie = aAnomalie(controles);
         String synthese = synthese(controles);
@@ -510,6 +514,91 @@ public class SupportPreflight {
                             + " Remettre le parametre ACCES_DEPANNAGE_ACTIF a 0 des la fin de l'intervention.");
         }
         return Controle.ok("ACCES_DEPANNAGE", LIBELLE_DEPANNAGE, "ferme");
+    }
+
+    /** Libelle du controle du pool de connexions (retour du 18/11, R3). */
+    static final String LIBELLE_POOL = "Pool de connexions a la base (verification, delais)";
+
+    /**
+     * Retour du 18/11 (R3) : sur CAISSE44, des connexions au repos coupees entre la caisse et le serveur etaient encore
+     * distribuees par le pool (« Communications link failure », dernier paquet il y a 219 s). Le reglage du pool
+     * (1-configurer-payara.ps1 -PoolSeulement) n'avait ete passe sur aucune caisse, et rien ne le montrait. Anomalie si
+     * le pool lu dans domain.xml manque de l'un des reglages ; la regle est celle de l'onglet Reglages
+     * ({@link rest.service.impl.serveur.ConfigPayara#manquesPool()}).
+     */
+    static Controle evaluerPool(rest.service.impl.serveur.ConfigPayara c) {
+        if (!c.lu || StringUtils.isEmpty(c.pool)) {
+            return Controle.ok("POOL", LIBELLE_POOL, "domain.xml non lu");
+        }
+        List<String> manques = c.manquesPool();
+        String etat = "pool " + c.pool + " : " + c.etatPool();
+        if (manques.isEmpty()) {
+            return Controle.ok("POOL", LIBELLE_POOL, etat);
+        }
+        return Controle.anomalie("POOL", LIBELLE_POOL, etat + " ; manque : " + String.join(" ; ", manques)
+                + ". Sur ce poste, dans le dossier outils\\officine de Prestige (PowerShell en administrateur) : "
+                + rest.service.impl.serveur.ConfigPayara.COMMANDE_POOL);
+    }
+
+    private Controle verifierPool() {
+        String racine = System.getProperty("com.sun.aas.instanceRoot");
+        String xml = "";
+        try {
+            Path domaine = racine == null ? null : Paths.get(racine, "config", "domain.xml");
+            if (domaine != null && Files.isRegularFile(domaine)) {
+                xml = new String(Files.readAllBytes(domaine), StandardCharsets.UTF_8);
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.log(Level.FINE, "domain.xml", e);
+        }
+        return evaluerPool(rest.service.impl.serveur.ConfigPayara.lire(xml));
+    }
+
+    /**
+     * Configuration du poste (retour du 18/11) : fichier dicisms.properties lu, mode et compte du service. Anomalie si
+     * le poste se dit serveur alors que la base est sur une autre machine, ou si deux fichiers donnent des modes
+     * differents (le service Windows ne lit pas le meme fichier que la caissiere).
+     */
+    static Controle evaluerConfigurationPoste(String fichierLu, String mode, String autreFichier, String autreMode,
+            boolean baseLocale, String compte) {
+        String libelle = "Configuration du poste (dicisms.properties)";
+        StringBuilder d = new StringBuilder();
+        d.append("fichier lu : ").append(fichierLu).append(" (application.mode=").append(mode).append(")")
+                .append(" ; compte du service : ").append(compte);
+        if (autreFichier != null) {
+            d.append(" ; autre fichier : ").append(autreFichier).append(" (application.mode=").append(autreMode)
+                    .append(")");
+        }
+        boolean serveurSansBase = "server".equals(mode) && !baseLocale;
+        boolean desaccord = autreFichier != null && !java.util.Objects.equals(mode, autreMode);
+        if (serveurSansBase) {
+            d.append(
+                    " ; la base est sur une autre machine : ce poste est une caisse, mettez application.mode=client dans ")
+                    .append(fichierLu).append(" puis redemarrez le service");
+        }
+        if (desaccord) {
+            d.append(" ; les deux fichiers ne disent pas la meme chose : mettez le meme mode dans ")
+                    .append(autreFichier);
+        }
+        return serveurSansBase || desaccord ? Controle.anomalie("CONFIG_POSTE", libelle, d.toString())
+                : Controle.ok("CONFIG_POSTE", libelle, d.toString());
+    }
+
+    private Controle verifierConfigurationPoste() {
+        if (appConfig == null || appConfig.getFichierLu() == null) {
+            return Controle.ok("CONFIG_POSTE", "Configuration du poste (dicisms.properties)", "non lue");
+        }
+        java.io.File autre = appConfig.getAutreFichier();
+        String hote;
+        try {
+            hote = java.net.InetAddress.getLocalHost().getHostName();
+        } catch (java.io.IOException e) {
+            hote = PosteLocal.nomMachine();
+        }
+        return evaluerConfigurationPoste(appConfig.getFichierLu().getAbsolutePath(), appConfig.getApplicationMode(),
+                autre == null ? null : autre.getAbsolutePath(),
+                autre == null ? null : config.AppConfig.modeDuFichier(autre),
+                rest.service.impl.serveur.CalculReglages.baseLocale(hote), System.getProperty("user.name"));
     }
 
     static boolean aAnomalie(List<Controle> controles) {

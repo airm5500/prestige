@@ -1,5 +1,7 @@
 package job;
 
+import config.AppConfig;
+import javax.inject.Inject;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -22,9 +24,14 @@ public class RafraichissementExtranetsScheduler {
 
     @EJB
     private ExtranetService service;
+    @Inject
+    private AppConfig appConfig;
 
     @Schedule(hour = "*", minute = "*/10", second = "40", persistent = false)
     public void rafraichir() {
+        if (!appConfig.isServerMode()) {
+            return; // retour du 18/11 : travail sur toute la base, fait une seule fois, sur le poste serveur
+        }
         List<String[]> dues;
         try {
             dues = service.listesARafraichir();

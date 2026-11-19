@@ -5,6 +5,8 @@
  */
 package job;
 
+import config.AppConfig;
+import javax.inject.Inject;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,9 +41,14 @@ public class SupportJobMonitor {
     private EntityManager em;
     @EJB
     private SupportEventService supportEventService;
+    @Inject
+    private AppConfig appConfig;
 
     @Schedule(hour = "*", minute = "10", persistent = false)
     public void verifier() {
+        if (!appConfig.isServerMode()) {
+            return; // retour du 18/11 : travail sur toute la base, fait une seule fois, sur le poste serveur
+        }
         try {
             if (!"1".equals(StringUtils.trimToEmpty(supportEventService.getParameter("SUPPORT_MONITOR_ENABLED")))) {
                 return;
