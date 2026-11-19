@@ -619,6 +619,14 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/facturation/ticket-facture/' + rec.get('lg_DOSSIER_REGLEMENT_ID'),
+            /* Retour du 18/11 : une reimpression sans imprimante ne disait rien ; le message du serveur est affiche. */
+            success: function (response) {
+                const object = Ext.JSON.decode(response.responseText, true) || {};
+                if (!object.success) {
+                    Ext.MessageBox.alert('Ticket non imprimé', object.msg || object.errors
+                            || "Le ticket n'a pas pu être imprimé.");
+                }
+            },
             failure: function (response)
             {
                 const object = Ext.JSON.decode(response.responseText, false);
