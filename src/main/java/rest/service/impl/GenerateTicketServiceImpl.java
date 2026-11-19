@@ -836,6 +836,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente();
+            }
             TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
@@ -966,6 +969,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             // Une seule interrogation du spouleur d'impression : chaque recherche de l'imprimante par defaut
             // coute une a deux secondes sous Windows, et ce chemin la faisait trois fois.
             PrintService imprimante = findPrintService();
+            if (sansImprimante(imprimante)) {
+                return imprimanteAbsente();
+            }
             ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(findImprimanteByName(imprimante));
             imp.setOfficine(findOfficine());
@@ -1022,6 +1028,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente();
+            }
             TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
@@ -1522,6 +1531,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente();
+            }
             TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
@@ -1695,6 +1707,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente();
+            }
             TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
@@ -1940,6 +1955,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             String num = DateConverter.getShortId(10);
             String fileBarecode = buildLineBarecode(num);
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente(ChoixImprimante.REGLEMENT);
+            }
             TImprimante imprimante = findImprimanteByName();
             TOfficine officine = findOfficine();
             List<String> datas = generateData(lstTDossierReglementDetail, dossierReglement);
@@ -2161,6 +2179,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente();
+            }
             TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
@@ -2292,6 +2313,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente();
+            }
             TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
@@ -2422,6 +2446,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (parDefaut == null && trouvee != null) {
                 signalerSecours(trouvee.getName());
             }
+            // support du 18/11 (R1) : sinon, la seule imprimante reelle installee
+            if (trouvee == null) {
+                trouvee = imprimanteDeRepli();
+            }
             MesureImpression.imprimante(trouvee != null ? trouvee.getName() : "aucune imprimante par défaut");
             return trouvee;
         } finally {
@@ -2453,6 +2481,63 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     "Aucune imprimante par défaut sur le serveur : tickets imprimés sur l''imprimante déclarée {0}",
                     nom);
         }
+    }
+
+    /**
+     * Retour support du 18/11 (CAISSE11) : Payara en service Windows, sous un compte sans imprimante par defaut. Seule
+     * imprimante reelle installee : elle est prise ; sinon aucune (voir {@link ChoixImprimante}).
+     */
+    private PrintService imprimanteDeRepli() {
+        try {
+            PrintService[] services = imprimantesInstallees();
+            List<String> noms = new ArrayList<>();
+            for (PrintService s : services) {
+                noms.add(s.getName());
+            }
+            String choisie = ChoixImprimante.choisir(null, noms);
+            for (PrintService s : services) {
+                if (s.getName().equals(choisie)) {
+                    LOG.log(Level.INFO,
+                            "Aucune imprimante par defaut pour le compte de Payara : seule imprimante installee prise ({0})",
+                            choisie);
+                    return s;
+                }
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.FINE, "Liste des imprimantes illisible", e);
+        }
+        return null;
+    }
+
+    /**
+     * Demande 65 (19/11) : le refus « Ticket non imprimé » ne vaut que pour une impression réelle sur l'imprimante du
+     * serveur. L'aperçu (rapprochements) et l'image du ticket (mobile, borne) n'envoient rien à cette imprimante : ils
+     * sont construits même sur un serveur qui n'en a aucune.
+     */
+    static boolean sansImprimante(PrintService printService) {
+        return printService == null && APERCU.get() == null && PAPIER_IMAGE.get() == null;
+    }
+
+    /** Sans imprimante : la vente reste enregistree et l'ecran dit pourquoi, au lieu d'une erreur 500. */
+    JSONObject imprimanteAbsente() {
+        return imprimanteAbsente(ChoixImprimante.VENTE);
+    }
+
+    /** Réponse sans imprimante ; acquis : ce qui reste enregistré malgré le ticket non imprimé. */
+    JSONObject imprimanteAbsente(String acquis) {
+        int reelles = 0;
+        try {
+            for (PrintService s : PrintServiceLookup.lookupPrintServices(null, null)) {
+                if (!ChoixImprimante.virtuelle(s.getName())) {
+                    reelles++;
+                }
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.FINE, "Liste des imprimantes illisible", e);
+        }
+        String msg = ChoixImprimante.message(job.PosteLocal.nomMachine(), reelles, acquis);
+        LOG.log(Level.WARNING, "{0} (compte du service : {1})", new Object[] { msg, System.getProperty("user.name") });
+        return new JSONObject().put("success", false).put("imprimanteAbsente", true).put("msg", msg);
     }
 
     public TImprimante findImprimanteByName() {
@@ -2488,6 +2573,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             String num = DateConverter.getShortId(10);
             String fileBarecode = buildLineBarecode(num);
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente(ChoixImprimante.REGLEMENT);
+            }
             TImprimante imprimante = findImprimanteByName();
             TOfficine officine = findOfficine();
             List<String> datas = generateData(lstTDossierReglementDetail, dossierReglement);
@@ -2561,6 +2649,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             ImpressionServiceImpl serviceImpression = new ImpressionServiceImpl();
             TEmplacement emplacement = params.getOperateur().getLgEMPLACEMENTID();
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente(ChoixImprimante.TICKET_Z);
+            }
             TImprimante imprimante = findImprimanteByName();
             TOfficine officine = findOfficine();
             serviceImpression.setEmplacement(emplacement);
@@ -4115,6 +4206,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement emplacement = mvtTransaction.getMagasin();
 
             PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente(ChoixImprimante.REGLEMENT);
+            }
             TImprimante imprimante = findImprimanteByName();
             TOfficine officine = findOfficine();
             List<String> datas = generateData(lstTDossierReglementDetail, dossierReglement);

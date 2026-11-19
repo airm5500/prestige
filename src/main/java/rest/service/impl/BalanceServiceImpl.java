@@ -105,7 +105,7 @@ public class BalanceServiceImpl implements BalanceService {
     private static final String BONS_SQL_QUERY = "SELECT  SUM(m.montant) AS montant FROM  mvttransaction m WHERE m.mvtdate BETWEEN ?1 AND ?2 AND m.`typeTransaction` =2  AND m.`lg_EMPLACEMENT_ID` =?3 ";
     private static final String EXCLUDE_STATEMENT = " AND  p.`lg_PREENREGISTREMENT_ID`  NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v) ";
 
-    private static final String TVAS_SQL = "SELECT {byDay} SUM(d.int_PRICE) AS montantTTC,SUM(d.int_UG*d.int_PRICE_UNITAIR) AS montantUg,d.valeurTva AS valeurTva FROM t_preenregistrement_detail d,t_preenregistrement p,t_user u ,mvttransaction m WHERE p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID AND p.`lg_PREENREGISTREMENT_ID`=m.pkey  AND  d.`bool_ACCOUNT` "
+    private static final String TVAS_SQL = "SELECT {byDay} SUM(d.int_PRICE) AS montantTTC,SUM(d.int_UG*d.int_PRICE_UNITAIR) AS montantUg,d.valeurTva AS valeurTva FROM t_preenregistrement_detail d,t_preenregistrement p{indexDate},t_user u ,mvttransaction m WHERE p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID AND p.`lg_PREENREGISTREMENT_ID`=m.pkey  AND  d.`bool_ACCOUNT` "
             + " AND p.lg_TYPE_VENTE_ID <> ?1 AND p.str_STATUT='is_Closed'  AND p.imported=0 AND p.dt_UPDATED >= ?2 AND p.dt_UPDATED < DATE_ADD(?3, INTERVAL 1 DAY) AND p.lg_USER_ID=u.lg_USER_ID AND u.lg_EMPLACEMENT_ID=?4 {excludeStatement} {tvaVnoOnly} GROUP BY d.`valeurTva` {groupByDay}";
 
     private static final String AMOUNT_TO_REMOVE = "SELECT COALESCE(SUM(m.`montantAcc`),0) AS montantAcc, COALESCE(SUM(m.`montant`),0) AS montant FROM mvttransaction m,t_preenregistrement p WHERE m.flag IS TRUE AND m.flag_id IS NULL AND m.`typeTransaction` =0  AND p.imported=0 AND p.`lg_PREENREGISTREMENT_ID`=m.pkey AND p.`dt_UPDATED` >= ?1 AND p.`dt_UPDATED` < DATE_ADD(?2, INTERVAL 1 DAY) AND p.`str_STATUT`='is_Closed' AND p.`lg_TYPE_VENTE_ID` <> ?3 AND m.`lg_EMPLACEMENT_ID` =?4 ";
@@ -431,7 +431,8 @@ public class BalanceServiceImpl implements BalanceService {
     @Override
     public Map<TableauBaordSummary, List<TableauBaordPhDTO>> getTableauBoardData(BalanceParamsDTO balanceParams) {
 
-        List<TableauBaordPhDTO> bons = buildBonAchats(fetchBonLivraisons(balanceParams));
+        List<TableauBaordPhDTO> bons = buildBonAchats(fetchBonLivraisons(balanceParams), avoirsFournisseurParJour(
+                LocalDate.parse(balanceParams.getDtStart()), LocalDate.parse(balanceParams.getDtEnd())));
         List<TableauBaordPhDTO> ventes = buildVente(fetchPreenregistrements(balanceParams), balanceParams);
         bons.addAll(ventes);
 
@@ -610,6 +611,13 @@ public class BalanceServiceImpl implements BalanceService {
     private List<Tuple> findTvas(BalanceParamsDTO balanceParams) {
 
         String sql = replacePlaceHolder(TVAS_SQL, balanceParams);
+        // Retour support du 18/11 (R8) : « v3/tvas » de 16 jours, 3,3 a 5,6 s a appaul. MariaDB partait des
+        // utilisateurs de l'officine et lisait TOUTES leurs ventes avant de filtrer la date. Les ventes sont lues par
+        // l'index (statut, date) de la migration V6.2.9, comme le CA par zone : memes lignes, 0,28 s pour 16 jours,
+        // jamais plus lent (mesure de 1 jour a 3 ans sur la copie). Un depot d'extension garde la requete d'avant :
+        // ses ventes se trouvent par leur magasin, et aucun n'a pu etre mesure.
+        sql = sql.replace("{indexDate}",
+                estDepotExtension(balanceParams.getEmplacementId()) ? "" : " FORCE INDEX (idx_preenr_statut_date)");
         try {
 
             if (balanceParams.isVnoOnly()) {
@@ -1035,18 +1043,31 @@ public class BalanceServiceImpl implements BalanceService {
 
     }
 
-    private List<Tuple> avoirFournisseur(LocalDate dtStart, LocalDate dtEnd) {
+    /**
+     * Avoirs fournisseurs de la periode, par jour et par groupe de grossistes, en UNE requete (retour support du 18/11,
+     * R8). Avant : une requete par ligne d'achat du tableau de bord, 1 473 pour onze mois, 9 des 14 s de l'ecran sur la
+     * copie d'appaul. Memes filtres et meme groupement qu'avant pour un jour donne (GROUP BY groupeId, somme > 0), jour
+     * ajoute a la cle. Quand deux groupes sans libelle tombent sur « AUTRES », leurs avoirs s'ajoutent (voir
+     * {@link #buildAvoir}) ; chaque avoir ne compte qu'une fois (voir {@link #buildBonAchats}).
+     */
+    private Map<LocalDate, Map<String, Long>> avoirsFournisseurParJour(LocalDate dtStart, LocalDate dtEnd) {
+        Map<LocalDate, List<Tuple>> parJour = new HashMap<>();
         try {
             Query q = em.createNativeQuery(
-                    "SELECT SUM(o.dl_AMOUNT) as montant,gr.libelle FROM  t_retour_fournisseur o JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` left JOIN groupefournisseur gr ON g.`groupeId`=gr.id WHERE o.dt_UPDATED >= ?1 AND o.dt_UPDATED < DATE_ADD(?2, INTERVAL 1 DAY)  AND o.str_REPONSE_FRS <>'' AND o.str_STATUT='enable' GROUP BY g.`groupeId` HAVING montant >0 ",
+                    "SELECT DATE(o.dt_UPDATED) AS jour, SUM(o.dl_AMOUNT) as montant,gr.libelle FROM  t_retour_fournisseur o JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` left JOIN groupefournisseur gr ON g.`groupeId`=gr.id WHERE o.dt_UPDATED >= ?1 AND o.dt_UPDATED < DATE_ADD(?2, INTERVAL 1 DAY)  AND o.str_REPONSE_FRS <>'' AND o.str_STATUT='enable' GROUP BY DATE(o.dt_UPDATED), g.`groupeId` HAVING montant >0 ORDER BY jour, g.`groupeId`",
                     Tuple.class).setParameter(1, java.sql.Date.valueOf(dtStart))
                     .setParameter(2, java.sql.Date.valueOf(dtEnd));
-            return (List<Tuple>) q.getResultList();
+            for (Object o : q.getResultList()) {
+                Tuple t = (Tuple) o;
+                parJour.computeIfAbsent(t.get("jour", java.sql.Date.class).toLocalDate(), k -> new ArrayList<>())
+                        .add(t);
+            }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return new ArrayList<>();
         }
-
+        Map<LocalDate, Map<String, Long>> avoirs = new HashMap<>();
+        parJour.forEach((jour, lignes) -> avoirs.put(jour, buildAvoir(lignes)));
+        return avoirs;
     }
 
     private List<Tuple> fetchPreenregistrements(BalanceParamsDTO balanceParams) {
@@ -1096,15 +1117,24 @@ public class BalanceServiceImpl implements BalanceService {
             for (Tuple t : tuple) {
                 long montant = t.get("montant", Double.class).longValue();
                 String libelle = t.get("libelle", String.class);
-                avoisMap.put(StringUtils.isNotEmpty(libelle) ? libelle : Constant.AUTRES, montant);
+                // plusieurs groupes sans libelle le meme jour : leurs avoirs s'ajoutent (avant : le dernier
+                // l'emportait)
+                avoisMap.merge(StringUtils.isNotEmpty(libelle) ? libelle : Constant.AUTRES, montant, Long::sum);
             }
         }
         return avoisMap;
     }
 
-    private List<TableauBaordPhDTO> buildBonAchats(List<Tuple> tuple) {
+    private List<TableauBaordPhDTO> buildBonAchats(List<Tuple> tuple, Map<LocalDate, Map<String, Long>> avoirsParJour) {
         List<TableauBaordPhDTO> list = new ArrayList<>();
 
+        /*
+         * Chaque avoir du jour et du groupe ne compte qu'une fois (retour du 19/11, « double avoir ») : il est retire
+         * de ce reste a la premiere ligne d'achat du groupe ce jour-la. Avant, il etait repris sur chaque ligne : deux
+         * grossistes du meme groupe livres le meme jour (a appaul, LABOREX-CI 520 jours sur 647) le doublaient.
+         */
+        Map<LocalDate, Map<String, Long>> restant = new HashMap<>();
+        avoirsParJour.forEach((jour, parGroupe) -> restant.put(jour, new HashMap<>(parGroupe)));
         if (CollectionUtils.isNotEmpty(tuple)) {
             for (Tuple t : tuple) {
                 TableauBaordPhDTO o = new TableauBaordPhDTO();
@@ -1115,8 +1145,8 @@ public class BalanceServiceImpl implements BalanceService {
 
                 String libelleGroupeGrossiste = Objects.nonNull(t.get("libelle", String.class))
                         ? t.get("libelle", String.class) : Constant.AUTRES;
-                Map<String, Long> avoisMap = buildAvoir(avoirFournisseur(o.getMvtDate(), o.getMvtDate()));
-                Long avoir = avoisMap.get(libelleGroupeGrossiste);
+                Long avoir = restant.getOrDefault(o.getMvtDate(), Collections.emptyMap())
+                        .remove(libelleGroupeGrossiste);
                 int avoir2 = Objects.isNull(avoir) ? 0 : avoir.intValue();
                 o.setMontantAvoir(avoir2);
                 o.setMontantAchat(montant - avoir2);
@@ -1147,9 +1177,18 @@ public class BalanceServiceImpl implements BalanceService {
                 }
                 list.add(o);
             }
-
-            return list;
         }
+        // avoirs d'un jour sans achat de leur groupe : comptes ce jour-la (avant : perdus), achat net = - avoir
+        restant.forEach((jour, parGroupe) -> parGroupe.values().forEach(avoir -> {
+            if (avoir != null && avoir > 0) {
+                TableauBaordPhDTO o = new TableauBaordPhDTO();
+                o.setVente(false);
+                o.setMvtDate(jour);
+                o.setMontantAvoir(avoir.intValue());
+                o.setMontantAchat(-avoir.intValue());
+                list.add(o);
+            }
+        }));
         return list;
     }
 

@@ -1302,9 +1302,15 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
             success: function (response)
             {
                 boxWaitingProcess.hide();
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (!object.success ) {
-                    Ext.MessageBox.alert('Error Message', object.errors);
+                var object = Ext.JSON.decode(response.responseText, true) || {};
+                if (!object.success) {
+                    /* Retour du 18/11 : le reglement est deja enregistre ; seul le ticket n'est pas sorti. Le message
+                       du serveur (msg : imprimante absente) est affiche, puis l'ecran revient a la liste comme apres
+                       une impression reussie, pour ne pas laisser croire qu'il faut regler a nouveau. */
+                    Ext.MessageBox.alert('Ticket non imprimé', object.msg || object.errors
+                            || "Le ticket n'a pas pu être imprimé. Le règlement est bien enregistré.", function () {
+                        Ext.getCmp('doreglementmanagerID').retourVuePrecedente();
+                    });
                     return;
                 }
                 Ext.getCmp('doreglementmanagerID').retourVuePrecedente();

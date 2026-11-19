@@ -28,6 +28,14 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
         titre: ''
     },
     initComponent: function () {
+        /* retour support du 18/11 (R4) : « CREER BON DE LIVRAISON » clique deux fois ouvrait deux fenetres aux memes
+           identifiants ; le second « Enregistrer » tombait sur une fenetre detruite. Une seule fenetre a la fois : un
+           second clic ramene celle qui est ouverte. */
+        var ouverte = Ext.getCmp('fenetreCreerBl');
+        if (ouverte) {
+            ouverte.toFront();
+            return;
+        }
 
         Oview = this.getParentview();
         montantachat = this.getMontantachat();
@@ -149,6 +157,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
         //Initialisation des valeur
 
         var win = new Ext.window.Window({
+            id: 'fenetreCreerBl',
             autoShow: true,
             title: this.getTitre(),
             width: 500,
@@ -160,6 +169,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
             items: form,
             buttons: [{
                     text: 'Enregistrer',
+                    itemId: 'btnEnregistrerBl',
                     handler: this.onbtncreerbl
 //                    handler: this.onbtnsave
                 }, {
@@ -263,6 +273,11 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
             Ext.MessageBox.alert('VALIDATION', 'Veuillez renseigner les champs vides svp!');
             return;
         }
+        /* R4 (18/11) : grise des le premier clic, jusqu'a la reponse ; un double clic n'envoie qu'une fois */
+        if (button.isDisabled()) {
+            return;
+        }
+        button.disable();
 
 
         if (Omode == "create") {
@@ -272,6 +287,8 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                         function (btn) {
                             if (btn == 'yes') {
                                 Me.doCreateBL(button, url_transaction, Ext.getCmp('lg_ORDER_ID').getValue(), str_REF_LIVRAISON, dt_DATE_LIVRAISON, int_MHT, int_TVA);
+                            } else {
+                                button.enable();
                             }
                         });
 
@@ -310,6 +327,9 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                 /* retours du 25/10 (point 8) : plus de message quand le BL est cree ; en cas d'echec, le message
                    reste et la fenetre aussi (la saisie n'est pas perdue) */
                 if (result.success === false) {
+                    if (!button.isDestroyed) {
+                        button.enable();
+                    }
                     Ext.MessageBox.alert('Création du bon de livraison', result.msg || 'Le bon de livraison n\'a pas été créé.');
                     return;
                 }
@@ -321,6 +341,9 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
             failure: function (response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();
+                if (!button.isDestroyed) {
+                    button.enable();
+                }
                 Ext.JSON.decode(response.responseText, false);
                 console.log("Bug " + response.responseText);
                 Ext.MessageBox.alert('Error Message', response.responseText);

@@ -2,6 +2,7 @@ package rest.service.impl;
 
 import dal.TUser;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -317,16 +318,43 @@ public class MotifVenteServiceImpl implements MotifVenteService {
     /** Ventes encaissees par caissiere sur [debut, fin] (denominateur du taux, comme l'Activite des equipes). */
     private Map<String, Long> ventesEncaissees(LocalDate debut, LocalDate fin) {
         @SuppressWarnings("unchecked")
-        List<Object[]> l = em.createNativeQuery("SELECT p.lg_USER_CAISSIER_ID, COUNT(*) FROM t_preenregistrement p"
-                + " WHERE p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID IN ('1', '2', '3')"
-                + " AND COALESCE(p.completion_date, p.dt_UPDATED) >= ?1 AND COALESCE(p.completion_date, p.dt_UPDATED) < ?2"
-                + " AND p.lg_USER_CAISSIER_ID IS NOT NULL AND NOT EXISTS (SELECT 1 FROM vente_modifiee vm"
-                + " WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID) GROUP BY p.lg_USER_CAISSIER_ID")
+        List<Object[]> l = em.createNativeQuery(requeteVentesEncaissees(debut, fin))
                 .setParameter(1, java.sql.Date.valueOf(debut)).setParameter(2, java.sql.Date.valueOf(fin.plusDays(1)))
                 .getResultList();
         Map<String, Long> m = new LinkedHashMap<>();
         l.forEach(x -> m.put(String.valueOf(x[0]), ((Number) x[1]).longValue()));
         return m;
+    }
+
+    private static final String VENTES_ENCAISSEES_FILTRE = " p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0"
+            + " AND p.lg_TYPE_VENTE_ID IN ('1', '2', '3') AND p.lg_USER_CAISSIER_ID IS NOT NULL AND NOT EXISTS"
+            + " (SELECT 1 FROM vente_modifiee vm WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID)";
+
+    /**
+     * Au-dela de cette duree, la lecture complete de la table est plus rapide que les deux branches indexees (mesure
+     * sur la copie d'appaul, 2,1 millions de ventes : 3 mois 0,6 s contre 3,8 ; 6 mois 0,85 s contre 3,7 ; 9 mois 3,9 s
+     * contre 3,8).
+     */
+    static final int JOURS_DEUX_BRANCHES = 186;
+
+    /**
+     * Retour support du 18/11 (R8) : l'analyse par motif d'UN jour prenait 3 a 5 s, car la periode portait sur
+     * COALESCE(completion_date, dt_UPDATED), qu'aucun index ne sert (985 000 lignes lues). La meme periode s'ecrit en
+     * deux branches disjointes, chacune sur sa colonne indexee : date d'encaissement dans la periode, ou pas de date
+     * d'encaissement et date de mise a jour dans la periode. Memes ventes, memes comptes ; 0,13 s pour un jour. Au-dela
+     * de {@link #JOURS_DEUX_BRANCHES} jours, la requete d'origine, plus rapide sur une longue periode.
+     */
+    static String requeteVentesEncaissees(LocalDate debut, LocalDate fin) {
+        if (ChronoUnit.DAYS.between(debut, fin) + 1 > JOURS_DEUX_BRANCHES) {
+            return "SELECT p.lg_USER_CAISSIER_ID, COUNT(*) FROM t_preenregistrement p WHERE" + VENTES_ENCAISSEES_FILTRE
+                    + " AND COALESCE(p.completion_date, p.dt_UPDATED) >= ?1"
+                    + " AND COALESCE(p.completion_date, p.dt_UPDATED) < ?2 GROUP BY p.lg_USER_CAISSIER_ID";
+        }
+        return "SELECT x.c, SUM(x.n) FROM (SELECT p.lg_USER_CAISSIER_ID AS c, COUNT(*) AS n FROM t_preenregistrement p"
+                + " WHERE" + VENTES_ENCAISSEES_FILTRE + " AND p.completion_date >= ?1 AND p.completion_date < ?2"
+                + " GROUP BY p.lg_USER_CAISSIER_ID UNION ALL SELECT p.lg_USER_CAISSIER_ID, COUNT(*) FROM"
+                + " t_preenregistrement p WHERE" + VENTES_ENCAISSEES_FILTRE + " AND p.completion_date IS NULL"
+                + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 GROUP BY p.lg_USER_CAISSIER_ID) x GROUP BY x.c";
     }
 
     @Override

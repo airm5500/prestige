@@ -60,12 +60,19 @@ public final class CalculReglages {
             if (domaine == null || !Files.isRegularFile(domaine)) {
                 return true;
             }
-            ConfigPayara p = ConfigPayara.lire(new String(Files.readAllBytes(domaine), StandardCharsets.UTF_8));
-            return !p.lu || p.poolUrl.isEmpty()
-                    || ConfigPayara.locale(ConfigPayara.hoteBase(p.poolUrl), hote, adressesLocales());
+            return baseLocale(ConfigPayara.lire(new String(Files.readAllBytes(domaine), StandardCharsets.UTF_8)), hote,
+                    adressesLocales());
         } catch (java.io.IOException | RuntimeException e) {
             return true;
         }
+    }
+
+    /**
+     * Meme regle, sur un domain.xml deja lu : vrai si le pool vise cette machine (bouclage, nom ou une de ses
+     * adresses), ou dans le doute (domain.xml illisible, pool sans adresse de base).
+     */
+    static boolean baseLocale(ConfigPayara p, String hote, java.util.Collection<String> adresses) {
+        return !p.lu || p.poolHote.isEmpty() || ConfigPayara.locale(p.poolHote, hote, adresses);
     }
 
     /**
@@ -96,8 +103,7 @@ public final class CalculReglages {
         c.ram = MesureServeur.ramMachine();
         c.variables = variables;
         c.serveur = serveur;
-        c.mariadbLocale = !c.payara.lu || c.payara.poolUrl.isEmpty()
-                || ConfigPayara.locale(ConfigPayara.hoteBase(c.payara.poolUrl), hote, adressesLocales());
+        c.mariadbLocale = baseLocale(c.payara, hote, adressesLocales());
         for (Reglage x : ReglagesServeur.comparer(c.ram, Runtime.getRuntime().availableProcessors(),
                 Runtime.getRuntime().maxMemory(), c.variables, c.postes, c.payara.lu ? c.payara.poolMax : -1, c.serveur,
                 c.mariadbLocale)) {

@@ -247,33 +247,31 @@ Ext.define('testextjs.view.Header', {
             if (typeof prestigeVentesRateesBadge === 'function') {
                 prestigeVentesRateesBadge();
             }
-            // Rafraichissement du badge : delai configurable via le parametre
-            // KEY_NOTIFICATION_REFRESH_SECONDS (t_parameters), defaut 60s,
-            // minimum 15s pour ne pas surcharger le serveur.
+            // Rafraichissement du badge de la cloche ET du panier des ventes ratees : un seul cycle, au delai du
+            // parametre KEY_NOTIFICATION_REFRESH_SECONDS (t_parameters), defaut 60 s, minimum 15 s.
+            // Retour du 18/11 : le parametre est relu a chaque cycle. Lu une seule fois a la connexion, un changement
+            // ne s'appliquait qu'apres rechargement de la page, et les postes restent connectes des jours.
             if (!window.PRESTIGE_NOTIF_TIMER) {
-                var demarrerTimer = function (secondes) {
-                    var delai = parseInt(secondes, 10);
-                    if (isNaN(delai) || delai < 15) {
-                        delai = 60;
-                    }
-                    window.PRESTIGE_NOTIF_TIMER = setInterval(function () {
-                        refreshNotificationBadge();
-                        if (typeof prestigeVentesRateesBadge === 'function') {
-                            prestigeVentesRateesBadge();
+                var cycleNotifications = function () {
+                    Ext.Ajax.request({
+                        method: 'GET',
+                        url: '../api/v1/app-params/value/KEY_NOTIFICATION_REFRESH_SECONDS',
+                        callback: function (opts, succes, response) {
+                            var r = succes ? Ext.JSON.decode(response.responseText, true) : null;
+                            var delai = prestigeDelaiNotifications(r && r.success ? r.data : null);
+                            window.PRESTIGE_NOTIF_DELAI = delai;
+                            window.PRESTIGE_NOTIF_TIMER = setTimeout(function () {
+                                refreshNotificationBadge();
+                                if (typeof prestigeVentesRateesBadge === 'function') {
+                                    prestigeVentesRateesBadge();
+                                }
+                                cycleNotifications();
+                            }, delai * 1000);
                         }
-                    }, delai * 1000);
+                    });
                 };
-                Ext.Ajax.request({
-                    method: 'GET',
-                    url: '../api/v1/app-params/value/KEY_NOTIFICATION_REFRESH_SECONDS',
-                    success: function (response) {
-                        var r = Ext.JSON.decode(response.responseText, true);
-                        demarrerTimer(r && r.data ? r.data : 60);
-                    },
-                    failure: function () {
-                        demarrerTimer(60);
-                    }
-                });
+                window.PRESTIGE_NOTIF_TIMER = true;
+                cycleNotifications();
             }
             // Animation lettre par lettre du branding et du nom officine.
             prestigeHeaderAnimateTexts();
@@ -790,6 +788,15 @@ var PrestigeNotif = (function () {
         getProviders: getProviders
     };
 })();
+
+/**
+ * Delai en secondes du cycle de la cloche et du panier des ventes ratees, depuis la valeur du parametre
+ * KEY_NOTIFICATION_REFRESH_SECONDS : entier d'au moins 15, sinon 60.
+ */
+function prestigeDelaiNotifications(valeur) {
+    var delai = parseInt(valeur, 10);
+    return isNaN(delai) || delai < 15 ? 60 : delai;
+}
 
 // Alias retro-compatible (appele depuis add.js / ReserveManager.js)
 function refreshNotificationBadge() {

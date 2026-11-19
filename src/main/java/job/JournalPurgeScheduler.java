@@ -1,5 +1,7 @@
 package job;
 
+import config.AppConfig;
+import javax.inject.Inject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
@@ -18,9 +20,14 @@ public class JournalPurgeScheduler {
 
     @EJB
     private LogService logService;
+    @Inject
+    private AppConfig appConfig;
 
     @Schedule(hour = "3", minute = "27", second = "0", persistent = false)
     public void purger() {
+        if (!appConfig.isServerMode()) {
+            return; // retour du 18/11 : travail sur toute la base, fait une seule fois, sur le poste serveur
+        }
         try {
             logService.purger();
         } catch (Exception e) {

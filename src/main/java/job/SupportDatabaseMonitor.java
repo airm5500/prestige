@@ -1,5 +1,7 @@
 package job;
 
+import config.AppConfig;
+import javax.inject.Inject;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +44,14 @@ public class SupportDatabaseMonitor {
     private static final Logger LOG = Logger.getLogger(SupportDatabaseMonitor.class.getName());
     private static final int PALIERS_CONNEXIONS = 3;
     private static final int MAX_REQUETES_DETAILLEES = 5;
+    /** Requetes relevees au plus a chaque passage (le compte de l'alerte porte sur elles). */
+    private static final int MAX_PROCESSUS = 200;
+    /**
+     * Retour du 18/11 (R7) : marque de mysqldump / mariadb-dump en tete de chaque lecture de table. Une sauvegarde
+     * --single-transaction lit chaque table en entier, sans verrou : longue par nature, ce n'est pas une requete lente.
+     */
+    private static final java.util.regex.Pattern SAUVEGARDE = java.util.regex.Pattern
+            .compile("^\\s*SELECT\\s+/\\*!40001\\s+SQL_NO_CACHE\\s*\\*/", java.util.regex.Pattern.CASE_INSENSITIVE);
 
     /*
      * Requetes REELLEMENT en cours d'execution. Trois exclusions, chacune constatee sur un serveur reel :
@@ -61,6 +71,8 @@ public class SupportDatabaseMonitor {
     private EntityManager em;
     @EJB
     private SupportEventService supportEventService;
+    @Inject
+    private AppConfig appConfig;
 
     private int depassementsConnexions = 0;
 
@@ -82,6 +94,9 @@ public class SupportDatabaseMonitor {
 
     @Schedule(hour = "*", minute = "*/5", persistent = false)
     public void verifier() {
+        if (!appConfig.isServerMode()) {
+            return; // retour du 18/11 : travail sur toute la base, fait une seule fois, sur le poste serveur
+        }
         try {
             if (!"1".equals(StringUtils.trimToEmpty(supportEventService.getParameter("SUPPORT_DB_MONITOR_ENABLED")))) {
                 return;
@@ -116,19 +131,19 @@ public class SupportDatabaseMonitor {
     private void verifierRequetesLentes() {
         int seuil = intParam("SUPPORT_DB_SLOW_QUERY_S", 10);
         try {
-            Object[] resume = (Object[]) em
-                    .createNativeQuery("SELECT COUNT(*), COALESCE(MAX(TIME), 0)" + REQUETES_EN_COURS_WHERE)
-                    .setParameter(1, seuil).getSingleResult();
-            long nombre = nombre(resume[0]);
-            long plusLongue = nombre(resume[1]);
-            Alerte alerte = evaluerRequetesLentes(nombre, plusLongue, seuil);
-            if (alerte != null) {
-                publier(new Alerte(alerte.code, alerte.niveau, alerte.message,
-                        alerte.detail + "\n" + listerRequetesLentes(seuil)));
+            for (Alerte alerte : evaluerProcessus(processus(seuil), seuil)) {
+                publier(alerte);
             }
         } catch (Exception e) {
             LOG.log(Level.FINE, "verifierRequetesLentes", e);
         }
+    }
+
+    /** Requetes en cours au-dela du seuil (ID, USER, TIME, debut du texte), de la plus ancienne a la plus recente. */
+    @SuppressWarnings("unchecked")
+    private List<Object[]> processus(int seuil) {
+        return em.createNativeQuery("SELECT ID, USER, TIME, LEFT(INFO, 500)" + REQUETES_EN_COURS_WHERE
+                + " ORDER BY TIME DESC LIMIT " + MAX_PROCESSUS).setParameter(1, seuil).getResultList();
     }
 
     private void verifierVerrous() {
@@ -136,28 +151,13 @@ public class SupportDatabaseMonitor {
         publier(evaluerVerrous(attentes, intParam("SUPPORT_DB_LOCK_WAITS", 5)));
     }
 
-    /** Les requetes fautives elles-memes : sans elles, l'alerte ne dit pas quoi corriger. */
+    /** Les requetes fautives elles-memes (hors sauvegarde) : sans elles, l'alerte ne dit pas quoi corriger. */
     private String listerRequetesLentes(int seuil) {
-        StringBuilder sb = new StringBuilder("=== Requetes en cours au-dela du seuil ===\n");
         try {
-            @SuppressWarnings("unchecked")
-            List<Object[]> lignes = em
-                    .createNativeQuery("SELECT ID, USER, TIME, LEFT(INFO, 500)" + REQUETES_EN_COURS_WHERE
-                            + " ORDER BY TIME DESC LIMIT " + MAX_REQUETES_DETAILLEES)
-                    .setParameter(1, seuil).getResultList();
-            if (lignes.isEmpty()) {
-                // La requete a pu se terminer entre les deux mesures : ce n'est pas une anomalie.
-                return sb.append("(les requetes se sont terminees entre-temps)\n").toString();
-            }
-            for (Object[] ligne : lignes) {
-                sb.append("- ").append(nombre(ligne[2])).append(" s | connexion ").append(String.valueOf(ligne[0]))
-                        .append(" | ").append(String.valueOf(ligne[1])).append("\n  ")
-                        .append(StringUtils.normalizeSpace(String.valueOf(ligne[3]))).append("\n");
-            }
+            return lister(lentes(processus(seuil)));
         } catch (Exception e) {
-            sb.append("(liste indisponible : ").append(String.valueOf(e.getMessage())).append(")\n");
+            return "=== Requetes en cours au-dela du seuil ===\n(liste indisponible : " + e.getMessage() + ")\n";
         }
-        return sb.toString();
     }
 
     /**
@@ -178,16 +178,27 @@ public class SupportDatabaseMonitor {
         int seuilLent = intParam("SUPPORT_DB_SLOW_QUERY_S", 10);
         mesures.put("seuilRequeteLenteS", seuilLent);
         mesures.put("requetesLentes", requetesLentes(seuilLent));
+        mesures.put("sauvegardeEnCoursS", sauvegardeEnCours(seuilLent));
         mesures.put("detailRequetesLentes", listerRequetesLentes(seuilLent));
         return mesures;
     }
 
+    /** Requetes lentes hors sauvegarde, ou -1 si la mesure est indisponible. */
     private long requetesLentes(int seuil) {
         try {
-            return nombre(em.createNativeQuery("SELECT COUNT(*)" + REQUETES_EN_COURS_WHERE).setParameter(1, seuil)
-                    .getSingleResult());
+            return lentes(processus(seuil)).size();
         } catch (Exception e) {
             LOG.log(Level.FINE, "requetesLentes", e);
+            return -1L;
+        }
+    }
+
+    /** Duree en secondes de la sauvegarde en cours (0 si aucune au-dela du seuil, -1 si indisponible). */
+    private long sauvegardeEnCours(int seuil) {
+        try {
+            return plusLongue(sauvegardes(processus(seuil)));
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "sauvegardeEnCours", e);
             return -1L;
         }
     }
@@ -277,6 +288,90 @@ public class SupportDatabaseMonitor {
         detail.append("Pistes : connexions non rendues au pool, requetes lentes qui monopolisent le pool, ou "
                 + "dimensionnement du pool a revoir.");
         return new Alerte("bdd-connexions", "WARN", message, detail.toString());
+    }
+
+    /** Vrai pour une lecture de table de mysqldump / mariadb-dump (marque 40001 en tete). */
+    static boolean estSauvegarde(String info) {
+        return info != null && SAUVEGARDE.matcher(info).find();
+    }
+
+    static List<Object[]> lentes(List<Object[]> processus) {
+        List<Object[]> l = new java.util.ArrayList<>();
+        for (Object[] p : processus) {
+            if (!estSauvegarde(String.valueOf(p[3]))) {
+                l.add(p);
+            }
+        }
+        return l;
+    }
+
+    static List<Object[]> sauvegardes(List<Object[]> processus) {
+        List<Object[]> l = new java.util.ArrayList<>();
+        for (Object[] p : processus) {
+            if (estSauvegarde(String.valueOf(p[3]))) {
+                l.add(p);
+            }
+        }
+        return l;
+    }
+
+    static long plusLongue(List<Object[]> processus) {
+        long max = 0;
+        for (Object[] p : processus) {
+            max = Math.max(max, nombre(p[2]));
+        }
+        return max;
+    }
+
+    private static String lister(List<Object[]> processus) {
+        StringBuilder sb = new StringBuilder("=== Requetes en cours au-dela du seuil ===\n");
+        if (processus.isEmpty()) {
+            // La requete a pu se terminer entre les deux mesures : ce n'est pas une anomalie.
+            return sb.append("(les requetes se sont terminees entre-temps)\n").toString();
+        }
+        for (Object[] ligne : processus.subList(0, Math.min(processus.size(), MAX_REQUETES_DETAILLEES))) {
+            sb.append("- ").append(nombre(ligne[2])).append(" s | connexion ").append(String.valueOf(ligne[0]))
+                    .append(" | ").append(String.valueOf(ligne[1])).append("\n  ")
+                    .append(StringUtils.normalizeSpace(String.valueOf(ligne[3]))).append("\n");
+        }
+        return sb.toString();
+    }
+
+    /** Compte de la sauvegarde la plus ancienne (celui de mysqldump). */
+    private static String compte(List<Object[]> sauvegardes) {
+        Object[] plus = null;
+        for (Object[] p : sauvegardes) {
+            if (plus == null || nombre(p[2]) > nombre(plus[2])) {
+                plus = p;
+            }
+        }
+        return plus == null ? "" : String.valueOf(plus[1]);
+    }
+
+    /**
+     * Alertes d'un releve des requetes en cours au-dela du seuil. La sauvegarde est ecartee des requetes lentes :
+     * seule, elle donne un evenement INFO « sauvegarde en cours » ; avec de vraies requetes lentes, l'alerte ne compte
+     * que celles-ci et signale la sauvegarde dans son detail.
+     */
+    static List<Alerte> evaluerProcessus(List<Object[]> processus, int seuilS) {
+        List<Alerte> alertes = new java.util.ArrayList<>();
+        List<Object[]> lentes = lentes(processus);
+        List<Object[]> sauvegardes = sauvegardes(processus);
+        String sauvegarde = sauvegardes.isEmpty() ? ""
+                : "Sauvegarde en cours depuis " + plusLongue(sauvegardes) + " s (compte " + compte(sauvegardes) + ")";
+        Alerte lente = evaluerRequetesLentes(lentes.size(), plusLongue(lentes), seuilS);
+        if (lente != null) {
+            alertes.add(new Alerte(lente.code, lente.niveau, lente.message, lente.detail + "\n" + lister(lentes)
+                    + (sauvegarde.isEmpty() ? "" : "\n" + sauvegarde + " : ecartee de ces chiffres.\n")));
+        } else if (!sauvegardes.isEmpty()) {
+            alertes.add(new Alerte("bdd-sauvegarde", "INFO",
+                    sauvegarde
+                            + " : lecture complete de la base, normale et sans verrou. Ce n'est pas une requete lente.",
+                    "La sauvegarde (mysqldump / mariadb-dump --single-transaction) lit chaque table en entier.\n"
+                            + "Pendant ce temps, les ecrans qui lisent beaucoup de lignes peuvent ralentir (cache et "
+                            + "disque partages) : la placer hors des heures d'ouverture.\n\n" + lister(sauvegardes)));
+        }
+        return alertes;
     }
 
     static Alerte evaluerRequetesLentes(long nombre, long plusLongueS, int seuilS) {

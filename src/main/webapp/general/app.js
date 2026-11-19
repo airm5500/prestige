@@ -1281,6 +1281,43 @@ Ext.define('Prestige.override.MasqueSansComposant', {
 });
 
 // ---------------------------------------------------------------------
+// Retour support du 18/11 (R5) : « Cannot read properties of null (reading
+// 'loadPage') » a la vente (CAISSE11, 13/11 x2 et 16/11), juste apres un scan.
+// Dans Ext 4.2.1, chaque frappe dans un combo reprogramme sa recherche
+// (doQueryTask, queryDelay plus tard) ; la tache n'est annulee qu'a la sortie
+// du champ, pas a la destruction du combo. Ecran detruit avant la demi-seconde
+// (reproduit : trois lettres dans la recherche d'article puis RETOUR) : la
+// recherche part sur un combo detruit, dont la liste vaut null.
+// Test : retours/test-combo-recherche-apres-retour.js.
+// La recherche differee est annulee a la destruction, et ne part jamais sur
+// un combo detruit ou sans liste.
+// ---------------------------------------------------------------------
+Ext.define('Prestige.override.ComboRechercheDifferee', {
+    override: 'Ext.form.field.ComboBox',
+
+    doRawQuery: function () {
+        if (this.isDestroyed || !this.store) {
+            return;
+        }
+        return this.callParent(arguments);
+    },
+
+    loadPage: function () {
+        if (this.isDestroyed || !this.store) {
+            return;
+        }
+        return this.callParent(arguments);
+    },
+
+    onDestroy: function () {
+        if (this.doQueryTask) {
+            this.doQueryTask.cancel();
+        }
+        this.callParent(arguments);
+    }
+});
+
+// ---------------------------------------------------------------------
 // Ligne active : au clic, c'est la LIGNE entiere qui est marquee (violet),
 // pas la seule cellule cliquee.
 //
@@ -1720,6 +1757,32 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                     });
         });
 
+        /*
+         * Retour support du 18/11 (R6) : 24 refus « HTTP 400 » sur produit-search/fiche, sans aucun detail. Les refus
+         * de Prestige ont tous un message : une reponse VIDE vient de Payara, avant l'application (requete trop longue
+         * ou mal formee). On garde alors la forme de la requete : methode, longueur de l'adresse, nom et longueur de
+         * chaque parametre. Jamais les valeurs (elles peuvent contenir une saisie nominative).
+         */
+        function prestigeRequeteSansReponse(options, url) {
+            var methode = String((options && options.method) || 'GET').toUpperCase(), p = options && options.params,
+                    lignes = [], adresse = url;
+            if (p && typeof p === 'object') {
+                Ext.Object.each(p, function (nom, valeur) {
+                    lignes.push(nom + ' (' + String(valeur === null || valeur === undefined ? '' : valeur).length + ' car.)');
+                });
+                if (methode === 'GET') {
+                    adresse = url + (url.indexOf('?') < 0 ? '?' : '&') + Ext.Object.toQueryString(p);
+                }
+            } else if (typeof p === 'string') {
+                lignes.push('corps de ' + p.length + ' car.');
+            }
+            return 'Réponse vide : refus de Payara avant l\'application (requête trop longue ou mal formée).\n'
+                    + 'Méthode : ' + methode + ' ; adresse complète : ' + adresse.length + ' car.'
+                    + (adresse.length > 7000 ? ' (au-delà de la limite de 8 Ko des en-têtes de Payara)' : '') + '\n'
+                    + 'Paramètres : ' + (lignes.length ? lignes.join(', ') : 'aucun');
+        }
+        window.prestigeRequeteSansReponse = prestigeRequeteSansReponse;
+
         Ext.Ajax.on('requestexception', function (conn, response, options) {
             try {
                 var url = (options && options.url) ? String(options.url) : '';
@@ -1747,7 +1810,8 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                             + (response && response.statusText ? response.statusText : '')).substring(0, 500),
                     urlOuEcran: url.substring(0, 255),
                     stack: (response && response.responseText)
-                            ? String(response.responseText).substring(0, 4000) : null
+                            ? String(response.responseText).substring(0, 4000)
+                            : (status >= 400 && status < 500 ? prestigeRequeteSansReponse(options, url) : null)
                 });
             } catch (ignore) {
                 // capture silencieuse

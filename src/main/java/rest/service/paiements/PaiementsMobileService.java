@@ -68,6 +68,8 @@ public class PaiementsMobileService {
     private SalesService salesService;
     @EJB
     private SessionHelperService sessionHelperService;
+    @javax.inject.Inject
+    private config.AppConfig appConfig;
 
     // -------------------------------------------------------------------------
     // Configuration
@@ -577,6 +579,9 @@ public class PaiementsMobileService {
     /** Expiration automatique des paiements en attente (dernière vérification chez le fournisseur avant). */
     @Schedule(minute = "*", hour = "*", persistent = false)
     public void expirer() {
+        if (!appConfig.isServerMode()) {
+            return; // retour du 18/11 : une seule expiration, sur le poste serveur, et non une par caisse chaque minute
+        }
         if (!disponible()) {
             return;
         }

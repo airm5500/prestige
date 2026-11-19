@@ -29,6 +29,17 @@ public final class ConfigPayara {
     public int poolTentatives;
     /** URL de la base declaree dans le pool (sans le mot de passe, qui est une autre propriete). */
     public String poolUrl = "";
+    /**
+     * Hote de la base du pool : celui de l'url, sinon la propriete serverName (retour du 18/11 : les pools d'appaul
+     * n'ont que serverName ; sans lui, chaque poste se croyait l'hote de la base et lancait les taches du serveur).
+     */
+    public String poolHote = "";
+    /**
+     * Retour du 18/11 (R3) : proprietes du pilote posees par 1-configurer-payara.ps1 -PoolSeulement. Delais de
+     * connexion et de lecture en ms (0 : absents, le pilote attend sans fin), tcpKeepAlive.
+     */
+    public int poolDelaiConnexionMs, poolDelaiLectureMs;
+    public boolean poolMaintien;
     public String niveauSurveillancePool = "OFF", niveauSurveillanceFils = "OFF";
     public List<String> optionsJvm = new ArrayList<>();
     public boolean lu;
@@ -36,6 +47,51 @@ public final class ConfigPayara {
     private static String attribut(String balise, String nom) {
         Matcher m = Pattern.compile("\\s" + Pattern.quote(nom) + "=\"([^\"]*)\"").matcher(balise);
         return m.find() ? m.group(1) : null;
+    }
+
+    /** Valeur d'une propriete du pool (url, serverName, socketTimeout...), ou null si absente. */
+    private static String propriete(String corps, String nom) {
+        Matcher m = Pattern.compile("<property name=\"" + Pattern.quote(nom) + "\" value=\"([^\"]*)\"").matcher(corps);
+        return m.find() ? m.group(1) : null;
+    }
+
+    /** Commande qui regle le pool sur un poste (dossier outils/officine de Prestige, PowerShell en administrateur). */
+    public static final String COMMANDE_POOL = ".\\1-configurer-payara.ps1 -PoolSeulement -Redemarrer";
+
+    /**
+     * Retour du 18/11 (R3) : ce qui manque au pool pour survivre a une coupure du reseau ou de la base (verification
+     * avant emploi, delais de connexion et de lecture, tcpKeepAlive). Vide : pool regle. Regle unique de
+     * l'auto-diagnostic et de l'onglet Reglages de Stabilite du serveur.
+     */
+    public List<String> manquesPool() {
+        List<String> l = new ArrayList<>();
+        if (!poolValidation) {
+            l.add("verification avant emploi (une connexion coupee est distribuee quand meme)");
+        }
+        if (poolDelaiConnexionMs <= 0) {
+            l.add("delai de connexion (connectTimeout)");
+        }
+        if (poolDelaiLectureMs <= 0) {
+            l.add("delai de lecture (socketTimeout : sans lui, une coupure fige la caisse)");
+        } else if (poolDelaiLectureMs < DELAI_LECTURE_MIN_MS) {
+            l.add("delai de lecture trop court (" + poolDelaiLectureMs + " ms ; au moins " + DELAI_LECTURE_MIN_MS
+                    + " ms : les etats longs)");
+        }
+        if (!poolMaintien) {
+            l.add("tcpKeepAlive (garde vivantes les connexions au repos entre la caisse et le serveur)");
+        }
+        return l;
+    }
+
+    /** Delai de lecture minimal, celui de 1-configurer-payara.ps1 (les etats les plus longs). */
+    public static final int DELAI_LECTURE_MIN_MS = 60000;
+
+    /** Etat lisible des reglages du pool (sans mot de passe). */
+    public String etatPool() {
+        return "verification " + (poolValidation ? "activee" : "desactivee") + " ; delai de connexion "
+                + (poolDelaiConnexionMs > 0 ? poolDelaiConnexionMs + " ms" : "absent") + " ; delai de lecture "
+                + (poolDelaiLectureMs > 0 ? poolDelaiLectureMs + " ms" : "absent") + " ; tcpKeepAlive "
+                + (poolMaintien ? "oui" : "non");
     }
 
     private static int entier(String v, int defaut) {
@@ -69,6 +125,11 @@ public final class ConfigPayara {
                 String corps = finPool < 0 ? "" : xml.substring(p.start(), finPool);
                 Matcher u = Pattern.compile("<property name=\"(?:url|URL)\" value=\"([^\"]*)\"").matcher(corps);
                 c.poolUrl = u.find() ? u.group(1).replace("&amp;", "&") : "";
+                Matcher n = Pattern.compile("<property name=\"serverName\" value=\"([^\"]*)\"").matcher(corps);
+                c.poolHote = !c.poolUrl.isEmpty() ? hoteBase(c.poolUrl) : n.find() ? n.group(1).trim() : "";
+                c.poolDelaiConnexionMs = entier(propriete(corps, "connectTimeout"), 0);
+                c.poolDelaiLectureMs = entier(propriete(corps, "socketTimeout"), 0);
+                c.poolMaintien = "true".equalsIgnoreCase(propriete(corps, "tcpKeepAlive"));
             }
         }
         int debut = xml.indexOf("<config name=\"server-config\"");
@@ -211,6 +272,17 @@ public final class ConfigPayara {
                         + ".validation-classname=org.glassfish.api.jdbc.validation.MySQLConnectionValidation"
                         + "\nasadmin set resources.jdbc-connection-pool." + pool
                         + ".is-connection-validation-required=true");
+        boolean delaisOk = poolDelaiConnexionMs > 0 && poolDelaiLectureMs >= DELAI_LECTURE_MIN_MS && poolMaintien;
+        reglage(l, "pool-delais", "Délais et maintien des connexions",
+                "connexion " + (poolDelaiConnexionMs > 0 ? poolDelaiConnexionMs + " ms" : "absent") + ", lecture "
+                        + (poolDelaiLectureMs > 0 ? poolDelaiLectureMs + " ms" : "absent") + ", tcpKeepAlive "
+                        + (poolMaintien ? "oui" : "non"),
+                "connexion 5000 ms, lecture 600000 ms, tcpKeepAlive oui", delaisOk ? Niveau.OK : Niveau.A_AJUSTER,
+                "Une connexion au repos coupée par le réseau échoue en un temps borné au lieu de figer la caisse, et tcpKeepAlive garde vivantes les connexions au repos entre la caisse et le serveur. Sur un poste : "
+                        + COMMANDE_POOL + ".",
+                "asadmin set resources.jdbc-connection-pool." + pool + ".property.connectTimeout=5000"
+                        + "\nasadmin set resources.jdbc-connection-pool." + pool + ".property.socketTimeout=600000"
+                        + "\nasadmin set resources.jdbc-connection-pool." + pool + ".property.tcpKeepAlive=true");
         reglage(l, "pool-fuite", "Détection des connexions non rendues",
                 poolFuiteSecondes > 0 ? poolFuiteSecondes + " s" : "désactivée", "300 s",
                 poolFuiteSecondes > 0 ? Niveau.OK : Niveau.A_AJUSTER,
@@ -224,7 +296,7 @@ public final class ConfigPayara {
                         + "\nasadmin set resources.jdbc-connection-pool." + pool
                         + ".connection-creation-retry-attempts=6" + "\nasadmin set resources.jdbc-connection-pool."
                         + pool + ".connection-creation-retry-interval-in-seconds=10");
-        String hote = hoteBase(poolUrl);
+        String hote = poolHote.isEmpty() ? hoteBase(poolUrl) : poolHote;
         if (mariadbLocale) {
             boolean boucle = "127.0.0.1".equals(hote);
             reglage(l, "pool-adresse", "Adresse de la base dans le pool", hote.isEmpty() ? "?" : hote, "127.0.0.1",
