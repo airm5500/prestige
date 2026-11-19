@@ -68,6 +68,10 @@ public class SalesStatsRessource {
     @Inject
     private HttpServletRequest servletRequest;
 
+    /** Demande 62 (point 3b) : prevente deja payee par mobile money, terminee au comptoir avec ce paiement. */
+    @EJB
+    private rest.service.paiements.PaiementsMobileService paiementsMobile;
+
     @EJB
     SalesStatsService salesService;
 
@@ -104,6 +108,7 @@ public class SalesStatsRessource {
         body.setAll(false);
         body.setTypeVenteId(typeVenteId);
         JSONObject jsono = salesService.getPreVentes(body);
+        signalerPaiementsMobile(jsono);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -346,7 +351,51 @@ public class SalesStatsRessource {
     public Response findOne(@PathParam("id") String id) throws JSONException {
 
         JSONObject json = salesService.reloadVenteById(id);
+        signalerPaiementsMobile(json);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Demande 62 (point 3b) : une prevente deja payee par mobile money a la borne porte son paiement
+     * ({@code paiementMobile} : operateur, montant, numero) ; a la reprise, le mode de l'operateur est propose
+     * ({@code typeReglementAttente}). Sans paiement, la reponse ne change pas.
+     */
+    private void signalerPaiementsMobile(JSONObject json) {
+        try {
+            Object data = json == null ? null : json.opt("data");
+            List<JSONObject> ventes = new java.util.ArrayList<>();
+            if (data instanceof JSONObject) {
+                ventes.add((JSONObject) data);
+            } else if (data instanceof JSONArray) {
+                JSONArray a = (JSONArray) data;
+                for (int i = 0; i < a.length(); i++) {
+                    if (a.opt(i) instanceof JSONObject) {
+                        ventes.add(a.getJSONObject(i));
+                    }
+                }
+            }
+            List<String> ids = new java.util.ArrayList<>();
+            for (JSONObject v : ventes) {
+                String id = v.optString("lgPREENREGISTREMENTID", "");
+                if (!id.isEmpty()) {
+                    ids.add(id);
+                }
+            }
+            if (ids.isEmpty()) {
+                return;
+            }
+            java.util.Map<String, JSONObject> payes = paiementsMobile.aEncaisser(ids);
+            for (JSONObject v : ventes) {
+                JSONObject pm = payes.get(v.optString("lgPREENREGISTREMENTID", ""));
+                if (pm != null) {
+                    v.put("paiementMobile", pm);
+                    v.put("typeReglementAttente", pm.optString("typeReglement"));
+                }
+            }
+        } catch (RuntimeException e) {
+            java.util.logging.Logger.getLogger(SalesStatsRessource.class.getName()).log(java.util.logging.Level.WARNING,
+                    "Paiements mobile des préventes illisibles", e);
+        }
     }
 
     private SalesStatsParams buildParams(int start, int limit, String query, String dtStart, String dtEnd,

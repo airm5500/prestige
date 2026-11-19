@@ -3630,3 +3630,9 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .vp-vente .vp-actions-ligne { padding: 6px 0 0 0; }
 .vp-vente .vp-actions-ligne .x-btn { margin: 0 0 0 8px; }
 .vp-vente .vp-remise-badge .x-form-display-field { background: #1b7f4b; }
+
+/* Demande 62 : prevente deja payee par mobile money a la borne (bandeau de l'ecran de vente, colonne des listes) */
+.vp-paye-mobile { background: #e3f6ef; border: 1px solid #17795f; border-left-width: 5px; border-radius: 6px; padding: 8px 12px;
+    color: #0f4f3c; font-size: 13px; line-height: 19px; }
+.vp-paye-mobile.vp-paye-mobile-ecart { background: #fff4e0; border-color: #d97f06; color: #6b3d00; }
+.vp-paye-mobile-cellule .x-grid-cell-inner { color: #17795f !important; font-weight: 700; }

@@ -24,6 +24,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.SalesService;
 import rest.service.SessionHelperService;
+import util.paiements.ClotureComptoir;
 import util.paiements.ConfigPaiements;
 import util.paiements.FournisseurPaiement;
 import util.paiements.FournisseurPaiement.Etat;
@@ -316,6 +317,99 @@ public class PaiementsMobileService {
         return n != null && n.intValue() > 0;
     }
 
+    // -------------------------------------------------------------------------
+    // Demande 62 (point 3b) : prévente payée à la borne, terminée au comptoir
+    // -------------------------------------------------------------------------
+
+    private static final String A_ENCAISSER = "SELECT " + COLONNES
+            + " FROM paiement_mobile pm WHERE pm.vente_id IN (%s)"
+            + " AND pm.statut = 'paye' AND pm.cloture = 0 AND EXISTS (SELECT 1 FROM t_preenregistrement v"
+            + " WHERE v.lg_PREENREGISTREMENT_ID = pm.vente_id AND v.str_STATUT <> 'is_Closed')"
+            + " ORDER BY pm.paye_at DESC";
+
+    private static JSONObject versJsonComptoir(Object[] r) {
+        Operateur op = Operateur.de(String.valueOf(r[6]));
+        return versJson(r).put("operateurLibelle", ClotureComptoir.libelle(op)).put("referenceFournisseur",
+                r[10] == null ? "" : r[10].toString());
+    }
+
+    /**
+     * Paiements mobile money PAYES de ces ventes encore ouvertes, que la cloture automatique n'a pas faite (non
+     * demandee, ou refusee) : le comptoir les termine avec ce paiement. Une ligne par vente (la plus recente).
+     */
+    public java.util.Map<String, JSONObject> aEncaisser(java.util.Collection<String> venteIds) {
+        java.util.Map<String, JSONObject> m = new java.util.HashMap<>();
+        if (venteIds == null || venteIds.isEmpty() || !tablePresente()) {
+            return m;
+        }
+        List<String> ids = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(venteIds));
+        for (int debut = 0; debut < ids.size(); debut += 200) {
+            List<String> lot = ids.subList(debut, Math.min(debut + 200, ids.size()));
+            StringBuilder marques = new StringBuilder();
+            for (int i = 1; i <= lot.size(); i++) {
+                marques.append(i == 1 ? "" : ", ").append('?').append(i);
+            }
+            javax.persistence.Query q = em.createNativeQuery(String.format(A_ENCAISSER, marques));
+            for (int i = 0; i < lot.size(); i++) {
+                q.setParameter(i + 1, lot.get(i));
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> l = q.getResultList();
+            for (Object[] r : l) {
+                m.putIfAbsent(String.valueOf(r[2]), versJsonComptoir(r));
+            }
+        }
+        return m;
+    }
+
+    public JSONObject aEncaisser(String venteId) {
+        return venteId == null ? null : aEncaisser(java.util.Collections.singleton(venteId)).get(venteId);
+    }
+
+    private boolean tablePresente() {
+        try {
+            em.createNativeQuery("SELECT 1 FROM paiement_mobile WHERE 1 = 0").getResultList();
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Cloture au comptoir d'une vente deja payee par mobile money : refus si elle ne compte pas exactement le paiement
+     * recu (voir {@link ClotureComptoir}) ; null sinon, ou si la vente n'a pas de paiement a encaisser.
+     */
+    public String refusClotureComptoir(ClotureVenteParams p) {
+        if (p == null) {
+            return null;
+        }
+        JSONObject pm;
+        try {
+            pm = aEncaisser(p.getVenteId());
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "Paiements mobile : contrôle de clôture au comptoir impossible", e);
+            return null;
+        }
+        if (pm == null) {
+            return null;
+        }
+        int sansDetail = p.getMontantPaye() != null ? p.getMontantPaye()
+                : p.getTotalRecap() != null ? p.getTotalRecap() : 0;
+        return ClotureComptoir.refus(Operateur.de(pm.optString("operateur")), pm.optInt("montant"),
+                pm.optString("referenceFournisseur", ""), p.getTypeRegleId(), p.getReglements(), sansDetail);
+    }
+
+    /** La vente vient d'etre terminee au comptoir : son paiement mobile money est marque cloture (une seule fois). */
+    public void marquerClotureComptoir(String venteId) {
+        if (venteId == null || !tablePresente()) {
+            return;
+        }
+        em.createNativeQuery("UPDATE paiement_mobile pm SET cloture = 1, message = 'Vente terminée au comptoir',"
+                + " updated_at = NOW() WHERE pm.vente_id = ?1 AND pm.statut = 'paye' AND pm.cloture = 0"
+                + " AND EXISTS (SELECT 1 FROM t_preenregistrement v WHERE v.lg_PREENREGISTREMENT_ID = pm.vente_id"
+                + " AND v.str_STATUT = 'is_Closed')").setParameter(1, venteId).executeUpdate();
+    }
+
     /**
      * Clôture de la vente comptant avec le mode de l'opérateur, par le service existant, au nom du créateur du
      * paiement.
@@ -337,7 +431,12 @@ public class PaiementsMobileService {
                 message = "Net de la vente modifié depuis la demande de paiement : clôture à faire au comptoir";
             } else {
                 Operateur op = Operateur.de(String.valueOf(r[6]));
-                JSONObject b = new JSONObject().put("banque", "").put("clientId", op.code())
+                /*
+                 * demande 62 (point 3c) : le client de la vente (client rattache a la borne : nom et telephone gardes),
+                 * et non plus le code de l'operateur, qui designait un client inconnu
+                 */
+                Object clientVente = tp.getClient() == null ? JSONObject.NULL : tp.getClient().getLgCLIENTID();
+                JSONObject b = new JSONObject().put("banque", "").put("clientId", clientVente)
                         .put("commentaire", "Mobile money " + id).put("data", net).put("devis", false).put("lieux", "")
                         .put("marge", net.optInt("marge", 0)).put("montantPaye", montant).put("montantRecu", montant)
                         .put("montantRemis", 0).put("natureVenteId", "1").put("nom", "").put("partTP", 0)

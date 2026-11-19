@@ -96,6 +96,16 @@ public final class Constant {
     public static final String[] PRIVILEGES_CLOTURE_VENTE = { "P_SM_CLOTURER_CAISSE", "P_SM_DEPOT_EXTENSION",
             P_BT_MODIFICATION_DE_VENTE };
     public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
+    /**
+     * Demande 62 (borne, 15/11) : cloturer une vente payee par mobile money, sans le droit « Terminer une vente » (qui
+     * ouvrirait la caisse et les autres clotures au compte de la borne, profil pre-vente).
+     */
+    public static final String P_BORNE_PAIEMENT_MOBILE = "P_BORNE_PAIEMENT_MOBILE";
+    /** Cloture automatique d'un paiement mobile money : « Terminer une vente » ou le droit propre de la borne. */
+    public static final String[] PRIVILEGES_CLOTURE_PAIEMENT_MOBILE = { "P_SM_CLOTURER_CAISSE", "P_SM_DEPOT_EXTENSION",
+            P_BT_MODIFICATION_DE_VENTE, P_BORNE_PAIEMENT_MOBILE };
+    public static final String LIBELLE_CLOTURE_PAIEMENT_MOBILE = "Terminer une vente (menu « Ventes ») ou Clôturer une"
+            + " vente payée par mobile money (borne)";
     /** Menu « Activité des équipes » (ANALYSE DE GESTION) : journal, recherches et analyses de productivite. */
     public static final String P_SM_ACTIVITE_EQUIPES = "P_SM_ACTIVITE_EQUIPES";
     /** Plan du 08/11, point 15.6 : onglet Anomalies de l'activite des equipes. */

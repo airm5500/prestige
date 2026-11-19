@@ -150,6 +150,23 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
                             flex: 1
                         },
                         {
+                            /* demande 62 (point 3b) : prevente deja payee par mobile money a la borne */
+                            header: 'Paiement mobile',
+                            itemId: 'colPaiementMobile',
+                            sortable: false,
+                            menuDisabled: true,
+                            flex: 1,
+                            renderer: function (v, meta, record) {
+                                const pm = record.raw && record.raw.paiementMobile;
+                                if (!pm) {
+                                    return '';
+                                }
+                                meta.tdCls = 'vp-paye-mobile-cellule';
+                                return 'Payée ' + Ext.String.htmlEncode(pm.operateurLibelle || '') + ' '
+                                        + Ext.util.Format.number(pm.montant, '0,000') + ' F';
+                            }
+                        },
+                        {
                             xtype: 'actioncolumn',
                             width: 30,
                             sortable: false,

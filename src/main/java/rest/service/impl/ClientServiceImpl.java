@@ -107,7 +107,7 @@ public class ClientServiceImpl implements ClientService {
             TPreenregistrement tp = getEmg().find(TPreenregistrement.class, venteId);
             TClient tc = new TClient(UUID.randomUUID().toString());
             tc.setStrADRESSE(clientLambda.getStrADRESSE());
-            tc.setLgTYPECLIENTID(new TTypeClient(clientLambda.getLgTYPECLIENTID()));
+            tc.setLgTYPECLIENTID(new TTypeClient(typeClientRapide(clientLambda.getLgTYPECLIENTID())));
             tc.setStrFIRSTNAME(clientLambda.getStrFIRSTNAME());
             tc.setStrLASTNAME(clientLambda.getStrLASTNAME());
             tc.setStrSEXE(clientLambda.getStrSEXE());
@@ -131,6 +131,14 @@ public class ClientServiceImpl implements ClientService {
             return new JSONObject().put("success", false).put("msg",
                     "La mise à jour des infos du client n'a pas abouti");
         }
+    }
+
+    /**
+     * Demande 62 : type du client rapide, client standard (6) quand il n'est pas donne ; sans type, la fiche etait
+     * creee sans type et la recherche des clients standard ne la trouvait plus.
+     */
+    static String typeClientRapide(String type) {
+        return type == null || type.trim().isEmpty() ? Constant.STANDART_CLIENT_ID : type.trim();
     }
 
     @Override
@@ -162,7 +170,7 @@ public class ClientServiceImpl implements ClientService {
         try {
             TClient tc = new TClient(UUID.randomUUID().toString());
             tc.setStrADRESSE(clientLambda.getStrADRESSE());
-            tc.setLgTYPECLIENTID(new TTypeClient(clientLambda.getLgTYPECLIENTID()));
+            tc.setLgTYPECLIENTID(new TTypeClient(typeClientRapide(clientLambda.getLgTYPECLIENTID())));
             tc.setStrFIRSTNAME(clientLambda.getStrFIRSTNAME());
             tc.setStrLASTNAME(clientLambda.getStrLASTNAME());
             tc.setStrSEXE(clientLambda.getStrSEXE());
@@ -253,6 +261,13 @@ public class ClientServiceImpl implements ClientService {
                                 cb.like(root.get(TClient_.strCODEINTERNE), query)));
                 if (numero != null) {
                     ou.add(cb.like(sansSeparateurs(cb, root.get(TClient_.strTELEPHONE)), numero));
+                    /*
+                     * demande 62 : le client rapide (poste, telephone, borne) range son numero dans l'adresse ; il est
+                     * cherche la aussi. Les fiches ne sont pas reprises : sur la copie de travail, 168 des 196 numeros
+                     * concernes sont deja ceux d'un autre client standard, et l'unicite du telephone bloquerait alors
+                     * leur modification.
+                     */
+                    ou.add(cb.like(sansSeparateurs(cb, root.get(TClient_.strADRESSE)), numero));
                 }
                 predicates.add(cb.or(ou.toArray(Predicate[]::new)));
             }
