@@ -861,9 +861,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 imprimerCombineDeLaVenteComptant(oTPreenregistrement, printService, imprimante, officine, te);
             }
             json.put("success", true);
-        } catch (PrinterException | JSONException e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+        } catch (PrinterException | RuntimeException e) {
+            // CAISSE11 (16/11) : « Imprimante inconnue » (RuntimeException) remontait en erreur 500 a la reimpression
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
     }
@@ -943,8 +945,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             LOG.log(Level.SEVERE, "ticket prevente", e);
             json.put("success", false).put("msg", "Impression n'a pas aboutie : " + e.getMessage());
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "ticket prevente", e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+            journaliserEchec("ticket prevente", e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
     }
@@ -1043,9 +1046,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
             }
             json.put("success", true);
-        } catch (PrinterException | JSONException e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+        } catch (PrinterException | RuntimeException e) {
+            // CAISSE11 (16/11) : « Imprimante inconnue » (RuntimeException) remontait en erreur 500 a la reimpression
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
 
@@ -1543,8 +1548,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             afficheurWellComeMessage();
 
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
     }
@@ -1715,8 +1721,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             json.put("success", true);
             afficheurWellComeMessage();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
 
@@ -1918,8 +1925,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             json.put("success", true);
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
     }
@@ -2186,8 +2194,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             json.put("success", true);
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
     }
@@ -2303,8 +2312,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             json.put("success", true);
             afficheurWellComeMessage();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
 
@@ -2365,11 +2375,42 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     public PrintService findPrintService() {
         long t0 = System.nanoTime();
         try {
-            PrintService trouvee = PrintServiceLookup.lookupDefaultPrintService();
+            PrintService parDefaut = imprimanteParDefaut();
+            PrintService trouvee = parDefaut != null ? parDefaut : rest.service.ticket.ChoixImprimante.choisir(null,
+                    imprimantesInstallees(), imprimantesDeclarees());
+            if (parDefaut == null && trouvee != null) {
+                signalerSecours(trouvee.getName());
+            }
             MesureImpression.imprimante(trouvee != null ? trouvee.getName() : "aucune imprimante par défaut");
             return trouvee;
         } finally {
             MesureImpression.etape(MesureImpression.RECHERCHE_IMPRIMANTE, t0);
+        }
+    }
+
+    /** Imprimante par defaut du serveur (aucune sous le compte systeme d'un service Windows). */
+    protected PrintService imprimanteParDefaut() {
+        return PrintServiceLookup.lookupDefaultPrintService();
+    }
+
+    protected PrintService[] imprimantesInstallees() {
+        return PrintServiceLookup.lookupPrintServices(null, null);
+    }
+
+    protected List<String> imprimantesDeclarees() {
+        return rest.service.ticket.ChoixImprimante.declarees(getEntityManager());
+    }
+
+    private static final java.util.Set<String> SECOURS_SIGNALES = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * CAISSE11 (16/11) : une fois par imprimante, le journal dit que l'imprimante declaree remplace celle par defaut.
+     */
+    private static void signalerSecours(String nom) {
+        if (SECOURS_SIGNALES.add(String.valueOf(nom))) {
+            LOG.log(Level.INFO,
+                    "Aucune imprimante par défaut sur le serveur : tickets imprimés sur l''imprimante déclarée {0}",
+                    nom);
         }
     }
 
@@ -2430,8 +2471,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             json.put("success", true);
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+            journaliserEchec(null, e);
+            json.put("success", false).put("msg", messageEchecImpression(e)).put("sansImprimante",
+                    printServiceInconnu(e));
         }
         return json;
     }
@@ -2496,9 +2538,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             printTicketZ(serviceImpression, body, footer);
 
             return json.put("success", true).put("msg", "Opération effectuée ");
-        } catch (PrinterException | JSONException e) {
-            LOG.log(Level.SEVERE, null, e);
-            return json.put("success", false).put("msg", "Erreur du serveur");
+        } catch (PrinterException | RuntimeException e) {
+            journaliserEchec(null, e);
+            return json.put("success", false)
+                    .put("msg", printServiceInconnu(e) ? MSG_SANS_IMPRIMANTE : "Erreur du serveur")
+                    .put("sansImprimante", printServiceInconnu(e));
 
         }
     }
@@ -3564,8 +3608,22 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
     }
 
-    private static boolean printServiceInconnu(Exception e) {
+    static boolean printServiceInconnu(Exception e) {
         return e instanceof IllegalStateException && "Imprimante inconnue".equals(e.getMessage());
+    }
+
+    /** CAISSE11 (16/11) : message de l'ecran quand un ticket n'est pas imprime. */
+    static final String MSG_SANS_IMPRIMANTE = "Ticket non imprimé : le serveur ne trouve aucune imprimante (ni imprimante"
+            + " par défaut, ni imprimante déclarée dans Prestige installée sur ce poste). La vente est enregistrée.";
+    static final String MSG_ECHEC_IMPRESSION = "Impression n'a pas aboutie";
+
+    static String messageEchecImpression(Exception e) {
+        return printServiceInconnu(e) ? MSG_SANS_IMPRIMANTE : MSG_ECHEC_IMPRESSION;
+    }
+
+    /** Un serveur sans imprimante est un cas connu (serveur isole) : pas d'erreur grave au journal ni au support. */
+    private static void journaliserEchec(String contexte, Exception e) {
+        LOG.log(printServiceInconnu(e) ? Level.FINE : Level.SEVERE, contexte, e);
     }
 
     private List<String> generateData(rest.service.dto.MvtCaisseDTO mvtCaisse) {

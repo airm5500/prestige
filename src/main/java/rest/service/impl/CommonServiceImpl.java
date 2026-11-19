@@ -426,7 +426,12 @@ public class CommonServiceImpl implements Serializable, CommonService {
     @Override
     public PrintService findPrintService() {
         if (service == null) {
-            service = PrintServiceLookup.lookupDefaultPrintService();
+            // CAISSE11 (16/11) : en service Windows, pas d'imprimante par defaut ; l'imprimante declaree installee
+            PrintService parDefaut = PrintServiceLookup.lookupDefaultPrintService();
+            service = parDefaut != null ? parDefaut
+                    : rest.service.ticket.ChoixImprimante.choisir(null,
+                            PrintServiceLookup.lookupPrintServices(null, null),
+                            rest.service.ticket.ChoixImprimante.declarees(getEntityManager()));
         }
 
         return service;
