@@ -287,21 +287,12 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     public long montantVenteAnnulees(SalesStatsParams params) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<Long> cm = cb.createQuery(Long.class);
-            Root<MvtTransaction> mv = cm.from(MvtTransaction.class);
-            cm.select(cb.sumAsLong(mv.get(MvtTransaction_.montantPaye)));
-            Subquery<String> cq = cm.subquery(String.class);
+            CriteriaQuery<String> cq = cb.createQuery(String.class);
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
             Join<TPreenregistrementDetail, TPreenregistrement> st = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
-            cq.select(st.get(TPreenregistrement_.lgPREENREGISTREMENTID));
-            List<Predicate> predicates = predicatesVentesAnnulees(params, cb, root, st);
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            cm.where(cb.and(cb.greaterThan(mv.get(MvtTransaction_.montantPaye), 0), cb
-                    .equal(mv.get(MvtTransaction_.reglement).get(TTypeReglement_.lgTYPEREGLEMENTID), Constant.MODE_ESP),
-                    cb.in(mv.get(MvtTransaction_.pkey)).value(cq)));
-            Query q = getEntityManager().createQuery(cm);
-            Long sumAnnulation = (Long) q.getSingleResult();
-            return (sumAnnulation != null ? sumAnnulation : 0);
+            cq.select(st.get(TPreenregistrement_.lgPREENREGISTREMENTID)).distinct(true);
+            cq.where(cb.and(predicatesVentesAnnulees(params, cb, root, st).toArray(Predicate[]::new)));
+            return montantAnnuleesEspeces(params, new HashSet<>(getEntityManager().createQuery(cq).getResultList()));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return 0;
@@ -429,20 +420,26 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return json;
     }
 
-    /** Montant en especes rendu pour les ventes annulees donnees (meme regle que montantVenteAnnulees). */
+    /**
+     * Montant en especes rendu pour les ventes annulees donnees : la part ESPECES de chaque vente (defaut 3 du 19/11 :
+     * une vente especes + mobile money etait comptee tout entiere en especes, une vente mobile + complement especes pas
+     * du tout). Meme regle que PartsParMode, en SQL, par paquets de 500 ventes.
+     */
     private long montantAnnuleesEspeces(SalesStatsParams params, Set<String> ventes) {
         if (ventes.isEmpty()) {
             return 0;
         }
-        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-        CriteriaQuery<Long> cm = cb.createQuery(Long.class);
-        Root<MvtTransaction> mv = cm.from(MvtTransaction.class);
-        cm.select(cb.sumAsLong(mv.get(MvtTransaction_.montantPaye)));
-        cm.where(cb.and(cb.greaterThan(mv.get(MvtTransaction_.montantPaye), 0),
-                cb.equal(mv.get(MvtTransaction_.reglement).get(TTypeReglement_.lgTYPEREGLEMENTID), Constant.MODE_ESP),
-                mv.get(MvtTransaction_.pkey).in(ventes)));
-        Long s = getEntityManager().createQuery(cm).getSingleResult();
-        return s == null ? 0 : s;
+        List<String> ids = new ArrayList<>(ventes);
+        long total = 0;
+        for (int debut = 0; debut < ids.size(); debut += 500) {
+            Object s = getEntityManager()
+                    .createNativeQuery("SELECT COALESCE(SUM("
+                            + rest.service.vente.PartsParMode.sqlPart("m", "montantPaye", Constant.MODE_ESP)
+                            + "), 0) FROM mvttransaction m WHERE m.montantPaye > 0 AND m.pkey IN (?1)")
+                    .setParameter(1, ids.subList(debut, Math.min(debut + 500, ids.size()))).getSingleResult();
+            total += s == null ? 0 : ((Number) s).longValue();
+        }
+        return total;
     }
 
     private MvtTransaction findByVente(String id) {
