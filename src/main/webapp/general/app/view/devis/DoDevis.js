@@ -4,7 +4,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
     extend: 'Ext.panel.Panel',
     xtype: 'doDevis',
     requires: [
-        'testextjs.model.caisse.Vente'
+        'testextjs.model.caisse.Vente', 'testextjs.view.vente.Segments'
     ],
     config: {
         data: null
@@ -15,7 +15,9 @@ Ext.define('testextjs.view.devis.DoDevis', {
     height: 'auto',
     minHeight: 570,
 
-    cls: 'custompanel',
+    /* Decision du 19/11 (Tiassale) : l'ecran « Nouvelle proforma » au dessin de l'ecran de vente (enveloppe vp-shell,
+       corps vp-vente, cartes, boutons du theme). Dessin seulement : memes itemId, meme structure lue par DevisCtr. */
+    cls: 'custompanel vp-shell vp-focus-zone',
     layout: {
         type: 'vbox',
         align: 'stretch',
@@ -129,75 +131,57 @@ Ext.define('testextjs.view.devis.DoDevis', {
 
             items: [
                 {
-                    xtype: 'fieldset',
-                    title: '<span style="color:blue;">CHOISIR LE TYPE /LA NATURE DE VENTE ET LE VENDEUR</span>',
-                    collapsible: false,
-                    defaultType: 'textfield',
-                    cls: 'background_gray',
-                    layout: 'anchor',
-                    defaults: {
-                        anchor: '100%'
-                    },
-
+                    /* Ligne type / vendeur de l'ecran de vente : type en boutons segmentes poses sur le combo d'origine
+                       (plugin segments : meme itemId, meme 'select'). La nature n'est plus proposee (decision du 19/11) :
+                       son combo reste, cache, et garde la valeur que DevisCtr y pose (PRESCRIPTION par defaut), qui
+                       part toujours avec chaque article (natureVenteId). */
+                    xtype: 'container',
+                    itemId: 'ligneTypeVente',
+                    cls: 'seg-ligne',
+                    layout: {type: 'hbox', align: 'middle'},
+                    padding: '8 12',
+                    margin: '0 0 6 0',
                     items: [
+                        {xtype: 'component', cls: 'seg-lib', html: 'Type', margin: '0 10 0 0'},
                         {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            margin: '0 0 5 0',
-                            height: 35,
-                            style: 'padding-bottom:3px;',
-                            defaultType: 'textfield',
-                            items: [
-                                {
-                                    xtype: 'combobox',
-                                    itemId: 'typeVente',
-                                    store: typeventeStore,
-                                    editable: false,
-                                    flex: 2,
-                                    margin: '0 15 0 0',
-                                    height: 30,
-                                    valueField: 'lgTYPEVENTEID',
-                                    displayField: 'strNAME',
-                                    typeAhead: false,
-//                                    value: '1',
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un type de vente...'
-
-                                },
-
-                                {
-                                    xtype: 'combobox',
-                                    itemId: 'nature',
-                                    store: natureventeStore,
-                                    editable: false,
-                                    flex: 2,
-                                    height: 30,
-                                    margin: '0 15 0 0',
-                                    valueField: 'lgNATUREVENTEID',
-                                    displayField: 'strLIBELLE',
-                                    typeAhead: false,
-                                    queryMode: 'remote',
-                                    emptyText: 'Selectionner la nature ...'
-
-                                },
-                                {
-                                    xtype: 'combobox',
-                                    itemId: 'user',
-                                    store: storeUser,
-                                    forceSelection: true,
-                                    pageSize: null,
-                                    valueField: 'lgUSERID',
-                                    displayField: 'fullName',
-                                    typeAhead: false,
-                                    flex: 2,
-                                    height: 30,
-                                    minChars: 2,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un vendeur...'
-
-                                }
-
-                            ]
+                            xtype: 'combobox',
+                            itemId: 'typeVente',
+                            store: typeventeStore,
+                            editable: false,
+                            margin: '0 32 0 0',
+                            valueField: 'lgTYPEVENTEID',
+                            displayField: 'strNAME',
+                            typeAhead: false,
+                            queryMode: 'remote',
+                            plugins: [{ptype: 'segments', pastille: true, libelles: {'1': 'Au comptant', '2': 'Assurance', '3': 'Carnet'}}],
+                            emptyText: 'Choisir un type de vente...'
+                        },
+                        {
+                            xtype: 'combobox',
+                            itemId: 'nature',
+                            hidden: true,
+                            store: natureventeStore,
+                            editable: false,
+                            valueField: 'lgNATUREVENTEID',
+                            displayField: 'strLIBELLE',
+                            typeAhead: false,
+                            queryMode: 'remote'
+                        },
+                        {xtype: 'component', cls: 'seg-lib', html: 'Vendeur', margin: '0 10 0 16'},
+                        {
+                            xtype: 'combobox',
+                            itemId: 'user',
+                            store: storeUser,
+                            forceSelection: true,
+                            pageSize: null,
+                            valueField: 'lgUSERID',
+                            displayField: 'fullName',
+                            typeAhead: false,
+                            width: 300,
+                            height: 30,
+                            minChars: 2,
+                            queryMode: 'remote',
+                            emptyText: 'Choisir un vendeur...'
                         }
                     ]
                 },
@@ -210,7 +194,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                         {
                             xtype: 'panel',
                             border: 0,
-                            cls: 'custompanel',
+                            cls: 'custompanel vp-vente',
                             layout: {
                                 type: 'vbox',
                                 align: 'stretch'
@@ -220,6 +204,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                     xtype: 'toolbar',
                                     dock: 'bottom',
                                     ui: 'footer',
+                                    cls: 'vp-actions vp-actions-ligne',
                                     layout: {
                                         pack: 'end',
                                         type: 'hbox'
@@ -229,24 +214,26 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                             text: 'Afficher le net',
                                             itemId: 'netBtn',
                                             iconCls: 'afficheur_caisse',
+                                            height: 38,
+                                            cls: 'btn-primarya',
                                             scope: this
-
-
                                         },
                                         {
                                             text: 'Enregistrer la proforma',
                                             itemId: 'btnCloture',
-                                            iconCls: 'icon-clear-group',
+                                            iconCls: 'valider-vente',
+                                            height: 38,
+                                            cls: 'btn-primary',
                                             scope: this,
                                             disabled: true
                                         },
                                         {
                                             text: 'Retour',
                                             itemId: 'btnGoBack',
-                                            iconCls: 'icon-clear-group',
+                                            iconCls: 'retour',
+                                            height: 38,
+                                            cls: 'btn-secondary',
                                             scope: this
-
-
                                         }
 
 
@@ -276,6 +263,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                                     xtype: 'fieldset',
                                                     style: 'background-color:#F0F8FF !important;',
                                                     itemId: 'clientSearchBox',
+                                                    cls: 'vp-assur-card',
                                                     title: '<span style="color:blue;">RECHERCHER LE CLIENT</span>',
                                                     flex: 0.6,
                                                     margin: '0 10 0 0',
@@ -298,6 +286,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                                     xtype: 'fieldset',
                                                     title: '<span style="color:blue;">INFOS TIERS PAYANTS</span>',
                                                     itemId: 'tpContainer',
+                                                    cls: 'vp-tp-card',
                                                     style: 'background-color:#F0F8FF !important;',
                                                     hidden: true,
                                                     margin: '0 5 0 0',
@@ -368,6 +357,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                                     style: 'background-color:#F0F8FF !important;',
                                                     title: '<span style="color:blue;">INFOS CLIENT</span>',
                                                     itemId: 'assureCmp',
+                                                    cls: 'vp-assur-card',
                                                     margin: '0 5 0 0',
                                                     flex: 1,
                                                     layout: {
@@ -427,7 +417,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                     collapsible: false,
                                     defaultType: 'textfield',
                                     layout: 'anchor',
-                                    cls: 'background_gray',
+                                    cls: 'background_gray vp-produit-card',
                                     defaults: {
                                         anchor: '100%'
                                     },
@@ -496,7 +486,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                     collapsible: false,
                                     defaultType: 'textfield',
                                     layout: 'anchor',
-                                    cls: 'background_gray',
+                                    cls: 'background_gray vp-produit-card',
                                     itemId: 'infoscontainer',
                                     defaults: {
                                         anchor: '100%'
@@ -578,6 +568,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                     title: '<span style="color:blue;">LISTE DES ARTICLES CHOISIS</span>',
                                     collapsible: false,
                                     itemId: 'gridContainer',
+                                    cls: 'vp-grille-card',
                                     defaultType: 'textfield',
                                     layout: 'anchor',
                                     defaults: {
@@ -758,6 +749,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                                             xtype: 'displayfield',
                                                             fieldLabel: 'TOTAL VENTE',
                                                             itemId: 'totalField',
+                                                            cls: 'vp-total-badge',
                                                             flex: 1,
                                                             labelWidth: 100,
                                                             renderer: function (v) {
@@ -774,6 +766,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                                             xtype: 'displayfield',
                                                             fieldLabel: 'MONTANT REMISE',
                                                             itemId: 'montantRemise',
+                                                            cls: 'vp-total-badge vp-remise-badge',
                                                             flex: 1,
                                                             labelWidth: 120,
                                                             renderer: function (v) {
