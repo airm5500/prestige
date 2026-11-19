@@ -61,7 +61,7 @@ Sur les treize clôtures : **−204 511 F**. Hors les trois écarts graves : **+
 | Piste | Résultat |
 |---|---|
 | Recette mal calculée | Écartée : recalcul identique sur 12 clôtures sur 13 ; la treizième diffère de 3 810 F à cause du défaut 1, et la valeur affichée est celle qui était vraie à la clôture. |
-| Ventes validées en double | Écartée : aucune paire de ventes de même montant à la même seconde ; six paires à moins d'une minute, toutes de petits montants (100 à 1 405 F), avec des numéros distincts et proches. |
+| Ventes validées en double | Pas de double clic (aucune paire à la même seconde), mais neuf ressaisies probables : voir « Ventes saisies deux fois ». |
 | Ventes encaissées hors caisse ouverte | Écartée : aucune, hormis l'annulation du défaut 2. |
 | Arrondi de monnaie | Négligeable : 135 F sur toute la période (43 F au plus par clôture). |
 | Sorties ou entrées de caisse | Aucune saisie depuis le démarrage. |
@@ -69,6 +69,33 @@ Sur les treize clôtures : **−204 511 F**. Hors les trois écarts graves : **+
 | Règlements incohérents | Écartée : sur les 14 sessions, le total des règlements égale le total des ventes ; aucune vente sans règlement, aucun règlement en double. |
 | Prix modifiés à la vente | Sans effet : 314 changements journalisés, tous des arrondis au multiple de 5 F supérieur (1 184 → 1 185). La Recette suit le prix arrondi. |
 | Annulations du 19/11 | Sans effet : deux ventes de A annulées par le compte D (2 260 F à 11:29, 4 865 F à 20:07), pendant que la caisse de A était ouverte. Elles sont bien déduites de sa Recette. |
+
+## Ventes saisies deux fois
+
+Recherche refaite le 19/11 au soir sur les 1 075 ventes : même caissière, mêmes produits et mêmes quantités, moins de
+deux minutes d'écart. Neuf paires, 17 505 F.
+
+| Jour | Caisse | Ventes | Écart | Montant | Lignes | 1re vente | 2e vente |
+|---|---|---|---:|---:|---:|---|---|
+| 16/11 | C | 261116_00001 / 00002 | 36 s | 1 405 | 1 | espèces | espèces |
+| 16/11 | C | 261116_00029 / 00030 | 77 s | 2 305 | 2 | espèces | mobile |
+| 16/11 | C | 261116_00074 / 00075 | 51 s | 100 | 1 | espèces | espèces |
+| 16/11 | B | 261116_00086 / 00087 | 48 s | 1 060 | 1 | espèces | espèces |
+| 16/11 | B | 261116_00112 / 00113 | 76 s | 1 595 | 1 | mobile | 1 500 espèces + 95 mobile |
+| 16/11 | B | 261116_00193 / 00194 | 56 s | 1 060 | 1 | espèces | espèces |
+| 17/11 | B | 261117_00165 / 00167 | 32 s | 100 | 1 | mobile | mobile |
+| 18/11 | A | 261118_00061 / 00062 | 68 s | 2 950 | 2 | espèces | mobile |
+| 19/11 | A | 261119_00267 / 00269 | 45 s | 6 930 | 2 | espèces | mobile |
+
+- **Trois cas sont très probables** (deux produits identiques, espèces puis mobile, à environ une minute) : 2 305 F,
+  2 950 F et 6 930 F, soit 12 185 F. Suspecté : vente validée en espèces par erreur, puis refaite en mobile money
+  sans annuler la première. La première gonfle alors la Recette en espèces sans argent dans le tiroir.
+- Le 18/11, l'écart de A (−2 874 F) tombe à **+76 F** si l'on retire la vente de 2 950 F.
+- Les six autres portent sur un seul produit courant : deux clients à la suite restent possibles.
+- Ce n'est pas un double enregistrement par le logiciel : chaque vente a son numéro, son heure et souvent un autre
+  mode de règlement. Au-delà de deux minutes, les paires trouvées sont des produits courants à 100, 900, 1 000 ou
+  1 060 F vendus plusieurs fois par heure.
+- Ces ressaisies n'expliquent pas les trois gros écarts : 2 305 F sur −49 666, 6 930 F sur −96 192, rien pour B.
 
 ## Écart par écart
 
