@@ -2262,12 +2262,79 @@ Ext.define('testextjs.controller.VenteCtr', {
             }, 50);
         }
     },
+    /*
+     * 19/11 (Moaye, ventes creees en double) : tant que la vente n'existe pas, l'ajout d'un article la cree (add/vno,
+     * add/assurance) et l'ecran ne la connait qu'a la reponse. Une seule creation a la fois : un ajout declenche pendant
+     * l'attente (double Entree, scan de la douchette) attend la reponse puis part sur la vente creee ; le meme geste
+     * repete pendant l'attente est ignore. La creation porte une cle X-Client-Ref : recue deux fois, le serveur rend la
+     * meme vente au lieu d'en creer une seconde.
+     */
+    estCreationVente: function (url) {
+        return /\/vente\/add\/(vno|assurance)$/.test(url || '');
+    },
+    attendreCreationVente: function (methode, data, url, field, comboxProduit) {
+        const me = this;
+        const enCours = me.creationVenteEnCours;
+        if (!enCours) {
+            return false;
+        }
+        me.ajoutsEnAttente = me.ajoutsEnAttente || [];
+        /* un article deja accepte puis rejoue (apres l'echec de la creation) n'est jamais ecarte */
+        const memeGeste = !me.rejeuCreation && !me.ajoutsEnAttente.length && enCours.data && data
+                && enCours.data.produitId === data.produitId && String(enCours.data.qte) === String(data.qte);
+        if (!memeGeste) {
+            me.ajoutsEnAttente.push({methode: methode, data: data, field: field, comboxProduit: comboxProduit});
+        }
+        return true;
+    },
+    cleCreationVente: function (url) {
+        const me = this;
+        if (!me.cleCreation || me.cleCreation.url !== url) {
+            me.cleCreation = {url: url, cle: 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)};
+        }
+        return me.cleCreation.cle;
+    },
+    /* fin de la creation : la cle est gardee apres une coupure (le meme envoi rendra la vente si elle a ete creee) */
+    finCreationVente: function (garderCle) {
+        const me = this;
+        me.creationVenteEnCours = null;
+        if (!garderCle) {
+            me.cleCreation = null;
+        }
+        const file = me.ajoutsEnAttente || [];
+        me.ajoutsEnAttente = [];
+        me.rejeuCreation = true;
+        try {
+            Ext.each(file, function (a) {
+            const vente = me.getCurrent(), data = Ext.apply({}, a.data);
+            let url;
+            if (vente) {
+                data.venteId = vente.lgPREENREGISTREMENTID;
+                url = '../api/v1/vente/add/item';
+            } else {
+                data.venteId = null;
+                url = a.methode === 'addVenteVno' ? '../api/v1/vente/add/vno' : '../api/v1/vente/add/assurance';
+            }
+            me[a.methode](data, url, a.field, a.comboxProduit);
+            });
+        } finally {
+            me.rejeuCreation = false;
+        }
+    },
     addVenteVno: function (data, url, field, comboxProduit) {
         const me = this;
+        if (me.attendreCreationVente('addVenteVno', data, url, field, comboxProduit)) {
+            return;
+        }
+        const creation = me.estCreationVente(url), entetes = {'Content-Type': 'application/json'};
+        if (creation) {
+            me.creationVenteEnCours = {data: data};
+            entetes['X-Client-Ref'] = me.cleCreationVente(url);
+        }
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: entetes,
             url: url,
             params: Ext.JSON.encode(data),
             success: function (response, options) {
@@ -2307,11 +2374,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                     });
 
                 }
+                if (creation) {
+                    me.finCreationVente(false);
+                }
 
             },
             failure: function (response, options) {
                 progress.hide();
                 Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                if (creation) {
+                    me.finCreationVente(true);
+                }
             }
         });
     },
@@ -7745,10 +7818,18 @@ Ext.define('testextjs.controller.VenteCtr', {
             });
             return false;
         }
+        if (me.attendreCreationVente('addVenteAssuarnce', data, url, field, comboxProduit)) {
+            return;
+        }
+        const creation = me.estCreationVente(url), entetes = {'Content-Type': 'application/json'};
+        if (creation) {
+            me.creationVenteEnCours = {data: data};
+            entetes['X-Client-Ref'] = me.cleCreationVente(url);
+        }
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: entetes,
             url: url,
             params: Ext.JSON.encode(data),
             success: function (response, options) {
@@ -7784,11 +7865,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                         }
                     });
                 }
+                if (creation) {
+                    me.finCreationVente(false);
+                }
 
             },
             failure: function (response, options) {
                 progress.hide();
                 Ext.Msg.alert("Message", 'Un problème avec le serveur');
+                if (creation) {
+                    me.finCreationVente(true);
+                }
             }
         });
     },
