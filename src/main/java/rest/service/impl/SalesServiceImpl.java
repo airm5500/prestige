@@ -2027,6 +2027,10 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            String payee = controlePreventePayee(params.getVenteId());
+            if (payee != null) {
+                return json.put("success", false).put("msg", payee);
+            }
             if (refuserQuantiteNonPositive(json, params.getQte())) {
                 return json;
             }
@@ -2136,7 +2140,7 @@ public class SalesServiceImpl implements SalesService {
              * l'encaissement (ecran reste ouvert sur un poste pendant qu'un autre encaissait) ; la vente changeait de
              * montant sans que le stock ni la caisse suivent. Meme controle qu'a l'ajout et au retrait d'une ligne.
              */
-            String motifEtat = controleVenteModifiable(detail.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID());
+            String motifEtat = controleModificationPanier(detail.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID());
             if (motifEtat != null) {
                 return json.put("success", false).put("msg", motifEtat);
             }
@@ -2247,7 +2251,7 @@ public class SalesServiceImpl implements SalesService {
                     "SELECT d FROM TPreenregistrementDetail d WHERE d.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = :v",
                     TPreenregistrementDetail.class).setParameter("v", tp.getLgPREENREGISTREMENTID()).getResultList();
             String refus = rest.service.vente.LigneComptant.refusCochage(true, tp, detail, comptant,
-                    controleVenteModifiable(tp.getLgPREENREGISTREMENTID()), lignesVente);
+                    controleModificationPanier(tp.getLgPREENREGISTREMENTID()), lignesVente);
             if (refus != null) {
                 return json.put("success", false).put("msg", refus);
             }
@@ -2297,7 +2301,7 @@ public class SalesServiceImpl implements SalesService {
             return "Ce produit n'est plus rattaché à une vente : actualisez l'écran avant de continuer.";
         }
         if (venteEnCours(tp)) {
-            return null;
+            return controlePreventePayee(tp.getLgPREENREGISTREMENTID());
         }
         return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED(), tp.getStrSTATUT());
     }
@@ -2349,6 +2353,90 @@ public class SalesServiceImpl implements SalesService {
     }
 
     /**
+     * Demande 64 (regle du pharmacien, 19/11) : payer a la borne par mobile money termine la vente. Tant qu'un paiement
+     * mobile money est recu (ou en cours) sur une vente pas encore cloturee, son panier ne bouge plus : ni ajout, ni
+     * retrait, ni quantite, ni remise, ni tiers payant, ni type de vente. Sinon le net passerait sous le montant paye,
+     * sans avoir ni remboursement possible. La vente se termine au comptoir avec ce paiement, au meme montant.
+     */
+    @Override
+    public String controleModificationPanier(String venteId) {
+        String motif = controleVenteModifiable(venteId);
+        return motif != null ? motif : controlePreventePayee(venteId);
+    }
+
+    /**
+     * Demande 64, point 1 : avant d'encaisser a la borne, la vente doit pouvoir etre cloturee par ce compte, avec les
+     * memes controles que {@link #updateVenteClotureComptant} (caisse ouverte, lignes, stock, ordonnancier, montant,
+     * avoir). Lecture seule : aucun verrou, rien d'ecrit. Motif du refus, ou null.
+     */
+    @Override
+    public String controleClotureComptantPossible(TUser user, String venteId) {
+        if (user == null || !checkResumeCaisse(user).isPresent()) {
+            return "la caisse de la borne est fermée.";
+        }
+        TPreenregistrement tp = StringUtils.isBlank(venteId) ? null : getEm().find(TPreenregistrement.class, venteId);
+        if (tp == null || !venteEnCours(tp)) {
+            return "la vente n'est plus en cours.";
+        }
+        List<TPreenregistrementDetail> items = getItems(tp);
+        if (CollectionUtils.isEmpty(items)) {
+            return "la vente n'a aucun produit.";
+        }
+        TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(tp);
+        Optional<String> invendable = produitDetailInvendable(items, emplacement);
+        if (invendable.isPresent()) {
+            return "stock insuffisant pour " + invendable.get() + ".";
+        }
+        Map<TFamille, Integer> parProduit = new java.util.LinkedHashMap<>();
+        items.forEach(it -> parProduit.merge(it.getLgFAMILLEID(), valeur(it.getIntQUANTITY()), Integer::sum));
+        for (Map.Entry<TFamille, Integer> e : parProduit.entrySet()) {
+            if (e.getValue() > 0 && !forcerStock(e.getValue(), e.getKey().getLgFAMILLEID(), emplacement)) {
+                return "stock insuffisant pour " + e.getKey().getStrNAME() + ".";
+            }
+        }
+        if (gererOrdoncier() && checkOrdonnancier(items)) {
+            if (tp.getMedecin() == null) {
+                return "la vente contient un produit de l'ordonnancier : le médecin est à saisir au comptoir.";
+            }
+            if (tp.getClient() == null) {
+                return "la vente contient un produit de l'ordonnancier : le client est à saisir au comptoir.";
+            }
+        }
+        if (diffAmount(tp.getIntPRICE(), items)) {
+            return "le montant de la vente est à recalculer au comptoir.";
+        }
+        if (checkAvoir(items) && tp.getClient() == null) {
+            return "la vente comporte un avoir : le client est à saisir au comptoir.";
+        }
+        return null;
+    }
+
+    /** Motif de refus si la vente porte un paiement mobile money paye (ou en cours) non cloture, null sinon. */
+    String controlePreventePayee(String venteId) {
+        if (StringUtils.isBlank(venteId)) {
+            return null;
+        }
+        List<?> l;
+        try {
+            l = this.getEm()
+                    .createNativeQuery("SELECT operateur, montant, statut FROM paiement_mobile"
+                            + " WHERE vente_id = ?1 AND cloture = 0 AND (statut = 'paye'"
+                            + " OR (statut = 'en_attente' AND (expire_at IS NULL OR expire_at > NOW())))"
+                            + " ORDER BY statut = 'paye' DESC LIMIT 1")
+                    .setParameter(1, venteId).getResultList();
+        } catch (RuntimeException e) {
+            // base sans la table des paiements mobile money : aucun paiement, rien a verrouiller
+            return null;
+        }
+        if (l.isEmpty()) {
+            return null;
+        }
+        Object[] r = (Object[]) l.get(0);
+        return util.paiements.ClotureComptoir.refusModificationPanier(util.paiements.Operateur.de(String.valueOf(r[0])),
+                ((Number) r[1]).intValue(), "paye".equals(String.valueOf(r[2])));
+    }
+
+    /**
      * Motif de refus du calcul du net a payer d'une vente tiers payant, null quand le calcul peut se faire.
      *
      * Constate en officine : le client venait d'etre detache de la vente et l'ecran redemandait le net assurance ; le
@@ -2379,7 +2467,7 @@ public class SalesServiceImpl implements SalesService {
         if (params == null) {
             return "Aucune donnée n'a été reçue pour cet ajout : actualisez l'écran de vente.";
         }
-        String motif = controleVenteModifiable(params.getVenteId());
+        String motif = controleModificationPanier(params.getVenteId());
         if (motif != null) {
             return motif;
         }
@@ -2618,6 +2706,10 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            String payee = controlePreventePayee(salesParams.getVenteId());
+            if (payee != null) {
+                return json.put("success", false).put("msg", payee);
+            }
             TPreenregistrement tp = emg.find(TPreenregistrement.class, salesParams.getVenteId());
 
             if (salesParams.getTypeVenteId().equals(Parameter.VENTE_COMPTANT)
@@ -4226,7 +4318,7 @@ public class SalesServiceImpl implements SalesService {
         EntityManager emg = this.getEm();
         try {
             /* audit CR-09 et CR-10 (reproduits le 25/10) : taux hors 0-100 accepte, vente terminee modifiable */
-            String motif = controleVenteModifiable(venteId);
+            String motif = controleModificationPanier(venteId);
             if (motif != null) {
                 return json.put("success", false).put("msg", motif);
             }
@@ -4273,7 +4365,7 @@ public class SalesServiceImpl implements SalesService {
              * audit CR-10 (reproduit le 25/10) : retirer le tiers payant d'une vente encaissee la sortait de la
              * facturation
              */
-            String motif = controleVenteModifiable(venteId);
+            String motif = controleModificationPanier(venteId);
             if (motif != null) {
                 return json.put("success", false).put("msg", motif);
             }
@@ -4299,7 +4391,7 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
-            String motif = controleVenteModifiable(params.getVenteId());
+            String motif = controleModificationPanier(params.getVenteId());
             if (motif != null) {
                 return json.put("success", false).put("msg", motif);
             }
@@ -4414,7 +4506,7 @@ public class SalesServiceImpl implements SalesService {
         // Demande 63, point 5 : une vente terminee ou une remise inconnue sont refusees avec un message clair (avant :
         // succes, et la remise devenait nulle) ; « 0 » ou vide = sans remise, comme le calcul du net
         String motif = params == null ? "Aucune donnée n'a été reçue : actualisez l'écran de vente."
-                : controleVenteModifiable(params.getVenteId());
+                : controleModificationPanier(params.getVenteId());
         if (motif == null && StringUtils.isNotEmpty(params.getRemiseId()) && !"0".equals(params.getRemiseId())
                 && getEm().find(TRemise.class, params.getRemiseId()) == null) {
             motif = "Cette remise n'existe pas (ou plus) : choisissez une remise de la liste.";

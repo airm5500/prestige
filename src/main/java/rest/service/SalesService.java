@@ -63,6 +63,12 @@ public interface SalesService {
      */
     String controleVenteModifiable(String venteId);
 
+    /** Demande 64 : vente modifiable et sans paiement mobile money recu ou en cours (motif, ou null). */
+    String controleModificationPanier(String venteId);
+
+    /** Demande 64 : motif si la vente comptant ne pourrait pas etre cloturee par ce compte (caisse, lignes, stock). */
+    String controleClotureComptantPossible(TUser user, String venteId);
+
     /** Motif de refus de l'ajout d'un produit a une vente (vente, produit, quantite), null si l'ajout est possible. */
     String controleAjoutProduit(SalesParams params);
 
