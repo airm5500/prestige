@@ -2,7 +2,7 @@
   TACHES PLANIFIEES DES SAUVEGARDES (rapport docs/notices/RAPPORT_CHARGE_2026-10-29.md, par. 5.3).
 
   Cree (ou remplace) deux taches Windows, executees par SYSTEM, meme sans session ouverte :
-   - "Prestige - sauvegarde complete" aux heures -Heures (par defaut 12:30 et 21:30 : midi et soir) ;
+   - "Prestige - sauvegarde complete" aux heures -Heures (par defaut 06:30 et 21:30 : avant l'ouverture et apres la fermeture, retour du 18/11) ;
    - "Prestige - copie du journal" toutes les heures.
   Les taches qui lancent encore SAUVEGARDE_COMPRESSION.bat sont seulement listees : les desactiver a la main une fois
   la nouvelle sauvegarde verifiee (Disable-ScheduledTask), pour ne pas sauvegarder deux fois.
@@ -17,7 +17,7 @@ param(
     [string[]]$Bases = @('laborex_v1_db'),
     [string]$Destination = 'D:\SAUVEGARDE_JOURNALIERE',
     [string]$CopieVers = '',
-    [string[]]$Heures = @('12:30', '21:30'),
+    [string[]]$Heures = @('06:30', '21:30'),
     [string]$Dossier = $PSScriptRoot,
     [switch]$Retirer
 )

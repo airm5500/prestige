@@ -78,7 +78,8 @@ base ne doit pas emporter ses sauvegardes.
 
 **`5-planifier.ps1`**
 - Il crée deux tâches qui tournent sous SYSTEM :
-  - la sauvegarde complète à 12 h 30 et 21 h 30 (`-Heures` pour changer ces heures) ;
+  - la sauvegarde complète à 6 h 30 et 21 h 30, hors des heures d'ouverture (`-Heures` pour changer ces heures ;
+    une sauvegarde pendant les ventes ralentit toutes les caisses, retour du 18/11) ;
   - la copie du journal toutes les heures.
 - `-Retirer` supprime les deux tâches.
 

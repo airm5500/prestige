@@ -423,8 +423,12 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
                 html += ligne('Connexions ouvertes', d.connexionsOuvertes + ' / ' + d.connexionsMax
                         + (pct >= 0 ? ' (' + pct + '%)' : ''), pct >= 80);
                 html += ligne('Requêtes réellement actives', d.requetesActives, false);
-                html += ligne('Requêtes de plus de ' + d.seuilRequeteLenteS + ' s', d.requetesLentes,
+                html += ligne('Requêtes de plus de ' + d.seuilRequeteLenteS + ' s (hors sauvegarde)', d.requetesLentes,
                         d.requetesLentes > 0);
+                /* Retour du 18/11 (R7) : la sauvegarde, longue par nature, est montree a part, jamais comme une alerte. */
+                if (d.sauvegardeEnCoursS > 0) {
+                    html += ligne('Sauvegarde en cours', 'depuis ' + d.sauvegardeEnCoursS + ' s', false);
+                }
                 html += ligne('Transactions en attente d\'un verrou', d.attentesVerrou, d.attentesVerrou > 0);
                 html += ligne('Attente moyenne sur verrou', d.attenteVerrouMoyenneMs + ' ms', false);
                 html += ligne('Connexions refusées depuis le démarrage', d.connexionsRefusees, false);
