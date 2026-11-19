@@ -1042,7 +1042,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
  */
 window.PrestigeAffichage.THEME_PARTOUT = true;
 window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager_new', 'doventeendepot', 'ventedepot',
-    'tableaubord', 'dashboard', 'mainmenumanager', 'ordonnanceclient', 'menuvente'];
+    'tableaubord', 'dashboard', 'mainmenumanager', 'ordonnanceclient', 'menuvente',
+    // decision du 19/11 : « Nouvelle proforma » au dessin de l'ecran de vente (vp-shell / vp-vente, DoDevis.js)
+    'doDevis'];
 
 window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // retours du 07/10
