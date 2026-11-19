@@ -251,6 +251,19 @@ lignes de la famille sortent à « 80 % », y compris celles de l'assuré dont t
 
 ---
 
+## Décisions de l'utilisateur (19/11/2026)
+
+- **Cas 1** : l'écran ouvert par « Nouvelle proforma » (menu proforma, `devismanager`) est à **revoir selon le design actuel**.
+  La liste déroulante de nature (« PRESCRIPTION… ») y est **cachée**, mais sa valeur continue d'être **récupérée et envoyée en
+  arrière-plan**. L'opérateur ne peut donc plus choisir « DEPOT » par erreur.
+- **Cas 2** : **pas de nettoyage** des 307 préventes jumelles : les préventes ne s'affichent que pour le jour en cours. La
+  correction (double création à l'ajout du premier article) est confiée à la session principale.
+- **Cas 3** : pas encore tranché (le taux attendu est-il bien celui appliqué à la vente ?).
+
+Le traitement à faire a été transmis à la session principale le 19/11/2026.
+
+---
+
 ## Incertitudes communes
 
 - Les bases analysées sont les copies locales, pas les bases des officines.
