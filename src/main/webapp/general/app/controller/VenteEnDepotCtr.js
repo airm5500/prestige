@@ -3047,13 +3047,15 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                                 .focus(false, 100, function () {
                                 });
                     } else {
-                        Ext.Msg.alert("Message", "L'opérateur a échouée");
+                        Ext.Msg.alert("Message", (result && result.msg) || "L'opérateur a échouée");
                     }
 
                 },
                 failure: function (response, options) {
                     progress.hide();
-                    Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                    // demande 63 : refus du droit « Remise sur une vente » (403) : le message du serveur
+                    const refus = Ext.JSON.decode(response.responseText, true);
+                    Ext.Msg.alert("Message", (refus && refus.msg) || 'server-side failure with status code' + response.status);
                 }
             });
         }

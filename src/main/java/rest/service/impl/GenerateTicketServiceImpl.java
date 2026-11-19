@@ -175,6 +175,41 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return apercu(() -> lunchPrinterForTicket(id));
     }
 
+    /** Demande 63 : largeur du papier de l'appareil pendant {@link #documentsTicket} ; null sinon. */
+    private static final ThreadLocal<Integer> PAPIER_IMAGE = new ThreadLocal<>();
+
+    @Override
+    public List<rest.service.ticket.TicketDocument> documentsTicket(String type, String id, int papierMm)
+            throws JSONException {
+        Reimpression r;
+        if ("vno".equals(type)) {
+            r = () -> lunchPrinterForTicket(id);
+        } else if ("vo".equals(type)) {
+            r = () -> lunchPrinterForTicketVo(id);
+        } else if ("prevente".equals(type)) {
+            r = () -> imprimerTicketPrevente(id);
+        } else {
+            return new ArrayList<>();
+        }
+        PAPIER_IMAGE.set(rest.service.ticket.ModeleTicketService.largeurValide(papierMm));
+        try {
+            return apercu(r);
+        } finally {
+            PAPIER_IMAGE.remove();
+        }
+    }
+
+    @Override
+    public rest.service.ticket.ReglagesTicket reglagesImage(ModeleTicket modele, int papierMm) {
+        rest.service.ticket.ReglagesTicket r = modeleTicketService.reglages(modele, papierMm);
+        if (!r.nouveau()) {
+            // l'image n'existe qu'au nouveau modele : une officine restee a l'ancien garde ses autres reglages
+            r = rest.service.ticket.ReglagesTicket.depuis(modele,
+                    r.json().put("modele", rest.service.ticket.ReglagesTicket.NOUVEAU));
+        }
+        return r;
+    }
+
     /** Plan du 10/11, point 1 : recu de reglement d'un differe, construit sans impression (rapprochement). */
     @Override
     public List<rest.service.ticket.TicketDocument> apercuTicketReglementDiffere(String idDossier)
@@ -224,6 +259,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
      */
     private void brancherModele(ImpressionServiceImpl imp, ModeleTicket ticket, PrintService printService) {
         try {
+            Integer image = PAPIER_IMAGE.get();
+            if (image != null) {
+                // demande 63 : le ticket a la largeur de l'appareil, pas a celle de l'imprimante du serveur
+                imp.modeleNouveau(ticket, image, reglagesImage(ticket, image));
+                return;
+            }
             int mm = modeleTicketService.largeurImprimante(printService != null ? printService.getName() : null);
             imp.modeleNouveau(ticket, mm, modeleTicketService.reglages(ticket, mm));
         } catch (Exception e) {

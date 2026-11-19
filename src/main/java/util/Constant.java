@@ -96,6 +96,12 @@ public final class Constant {
     public static final String[] PRIVILEGES_CLOTURE_VENTE = { "P_SM_CLOTURER_CAISSE", "P_SM_DEPOT_EXTENSION",
             P_BT_MODIFICATION_DE_VENTE };
     public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
+    /**
+     * Demande 63 : remise sur une vente (POST v1/vente/remise), verifiee par le serveur. Donne a tous les roles
+     * existants a la migration (aucun compte ne perd la remise) ; le pharmacien le retire dans « Gestion des rôles ».
+     */
+    public static final String P_REMISE_VENTE = "P_REMISE_VENTE";
+    public static final String LIBELLE_REMISE_VENTE = "Remise sur une vente";
     /** Menu « Activité des équipes » (ANALYSE DE GESTION) : journal, recherches et analyses de productivite. */
     public static final String P_SM_ACTIVITE_EQUIPES = "P_SM_ACTIVITE_EQUIPES";
     /** Plan du 08/11, point 15.6 : onglet Anomalies de l'activite des equipes. */
