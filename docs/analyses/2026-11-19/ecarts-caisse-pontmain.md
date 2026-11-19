@@ -91,6 +91,10 @@ deux minutes d'écart. Neuf paires, 17 505 F.
   2 950 F et 6 930 F, soit 12 185 F. Suspecté : vente validée en espèces par erreur, puis refaite en mobile money
   sans annuler la première. La première gonfle alors la Recette en espèces sans argent dans le tiroir.
 - Le 18/11, l'écart de A (−2 874 F) tombe à **+76 F** si l'on retire la vente de 2 950 F.
+- **Un quatrième cas du même type, à douze minutes** : vente 261116_00081 de 4 910 F en espèces par C à 14:04 (sa
+  dernière avant la clôture de 14:12), puis vente 261116_00083 du même produit en mobile par B à 14:16. Ce produit
+  ne s'est vendu que ces deux fois dans la journée. Recherche élargie à 30 minutes et à toutes les caissières : aucun
+  autre cas de contenu identique avec un autre mode de règlement, hors produits courants.
 - Les six autres portent sur un seul produit courant : deux clients à la suite restent possibles.
 - Ce n'est pas un double enregistrement par le logiciel : chaque vente a son numéro, son heure et souvent un autre
   mode de règlement. Au-delà de deux minutes, les paires trouvées sont des produits courants à 100, 900, 1 000 ou
