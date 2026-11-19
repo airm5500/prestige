@@ -3400,3 +3400,201 @@ window.PrestigeRetoursAttente = (function () {
             return nombre;
         }};
 })();
+
+/**
+ * Roue d'attente sur tout bouton dont le clic part vers le serveur (demande du 19/11 : « au clic, une roue qui tourne,
+ * pour qu'on ne puisse pas cliquer plusieurs fois »).
+ *
+ * <p>
+ * Un clic de bouton (Ext.button.Button) qui lance, dans son traitement, un appel au serveur (Ext.Ajax, chargement d'un
+ * magasin, fetch) met le bouton en attente : les clics suivants sont ignores tant que la reponse n'est pas revenue, et
+ * une roue apparait dans le bouton apres 150 ms (pas de clignotement pour une reponse immediate). Le bouton redevient
+ * normal a la reponse, en erreur comme en succes, et au plus tard apres deux minutes (jamais bloque).
+ * </p>
+ *
+ * <p>
+ * Rien ne change pour un bouton qui n'appelle pas le serveur (ouvrir une fenetre, premier clic d'une confirmation dans
+ * le bouton), pour un bouton a menu ou a bascule, ni pour un bouton qui montre deja sa propre roue
+ * (PrestigeChargement). Un bouton peut s'exclure par « roueAuto: false ». Verifie par
+ * src/test/e2e/ergonomie/test-roue-boutons-1911.js.
+ * </p>
+ */
+window.PrestigeRoueBoutons = (function () {
+    'use strict';
+    var DELAI_ROUE = 150, PLAFOND = 120000, actif = null;
+
+    function style() {
+        if (document.getElementById('pr-roue-auto-style')) {
+            return;
+        }
+        var s = document.createElement('style');
+        s.id = 'pr-roue-auto-style';
+        s.textContent = '@keyframes prRoueAuto{to{transform:rotate(360deg)}}'
+                + '.pr-roue-auto{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-2px;'
+                + 'border:2px solid currentColor;border-top-color:transparent;border-radius:50%;opacity:.85;'
+                + 'animation:prRoueAuto .8s linear infinite}'
+                + '.pr-attente,.pr-attente *{cursor:progress !important}';
+        document.head.appendChild(s);
+    }
+
+    function exclu(b) {
+        return !b || b.isDestroyed || b.roueAuto === false || !!b.menu || !!b.enableToggle
+                || (b.hasCls && b.hasCls('pr-occupe'));
+    }
+
+    function interieur(b) {
+        var el = b.btnInnerEl || (b.el ? b.el.down('.x-btn-inner') : null);
+        return el && el.dom ? el.dom : null;
+    }
+
+    function retirerRoue(b) {
+        var el = interieur(b), r = el ? el.querySelector('.pr-roue-auto') : null;
+        if (r) {
+            r.parentNode.removeChild(r);
+        }
+    }
+
+    function liberer(b, tout) {
+        var e = b && b.prRoueAuto;
+        if (!e) {
+            return;
+        }
+        e.n = tout ? 0 : e.n - 1;
+        if (e.n > 0) {
+            return;
+        }
+        clearTimeout(e.minuteur);
+        clearTimeout(e.plafond);
+        b.prRoueAuto = null;
+        if (b.isDestroyed) {
+            return;
+        }
+        b.removeCls('pr-attente');
+        retirerRoue(b);
+    }
+
+    function occuper(b) {
+        if (b.prRoueAuto) {
+            b.prRoueAuto.n++;
+            return;
+        }
+        style();
+        var e = b.prRoueAuto = {n: 1};
+        b.addCls('pr-attente');
+        e.minuteur = setTimeout(function () {
+            var el = b.prRoueAuto === e && !b.isDestroyed ? interieur(b) : null;
+            if (el && !el.querySelector('.pr-roue, .pr-roue-auto')) {
+                var r = document.createElement('span');
+                r.className = 'pr-roue-auto';
+                el.insertBefore(r, el.firstChild);
+            }
+        }, DELAI_ROUE);
+        e.plafond = setTimeout(function () {
+            liberer(b, true);
+        }, PLAFOND);
+    }
+
+    /* un appel au serveur parti pendant le traitement d'un clic : le bouton l'attend */
+    function suivre() {
+        var b = actif;
+        if (exclu(b)) {
+            return null;
+        }
+        occuper(b);
+        return b;
+    }
+
+    function brancher() {
+        if (!window.Ext || !Ext.button || !Ext.button.Button || !Ext.Ajax) {
+            return false;
+        }
+        var proto = Ext.button.Button.prototype;
+        if (proto.prRoueAutoBranche) {
+            return true;
+        }
+        proto.prRoueAutoBranche = true;
+        var fireHandler = proto.fireHandler, onClick = proto.onClick;
+        proto.fireHandler = function () {
+            var avant = actif;
+            actif = this;
+            try {
+                return fireHandler.apply(this, arguments);
+            } finally {
+                actif = avant;
+            }
+        };
+        proto.onClick = function (e) {
+            if (this.prRoueAuto) {
+                /* reponse attendue : le clic est ignore */
+                if (e && e.preventDefault) {
+                    e.preventDefault();
+                }
+                return;
+            }
+            return onClick.apply(this, arguments);
+        };
+        /* les appels lances dans la reponse d'un appel suivi (verification de caisse, puis cloture...) sont suivis
+           aussi : le bouton attend toute la chaine */
+        var dans = function (b, f) {
+            return function () {
+                var avant = actif;
+                actif = b;
+                try {
+                    return f.apply(this, arguments);
+                } finally {
+                    actif = avant;
+                }
+            };
+        };
+        Ext.Ajax.on('beforerequest', function (conn, options) {
+            var b = suivre();
+            if (b && options) {
+                options.prRoueBouton = b;
+                ['success', 'failure', 'callback'].forEach(function (cle) {
+                    if (typeof options[cle] === 'function') {
+                        options[cle] = dans(b, options[cle]);
+                    }
+                });
+            }
+        });
+        /* liberation au tour suivant : la reponse a pu relancer un appel, le bouton reste alors en attente sans
+           clignoter */
+        var fin = function (conn, reponse, options) {
+            if (options && options.prRoueBouton) {
+                var b = options.prRoueBouton;
+                options.prRoueBouton = null;
+                setTimeout(function () {
+                    liberer(b);
+                }, 0);
+            }
+        };
+        Ext.Ajax.on('requestcomplete', fin);
+        Ext.Ajax.on('requestexception', fin);
+        if (window.fetch && !window.fetch.prRoueAuto) {
+            var fetchOrigine = window.fetch;
+            var enveloppe = function () {
+                var b = suivre(), p = fetchOrigine.apply(window, arguments);
+                if (b) {
+                    p.then(function () {
+                        setTimeout(function () {
+                            liberer(b);
+                        }, 0);
+                    }, function () {
+                        liberer(b);
+                    });
+                }
+                return p;
+            };
+            enveloppe.prRoueAuto = true;
+            window.fetch = enveloppe;
+        }
+        return true;
+    }
+
+    if (!brancher() && window.Ext && Ext.onReady) {
+        Ext.onReady(brancher);
+    }
+    return {brancher: brancher, liberer: liberer, enAttente: function (b) {
+            return !!(b && b.prRoueAuto);
+        }};
+})();
