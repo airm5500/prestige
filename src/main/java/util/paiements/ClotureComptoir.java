@@ -71,4 +71,22 @@ public final class ClotureComptoir {
                 + (reference == null || reference.isEmpty() ? "" : " (n° " + reference + ")")
                 + ". Terminez-la avec le mode " + libelle(op) + " pour ce montant, sans encaisser à nouveau.";
     }
+
+    /**
+     * Demande 64 : refus d'une modification du panier d'une vente qui porte un paiement mobile money recu
+     * ({@code paye}) ou en cours. La vente se termine au comptoir avec ce paiement, au meme montant.
+     */
+    public static String refusModificationPanier(Operateur op, int montant, boolean paye) {
+        if (paye) {
+            return "Cette prévente est déjà payée par " + libelle(op) + " (" + montant + " F) : le panier ne peut"
+                    + " plus être modifié. Terminez-la au comptoir avec ce paiement, sans encaisser à nouveau.";
+        }
+        return "Un paiement " + libelle(op) + " de " + montant + " F est en cours sur cette prévente : le panier ne"
+                + " peut pas être modifié pendant le paiement.";
+    }
+
+    /** Demande 64 : paiement mobile money refuse avant tout encaissement, la vente ne pourrait pas etre cloturee. */
+    public static String refusPaiement(String motif) {
+        return "Paiement mobile money impossible : " + motif + " Le client paie à la caisse.";
+    }
 }

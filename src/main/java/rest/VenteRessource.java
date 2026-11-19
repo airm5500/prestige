@@ -298,6 +298,11 @@ public class VenteRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
+        // demande 64 : vente terminee ou prevente payee par mobile money, refus avec le motif (avant : 500)
+        String motif = salesService.controleRetraitLigne(itemId);
+        if (motif != null) {
+            return Response.ok().entity(ResultFactory.getFailResult(motif)).build();
+        }
         TPreenregistrement tp = salesService.removePreenregistrementDetail(itemId);
         JSONObject json = salesService.shownetpayVno(tp);
         return Response.ok().entity(json.toString()).build();

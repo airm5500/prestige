@@ -96,4 +96,36 @@ public class ClotureComptoirCoherenceTest {
         assertEquals("Orange Money", ClotureComptoir.libelle(Operateur.ORANGE));
         assertEquals("Wave", ClotureComptoir.libelle(Operateur.WAVE));
     }
+
+    /**
+     * Demande 64 : refus d'une modification du panier, sur des milliers de paiements tires au hasard (graine fixe) : le
+     * message nomme toujours l'operateur et le montant ; « deja payee » seulement pour un paiement recu, « en cours »
+     * sinon ; jamais vide.
+     */
+    @Test
+    void refusModificationPanierSurDesMilliersDeCas() {
+        Random r = new Random(20261119L);
+        Operateur[] ops = Operateur.values();
+        int payes = 0, enCours = 0;
+        for (int cas = 0; cas < 10000; cas++) {
+            Operateur op = ops[r.nextInt(ops.length)];
+            int montant = 5 * (1 + r.nextInt(40000));
+            boolean paye = r.nextBoolean();
+            String m = ClotureComptoir.refusModificationPanier(op, montant, paye);
+            assertTrue(m != null && m.contains(ClotureComptoir.libelle(op)) && m.contains(montant + " F"),
+                    "cas " + cas + " : " + m);
+            assertEquals(paye, m.contains("déjà payée"), m);
+            assertEquals(!paye, m.contains("en cours"), m);
+            if (paye) {
+                payes++;
+            } else {
+                enCours++;
+            }
+        }
+        assertTrue(payes > 4000 && enCours > 4000, payes + " / " + enCours);
+        String refus = ClotureComptoir.refusPaiement("la caisse de la borne est fermée.");
+        assertTrue(
+                refus.startsWith("Paiement mobile money impossible : la caisse") && refus.endsWith("paie à la caisse."),
+                refus);
+    }
 }

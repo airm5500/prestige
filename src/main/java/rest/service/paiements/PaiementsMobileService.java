@@ -236,6 +236,14 @@ public class PaiementsMobileService {
             montant = part;
             auto = auto && part == net;
         }
+        if (auto) {
+            // Demande 64 (regle du pharmacien, 19/11) : payer a la borne termine la vente. Si la cloture ne pourrait
+            // pas se faire (caisse fermee, stock, vente incomplete), aucun encaissement : le client paie a la caisse.
+            String motif = salesService.controleClotureComptantPossible(user, venteId);
+            if (motif != null) {
+                return echec(ClotureComptoir.refusPaiement(motif));
+            }
+        }
         String id = UUID.randomUUID().toString();
         LocalDateTime exp = LocalDateTime.now().plusMinutes(config.expirationMin);
         em.createNativeQuery(
