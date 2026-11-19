@@ -3625,3 +3625,9 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .prestige-pager-barre.x-progress { height: 24px !important; border-radius: 4px; }
 .prestige-pager-barre .x-progress-bar, .prestige-pager-barre .x-progress-text { height: 22px !important; line-height: 22px !important; }
 .prestige-pager-barre .x-progress-text { font-size: 13px !important; font-weight: 600; text-align: center; }
+
+/* Demande 62 : prevente deja payee par mobile money a la borne (bandeau de l'ecran de vente, colonne des listes) */
+.vp-paye-mobile { background: #e3f6ef; border: 1px solid #17795f; border-left-width: 5px; border-radius: 6px; padding: 8px 12px;
+    color: #0f4f3c; font-size: 13px; line-height: 19px; }
+.vp-paye-mobile.vp-paye-mobile-ecart { background: #fff4e0; border-color: #d97f06; color: #6b3d00; }
+.vp-paye-mobile-cellule .x-grid-cell-inner { color: #17795f !important; font-weight: 700; }

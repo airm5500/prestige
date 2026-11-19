@@ -4559,6 +4559,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.refreshBtnClientComptant();
                     }
                     me.refresh();
+                    me.afficherPaiementMobile(record.paiementMobile, record.intPRICE - (record.intPRICEREMISE || 0));
                     me.controlerDetailPanier(record.lgPREENREGISTREMENTID);
 
 
@@ -4593,6 +4594,53 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
             }
         });
+    },
+    /**
+     * Demande 62 (point 3b) : prevente deja payee par mobile money a la borne, pas encore cloturee. Le serveur l'a
+     * signalee (paiementMobile) et a propose le mode de l'operateur : le bandeau le dit a la caissiere, le mode est
+     * verrouille (le montant recu est deja celui du net, en lecture seule, comme pour tout mode mobile). « Terminer la
+     * vente » la termine avec ce paiement ; le serveur refuse tout autre mode ou montant (jamais deux encaissements).
+     */
+    afficherPaiementMobile: function (pm, net) {
+        const me = this, contenu = me.getContenu && me.getContenu();
+        const vno = contenu && !contenu.destroyed ? contenu.down('ventevno') : null;
+        me.paiementMobileVente = pm || null;
+        const ancien = vno ? vno.down('#bandeauPaiementMobile') : null;
+        if (ancien) {
+            vno.remove(ancien, true);
+        }
+        const mode = me.getVnotypeReglement && me.getVnotypeReglement();
+        if (!pm) {
+            if (mode && !mode.destroyed && mode.paiementMobileVerrou) {
+                mode.paiementMobileVerrou = false;
+                mode.setReadOnly(false);
+            }
+            return;
+        }
+        if (!vno) {
+            return;
+        }
+        const f = (v) => Ext.util.Format.number(v, '0,000') + ' F';
+        const ecart = net !== undefined && net !== null && Number(net) !== Number(pm.montant);
+        vno.insert(0, {
+            xtype: 'component',
+            itemId: 'bandeauPaiementMobile',
+            cls: 'vp-paye-mobile' + (ecart ? ' vp-paye-mobile-ecart' : ''),
+            margin: '0 0 8 0',
+            html: '<b>Déjà payée par ' + Ext.String.htmlEncode(pm.operateurLibelle || 'mobile money') + ' : '
+                    + f(pm.montant) + '</b>'
+                    + (pm.referenceFournisseur ? ' &middot; n° ' + Ext.String.htmlEncode(pm.referenceFournisseur) : '')
+                    + (pm.payeLe ? ' &middot; ' + Ext.String.htmlEncode(String(pm.payeLe).substring(0, 16)) : '')
+                    + '<br/>' + (ecart
+                            ? 'Le net de la vente (' + f(net) + ') a changé depuis le paiement : le mode '
+                            + Ext.String.htmlEncode(pm.operateurLibelle || '') + ' doit porter ' + f(pm.montant)
+                            + ', le reste dans un autre mode.'
+                            : 'Ne rien encaisser : « Terminer la vente » la termine avec ce paiement.')
+        });
+        if (mode && !mode.destroyed) {
+            mode.paiementMobileVerrou = true;
+            mode.setReadOnly(true);
+        }
     },
     loadExistantSale: function (venteId) {
         const me = this, contenu = me.getContenu();
@@ -4898,6 +4946,7 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     resetAll: function (montantRemis) {
         const me = this;
+        me.afficherPaiementMobile(null);
         me.current = null;
         me._pendingModeNeedsClient = false;
         me._appliedTypeReglement = '1';
@@ -10046,6 +10095,22 @@ Ext.define('testextjs.controller.VenteCtr', {
                             text: 'Caissier',
                             dataIndex: 'userFullName',
                             flex: 1
+                        }, {
+                            /* demande 62 (point 3b) : prevente deja payee par mobile money a la borne */
+                            text: 'Paiement mobile',
+                            itemId: 'colPaiementMobile',
+                            sortable: false,
+                            menuDisabled: true,
+                            flex: 1,
+                            renderer: function (v, meta, record) {
+                                const pm = record.raw && record.raw.paiementMobile;
+                                if (!pm) {
+                                    return '';
+                                }
+                                meta.tdCls = 'vp-paye-mobile-cellule';
+                                return 'Payée ' + Ext.String.htmlEncode(pm.operateurLibelle || '') + ' '
+                                        + Ext.util.Format.number(pm.montant, '0,000') + ' F';
+                            }
                         }],
                     listeners: {
                         selectionchange: function (selModel, selected) {

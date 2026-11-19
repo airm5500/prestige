@@ -54,6 +54,10 @@ public class SalesRessource {
     @Inject
     @SalesPrimary
     SalesService salesService;
+    /** Demande 62 (point 3b) : prevente deja payee par mobile money, terminee au comptoir avec ce paiement. */
+    @EJB
+    private rest.service.paiements.PaiementsMobileService paiementsMobile;
+
     @EJB
     private rest.service.SearchProduitServcie searchProduitServcie;
     @EJB
@@ -307,8 +311,16 @@ public class SalesRessource {
             return refusDroit;
         }
 
+        String refusPaiementMobile = paiementsMobile.refusClotureComptoir(clotureVenteParams);
+        if (refusPaiementMobile != null) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("msg", refusPaiementMobile)
+                    .put("codeError", 0).put("paiementMobile", true).toString()).build();
+        }
         JSONObject json = cloturerEnMesurant("/api/v1/vente/cloturer/vno",
                 () -> salesService.updateVenteClotureComptant(clotureVenteParams));
+        if (json.optBoolean("success", false)) {
+            paiementsMobile.marquerClotureComptoir(clotureVenteParams.getVenteId());
+        }
         return Response.ok().entity(json.toString()).build();
     }
 
