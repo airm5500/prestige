@@ -1,6 +1,6 @@
-# Écarts de caisse de Pontmain, du 14 au 18/11/2026
+# Écarts de caisse de Pontmain, du 14 au 19/11/2026
 
-Analyse en lecture seule de la copie locale `pontmain`, code lu sur `integration/recette-2026-10-29` (`f0282bf06`).
+Analyse en lecture seule de la copie locale `pontmain` (base du 19/11 au soir, dernière vente à 20:07), code lu sur `integration/recette-2026-10-29` (`f0282bf06`).
 Aucune donnée modifiée. Les comptes sont désignés par une lettre, jamais par un nom :
 caissière A (identifiant finissant par 105839), B (576420), C (314875), compte D (793170).
 
@@ -10,8 +10,12 @@ caissière A (identifiant finissant par 105839), B (576420), C (314875), compte 
   ventes. Les écarts ne viennent pas d'une erreur de calcul.
 - **Les écarts ne sont justifiés par aucune écriture.** Aucune sortie ni entrée de caisse n'a été saisie depuis le
   démarrage : la base ne contient aucun mouvement de caisse hors fonds de caisse.
-- **Un seul écart est grave : −49 666 F le 16/11 matin (caissière C).** Il ne vient pas du logiciel. Cause suspectée :
-  un retrait d'environ 50 000 F non saisi, ou une erreur de comptage des billets.
+- **Trois écarts sont graves, aucun ne vient du logiciel :**
+  - −49 666 F le 16/11 matin (C) ;
+  - −74 074 F le 19/11 (B) : la caisse est restée ouverte deux jours, et 72 253 F du 18/11 sont dans la Recette ;
+  - −96 192 F le 19/11 (A) : aucune écriture ne l'explique.
+- Cause suspectée des deux écarts sans explication : des retraits d'espèces non saisis (environ 50 000 F le 16/11,
+  environ 100 000 F le 19/11).
 - **Deux défauts du logiciel sont confirmés**, mais ils n'expliquent pas les écarts affichés : une vente modifiée
   après la clôture de sa caisse, et une annulation faite après clôture dont le remboursement ne tombe dans aucune caisse.
 - L'officine a démarré sur Prestige le 14/11 : première vente et première caisse ce jour-là.
@@ -42,23 +46,29 @@ caissière A (identifiant finissant par 105839), B (576420), C (314875), compte 
 | Mar. 17/11 | B | 14:47 → 20:18 | 20 000 | 235 792 | 236 700 | **+908** | 235 792 |
 | Mer. 18/11 | B | 08:11 → 13:58 | 9 000 | 82 061 | 78 095 | **−3 966** | 82 061 |
 | Mer. 18/11 | A | 08:32 → 20:36 | 9 000 | 316 834 | 313 960 | **−2 874** | 316 834 |
-| Mer. 18/11 | B | 15:18 → non clôturée | 9 000 | – | – | – | 72 253 |
+| Mer. 18/11 → jeu. 19/11 | B | 18/11 15:18 → 19/11 20:19 | 9 000 | 237 534 | 163 460 | **−74 074** | 237 534 (72 253 du 18/11 + 165 281 du 19/11) |
+| Jeu. 19/11 | C | 07:45 → 09:54 | 20 000 | 28 205 | 29 210 | **+1 005** | 28 205 |
+| Jeu. 19/11 | A | 07:49 → 20:18 | 20 500 | 434 567 | 338 375 | **−96 192** | 434 567 |
 
 Dimanche 15/11 : aucune vente, aucune caisse.
 
-Totaux par jour : 14/11 **+462** ; 16/11 **−42 875** ; 17/11 **+14 003** ; 18/11 **−6 840**.
-Sur les dix clôtures : **−35 250 F**. Hors l'écart du 16/11 matin : **+14 416 F**.
+Totaux par jour : 14/11 **+462** ; 16/11 **−42 875** ; 17/11 **+14 003** ; 18/11 **−6 840** ;
+19/11 **−169 261** (clôture de B comprise).
+Sur les treize clôtures : **−204 511 F**. Hors les trois écarts graves : **+15 421 F**.
 
 ## Ce qui a été vérifié et écarté
 
 | Piste | Résultat |
 |---|---|
-| Recette mal calculée | Écartée : recalcul identique sur 9 clôtures sur 10 ; la dixième diffère de 3 810 F à cause du défaut 1, et la valeur affichée est celle qui était vraie à la clôture. |
+| Recette mal calculée | Écartée : recalcul identique sur 12 clôtures sur 13 ; la treizième diffère de 3 810 F à cause du défaut 1, et la valeur affichée est celle qui était vraie à la clôture. |
 | Ventes validées en double | Écartée : aucune paire de ventes de même montant à la même seconde ; six paires à moins d'une minute, toutes de petits montants (100 à 1 405 F), avec des numéros distincts et proches. |
 | Ventes encaissées hors caisse ouverte | Écartée : aucune, hormis l'annulation du défaut 2. |
 | Arrondi de monnaie | Négligeable : 135 F sur toute la période (43 F au plus par clôture). |
 | Sorties ou entrées de caisse | Aucune saisie depuis le démarrage. |
 | Ventes à crédit ou tiers payant | Aucune : toutes les ventes sont au comptant. |
+| Règlements incohérents | Écartée : sur les 14 sessions, le total des règlements égale le total des ventes ; aucune vente sans règlement, aucun règlement en double. |
+| Prix modifiés à la vente | Sans effet : 314 changements journalisés, tous des arrondis au multiple de 5 F supérieur (1 184 → 1 185). La Recette suit le prix arrondi. |
+| Annulations du 19/11 | Sans effet : deux ventes de A annulées par le compte D (2 260 F à 11:29, 4 865 F à 20:07), pendant que la caisse de A était ouverte. Elles sont bien déduites de sa Recette. |
 
 ## Écart par écart
 
@@ -73,7 +83,17 @@ Sur les dix clôtures : **−35 250 F**. Hors l'écart du 16/11 matin : **+14 41
   encaissements passe par Wave). Non prouvable depuis la base : il faut le relevé Wave du jour.
 - **18/11, B : −3 966 F et A : −2 874 F.** Moins d'espèces que prévu. Suspecté : l'inverse, des ventes payées par
   Wave et saisies en espèces, ou erreur de rendu. Même contrôle par le relevé Wave.
-- **Les autres (+462, −424, −935, +908)** : écarts courants de comptage.
+- **19/11, B : −74 074 F.** La caisse ouverte le 18/11 à 15:18 n'a été clôturée que le 19/11 à 20:19. Sa Recette
+  cumule donc deux journées : 72 253 F du 18/11 après-midi et 165 281 F du 19/11. Le billetage (163 460 F) ne
+  correspond qu'au 19/11. Suspecté : les espèces du 18/11 ont été retirées le soir sans clôturer. Indice : le 18/11
+  B vendait sur le poste CAISSE3 ; le 19/11 matin, C y a ouvert sa propre caisse et l'a clôturée avec +1 005 F, puis
+  B a vendu sur CAISSE2 à partir de 10:08. Le tiroir de CAISSE3 était donc vide le 19 au matin. Écart restant une
+  fois les 72 253 F retirés : **−1 821 F**.
+- **19/11, A : −96 192 F.** Non lié au logiciel. Les 174 ventes de la session, toutes saisies sur le poste SERVEUR,
+  donnent bien 434 567 F en espèces ; la plus grosse vaut 16 790 F. Le billetage compte 29 billets de 10 000.
+  Suspecté : environ 100 000 F sortis du tiroir en cours de journée sans saisie (il resterait alors +3 808 F), comme
+  le 16/11. À demander à l'officine.
+- **Les autres (+462, −424, −935, +908, +1 005)** : écarts courants de comptage.
 
 Le fond de caisse est saisi par chaque caissière pour elle-même et varie de 0 à 20 500 F d'une session à l'autre.
 Comme l'écart suppose que ce fond a été retiré avant le comptage, toute imprécision sur le fond devient un écart.
@@ -109,15 +129,19 @@ Comme l'écart suppose que ce fond a été retiré avant le comptage, toute impr
 ### Défaut 3 (confirmé, sans effet sur l'écran) : paiements mixtes comptés en espèces dans le journal
 
 - 34 ventes payées en partie en espèces et en partie en mobile money sont écrites dans `mvttransaction` comme
-  entièrement en espèces : 28 586 F de trop en espèces du 14 au 18/11.
+  entièrement en espèces : 28 586 F de trop en espèces du 14 au 18/11 (non recompté pour le 19/11, où le défaut
+  se voit encore : 449 607 F en espèces pour A dans ce journal, contre 441 692 F de règlements avant annulations).
 - La gestion de caisse lit `vente_reglement`, qui est juste. Les états bâtis sur `mvttransaction` sont à vérifier.
 
 ## Points d'organisation à signaler à l'officine
 
 - La caisse du compte D est ouverte depuis le 14/11 à 19:37, fond 0, jamais clôturée. C'est elle qui permet les
   annulations et modifications à toute heure.
-- La caisse de B ouverte le 18/11 à 15:18 n'a pas été clôturée le soir : 72 253 F d'espèces théoriques non comptés.
-- Aucune sortie de caisse n'est saisie : tout retrait d'espèces devient un écart.
+- La caisse de B ouverte le 18/11 à 15:18 n'a pas été clôturée le soir : d'où l'écart de −74 074 F du 19/11.
+  Une caisse se clôture à chaque fin de service, avant de vider le tiroir.
+- Aucune sortie de caisse n'est saisie : tout retrait d'espèces devient un écart. Les deux gros écarts sans
+  explication sont proches de montants ronds (50 000 et 100 000 F).
+- Prestige n'empêche pas de laisser une caisse ouverte plusieurs jours et ne le signale pas.
 
 ## Limites
 
