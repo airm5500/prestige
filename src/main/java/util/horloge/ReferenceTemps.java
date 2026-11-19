@@ -45,13 +45,44 @@ public final class ReferenceTemps {
     private ReferenceTemps() {
     }
 
-    /** Ecart avec l'heure d'Internet, ou null si aucune reference n'a repondu (poste sans Internet). */
+    /** Mesure complete (reseau), remplacable par les tests. */
+    static volatile java.util.function.Supplier<Mesure> mesureur = ReferenceTemps::mesurerMaintenant;
+
+    /** Une seule mesure a la fois, quel que soit le nombre d'ecrans qui la demandent. */
+    private static final java.util.concurrent.atomic.AtomicBoolean EN_COURS = new java.util.concurrent.atomic.AtomicBoolean();
+
+    /**
+     * Ecart avec l'heure d'Internet, ou null si aucune reference n'a repondu (poste sans Internet) ou si la premiere
+     * mesure est en cours. Retour support du 18/11 : la mesure (resolution DNS sans delai, jusqu'a 1 min) se faisait
+     * pendant la requete de l'ecran ; elle se fait desormais en tache de fond, et l'ecran recoit tout de suite la
+     * derniere mesure connue.
+     */
     public static Mesure mesurer() {
         long maintenant = System.currentTimeMillis();
-        if (Math.abs(maintenant - derniereTentative) < DUREE_CACHE_MS) {
-            return derniere;
+        if (Math.abs(maintenant - derniereTentative) >= DUREE_CACHE_MS && EN_COURS.compareAndSet(false, true)) {
+            derniereTentative = maintenant;
+            Thread t = new Thread(() -> {
+                try {
+                    derniere = mesureur.get();
+                } catch (RuntimeException e) {
+                    LOG.log(Level.FINE, "Mesure de l'heure d'Internet", e);
+                } finally {
+                    EN_COURS.set(false);
+                }
+            }, "prestige-heure-internet");
+            t.setDaemon(true);
+            t.start();
         }
-        derniereTentative = maintenant;
+        return derniere;
+    }
+
+    /** Remise a zero (tests). */
+    static void oublier() {
+        derniere = null;
+        derniereTentative = 0;
+    }
+
+    static Mesure mesurerMaintenant() {
         Mesure m = null;
         for (String hote : SERVEURS_NTP) {
             try {
@@ -71,8 +102,12 @@ public final class ReferenceTemps {
                 }
             }
         }
-        derniere = m;
         return m;
+    }
+
+    /** Ecart SNTP : horloge locale a la reception moins (emission du serveur + moitie de l'aller-retour). */
+    static long ecart(long t0, long t1, long emission) {
+        return t1 - (emission + (t1 - t0) / 2);
     }
 
     /** SNTP (RFC 4330) : heure d'emission du serveur, corrigee de la moitie de l'aller-retour. */
@@ -92,7 +127,7 @@ public final class ReferenceTemps {
                 throw new IOException("reponse vide");
             }
             long emission = (secondes - DECALAGE_NTP) * 1000L + ((fraction * 1000L) >>> 32);
-            return t1 - (emission + (t1 - t0) / 2);
+            return ecart(t0, t1, emission);
         }
     }
 
