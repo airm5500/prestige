@@ -4411,7 +4411,27 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     public JSONObject addRemise(SalesParams params) {
-        return remiseService.addRemise(params);
+        // Demande 63, point 5 : une vente terminee ou une remise inconnue sont refusees avec un message clair (avant :
+        // succes, et la remise devenait nulle) ; « 0 » ou vide = sans remise, comme le calcul du net
+        String motif = params == null ? "Aucune donnée n'a été reçue : actualisez l'écran de vente."
+                : controleVenteModifiable(params.getVenteId());
+        if (motif == null && StringUtils.isNotEmpty(params.getRemiseId()) && !"0".equals(params.getRemiseId())
+                && getEm().find(TRemise.class, params.getRemiseId()) == null) {
+            motif = "Cette remise n'existe pas (ou plus) : choisissez une remise de la liste.";
+        }
+        if (motif != null) {
+            return new JSONObject().put("success", false).put("msg", motif);
+        }
+        JSONObject json = remiseService.addRemise(params);
+        TPreenregistrement p = getEm().find(TPreenregistrement.class, params.getVenteId());
+        if (json.optBoolean("success") && p != null && !"VO".equals(p.getStrTYPEVENTE())) {
+            // vente au comptant : le net recalcule (meme reponse que net/vno), sans second appel
+            JSONObject net = shownetpayVno(p);
+            if (net.optBoolean("success") && net.has("data")) {
+                json.put("data", net.get("data"));
+            }
+        }
+        return json;
     }
 
     @Override
@@ -6909,8 +6929,7 @@ public class SalesServiceImpl implements SalesService {
             int totalTp;
 
             MontantAPaye montantAPaye;
-            TRemise remise = pr.getRemise();
-            remise = remise != null ? remise : client.getRemise();
+            TRemise remise = SalesNetComputingServiceImpl.remiseAppliquee(pr, client);
             if (remise != null) {
                 montantAPaye = getRemiseVno(pr, remise, list);
 

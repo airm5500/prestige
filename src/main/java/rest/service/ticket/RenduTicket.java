@@ -214,6 +214,72 @@ public final class RenduTicket {
         return rendu.res;
     }
 
+    /**
+     * Demande 63 (applications mobiles) : nombre de points d'une ligne de l'imprimante, a la largeur imprimable du
+     * papier (58 mm : 48 mm, 80 mm : 72 mm). A 203 dpi : 384 et 576 points.
+     */
+    public static int pointsLargeur(int papierMm, int dpi) {
+        return (int) Math.ceil(largeurImprimable(papierMm) * dpi / 72.0 - 1e-6);
+    }
+
+    /**
+     * Demande 63 : le ticket dessine pour une imprimante thermique, a sa resolution ({@code dpi}) : largeur
+     * {@link #pointsLargeur(int, int)}, fond blanc, niveaux de gris, meme dessin que l'impression du poste.
+     */
+    public static BufferedImage imageImprimante(TicketDocument doc, ReglagesTicket r, int papierMm, int dpi) {
+        BufferedImage essai = new BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB);
+        Graphics2D ge = essai.createGraphics();
+        Resultat mesure = dessiner(ge, doc, r, papierMm, 0, HAUT_IMAGE);
+        ge.dispose();
+        int l = pointsLargeur(papierMm, dpi);
+        double e = echelleImage(papierMm, dpi);
+        // dessin sur une hauteur de reserve : la hauteur mesuree ne compte pas toujours le dernier element (recu de
+        // facture en 58 mm, test de coherence) ; l'image est ensuite coupee sous le dernier point dessine
+        int reserve = (int) Math.ceil((mesure.hauteur + HAUT_IMAGE + 200) * e);
+        BufferedImage img = new BufferedImage(l, reserve, BufferedImage.TYPE_BYTE_GRAY);
+        Graphics2D gi = img.createGraphics();
+        gi.setColor(Color.WHITE);
+        gi.fillRect(0, 0, l, reserve);
+        dessinerImage(gi, doc, r, papierMm, dpi);
+        gi.dispose();
+        int bas = (int) Math.ceil((mesure.hauteur + HAUT_IMAGE) * e);
+        int[] ligne = new int[l];
+        for (int y = reserve - 1; y >= bas; y--) {
+            img.getRaster().getPixels(0, y, l, 1, ligne);
+            boolean vide = true;
+            for (int v : ligne) {
+                if (v < 250) {
+                    vide = false;
+                    break;
+                }
+            }
+            if (!vide) {
+                bas = Math.min(reserve, y + 1 + (int) Math.ceil(HAUT_IMAGE * e));
+                break;
+            }
+        }
+        return img.getSubimage(0, 0, l, bas);
+    }
+
+    static final int HAUT_IMAGE = 8;
+    /**
+     * Bord garde de chaque cote de l'image, en points : le cadre du net (trait de 1,6 point centre sur le bord) en
+     * depassait d'un demi-trait, coupe par une imprimante qui n'a pas un point de plus (test de coherence).
+     */
+    static final double BORD_IMAGE = 1;
+
+    static double echelleImage(int papierMm, int dpi) {
+        return pointsLargeur(papierMm, dpi) / (largeurImprimable(papierMm) + 2 * BORD_IMAGE);
+    }
+
+    /** Dessin de l'image : largeur imprimable plus les bords ramenee aux points de l'imprimante. */
+    static void dessinerImage(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm, int dpi) {
+        double e = echelleImage(papierMm, dpi);
+        g.scale(e, e);
+        g.translate(BORD_IMAGE, 0);
+        dessiner(g, doc, r, papierMm, 0, HAUT_IMAGE);
+    }
+
     /** Apercu en image (fond blanc), a l'echelle donnee ; {@code sortie} recoit le resultat du dessin. */
     public static BufferedImage apercu(TicketDocument doc, ReglagesTicket r, int papierMm, double echelle,
             Resultat[] sortie) {

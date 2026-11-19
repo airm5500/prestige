@@ -239,12 +239,31 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         return montantAPaye;
     }
 
+    /**
+     * Remise choisi sur la vente « sans remise » (vente/remise avec remiseId « 0 ») : marque gardee dans lg_REMISE_ID.
+     */
+    public static final String SANS_REMISE = "0";
+
+    /**
+     * Remise d'une vente assurance / carnet : celle choisie sur la vente ; a defaut, celle de la fiche du client, sauf
+     * si le vendeur a choisi « sans remise » pour cette vente (demande 63, point 3, regle validee le 19/11 : le vendeur
+     * peut retirer la remise de la fiche, pour cette vente seulement).
+     */
+    public static TRemise remiseAppliquee(TPreenregistrement op, dal.TClient client) {
+        if (op.getRemise() != null) {
+            return op.getRemise();
+        }
+        if (SANS_REMISE.equals(op.getLgREMISEID()) || client == null) {
+            return null;
+        }
+        return client.getRemise();
+    }
+
     private MontantAPaye calcule(SalesParams params) {
         TPreenregistrement op = em.find(TPreenregistrement.class, params.getVenteId());
         boolean isCarnet = Constant.VENTE_AVEC_CARNET.equals(op.getLgTYPEVENTEID().getLgTYPEVENTEID());
 
-        TRemise remise = op.getRemise();
-        remise = remise != null ? remise : op.getClient().getRemise();
+        TRemise remise = remiseAppliquee(op, op.getClient());
         Collection<TPreenregistrementDetail> tPreenregistrementDetailCollection = op
                 .getTPreenregistrementDetailCollection();
         if (CollectionUtils.isEmpty(tPreenregistrementDetailCollection)) {

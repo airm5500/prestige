@@ -183,6 +183,52 @@ public class SalesRessource {
         return apercuTickets(() -> generateTicketService.apercuTicketVno(id));
     }
 
+    /**
+     * Demande 63 (applications mobiles) : tickets de la vente ({@code vno}, {@code vo}) ou de la prevente
+     * ({@code prevente}, avec son QR code) dessines par le serveur, en PNG a la largeur de l'imprimante de l'appareil
+     * (58 mm : 384 points, 80 mm : 576 points a 203 dpi ; 57 -> 58, 100 -> 80), dans l'ordre d'impression. Meme
+     * construction que la reimpression du poste ; lecture seule, rien n'est envoye a l'imprimante.
+     */
+    @GET
+    @Path("ticket/{type}/{id}/image")
+    public Response imageTicket(@PathParam("type") String type, @PathParam("id") String id,
+            @QueryParam("largeur") Integer largeur, @QueryParam("dpi") Integer dpi) throws JSONException {
+        if (Droits.utilisateur(servletRequest) == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type("application/json")
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        if (!"vno".equals(type) && !"vo".equals(type) && !"prevente".equals(type)) {
+            return Response.status(Response.Status.BAD_REQUEST).type("application/json").entity(new JSONObject()
+                    .put("success", false).put("msg", "Type de ticket inconnu : vno, vo ou prevente.").toString())
+                    .build();
+        }
+        int mm = rest.service.ticket.ModeleTicketService.largeurValide(largeur == null ? 80 : largeur);
+        int resolution = dpi == null || dpi < 100 || dpi > 600 ? 203 : dpi;
+        JSONObject json = new JSONObject();
+        try {
+            org.json.JSONArray tickets = new org.json.JSONArray();
+            for (rest.service.ticket.TicketDocument d : generateTicketService.documentsTicket(type, id, mm)) {
+                java.awt.image.BufferedImage img = rest.service.ticket.RenduTicket.imageImprimante(d,
+                        generateTicketService.reglagesImage(d.ticket(), mm), mm, resolution);
+                java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+                javax.imageio.ImageIO.write(img, "png", png);
+                tickets.put(new JSONObject().put("modele", d.ticket().name())
+                        .put("png", java.util.Base64.getEncoder().encodeToString(png.toByteArray()))
+                        .put("largeurPoints", img.getWidth()).put("hauteurPoints", img.getHeight()));
+            }
+            if (tickets.length() == 0) {
+                json.put("success", false).put("msg", "Aucun ticket pour cette vente.");
+            } else {
+                json.put("success", true).put("largeur", mm).put("dpi", resolution).put("tickets", tickets);
+            }
+        } catch (Exception e) {
+            json.put("success", false).put("msg",
+                    "Ticket introuvable : " + (e.getMessage() == null ? "" : e.getMessage()));
+        }
+        return Response.ok().type("application/json").entity(json.toString()).build();
+    }
+
     interface Documents {
         List<rest.service.ticket.TicketDocument> lire() throws JSONException;
     }
@@ -278,7 +324,10 @@ public class SalesRessource {
     @POST
     @Path("remise")
     public Response addRemise(SalesParams params) {
-
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_REMISE_VENTE, Constant.P_REMISE_VENTE);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         return Response.ok().entity(salesService.addRemise(params).toString()).build();
 
     }

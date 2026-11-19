@@ -3316,7 +3316,8 @@ Ext.define('testextjs.controller.VenteCtr', {
     ,
     updateRemise: function (cmp) {
         const me = this;
-        let vente = me.getCurrent(), remiseId = cmp.getValue();
+        // demande 63, point 3 : « SANS REMISE » choisi = « 0 », la remise de la fiche du client ne revient pas
+        let vente = me.getCurrent(), remiseId = cmp.getValue() || '0';
         if (vente) {
             let venteId = vente.lgPREENREGISTREMENTID;
             let data = {"remiseId": remiseId, "venteId": venteId};
@@ -3335,13 +3336,15 @@ Ext.define('testextjs.controller.VenteCtr', {
                                 .focus(false, 100, function () {
                                 });
                     } else {
-                        Ext.Msg.alert("Message", "L'opérateur a échouée");
+                        Ext.Msg.alert("Message", (result && result.msg) || "L'opérateur a échouée");
                     }
 
                 },
                 failure: function (response, options) {
                     progress.hide();
-                    Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                    // demande 63 : refus du droit « Remise sur une vente » (403) : le message du serveur
+                    const refus = Ext.JSON.decode(response.responseText, true);
+                    Ext.Msg.alert("Message", (refus && refus.msg) || 'server-side failure with status code' + response.status);
                 }
             });
         }
@@ -4456,7 +4459,7 @@ Ext.define('testextjs.controller.VenteCtr', {
 
         // --- Remise ---
         const remiseCmp = me.getVnoremise && me.getVnoremise();
-        if (lgREMISEID) {
+        if (lgREMISEID && lgREMISEID !== '0') {
             if (remiseCmp && !remiseCmp.destroyed) {
                 remiseCmp.getStore().load({
                     scope: me,

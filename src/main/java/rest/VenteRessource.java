@@ -124,6 +124,10 @@ public class VenteRessource {
     @POST
     @Path("remise")
     public Response addRemise(SalesParams params) {
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_REMISE_VENTE, Constant.P_REMISE_VENTE);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         JSONObject json = new JSONObject();
         try {
             json = salesService.addRemise(params);

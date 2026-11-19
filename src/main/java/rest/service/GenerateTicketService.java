@@ -78,6 +78,16 @@ public interface GenerateTicketService {
     /** Idem pour une vente au comptant (tests de rapprochement des promotions, audit 05 PR-01). */
     List<rest.service.ticket.TicketDocument> apercuTicketVno(String id) throws JSONException;
 
+    /**
+     * Demande 63 : tickets d'une vente ({@code vno}, {@code vo}) ou d'une prevente ({@code prevente}), dans l'ordre
+     * d'impression, construits comme la reimpression du poste, au modele et aux reglages de la largeur {@code papierMm}
+     * (58 ou 80), sans rien envoyer a l'imprimante. Liste vide pour un type inconnu.
+     */
+    List<rest.service.ticket.TicketDocument> documentsTicket(String type, String id, int papierMm) throws JSONException;
+
+    /** Reglages appliques par {@link #documentsTicket} a ce modele et cette largeur (toujours le nouveau modele). */
+    rest.service.ticket.ReglagesTicket reglagesImage(rest.service.ticket.ModeleTicket modele, int papierMm);
+
     List<rest.service.ticket.TicketDocument> apercuTicketReglementDiffere(String idDossier) throws JSONException;
 
     List<String> generateDataVenteSupprime(TPreenregistrement p);
