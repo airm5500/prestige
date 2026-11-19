@@ -166,4 +166,48 @@ class ImprimanteAbsenteTest {
         String z = ChoixImprimante.message("SERVEUR", 0, ChoixImprimante.TICKET_Z);
         assertTrue(z.contains("ticket Z") && !z.contains("vente"), z);
     }
+
+    /**
+     * Demande 65 (19/11) : l'aperçu et l'image du ticket (mobile, borne) ne passent jamais par l'imprimante du serveur.
+     * Sur un serveur sans imprimante, ils doivent rester construits ; le refus « Ticket non imprimé » ne vaut que pour
+     * une impression réelle.
+     */
+    private static void apercuSansRefus(String type, Apercu a) {
+        try {
+            a.lancer(service(type));
+        } catch (RuntimeException e) {
+            String m = String.valueOf(e.getMessage());
+            assertFalse(m.contains("imprimante par défaut") || m.contains("Ticket non imprimé"), type + " : " + m);
+        }
+    }
+
+    private interface Apercu {
+        Object lancer(SansImprimante s);
+    }
+
+    @Test
+    void apercuVenteComptantSansImprimante() {
+        apercuSansRefus("VNO", s -> s.apercuTicketVno("v1"));
+    }
+
+    @Test
+    void apercuVenteAssuranceSansImprimante() {
+        apercuSansRefus("VO", s -> s.apercuTicketVo("v1"));
+    }
+
+    @Test
+    void apercuReglementDiffereSansImprimante() {
+        apercuSansRefus("VNO", s -> s.apercuTicketReglementDiffere("d1"));
+    }
+
+    @Test
+    void impressionReelleToujoursRefuseeApresUnApercu() throws Exception {
+        SansImprimante s = service("VNO");
+        try {
+            s.apercuTicketVno("v1");
+        } catch (RuntimeException e) {
+            // l'aperçu peut échouer plus loin sur la base réduite : seule la suite compte
+        }
+        messageClair(s.lunchPrinterForTicket("v1"));
+    }
 }
