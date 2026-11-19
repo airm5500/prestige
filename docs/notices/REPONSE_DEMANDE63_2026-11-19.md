@@ -37,12 +37,16 @@ fusionnée : la fusion se fait après validation du pharmacien.
   rôle).
 - Au poste : le refus affiche « Droit manquant : Remise sur une vente » (ventes, ventes en dépôt, devis).
 
-## 3. « Sans remise » quand le client a une remise sur sa fiche (P2) — question au pharmacien
+## 3. « Sans remise » quand le client a une remise sur sa fiche (P2) — fait (règle validée par le pharmacien le 19/11)
 
-- Règle actuelle gardée en attendant sa réponse : vente assurance / carnet sans remise → la remise de la fiche du
-  client s'applique.
-- `remiseId:"0"` est déjà compris comme « sans remise » par `vente/remise` et `net/vno` ; pour l'assurance, il ne
-  retire pas encore la remise de la fiche. Nous vous dirons si la règle change.
+- Vente assurance / carnet : la remise choisie sur la vente s'applique ; sans choix, celle de la fiche du client.
+- `vente/remise {remiseId:"0"}` = « sans remise » pour cette vente : la remise de la fiche ne revient plus, au calcul
+  du net (`net/assurance`), à la clôture ni en base (remise 0, `lg_REMISE_ID` = « 0 »). Les ventes suivantes du même
+  client gardent la remise de sa fiche.
+- `remiseId` vide ou null garde l'ancien sens : rien de choisi, la fiche s'applique.
+- Au poste, choisir « SANS REMISE » dans la liste envoie maintenant « 0 » (même règle).
+- `GET v1/common/remises-client` est inchangée : « SANS REMISE » y garde l'identifiant null (la liste sert aussi à la
+  fiche du client). Envoyez « 0 » pour retirer la remise d'une vente.
 
 ## 4. `net/vno` sans `remiseId` (information) — inchangé
 
@@ -64,11 +68,14 @@ fusionnée : la fusion se fait après validation du pharmacien.
   tirées au hasard (graine fixe) : largeur = 48 ou 72 mm × dpi / 25,4 (384 / 576 à 203 dpi), fond blanc, rien
   coupé (le même dessin sur une image plus grande ne déborde ni à gauche, ni à droite, ni en bas), hauteur qui suit
   la résolution.
-- `test-demande63-1911.js` (écran et API, domain3) : 31/31 sur la branche ; 4/12 sur l'ancien code
+- `test-demande63-1911.js` (écran et API, domain3) : 36/36 sur la branche ; 4/12 sur l'ancien code
   (route absente : 404). Couvre les largeurs 58 / 80 / 57 / 100 (dimensions lues dans le PNG), le rapprochement des
   tickets avec l'aperçu du poste (vno, vo à deux organismes), le QR de la prévente (trois motifs de repérage, aucun
   sur un ticket de vente), 401 / 400, le bilan (rien en base, aucun travail d'impression), le droit (403, absent de
   `user/droits`, message à l'écran de vente, droit rendu) et les refus de `vente/remise` (net renvoyé = `net/vno`,
-  net = montant − remise, « 0 » = sans remise).
+  net = montant − remise, « 0 » = sans remise) et le point 3 (client avec remise sur sa fiche : fiche appliquée sans choix ;
+  « 0 » → remise 0 au net, à la clôture et en base ; net client = montant − parts des organismes, arrondi à 5 ; la
+  vente suivante garde la remise de la fiche).
+- `RemiseAppliqueeCoherenceTest` (unitaire, 20 000 ventes tirées au hasard) : remise choisie, puis fiche, sauf « 0 ».
 - Non-régression : repro-vo-remise 9/9, repro-remise-caisse 8/8, rapprochement-ticket 19/19, ticket-differe 14/14,
   modeles-ticket-date 10/10, une-ligne-cochee 23/24 (même échec sur l'ancien code : mesure absente du journal).

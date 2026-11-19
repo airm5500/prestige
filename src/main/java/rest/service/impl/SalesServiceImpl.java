@@ -6929,8 +6929,7 @@ public class SalesServiceImpl implements SalesService {
             int totalTp;
 
             MontantAPaye montantAPaye;
-            TRemise remise = pr.getRemise();
-            remise = remise != null ? remise : client.getRemise();
+            TRemise remise = SalesNetComputingServiceImpl.remiseAppliquee(pr, client);
             if (remise != null) {
                 montantAPaye = getRemiseVno(pr, remise, list);
 

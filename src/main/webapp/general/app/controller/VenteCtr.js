@@ -3243,7 +3243,8 @@ Ext.define('testextjs.controller.VenteCtr', {
     ,
     updateRemise: function (cmp) {
         const me = this;
-        let vente = me.getCurrent(), remiseId = cmp.getValue();
+        // demande 63, point 3 : « SANS REMISE » choisi = « 0 », la remise de la fiche du client ne revient pas
+        let vente = me.getCurrent(), remiseId = cmp.getValue() || '0';
         if (vente) {
             let venteId = vente.lgPREENREGISTREMENTID;
             let data = {"remiseId": remiseId, "venteId": venteId};
@@ -4385,7 +4386,7 @@ Ext.define('testextjs.controller.VenteCtr', {
 
         // --- Remise ---
         const remiseCmp = me.getVnoremise && me.getVnoremise();
-        if (lgREMISEID) {
+        if (lgREMISEID && lgREMISEID !== '0') {
             if (remiseCmp && !remiseCmp.destroyed) {
                 remiseCmp.getStore().load({
                     scope: me,

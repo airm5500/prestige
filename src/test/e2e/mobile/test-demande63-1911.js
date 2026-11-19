@@ -11,6 +11,8 @@
  * 2. Droit P_REMISE_VENTE : liste dans GET v1/user/droits ; compte dont le role ne l'a plus : vente/remise -> 403
  *    interdit, et a l'ecran de vente, le choix d'une remise affiche « Droit manquant : Remise sur une vente » ; droit
  *    rendu : success:true.
+ * 3. client avec une remise sur sa fiche : rien choisi -> remise de la fiche ; « sans remise » (« 0 ») -> remise 0 a l'ecran du
+ *    net, a la cloture et en base ; la vente suivante garde la remise de la fiche.
  * 5. vente/remise : remiseId inconnu -> success:false et message ; vente terminee -> success:false et message ; remise
  *    valide sur une vente au comptant -> data = net de net/vno (rapprochement) ; « 0 » -> sans remise (remise 0).
  * Jeu d'essai marque ZZAUDIT, retire a la fin. Lancement seul : node src/test/e2e/mobile/test-demande63-1911.js
@@ -172,6 +174,28 @@ const traces = (ids) => q("SELECT CONCAT_WS('|', (SELECT COUNT(*) FROM t_preenre
     const rZero = await api('POST', '../api/v1/vente/remise', { venteId: V4, remiseId: '0' });
     ok('5. « 0 » : sans remise (remise 0, net = montant)', rZero.success === true && !!rZero.data && rZero.data.remise === 0 && rZero.data.montantNet === brut,
       JSON.stringify(rZero.data || rZero).slice(0, 200));
+
+    /* ---- 3. « sans remise » retire la remise de la fiche du client (regle validee le 19/11) ---- */
+    exec("UPDATE t_client SET remise = '" + REMISE + "' WHERE lg_CLIENT_ID = '" + cl.clientId + "'");
+    const tps6 = tps.map((t, i) => Object.assign({}, t, { bon: 'B63S' + i })), tps7 = tps.map((t, i) => Object.assign({}, t, { bon: 'B63T' + i }));
+    const V6 = await va.ajouter(cl, tps6, P1, 2);
+    await va.ajouter(cl, tps6, P2, 1, V6);
+    const netFiche = await va.net(V6, tps6, null);
+    ok('3. client avec remise sur sa fiche, rien choisi : la remise de la fiche s’applique', netFiche.succes === true && netFiche.remise > 0, netFiche.remise);
+    const r0 = await api('POST', '../api/v1/vente/remise', { venteId: V6, remiseId: '0' });
+    const netSans = await va.net(V6, tps6, '0');
+    ok('3. « sans remise » (« 0 ») : remise 0, net client recalculé', r0.success === true && netSans.succes === true && netSans.remise === 0
+      && netSans.montantNet > netFiche.montantNet, 'remise ' + netSans.remise + ', net ' + netFiche.montantNet + ' -> ' + netSans.montantNet);
+    /* net client = montant - parts des organismes, arrondi au multiple de 5 inferieur (regle de l'officine) */
+    const reste = netSans.montant - netSans.montantTp;
+    ok('3. cohérence : net client = montant - parts des organismes, arrondi à 5 (sans remise)', netSans.montantNet === reste - (reste % 5),
+      netSans.montant + ' - ' + netSans.montantTp + ' = ' + reste + ' -> net ' + netSans.montantNet);
+    const c6 = await va.cloturer(cl, V6, tps6, { remiseId: '0' });
+    ok('3. bilan : vente terminée sans remise en base (remise 0, marque « 0 »)', c6.success === true && C.vente(V6).remise === 0
+      && q("SELECT IFNULL(lg_REMISE_ID, 'NULL') FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + V6 + "'") === '0',
+      JSON.stringify({ succes: c6.success, msg: c6.msg, remise: C.vente(V6).remise }));
+    const { v: V7 } = await va.vendre(cl, tps7, P1, 1);
+    ok('3. vente suivante du même client, rien choisi : la remise de la fiche s’applique toujours', C.vente(V7).remise > 0, C.vente(V7).remise);
 
     /* ---- 2. droit P_REMISE_VENTE ---- */
     const droits = await api('GET', '../api/v1/user/droits');
