@@ -58,7 +58,12 @@ function refCaAll(a, b) {
 }
 function refCaComptant(a, b) {
   const r = {};
-  lignes("SELECT DATE_FORMAT(m.mvtdate, '%Y%m%d'), SUM(m.montantRemise), SUM(m.montantTva), SUM(CASE WHEN m.typeReglementId = '1' THEN m.montantPaye ELSE 0 END)"
+  /* defaut 3 du 19/11 : especes = part especes de chaque vente (reglements si la vente en a plusieurs, sinon le mode du
+     mouvement), et non plus toute la vente des qu'elle a ete encaissee « en especes » avec un complement mobile */
+  lignes("SELECT DATE_FORMAT(m.mvtdate, '%Y%m%d'), SUM(m.montantRemise), SUM(m.montantTva), SUM(CASE"
+    + " WHEN (SELECT COUNT(*) FROM vente_reglement c WHERE c.vente_id = m.pkey) > 1"
+    + " THEN (SELECT COALESCE(SUM(v.montant), 0) FROM vente_reglement v WHERE v.vente_id = m.pkey AND v.type_regelement = '1')"
+    + " WHEN m.typeReglementId = '1' THEN m.montantPaye ELSE 0 END)"
     + " FROM mvttransaction m WHERE " + FILTRE_M + " AND DATE(m.mvtdate) BETWEEN '" + a + "' AND '" + b + "' GROUP BY m.mvtdate").forEach(([d, rem, tva, e]) => {
     r[d] = { remiseSurCA: Number(rem), totTVA: Number(tva), totEsp: Number(e) };
   });

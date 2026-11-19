@@ -510,9 +510,11 @@ public final class PilotageSql {
      * l'ecran et l'etat ne disent pas la meme chose.
      */
     public static String totalAnnulationsEspece() {
-        return "SELECT COALESCE(SUM(m.montantPaye), 0) AS montantEspece" + " FROM mvttransaction m"
+        /* defaut 3 du 19/11 : la part especes de la vente, pas le mode principal du mouvement (PartsParMode) */
+        return "SELECT COALESCE(SUM(" + rest.service.vente.PartsParMode.sqlPart("m", "montantPaye", MODE_ESPECES)
+                + "), 0) AS montantEspece" + " FROM mvttransaction m"
                 + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = m.pkey" + " WHERE" + ANNULATIONS_OU
-                + " AND m.montantPaye > 0 AND m.typeReglementId = '" + MODE_ESPECES + "'";
+                + " AND m.montantPaye > 0";
     }
 
     /*

@@ -140,13 +140,31 @@ public class ErpServiceImpl implements ErpService {
         }
     }
 
+    /**
+     * CA comptant par jour et par mode. Defaut 3 du 19/11 : une vente payee en plusieurs modes (especes + mobile money)
+     * etait comptee tout entiere dans le mode principal de son mouvement. Ses parts viennent maintenant de ses
+     * reglements (meme regle que PartsParMode et le ticket Z) ; remise et TVA restent comptees une fois par vente. Les
+     * ventes a un seul reglement sont lues comme avant.
+     */
+    static final String CA_COMPTANT_PAR_MODE = "SELECT SUM(x.montantRegle) AS MONTANTREGLE, SUM(x.montantPaye) AS MONTANTPAYE,"
+            + " SUM(x.montantRemise) AS montantRemise, SUM(x.montantTva) AS montantTva, x.mvtdate, x.typeReglementId FROM ("
+            + " SELECT CASE WHEN d.nb > 1 THEN 0 ELSE m.montantRegle END AS montantRegle,"
+            + " CASE WHEN d.nb > 1 THEN 0 ELSE m.montantPaye END AS montantPaye, m.montantRemise, m.montantTva, m.mvtdate,"
+            + " m.typeReglementId FROM mvttransaction m"
+            + " LEFT JOIN (SELECT vente_id, COUNT(*) AS nb FROM vente_reglement GROUP BY vente_id) d ON d.vente_id = m.pkey"
+            + " WHERE m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1'"
+            + " AND m.mvtdate BETWEEN ?1 AND ?2"
+            + " UNION ALL SELECT vr.montant, vr.montant, 0, 0, m.mvtdate, vr.type_regelement FROM mvttransaction m"
+            + " JOIN vente_reglement vr ON vr.vente_id = m.pkey"
+            + " WHERE m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1'"
+            + " AND m.mvtdate BETWEEN ?1 AND ?2 AND (SELECT COUNT(*) FROM vente_reglement c WHERE c.vente_id = m.pkey) > 1"
+            + ") x GROUP BY x.mvtdate, x.typeReglementId";
+
     @Override
     public List<ErpCaComptant> caComptant(String dtStart, String dtEnd) {
         try {
-            List<Tuple> list = getEntityManager().createNativeQuery(
-                    "SELECT SUM(m.montantRegle) AS MONTANTREGLE,SUM(m.montantPaye) AS MONTANTPAYE, SUM(m.montantRemise) AS montantRemise, SUM(m.montantTva) as montantTva,m.mvtdate,m.typeReglementId FROM mvttransaction m where m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND m.mvtdate BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,m.typeReglementId",
-                    Tuple.class).setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd))
-                    .getResultList();
+            List<Tuple> list = getEntityManager().createNativeQuery(CA_COMPTANT_PAR_MODE, Tuple.class)
+                    .setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd)).getResultList();
             List<ErpCaComptant> caComptants = new ArrayList<>();
             list.stream().map(t -> {
                 // long montantRegle = t.get(0, BigDecimal.class).longValue();
