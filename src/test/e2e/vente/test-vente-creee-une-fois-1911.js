@@ -119,6 +119,12 @@ function poser() {
       await p.waitForTimeout(300);
       await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
       await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
+      /* le menu de navigation reste parfois deplie sur la liste : un clic dans le bandeau le referme (comme test-scan-pendant-recherche) */
+      await p.waitForTimeout(600);
+      if (await p.locator('.prestige-nav .x-grid-row').filter({ visible: true }).count() > 0) {
+        await p.mouse.click(1000, 33);
+        await p.locator('.prestige-nav .x-grid-row').filter({ visible: true }).first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+      }
       await vues.cliquer(p, 'cloturerventemanager #addBtn');
       await p.waitForFunction(() => Ext.ComponentQuery.query('doventemanager #typeVente').some((x) => x.isVisible(true)), null, { timeout: 60000 });
       await p.waitForTimeout(1500);
