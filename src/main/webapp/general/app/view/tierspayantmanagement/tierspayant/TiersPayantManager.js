@@ -286,7 +286,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [
+            /* demande du 13/11 (ecrans responsive) : une seule barre ne tenait pas a 1366 px ; filtres sur la
+               premiere ligne, actions sur la seconde */
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                 {
                     text: 'Cr&eacute;er',
                     scope: this,
@@ -341,7 +343,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                     iconCls: 'searchicon',
                     scope: this,
                     handler: this.onRechClick
-                }, '-', {
+                }]}, {xtype: 'toolbar', dock: 'top', items: [{
                     text: 'Imprimer',
                     id: 'P_BT_PRINT',
                     iconCls: 'printable',
@@ -387,7 +389,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                     hidden: true,
                     scope: this,
                     handler: this.onMiseAJourSelectiveClick
-                }],
+                }]}],
             bbar: {
                 xtype: 'pagingtoolbar',
                 store: store, // same store GridPanel is using

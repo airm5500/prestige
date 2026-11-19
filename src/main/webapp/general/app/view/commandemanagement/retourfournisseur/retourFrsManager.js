@@ -290,7 +290,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [
+            /* demande du 13/11 (ecrans responsive) : une seule barre ne tenait pas a 1366 px ; grossiste et filtres sur
+               la premiere ligne, periode, recherche et actions sur la seconde */
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                 {
                     text: 'NOUVEAU RETOUR',
                     tooltip: 'Créer un retour fournisseur (à partir d\'un BL)',
@@ -388,9 +390,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             Me.onRechClick();
                         }
                     }
-                },
-                
-                
+                }]}, {xtype: 'toolbar', dock: 'top', items: [
                 {
                     xtype: 'datefield',
                     id: 'datedebut',
@@ -467,7 +467,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     scope: this,
                     handler: this.onCreateInventaire
                 }
-            ],
+            ]}],
             bbar: {
                 xtype: 'pagingtoolbar',
                 pageSize: 9999,

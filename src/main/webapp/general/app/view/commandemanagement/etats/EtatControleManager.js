@@ -621,7 +621,14 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     iconCls: 'searchicon',
                     scope: this,
                     handler: this.onRechClick
-                },
+                }
+            ],
+            /* retours du 13/10 : question et resultat de l'inventaire dans la page, en entier (plus de fenetre
+               qui tronquait le message) */
+            dockedItems: [
+                /* demande du 13/11 (ecrans responsive) : une seule barre ne tenait pas a 1366 px ; les actions passent
+                   sur une seconde ligne, sous les filtres */
+                {xtype: 'toolbar', dock: 'top', itemId: 'barreActionsControle', weight: 10, items: [
                 /* Point 17 : filtre sur le statut du controle et sur la presence d'ecarts. Ni
                  * l'un ni l'autre n'est stocke en base - le statut est calcule a partir des
                  * lignes du bon, l'ecart se lit en comparant le comptage a la quantite recue -,
@@ -672,7 +679,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                             MeControleAchats.onRechClick();
                         }
                     }
-                }, '-',
+                },
+                '-',
                 {
                     text: 'Imprimer',
                     tooltip: 'Imprimer',
@@ -718,10 +726,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     scope: this,
                     handler: this.onReglerSelectionBL
                 }
-            ],
-            /* retours du 13/10 : question et resultat de l'inventaire dans la page, en entier (plus de fenetre
-               qui tronquait le message) */
-            dockedItems: [{
+            ]}, {
                     xtype: 'container', dock: 'top', itemId: 'bandeInventaire', hidden: true, padding: '8 10',
                     style: 'background:#eef4fb;border-bottom:1px solid #c9d8ea',
                     layout: {type: 'hbox', align: 'middle'},
