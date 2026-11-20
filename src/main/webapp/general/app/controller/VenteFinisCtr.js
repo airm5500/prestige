@@ -388,9 +388,25 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
         }
 
     },
+    /* plan du 19/11, point 8 : « ticket vente modifiée » sort le ticket de la modification (vente d'origine, vente
+       modifiee, differences, reglement) ; avant, le meme ticket que « Réimprimer le ticket » */
     printTicketR: function (view, rowIndex, colIndex, item, e, rec, row) {
-        const me = this;
-        me.onPrintTicket(rec.get('lgPREENREGISTREMENTID'), rec.get('lgTYPEVENTEID'), false);
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/vente/ticket/modifiee/' + rec.get('lgPREENREGISTREMENTID'),
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success === false && result.msg) {
+                    Ext.MessageBox.show({title: 'Ticket de la vente modifiée', width: 560, msg: Ext.String.htmlEncode(result.msg),
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                }
+            },
+            failure: function () {
+                progress.hide();
+            }
+        });
     },
     printTicket: function (view, rowIndex, colIndex, item, e, rec, row) {
         const me = this;
