@@ -22,6 +22,64 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
     layout: {
         type: 'fit'
     },
+    statics: {
+        /*
+         * Plan du 19/11, point 15 : export CSV / Excel de la liste de caisse et de la visualisation de caisse. Memes
+         * criteres que l'ecran (dates, heures, type de reglement, utilisateur), toute la periode et non la seule page ;
+         * le telechargement se suit sur le bouton « Exporter ».
+         */
+        boutonExporter: function (ecran) {
+            return {
+                text: 'Exporter',
+                itemId: 'exporter',
+                iconCls: 'excel',
+                tooltip: 'Exporter en Excel ou en CSV toute la liste affich&eacute;e',
+                menu: {
+                    items: [{
+                            text: 'Excel (.xlsx)',
+                            itemId: 'exporterExcel',
+                            iconCls: 'excel',
+                            handler: function (item) {
+                                testextjs.view.caisseManager.ListeCaisse.exporter(item, ecran, 'xlsx');
+                            }
+                        }, {
+                            text: 'CSV (.csv)',
+                            itemId: 'exporterCsv',
+                            iconCls: 'excel',
+                            handler: function (item) {
+                                testextjs.view.caisseManager.ListeCaisse.exporter(item, ecran, 'csv');
+                            }
+                        }]
+                }
+            };
+        },
+        exporter: function (item, ecran, format) {
+            const panneau = Ext.ComponentQuery.query(ecran === 'visualisation' ? 'visualisercaissemanager' : 'listecaissemanager')
+                    .filter(function (c) {
+                        return c.isVisible(true);
+                    })[0];
+            if (!panneau) {
+                return;
+            }
+            const valeur = function (id) {
+                const c = panneau.down('#' + id);
+                return c ? (c.getSubmitValue ? c.getSubmitValue() : c.getValue()) || '' : '';
+            };
+            const combo = function (id) {
+                const c = panneau.down('#' + id);
+                return c && c.getValue() ? {id: c.getValue(), libelle: c.getRawValue() || ''} : {id: '', libelle: ''};
+            };
+            const reglement = combo('reglement'), utilisateur = combo('user');
+            const parametres = {
+                format: format, ecran: ecran,
+                startDate: valeur('startDate'), endDate: valeur('endDate'), startH: valeur('startH'), endH: valeur('endH'),
+                reglement: reglement.id, reglementLibelle: reglement.libelle, user: utilisateur.id, utilisateurLibelle: utilisateur.libelle
+            };
+            const nom = (ecran === 'visualisation' ? 'visualisation_caisse_' : 'liste_caisse_') + parametres.startDate + '_' + parametres.endDate + '.' + format;
+            PrestigeChargement.telecharger(panneau.down('#exporter') || item, '../api/v1/caisse/listecaisse/export?' + Ext.Object.toQueryString(parametres),
+                    'Export', nom);
+        }
+    },
     initComponent: function () {
 
         var store_typereglement = new Ext.data.Store({
@@ -149,7 +207,7 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
                             iconCls: 'printable',
                             tooltip: 'imprimer',
                             scope: this
-                        }
+                        }, testextjs.view.caisseManager.ListeCaisse.boutonExporter('liste')
                     ]
                 }
 
