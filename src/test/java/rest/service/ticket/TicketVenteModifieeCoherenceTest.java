@@ -172,8 +172,17 @@ class TicketVenteModifieeCoherenceTest {
         }
         assertEquals(v.total, lignes, ici + " : total = somme des lignes");
         assertEquals(v.total, lire(valeur(sec, "Total")), ici + " : total");
+        // demande 66 (20/11) : le libelle porte le taux imprime (borne a 100 % au total), la part reste celle
+        // enregistree
+        List<Integer> bruts = new java.util.ArrayList<>();
         for (String[] tp : v.tiersPayants) {
-            assertEquals(Integer.parseInt(tp[2]), lire(valeur(sec, tp[0] + " " + tp[1] + " %")), ici + " : " + tp[0]);
+            bruts.add(Integer.parseInt(tp[1]));
+        }
+        List<Integer> imprimes = CreditLigne.tauxAffiches(bruts);
+        for (int i = 0; i < v.tiersPayants.size(); i++) {
+            String[] tp = v.tiersPayants.get(i);
+            assertEquals(Integer.parseInt(tp[2]), lire(valeur(sec, tp[0] + " " + imprimes.get(i) + " %")),
+                    ici + " : " + tp[0]);
         }
         assertEquals(v.partClient, lire(valeur(sec, TicketVenteModifiee.PART_CLIENT)), ici + " : part client");
         if (v.remise != 0) {

@@ -536,7 +536,7 @@ public final class ConversionTicket {
         doc.bloc(TicketDocument.INTERVENANTS, "C").texte((vendeur.isEmpty() ? "" : "Vendeur : " + vendeur)
                 + (vendeur.isEmpty() || recap.isEmpty() ? "" : " · ") + recap, Style.PETIT);
         doc.bloc(TicketDocument.CORPS).trait(false);
-        String organisme = "";
+        List<String> organismes = new ArrayList<>();
         for (String l : s.datas) {
             String[] p = l.split(";", -1);
             String libelle = p[0].trim();
@@ -548,11 +548,22 @@ public final class ConversionTicket {
                     doc.bloc(TicketDocument.TOTAUX).paire("*", "− " + montantF(valeur), Style.NORMAL);
                 }
             } else if (libelle.startsWith("Assurance") || libelle.startsWith("Carnet")) {
-                organisme = (valeur + libelle.replaceFirst("^(Assurance|Carnet)", "")).replaceAll("(\\d)%", "$1 %")
-                        .trim();
+                organismes.add(
+                        (valeur + libelle.replaceFirst("^(Assurance|Carnet)", "")).replaceAll("(\\d)%", "$1 %").trim());
             } else if (libelle.startsWith("Part ")) {
-                doc.bloc(TicketDocument.CLIENT).paire(organisme.isEmpty() ? libelle : organisme, montantF(valeur),
-                        Style.NORMAL);
+                if (organismes.size() <= 1) {
+                    String organisme = organismes.isEmpty() ? "" : organismes.get(0);
+                    doc.bloc(TicketDocument.CLIENT).paire(organisme.isEmpty() ? libelle : organisme, montantF(valeur),
+                            Style.NORMAL);
+                } else {
+                    // demande 66 (20/11) : plusieurs organismes, chacun avec son taux imprime (80 % puis 20 %), puis
+                    // la part de tous les organismes, comme l'ancien ticket ; seul le dernier etait montre, avec la
+                    // part de tous
+                    for (String o : organismes) {
+                        doc.bloc(TicketDocument.CLIENT).paire(o, "", Style.NORMAL);
+                    }
+                    doc.bloc(TicketDocument.CLIENT).paire(libelle, montantF(valeur), Style.NORMAL);
+                }
             }
         }
     }

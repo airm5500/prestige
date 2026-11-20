@@ -250,6 +250,23 @@ public class SalesRessource {
         return Response.ok().type("application/json").entity(json.toString()).build();
     }
 
+    /**
+     * Demande 66 (20/11) : le texte des tickets que {@code ticket/{type}/{id}/image} dessine (memes documents, meme
+     * largeur), bloc par bloc comme les autres apercus. Sert au rapprochement image / ticket ; lecture seule.
+     */
+    @GET
+    @Path("ticket/{type}/{id}/image/texte")
+    public Response texteImageTicket(@PathParam("type") String type, @PathParam("id") String id,
+            @QueryParam("largeur") Integer largeur) throws JSONException {
+        if (Droits.utilisateur(servletRequest) == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type("application/json")
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        int mm = rest.service.ticket.ModeleTicketService.largeurValide(largeur == null ? 80 : largeur);
+        return apercuTickets(() -> generateTicketService.documentsTicket(type, id, mm));
+    }
+
     interface Documents {
         List<rest.service.ticket.TicketDocument> lire() throws JSONException;
     }
