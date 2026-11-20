@@ -242,6 +242,17 @@ public class OrderServiceImpl implements OrderService {
         }
 
         getEmg().persist(oTBonLivraisonDetail);
+        /*
+         * Plan du 19/11, point 2 : les unites gratuites lues a l'import (lots de la commande) arrivent dans la colonne
+         * UG de la gestion des entrees, comme si elles avaient ete saisies dans le lot (addFreeQty) : UG = gratuites,
+         * recu = payees + gratuites. Un declencheur remet int_QTE_UG a 0 a l'insertion : la valeur est ecrite apres.
+         */
+        int gratuites = UgReception.gratuitesDesLots(lots);
+        if (gratuites > 0) {
+            getEmg().flush();
+            oTBonLivraisonDetail.setIntQTEUG(gratuites);
+            oTBonLivraisonDetail.setIntQTERECUE(qteRecu + gratuites);
+        }
         return oTBonLivraisonDetail;
 
     }
@@ -253,7 +264,8 @@ public class OrderServiceImpl implements OrderService {
         lot.setDtCREATED(new Date());
         lot.setLgUSERID(u);
         lot.setLgFAMILLEID(oFamille);
-        lot.setIntNUMBER(orderDetailLot.getQuantity());
+        /* plan du 19/11, point 2 : un lot compte payees + gratuites (meme regle que la saisie d'un lot, addFreeQty) */
+        lot.setIntNUMBER(UgReception.quantiteLot(orderDetailLot));
         lot.setDtSORTIEUSINE(lot.getDtCREATED());
         lot.setStrREFLIVRAISON(strRELIVRAISON);
         lot.setLgGROSSISTEID(grossiste);

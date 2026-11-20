@@ -438,9 +438,16 @@ public class FileFormaManager extends HttpServlet {
             case DPCI:
 
                 for (CSVRecord cSVRecord : parser) {
-                    int ligne = createOrderDetailViaCsv(order, cSVRecord.get(2), Integer.parseInt(cSVRecord.get(6)),
-                            Double.valueOf(cSVRecord.get(3)).intValue(), Double.valueOf(cSVRecord.get(4)).intValue(), 0,
-                            null, null, cSVRecord.get(1));
+                    /*
+                     * Plan du 19/11, point 2 : une ligne dont le prix d'achat et le prix de vente valent 0 est une
+                     * ligne d'unites gratuites ; sa quantite va dans les UG, plus dans la quantite payee.
+                     */
+                    double paDpci = Double.parseDouble(cSVRecord.get(3));
+                    double pvDpci = Double.parseDouble(cSVRecord.get(4));
+                    int qteDpci = Integer.parseInt(cSVRecord.get(6));
+                    boolean ligneUg = CumulLigneImport.estLigneUgDpci(paDpci, pvDpci);
+                    int ligne = createOrderDetailViaCsv(order, cSVRecord.get(2), ligneUg ? 0 : qteDpci, (int) paDpci,
+                            (int) pvDpci, ligneUg ? qteDpci : 0, null, null, cSVRecord.get(1));
                     i += ligne;
                     if (ligne == 0) {
                         OrderItem orderItem = new OrderItem().refBl(cSVRecord.get(8)).cip(cSVRecord.get(2))
@@ -635,37 +642,57 @@ public class FileFormaManager extends HttpServlet {
             if (oTFamille != null) {
                 oTOrderDetail = findFamilleInTOrderDetail(order.getLgORDERID(), oTFamille.getLgFAMILLEID());
                 if (oTOrderDetail == null) {
+                    /*
+                     * Plan du 19/11, point 2 (CumulLigneImport) : une ligne d'UG lue avant toute ligne payee garde le
+                     * prix d'achat de la fiche, jamais 0.
+                     */
+                    CumulLigneImport cumul = CumulLigneImport.premiere(qty, ug, intPafDetail, pu,
+                            oTFamilleGrossiste != null && oTFamilleGrossiste.getIntPAF() != null
+                                    ? oTFamilleGrossiste.getIntPAF()
+                                    : java.util.Objects.requireNonNullElse(oTFamille.getIntPAF(), 0),
+                            oTFamilleGrossiste != null ? oTFamilleGrossiste.getIntPRICE() : oTFamille.getIntPRICE());
                     oTOrderDetail = new TOrderDetail();
                     oTOrderDetail.setLgORDERDETAILID(RandomStringUtils.randomAlphanumeric(20));
                     oTOrderDetail.setLgORDERID(order);
                     oTOrderDetail.setLgFAMILLEID(oTFamille);
                     oTOrderDetail.setLgGROSSISTEID(order.getLgGROSSISTEID());
-                    oTOrderDetail.setIntNUMBER(qty);
-                    oTOrderDetail.setIntQTEREPGROSSISTE(qty);
+                    oTOrderDetail.setIntNUMBER(cumul.getQuantite());
+                    oTOrderDetail.setIntQTEREPGROSSISTE(cumul.getQuantite());
                     oTOrderDetail.setIntQTEMANQUANT(0);
-                    oTOrderDetail.setIntPRICE(qty * intPafDetail);
-                    oTOrderDetail.setIntPRICEDETAIL((pu == 0
-                            ? (oTFamilleGrossiste != null ? oTFamilleGrossiste.getIntPRICE() : oTFamille.getIntPRICE())
-                            : pu));
-                    oTOrderDetail.setIntPAFDETAIL(intPafDetail);
+                    oTOrderDetail.setIntPRICE(cumul.getMontant());
+                    oTOrderDetail.setIntPRICEDETAIL(cumul.getPrixVente());
+                    oTOrderDetail.setIntPAFDETAIL(cumul.getPrixAchat());
                     oTOrderDetail.setPrixAchat(oTOrderDetail.getIntPAFDETAIL());
                     oTOrderDetail.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
                     oTOrderDetail.setDtCREATED(order.getDtCREATED());
-                    oTOrderDetail.setUg(ug);
+                    oTOrderDetail.setUg(cumul.getUg());
                     oTOrderDetail.setDtUPDATED(oTOrderDetail.getDtCREATED());
-                    addLot(oTOrderDetail, qty, numeroLot, datePeremption);
+                    addLot(oTOrderDetail, qty, ug, numeroLot, datePeremption);
                     em.persist(oTOrderDetail);
                 } else {
-                    oTOrderDetail.setUg(oTOrderDetail.getUg() + ug);
-                    oTOrderDetail.setIntNUMBER(oTOrderDetail.getIntNUMBER() + qty);
+                    /*
+                     * Plan du 19/11, point 2 : une ligne d'UG ne remet plus le montant a 0 (NEULORA, NEUTROCOLD) et ses
+                     * unites vont dans les UG ; les lignes payees s'additionnent.
+                     */
+                    CumulLigneImport cumul = CumulLigneImport
+                            .existant(oTOrderDetail.getIntNUMBER(), oTOrderDetail.getUg(),
+                                    java.util.Objects.requireNonNullElse(oTOrderDetail.getIntPAFDETAIL(), 0),
+                                    java.util.Objects.requireNonNullElse(oTOrderDetail.getIntPRICEDETAIL(), 0),
+                                    java.util.Objects.requireNonNullElse(oTOrderDetail.getIntPRICE(), 0))
+                            .ajouter(qty, ug, intPafDetail, pu);
+                    oTOrderDetail.setUg(cumul.getUg());
+                    oTOrderDetail.setIntNUMBER(cumul.getQuantite());
                     oTOrderDetail.setIntQTEMANQUANT(0);
-                    oTOrderDetail.setIntPRICE(oTOrderDetail.getIntNUMBER() * intPafDetail);
+                    oTOrderDetail.setIntPRICE(cumul.getMontant());
+                    oTOrderDetail.setIntPAFDETAIL(cumul.getPrixAchat());
+                    oTOrderDetail.setPrixAchat(cumul.getPrixAchat());
+                    oTOrderDetail.setIntPRICEDETAIL(cumul.getPrixVente());
                     oTOrderDetail.setIntQTEREPGROSSISTE(oTOrderDetail.getIntNUMBER());
-                    addLot(oTOrderDetail, qty, numeroLot, datePeremption);
+                    addLot(oTOrderDetail, qty, ug, numeroLot, datePeremption);
                     em.merge(oTOrderDetail);
 
                 }
-                tracerLigne(order, codeCip, designation, oTFamille, oTOrderDetail, qty, intPafDetail);
+                tracerLigne(order, codeCip, designation, oTFamille, oTOrderDetail, qty > 0 ? qty : ug, intPafDetail);
                 return 1;
 
             } else {
@@ -680,8 +707,8 @@ public class FileFormaManager extends HttpServlet {
     }
 
     /* retour du 11/11 : un produit repete dans le fichier ne cree pas un second lot identique (LotsImport) */
-    private void addLot(TOrderDetail orderDetail, int qty, String numeroLot, String datePeremption) {
-        LotsImport.ajouter(orderDetail.getLots(), numeroLot, datePeremption, qty);
+    private void addLot(TOrderDetail orderDetail, int qty, int ug, String numeroLot, String datePeremption) {
+        LotsImport.ajouter(orderDetail.getLots(), numeroLot, datePeremption, qty, ug);
     }
 
     public TFamilleGrossiste getTFamilleGrossiste(String codeCip) {
