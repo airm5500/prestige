@@ -23,6 +23,23 @@ public class ProductStateServiceImpl implements ProductStateService {
 
     @Override
     public EtatProduit getEtatProduit(String produitId) {
+        /*
+         * Plan du 19/11, point 6 b : les trois comptes en une lecture (memes requetes, en sous-requetes) ; repli sur
+         * les trois lectures separees si elle echoue.
+         */
+        try {
+            Object[] r = (Object[]) em
+                    .createNativeQuery(
+                            "SELECT (" + COMPTE_COMMANDE + "), (" + COMPTE_SUGGESTION + "), (" + COMPTE_ENTREE + ")")
+                    .setParameter(1, produitId).getSingleResult();
+            EtatProduit etat = new EtatProduit();
+            etat.setEnCommande(((Number) r[0]).intValue());
+            etat.setEnSuggestion(((Number) r[1]).intValue());
+            etat.setEntree(((Number) r[2]).intValue());
+            return etat;
+        } catch (Exception e) {
+            LOG.info(e.getLocalizedMessage());
+        }
         EtatProduit etatProduit = new EtatProduit();
         etatProduit.setEnCommande(checkCommandeAccount(produitId));
         etatProduit.setEnSuggestion(checkSuggestionAccount(produitId));
@@ -74,6 +91,14 @@ public class ProductStateServiceImpl implements ProductStateService {
             LOG.info(e.getLocalizedMessage());
         }
     }
+
+    static final String COMPTE_SUGGESTION = "SELECT COUNT(o.lg_SUGGESTION_ORDER_DETAILS_ID) FROM t_suggestion_order_details o"
+            + " WHERE o.lg_FAMILLE_ID = ?1";
+    static final String COMPTE_COMMANDE = "SELECT COUNT(o.lg_ORDERDETAIL_ID) FROM t_order_detail o"
+            + " JOIN t_order od ON od.lg_ORDER_ID = o.lg_ORDER_ID WHERE o.lg_FAMILLE_ID = ?1 AND od.str_STATUT = 'is_Process'";
+    static final String COMPTE_ENTREE = "SELECT COUNT(o.lg_BON_LIVRAISON_DETAIL) FROM t_bon_livraison_detail o"
+            + " JOIN t_bon_livraison od ON od.lg_BON_LIVRAISON_ID = o.lg_BON_LIVRAISON_ID"
+            + " WHERE o.lg_FAMILLE_ID = ?1 AND od.str_STATUT = 'enable'";
 
     private int checkSuggestionAccount(String produitId) {
         try {
