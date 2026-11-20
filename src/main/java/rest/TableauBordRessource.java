@@ -213,6 +213,21 @@ public class TableauBordRessource {
                 () -> analyseMarges.topMarges(j.withDayOfMonth(1), j, e, limite));
     }
 
+    /** Plan du 19/11 : carte « BFR », meme service que le menu ; reservee au droit du menu ; cache de 15 minutes. */
+    @javax.ejb.EJB
+    private rest.service.impl.BfrService bfr;
+
+    @GET
+    @Path("bfr")
+    public Response bfr(@DefaultValue("0") @QueryParam("frais") int frais) {
+        JSONObject refus = BfrRessource.refus(servletRequest);
+        if (refus != null) {
+            return Response.ok(refus.toString()).build();
+        }
+        String e = BfrRessource.emplacement(servletRequest);
+        return cache("bfr|" + e, COURT * 15, frais == 1, () -> bfr.calculer(e));
+    }
+
     @GET
     @Path("top-mois")
     public Response topMois(@QueryParam("date") String date, @DefaultValue("5") @QueryParam("limite") int limite,

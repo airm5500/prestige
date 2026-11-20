@@ -131,6 +131,16 @@ public class AnalyseMargesService {
         }
     }
 
+    /**
+     * Plan du 19/11 (BFR) : CA HT de la periode, memes ventes et meme calcul que l'Analyse (TTC - remises - TVA), en
+     * une requete.
+     */
+    public long caHt(LocalDate debut, LocalDate fin, String emplacement) {
+        List<Object[]> l = lignes("SELECT " + MONTANTS + FROM, debut, fin, emplacement);
+        Object[] r = l.isEmpty() || l.get(0) == null ? new Object[4] : l.get(0);
+        return indicateurs(n(r[0]), n(r[1]), n(r[2]), n(r[3])).getLong("ht");
+    }
+
     /** Analyse complete (periode, historique, familles, produits) : l'Excel. */
     public JSONObject analyser(LocalDate debut, LocalDate fin, String emplacement) {
         JSONObject o = analyserPeriode(debut, fin, emplacement);

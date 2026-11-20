@@ -35,6 +35,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         CARTES: [
             {id: 'evolution', titre: 'Évolution du chiffre d\'affaires (Net TTC)', ico: 'fa-chart-area', t: 't-bleu', l: 'l8'},
             {id: 'valorisation', titre: 'Valorisation du stock', ico: 'fa-cubes', t: 't-cyan', l: 'l4'},
+            /* Plan du 19/11 : besoin en fonds de roulement, memes chiffres que le menu « BFR » (reservee a son droit) */
+            {id: 'bfr', titre: 'BFR (besoin en fonds de roulement)', ico: 'fa-scale-balanced', t: 't-ambre', l: 'l4', droit: 'bfr'},
             {id: 'encaissements', titre: 'Encaissements du jour', ico: 'fa-money-bill-wave', t: 't-vert', l: 'l4'},
             {id: 'mouvements', titre: 'Mouvements de caisse du jour', ico: 'fa-right-left', t: 't-violet', l: 'l4'},
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
@@ -526,6 +528,11 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                     me.dessinerValorisation(o);
                 });
             },
+            bfr: function () {
+                lire('../api/v1/tableau-bord/bfr', {frais: fr}, function (o) {
+                    me.dessinerBfr(o);
+                });
+            },
             encaissements: function () {
                 lire('../api/v1/tableau-bord/encaissements', {date: j, frais: fr}, function (o) {
                     me.dessinerEncaissements(o);
@@ -805,6 +812,30 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<div style="display:flex;gap:16px;align-items:baseline"><div class="tb-v" style="font-size:19px">' + me.fmt(o.dormants.produits) + ' produits</div>'
                 + '<div class="tb-d"><b>' + f(o.dormants.valeurAchat) + '</b> FCFA (achat)</div></div><div class="tb-d">' + me.lien('stockmort', 'Voir la liste →')
                 + ' · à comparer : <b>' + me.fmt(o.dormants.vendus) + '</b> produits entrés et vendus</div></div>';
+    },
+
+    /* --- BFR (plan du 19/11) : synthese ; le detail est dans le menu « BFR » */
+
+    dessinerBfr: function (o) {
+        var me = this, c = me.corps('bfr');
+        if (!c) {
+            return;
+        }
+        if (!o || !o.success) {
+            me.erreur('bfr');
+            return;
+        }
+        var l = function (libelle, v, cle, signe) {
+            return '<tr><td>' + libelle + '</td><td class="tb-n" data-bfr="' + cle + '">' + (signe || '') + me.fmt(v) + '</td></tr>';
+        };
+        var jours = o.joursCalculable ? Number(o.jours).toLocaleString('fr-FR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + ' j'
+                : 'non calculable (CA HT nul)';
+        c.innerHTML = '<div style="display:flex;gap:16px;align-items:baseline"><div class="tb-v" style="font-size:22px" data-bfr="bfr">' + me.fmt(o.bfr) + '</div>'
+                + '<div class="tb-d">FCFA, soit <b data-bfr="jours">' + jours + '</b> de CA HT</div></div>'
+                + '<table style="margin-top:6px">' + l('Stock valorisé (achat)', o.stock.total, 'stock', '+ ')
+                + l('Créances clients', o.creances.total, 'creances', '+ ') + l('Dettes fournisseurs', o.dettes.total, 'dettes', '− ') + '</table>'
+                + '<div class="tb-note" style="margin-top:6px" data-bfr="mention">' + me.esc(o.mention) + ' ; dettes fiscales et sociales : '
+                + me.esc(o.dettes.nonSuivi) + '.</div><div class="tb-d">' + me.lien('bfr', 'Voir le détail →') + '</div>';
     },
 
     /* --- encaissements */
