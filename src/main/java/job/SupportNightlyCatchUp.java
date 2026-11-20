@@ -8,8 +8,10 @@ package job;
 import config.AppConfig;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
@@ -158,12 +160,53 @@ public class SupportNightlyCatchUp {
                 return true;
             }
             LocalDateTime dernier = ((Timestamp) valeur).toLocalDateTime();
-            return ChronoUnit.MINUTES.between(dernier, LocalDateTime.now()) > ageMaxMinutes(code);
+            return rattrapageDu(code, dernier, LocalDateTime.now(), ageMaxMinutes(code));
         } catch (Exception e) {
             // Table absente ou base indisponible : on ne force pas le rattrapage.
             LOG.log(Level.WARNING, "aBesoinDeRattrapage " + code, e);
             return false;
         }
+    }
+
+    /**
+     * Heure planifiee des jobs quotidiens (celle de leur @Schedule, verifiee par RattrapageQuotidienTest).
+     */
+    private static final Map<String, LocalTime> HEURES_QUOTIDIENNES = Map.of("PURGE_SUPPORT", LocalTime.of(3, 45),
+            "COHERENCE_SUPPORT", LocalTime.of(4, 15), VenteAttenteExpiration.CODE_JOB, LocalTime.of(0, 10));
+
+    static LocalTime heureQuotidienne(String code) {
+        return HEURES_QUOTIDIENNES.get(code);
+    }
+
+    /**
+     * Marge apres l'heure planifiee d'un job quotidien : avant elle, le job planifie peut encore etre en cours (ou sur
+     * le point de partir) et le rattrapage ne le double pas.
+     */
+    private static final long MARGE_ECHEANCE_MINUTES = 60;
+
+    /**
+     * Regle du rattrapage, sans base : vrai si le job n'a jamais tourne, si son dernier passage est plus vieux que le
+     * delai tolere, ou, pour un job quotidien, s'il n'a pas tourne depuis sa derniere echeance franchie (heure du jour
+     * plus la marge). Journaux de Pontmain et de leana du 18/11 : avec le seul delai de 30 h, un serveur eteint chaque
+     * nuit et allume a 07:30 ne rattrapait la purge et la veille qu'un jour sur deux, et le Centre de Support signalait
+     * leur retard toutes les heures entre-temps.
+     */
+    static boolean rattrapageDu(String code, LocalDateTime dernier, LocalDateTime now, long ageMaxMinutes) {
+        if (dernier == null) {
+            return true;
+        }
+        if (ChronoUnit.MINUTES.between(dernier, now) > ageMaxMinutes) {
+            return true;
+        }
+        LocalTime heure = heureQuotidienne(code);
+        if (heure == null) {
+            return false;
+        }
+        LocalDateTime echeance = now.toLocalDate().atTime(heure);
+        if (now.isBefore(echeance.plusMinutes(MARGE_ECHEANCE_MINUTES))) {
+            echeance = echeance.minusDays(1);
+        }
+        return dernier.isBefore(echeance);
     }
 
     /**
