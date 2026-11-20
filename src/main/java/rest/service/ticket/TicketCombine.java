@@ -60,6 +60,35 @@ public final class TicketCombine {
     private TicketCombine() {
     }
 
+    /**
+     * Demande 66 (20/11) : taux tels qu'imprimes pour des organismes « nom, taux, part », regle
+     * {@link CreditLigne#tauxAffiches} ; un taux illisible est imprime tel quel. Les tableaux recus ne sont pas
+     * modifies.
+     */
+    static List<String> tauxImprimes(List<String[]> tiersPayants) {
+        List<Integer> bruts = new ArrayList<>();
+        boolean lisibles = true;
+        for (String[] tp : tiersPayants) {
+            try {
+                bruts.add(Integer.valueOf(tp[1].trim()));
+            } catch (RuntimeException x) {
+                lisibles = false;
+                break;
+            }
+        }
+        List<String> res = new ArrayList<>();
+        if (!lisibles) {
+            for (String[] tp : tiersPayants) {
+                res.add(tp[1]);
+            }
+            return res;
+        }
+        for (Integer t : CreditLigne.tauxAffiches(bruts)) {
+            res.add(String.valueOf(t));
+        }
+        return res;
+    }
+
     public static Sortie construire(Entree e) {
         Sortie s = new Sortie();
         s.titre = "Ticket N° " + e.refVo + " | " + e.refVno;
@@ -68,8 +97,12 @@ public final class TicketCombine {
 
         /* section assurance */
         List<String[]> totauxVo = new ArrayList<>();
-        for (String[] tp : e.tiersPayants) {
-            totauxVo.add(new String[] { tp[0] + " " + tp[1] + " %", ConversionTicket.nombre(entier(tp[2])) });
+        // demande 66 (20/11) : taux imprimes bornes a 100 % au total, dans l'ordre recu (celui du bloc client du ticket
+        // de vente, organismes a part nulle deja retires) ; les parts ne changent pas
+        List<String> taux = tauxImprimes(e.tiersPayants);
+        for (int i = 0; i < e.tiersPayants.size(); i++) {
+            String[] tp = e.tiersPayants.get(i);
+            totauxVo.add(new String[] { tp[0] + " " + taux.get(i) + " %", ConversionTicket.nombre(entier(tp[2])) });
         }
         if (e.remiseVo > 0) {
             totauxVo.add(new String[] { "(-) Remise", ConversionTicket.nombre(e.remiseVo) });

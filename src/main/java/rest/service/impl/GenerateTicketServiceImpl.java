@@ -1391,15 +1391,26 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             partClt = DateConverter.arrondiModuloOfNumber(partClt, 5);
         }
         datas.add("Part du Client:: " + DateConverter.amountFormat(partClt) + "  CFA");
+        // demande 66 (20/11) : taux imprimes bornes a 100 % au total sur les organismes imprimes (part nulle retiree),
+        // dans le meme ordre ; ConversionTicket.clients applique la meme regle (sans effet sur des taux deja bornes),
+        // l'ancien ticket (repli) imprime donc les memes taux que le nouveau
+        List<Integer> tauxImprimes = new ArrayList<>();
+        for (TPreenregistrementCompteClientTiersPayent t : lstT) {
+            if (!CreditLigne.masquerPartNulle(t.getIntPRICE() == null ? 0 : t.getIntPRICE(), lstT.size())) {
+                tauxImprimes.add(t.getIntPERCENT());
+            }
+        }
+        java.util.Iterator<Integer> tauxBornes = CreditLigne.tauxAffiches(tauxImprimes).iterator();
         for (int i = 0; i < lstT.size(); i++) {
             // retour du 10/11 : un organisme qui ne prend rien sur la vente n'est pas imprime (plusieurs organismes)
             if (CreditLigne.masquerPartNulle(lstT.get(i).getIntPRICE() == null ? 0 : lstT.get(i).getIntPRICE(),
                     lstT.size())) {
                 continue;
             }
+            Integer tauxImprime = tauxBornes.next();
             if (Objects.isNull(p.getHasPriceOption()) || !p.getHasPriceOption()) {
                 datas.add(lstT.get(i).getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() + "   "
-                        + lstT.get(i).getIntPERCENT() + "%" + " :: "
+                        + (lstT.get(i).getIntPERCENT() == null ? null : tauxImprime) + "%" + " :: "
                         + DateConverter.amountFormat(lstT.get(i).getIntPRICE()) + "  CFA");
             } else {
                 datas.add(lstT.get(i).getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() + " :: "

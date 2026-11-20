@@ -169,8 +169,11 @@ public final class TicketVenteModifiee {
     private static List<String[]> totauxVente(Vente v) {
         List<String[]> t = new ArrayList<>();
         t.add(new String[] { "Total", ConversionTicket.nombre(v.total) });
-        for (String[] tp : v.tiersPayants) {
-            t.add(new String[] { tp[0] + " " + tp[1] + " %", ConversionTicket.nombre(entier(tp[2])) });
+        // demande 66 (20/11) : taux imprimes bornes a 100 % au total, comme le ticket de vente
+        List<String> taux = TicketCombine.tauxImprimes(v.tiersPayants);
+        for (int i = 0; i < v.tiersPayants.size(); i++) {
+            String[] tp = v.tiersPayants.get(i);
+            t.add(new String[] { tp[0] + " " + taux.get(i) + " %", ConversionTicket.nombre(entier(tp[2])) });
         }
         if (v.remise != 0) {
             t.add(new String[] { "(-) Remise", ConversionTicket.nombre(v.remise) });

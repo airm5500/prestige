@@ -132,8 +132,17 @@ public final class TicketPrevente {
         }
         String intitule = Constant.VENTE_AVEC_CARNET.equals(typeVenteId) ? "Carnet" : "Assurance";
         int partOrganismes = 0;
+        // demande 66 (20/11) : taux imprimes jamais au-dela de 100 % au total (80 % + 30 % -> 80 % et 20 %), meme
+        // regle que le ticket de vente ; un organisme sans taux reste sans taux. Les parts ne changent pas.
+        List<Integer> bruts = new ArrayList<>();
         for (Organisme o : organismes) {
-            String taux = o.taux == null ? "" : " " + o.taux + "%";
+            bruts.add(o.taux);
+        }
+        List<Integer> affiches = rest.service.ticket.CreditLigne.tauxAffiches(bruts);
+        int rang = 0;
+        for (Organisme o : organismes) {
+            Integer affiche = affiches.get(rang++);
+            String taux = o.taux == null ? "" : " " + affiche + "%";
             lignes.add(intitule + taux + ";" + o.nom + ";1");
             partOrganismes += o.montant;
         }
