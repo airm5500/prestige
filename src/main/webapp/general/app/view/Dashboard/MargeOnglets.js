@@ -83,6 +83,13 @@ Ext.define('testextjs.view.Dashboard.MargeOnglets', {
                         {text: 'Actualiser', itemId: 'mgActualiser', iconCls: 'refresh', tooltip: 'Recalculer l\'analyse', handler: function () {
                                 me.chargerAnalyse();
                             }},
+                        /* plan du 19/11, point 13 : Excel et impression de l'analyse (memes chiffres que l'ecran) */
+                        {text: 'Excel', itemId: 'mgExcel', iconCls: 'excel', disabled: true, tooltip: 'Exporter l\'analyse en Excel', handler: function (b) {
+                                me.excelAnalyse(b);
+                            }},
+                        {text: 'Imprimer', itemId: 'mgImprimer', iconCls: 'printable', disabled: true, tooltip: 'Imprimer l\'analyse', handler: function () {
+                                me.imprimerAnalyse();
+                            }},
                         '->',
                         {xtype: 'numberfield', itemId: 'mgObjMarque', fieldLabel: 'Objectif taux de marque ≥', labelSeparator: '', labelWidth: 160, width: 215,
                             labelStyle: 'white-space:nowrap', minValue: 0.01, maxValue: 99.99, decimalPrecision: 2, decimalSeparator: ',', hideTrigger: true},
@@ -106,9 +113,13 @@ Ext.define('testextjs.view.Dashboard.MargeOnglets', {
         }
         a.setLoading('Calcul…');
         me.donnees = null;
-        Ext.Ajax.request({url: '../api/v1/datareporting/marges/analyse', method: 'GET', params: {dtStart: debut, dtEnd: fin}, timeout: 180000,
+        /* plan du 19/11, point 13 : la periode d'abord (affichee aussitot), puis les six mois d'historique ; une
+           reponse d'un calcul precedent (dates changees entre-temps) est ignoree */
+        var jeton = me.jetonAnalyse = (me.jetonAnalyse || 0) + 1;
+        me.boutonsAnalyse(false);
+        Ext.Ajax.request({url: '../api/v1/datareporting/marges/analyse', method: 'GET', params: {dtStart: debut, dtEnd: fin, partie: 'periode'}, timeout: 180000,
             success: function (r) {
-                if (a.isDestroyed) {
+                if (a.isDestroyed || jeton !== me.jetonAnalyse) {
                     return;
                 }
                 a.setLoading(false);
@@ -120,6 +131,7 @@ Ext.define('testextjs.view.Dashboard.MargeOnglets', {
                 me.donnees = o;
                 me.remplirObjectifs(o.objectifs);
                 contenu.update(me.htmlAnalyse(o));
+                me.chargerHistorique(debut, fin, jeton);
             },
             failure: function (r) {
                 if (!a.isDestroyed) {
@@ -127,6 +139,81 @@ Ext.define('testextjs.view.Dashboard.MargeOnglets', {
                     contenu.update('<span style="color:#b42318">Le serveur n\'a pas répondu (' + r.status + ').</span>');
                 }
             }});
+    },
+
+    chargerHistorique: function (debut, fin, jeton) {
+        var me = this, a = me.analyse, contenu = a.down('#mgContenu');
+        Ext.Ajax.request({url: '../api/v1/datareporting/marges/analyse', method: 'GET', params: {dtStart: debut, dtEnd: fin, partie: 'historique'}, timeout: 180000,
+            success: function (r) {
+                if (a.isDestroyed || jeton !== me.jetonAnalyse || !me.donnees) {
+                    return;
+                }
+                var h = Ext.decode(r.responseText, true) || {};
+                if (!h.success) {
+                    me.donnees.erreurHistorique = true;
+                } else {
+                    Ext.apply(me.donnees, {moyenne3: h.moyenne3, moyenne6: h.moyenne6, mois: h.mois, historique: true});
+                    me.boutonsAnalyse(true);
+                }
+                contenu.update(me.htmlAnalyse(me.donnees));
+            },
+            failure: function () {
+                if (!a.isDestroyed && jeton === me.jetonAnalyse && me.donnees) {
+                    me.donnees.erreurHistorique = true;
+                    contenu.update(me.htmlAnalyse(me.donnees));
+                }
+            }});
+    },
+
+    boutonsAnalyse: function (actifs) {
+        var a = this.analyse;
+        Ext.each(['#mgExcel', '#mgImprimer'], function (id) {
+            var b = a.down(id);
+            if (b && !b.prestigeConfirmation) {
+                b.setDisabled(!actifs);
+            }
+        });
+    },
+
+    excelAnalyse: function (b) {
+        var a = this.analyse, d = this.donnees || {};
+        PrestigeChargement.telecharger(b, '../api/v1/datareporting/marges/analyse/excel?dtStart=' + encodeURIComponent(d.debut || a.down('#mgDebut').getSubmitValue())
+                + '&dtEnd=' + encodeURIComponent(d.fin || a.down('#mgFin').getSubmitValue()), 'Excel', 'analyse_marges_' + d.debut + '_' + d.fin + '.xlsx');
+    },
+
+    /* impression par le navigateur, dans un cadre invisible (pas de fenetre) : le contenu de l'ecran */
+    imprimerAnalyse: function () {
+        var me = this, d = me.donnees;
+        if (!d) {
+            return;
+        }
+        var fr = function (s) {
+            return s ? s.split('-').reverse().join('/') : '';
+        };
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Analyse des marges</title>'
+                + '<style>body{font:11px Arial,sans-serif;margin:10mm}h3{margin:0 0 4px}p{margin:0 0 8px;color:#444}'
+                + '.pml-tuiles{display:flex;gap:8px;margin-bottom:6px}.pml-tuile{border:1px solid #999;padding:4px 8px;flex:1}'
+                + '.pml-tuile-valeur{font-size:15px;font-weight:bold}.ac-bloc-t{font-weight:bold;margin:10px 0 4px}'
+                + 'table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:2px 5px;text-align:left}td.n,th.n{text-align:right}'
+                + 'th{background:#eee}tr{page-break-inside:avoid}.mg-ecart{color:#555;font-weight:normal}</style></head><body>'
+                + '<h3>ANALYSE DES MARGES</h3><p>Période du ' + fr(d.debut) + ' au ' + fr(d.fin) + ' · imprimé le ' + Ext.Date.format(new Date(), 'd/m/Y H:i') + '</p>'
+                + '<div class="mg-impression">' + me.htmlAnalyse(d) + '</div></body></html>';
+        var ancien = document.getElementById('mg-impression-analyse');
+        if (ancien) {
+            ancien.parentNode.removeChild(ancien);
+        }
+        var f = document.createElement('iframe');
+        f.id = 'mg-impression-analyse';
+        f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+        document.body.appendChild(f);
+        var doc = f.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+        setTimeout(function () {
+            f.contentWindow.focus();
+            f.contentWindow.print();
+        }, 100);
     },
 
     remplirObjectifs: function (obj) {
@@ -213,10 +300,16 @@ Ext.define('testextjs.view.Dashboard.MargeOnglets', {
         var fr = function (s) {
             return s ? s.split('-').reverse().join('/') : '';
         };
+        /* plan du 19/11, point 13 : l'historique arrive apres la periode */
+        var attente = function (cls, libelle) {
+            return '<tr class="' + cls + ' mg-attente"><td>' + libelle + '</td><td colspan="5" style="color:#7f8c8d">'
+                    + (o.erreurHistorique ? 'Historique indisponible (Actualiser pour réessayer)' : 'Chargement de l\'historique…') + '</td></tr>';
+        };
         var l = ligne('mg-comp mg-courante', '<b>Période choisie</b> (' + fr(c.debut) + ' – ' + fr(c.fin) + ')', c, false)
                 + ligne('mg-comp mg-precedente', 'Période précédente (' + fr(o.precedente.debut) + ' – ' + fr(o.precedente.fin) + ')', o.precedente, true)
-                + ligne('mg-comp mg-moy3', 'Moyenne mensuelle des 3 derniers mois', o.moyenne3, true)
-                + ligne('mg-comp mg-moy6', 'Moyenne mensuelle des 6 derniers mois', o.moyenne6, true);
+                + (o.moyenne3 ? ligne('mg-comp mg-moy3', 'Moyenne mensuelle des 3 derniers mois', o.moyenne3, true)
+                        + ligne('mg-comp mg-moy6', 'Moyenne mensuelle des 6 derniers mois', o.moyenne6, true)
+                        : attente('mg-comp mg-moy3', 'Moyenne mensuelle des 3 derniers mois') + attente('mg-comp mg-moy6', 'Moyenne mensuelle des 6 derniers mois'));
         var entete = '<th>Période</th><th class="n">CA HT</th><th class="n">Achat</th><th class="n">Marge</th><th class="n">Taux de marque</th><th class="n">Taux de marge</th>';
         html += tableau('Comparaisons (entre parenthèses : écart de la période choisie, en points)', 'mg-comparaisons', entete, l, 6, '');
         l = '';
@@ -224,12 +317,24 @@ Ext.define('testextjs.view.Dashboard.MargeOnglets', {
             var p = String(m.mois).split('-');
             l += ligne('mg-mois', me.MOIS[parseInt(p[1], 10) - 1] + ' ' + p[0] + (m.partiel ? ' <span class="mg-ecart">(en cours)</span>' : ''), m, false);
         });
-        html += tableau('Six derniers mois (vert à l\'objectif ou au-dessus, rouge en dessous)', 'mg-par-mois', entete.replace('Période', 'Mois'), l, 6, '');
+        html += tableau('Six derniers mois (vert à l\'objectif ou au-dessus, rouge en dessous)', 'mg-par-mois', entete.replace('Période', 'Mois'), l, 6,
+                o.erreurHistorique ? 'Historique indisponible.' : 'Chargement de l\'historique…');
         l = '';
         Ext.each(o.familles || [], function (f) {
             l += ligne('mg-famille', enc(f.libelle), f, false);
         });
         html += tableau('Familles qui dégagent le plus de marge (15 premières)', 'mg-par-famille', entete.replace('Période', 'Famille'), l, 6, 'Aucune vente sur la période.');
+        /* plan du 19/11, point 13 : produits qui apportent le plus de marge */
+        l = '';
+        Ext.each(o.produits || [], function (p) {
+            l += '<tr class="mg-produit"><td>' + enc(p.libelle) + (p.cip ? ' <span class="mg-ecart">(' + enc(p.cip) + ')</span>' : '') + '</td><td class="n">' + entier(p.quantite)
+                    + '</td><td class="n">' + entier(p.ht) + '</td><td class="n">' + entier(p.achat) + '</td><td class="n"><b>' + entier(p.marge) + '</b></td><td class="n" style="'
+                    + couleur(p.tauxMarque, obj.tauxMarque) + '">' + pct(p.tauxMarque) + '</td><td class="n" style="' + couleur(p.tauxMarge, obj.tauxMarge) + '">'
+                    + pct(p.tauxMarge) + '</td></tr>';
+        });
+        html += tableau('Produits qui apportent le plus de marge (' + (o.produits || []).length + ' premiers sur ' + entier(o.nombreProduits) + ' vendus)', 'mg-par-produit',
+                '<th>Produit</th><th class="n">Qté</th><th class="n">CA HT</th><th class="n">Achat</th><th class="n">Marge</th><th class="n">Taux de marque</th><th class="n">Taux de marge</th>',
+                l, 7, 'Aucune vente sur la période.');
         return html;
     }
 });

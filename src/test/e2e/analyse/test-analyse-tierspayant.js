@@ -86,6 +86,9 @@ function nettoyerSuggestions(avant) {
     testextjs.app.getController('AnalyseTiersPayantCtr').onRechercher(e.down('#btnRechercher'));
   });
   await p.waitForTimeout(6000);
+  // plan du 19/11, point 3 : les produits se chargent au clic (« Tous les produits » ou un tiers payant)
+  await p.locator('.x-btn').filter({ visible: true, hasText: 'Tous les produits' }).first().click();
+  await p.waitForTimeout(6000);
 
   const grilles = await p.evaluate(() => {
     const e = Ext.ComponentQuery.query('analysetierspayant')[0];

@@ -53,7 +53,7 @@ function bl(n, grossiste, saisie, controle) {
     await p.waitForFunction(() => Ext.ComponentQuery.query('controleachats').length > 0 && Ext.ComponentQuery.query('etatscontrolemanager')[0], null, { timeout: 30000 });
     const ouv = await p.evaluate(() => ({ onglets: Ext.ComponentQuery.query('controleachats #ongletsCa button').map((x) => x.getText()),
       liste: Ext.ComponentQuery.query('controleachats')[0].getLayout().getActiveItem().isXType('etatscontrolemanager') }));
-    ok('Le menu ouvre « Liste des BL | Tableau de bord | BL annulés », la liste d\'origine affichée', ouv.onglets.join('|') === 'Liste des BL|Tableau de bord|BL annulés' && ouv.liste === true, JSON.stringify(ouv));
+    ok('Le menu ouvre « Liste des BL | Tableau de bord | BL annulés | Modifications des BL | Règlements fournisseurs », la liste d\'origine affichée', ouv.onglets.join('|') === 'Liste des BL|Tableau de bord|BL annulés|Modifications des BL|Règlements fournisseurs' && ouv.liste === true, JSON.stringify(ouv));
 
     /* liste : filtre groupe */
     await p.evaluate(() => { Ext.getCmp('datedebut').setValue(new Date(2019, 0, 1)); Ext.getCmp('datefin').setValue(new Date(2019, 0, 31)); });

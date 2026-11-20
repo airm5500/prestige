@@ -160,7 +160,19 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
                     }
                 }]
         });
-
+        /*
+         * plan du 19/11, point 12 : cette classe affiche une fenetre interne et n'appelait pas son parent : elle
+         * restait inscrite a moitie construite et toute recherche de composant (Ext.ComponentQuery) levait ensuite
+         * « Cannot read properties of undefined (reading 'items') ». Construite, jamais affichee, detruite avec la
+         * fenetre interne.
+         */
+        var porteur = this;
+        porteur.callParent(arguments);
+        win.on('destroy', function () {
+            if (!porteur.isDestroyed) {
+                porteur.destroy();
+            }
+        });
     },
 
     onbtncreerbl: function (button) {

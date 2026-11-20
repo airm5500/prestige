@@ -33,7 +33,9 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const ID = 'E2E-VAC';
 const LIBELLE = 'Vendus après la création de l\'inventaire';
 /* D : 10 jours avant la derniere vente encaissee de la base d'essai */
-const D = q(`SELECT DATE_FORMAT(DATE(MAX(dt_UPDATED)) - INTERVAL 10 DAY, '%Y-%m-%d 00:00:00') FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0`);
+/* plan du 19/11 : dernier jour d'activite reelle (au moins 20 ventes), et non la derniere vente : une copie de travail
+   peut porter quelques ventes d'essai isolees, plusieurs jours apres la fin de ses donnees */
+const D = q(`SELECT DATE_FORMAT(MAX(j) - INTERVAL 10 DAY, '%Y-%m-%d 00:00:00') FROM (SELECT DATE(dt_UPDATED) j FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0 AND dt_UPDATED >= NOW() - INTERVAL 400 DAY GROUP BY DATE(dt_UPDATED) HAVING COUNT(*) >= 20) x`);
 const VENTE = (cond) => `SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID
   JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND u.lg_EMPLACEMENT_ID = '1' AND ${cond}`;
 const VALIDE = "p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0";

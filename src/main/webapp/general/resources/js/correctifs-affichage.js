@@ -929,6 +929,8 @@ window.PrestigeAffichage.masquerMenus = function (racine) {
 window.PrestigeAffichage.ECRANS_COLLES = [
     // menu « Activité des équipes » (ANALYSE DE GESTION, demande du 13/10)
     'activiteequipes',
+    // menu « BFR » (ANALYSE DE GESTION, plan du 19/11)
+    'bfr',
     // menu « Péremptions courtes » (GESTION DES COMMANDES, demande mobile 36 D12)
     'peremptionscourtes',
     // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
@@ -1077,6 +1079,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'saisieperime', 'saisieperimeonglets', 'margeonglets', 'gestionsurstock', 'i_sugg_manager',
     // menu « Activité des équipes »
     'activiteequipes',
+    // menu « BFR » (plan du 19/11)
+    'bfr',
     // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
     'extranetsgrossistes',
     // menu « Péremptions courtes »
@@ -2444,9 +2448,10 @@ window.PrestigeChargement = (function () {
         var cd = reponse.headers.get('content-disposition') || '', m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
         return m ? decodeURIComponent(m[1]) : defaut;
     }
-    function telecharger(bouton, url, texte, defaut) {
+    /* plan du 19/11, point 9 : options de fetch facultatives (envoi POST d'un corps JSON, par exemple) */
+    function telecharger(bouton, url, texte, defaut, options) {
         var fin = occuper(bouton, texte || 'Préparation du fichier');
-        return fetch(url, {credentials: 'same-origin'}).then(function (r) {
+        return fetch(url, Ext.apply({credentials: 'same-origin'}, options || {})).then(function (r) {
             if (!r.ok) {
                 throw new Error('code ' + r.status);
             }

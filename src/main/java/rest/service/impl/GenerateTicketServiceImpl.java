@@ -188,6 +188,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             r = () -> lunchPrinterForTicketVo(id);
         } else if ("prevente".equals(type)) {
             r = () -> imprimerTicketPrevente(id);
+        } else if ("modifiee".equals(type)) {
+            r = () -> imprimerTicketVenteModifiee(id);
         } else {
             return new ArrayList<>();
         }
@@ -233,6 +235,119 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         } finally {
             APERCU.remove();
         }
+    }
+
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketVenteModifiee(String id) throws JSONException {
+        return apercu(() -> imprimerTicketVenteModifiee(id));
+    }
+
+    /**
+     * Plan du 19/11, point 8 : ticket de la vente modifiee. La vente est une copie (copy) dont la vente d'origine est
+     * lgPARENTID ; les deux ventes, leurs organismes, ce que le client avait paye (mouvement de la vente d'origine) et
+     * le reglement de la validation (mouvement de la vente modifiee) sont lus tels qu'enregistres. Imprime avec le
+     * dessin du recu combine (deux ventes sur un papier).
+     */
+    @Override
+    public JSONObject imprimerTicketVenteModifiee(String id) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            TPreenregistrement modifiee = id == null ? null : getEntityManager().find(TPreenregistrement.class, id);
+            TPreenregistrement origine = modifiee == null || !Boolean.TRUE.equals(modifiee.getCopy())
+                    || StringUtils.isBlank(modifiee.getLgPARENTID()) ? null
+                            : getEntityManager().find(TPreenregistrement.class, modifiee.getLgPARENTID());
+            if (origine == null) {
+                return json.put("success", false).put("msg", "Cette vente n'est pas une vente modifiée.");
+            }
+            MvtTransaction mvtModifiee = findByPkey(modifiee.getLgPREENREGISTREMENTID());
+            MvtTransaction mvtOrigine = findByPkey(origine.getLgPREENREGISTREMENTID());
+            if (mvtModifiee == null) {
+                return refusVenteSansMouvement(modifiee);
+            }
+            boolean voirNumTicket = voirNumeroTicket();
+            rest.service.ticket.TicketVenteModifiee.Entree e = new rest.service.ticket.TicketVenteModifiee.Entree();
+            e.origine = venteDuTicketModifie(origine, voirNumTicket);
+            e.modifiee = venteDuTicketModifie(modifiee, voirNumTicket);
+            e.payeOrigine = mvtOrigine == null || mvtOrigine.getMontantPaye() == null ? 0
+                    : Math.abs(mvtOrigine.getMontantPaye());
+            TClient c = modifiee.getClient();
+            TAyantDroit ad = modifiee.getAyantDroit();
+            e.assure = ad != null ? ad.getStrFIRSTNAME() + " " + ad.getStrLASTNAME()
+                    : (c != null ? c.getStrFIRSTNAME() + " " + c.getStrLASTNAME() : "");
+            e.modeReglement = mvtModifiee.getReglement() != null ? mvtModifiee.getReglement().getStrNAME() : "";
+            e.verse = Math.abs(mvtModifiee.getMontantVerse() == null ? 0 : mvtModifiee.getMontantVerse());
+            e.monnaie = Math.max(0,
+                    e.verse - Math.abs(mvtModifiee.getMontantPaye() == null ? 0 : mvtModifiee.getMontantPaye()));
+            TicketCombine.Sortie sortie = rest.service.ticket.TicketVenteModifiee.construire(e);
+
+            PrintService printService = findPrintService();
+            if (sansImprimante(printService)) {
+                return imprimanteAbsente();
+            }
+            ImpressionServiceImpl imp = nouvelImprimeur();
+            imp.setOTImprimante(findImprimanteByName(printService));
+            imp.setOfficine(findOfficine());
+            imp.setService(printService);
+            imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherModele(imp, ModeleTicket.VENTE_MIXTE, printService);
+            imp.setReferencePied(modifiee.getStrREFTICKET());
+            imp.setArticlesTicket(sortie.articles);
+            imp.setSectionsTicket(sortie.sections);
+            imp.setShowCodeBar(true);
+            imp.setEmplacement(modifiee.getLgUSERID().getLgEMPLACEMENTID());
+            imp.setOperation(modifiee.getDtUPDATED());
+            imp.setIntBegin(0);
+            imp.setTitle(sortie.titre);
+            imp.buildTicket(sortie.datas, generateDataSeller(modifiee), sortie.infoTiersPayants, sortie.subtotal,
+                    Collections.emptyList(), buildLineBarecode(modifiee.getStrREFTICKET()));
+            imp.printTicketVente(1);
+            json.put("success", true);
+        } catch (PrinterException | RuntimeException ex) {
+            journaliserEchec(null, ex);
+            json.put("success", false).put("msg", messageEchecImpression(ex)).put("sansImprimante",
+                    printServiceInconnu(ex));
+        }
+        return json;
+    }
+
+    /** Une vente du ticket de vente modifiee : lignes, organismes (part nulle masquee), total, remise, part client. */
+    private rest.service.ticket.TicketVenteModifiee.Vente venteDuTicketModifie(TPreenregistrement v,
+            boolean voirNumTicket) {
+        rest.service.ticket.TicketVenteModifiee.Vente r = new rest.service.ticket.TicketVenteModifiee.Vente();
+        r.ref = voirNumTicket ? v.getStrREF() : v.getStrREFTICKET();
+        r.date = v.getDtUPDATED() == null ? ""
+                : new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(v.getDtUPDATED());
+        r.articles = articlesTicketPositifs(v);
+        List<String[]> tps = new ArrayList<>();
+        List<TPreenregistrementCompteClientTiersPayent> organismes = listeVenteTiersPayantsByIdVente(
+                v.getLgPREENREGISTREMENTID());
+        for (TPreenregistrementCompteClientTiersPayent t : organismes) {
+            if (CreditLigne.masquerPartNulle(t.getIntPRICE() == null ? 0 : t.getIntPRICE(), organismes.size())) {
+                continue;
+            }
+            tps.add(new String[] { t.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME(),
+                    String.valueOf(t.getIntPERCENT() == null ? 0 : t.getIntPERCENT()),
+                    String.valueOf(Math.abs(t.getIntPRICE() == null ? 0 : t.getIntPRICE())) });
+        }
+        r.tiersPayants = tps;
+        r.total = Math.abs(v.getIntPRICE() == null ? 0 : v.getIntPRICE());
+        r.remise = Math.abs(v.getIntPRICEREMISE() == null ? 0 : v.getIntPRICEREMISE());
+        int partClient = "VO".equals(v.getStrTYPEVENTE())
+                ? Math.abs(v.getIntCUSTPART() == null ? 0 : v.getIntCUSTPART()) : r.total - r.remise;
+        r.partClient = DateConverter.arrondiModuloOfNumber(Math.max(0, partClient), 5);
+        return r;
+    }
+
+    /**
+     * Lignes d'une vente pour le ticket de vente modifiee : quantites et montants tels que vendus (jamais inverses).
+     */
+    private List<ConversionTicket.Article> articlesTicketPositifs(TPreenregistrement v) {
+        List<ConversionTicket.Article> res = new ArrayList<>();
+        for (ConversionTicket.Article a : articlesTicket(v)) {
+            res.add(new ConversionTicket.Article(a.designation, Math.abs(a.quantite), a.prixUnitaire,
+                    Math.abs(a.montant), a.lot, a.credits));
+        }
+        return res;
     }
 
     @Override

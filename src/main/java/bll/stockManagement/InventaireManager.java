@@ -2396,18 +2396,55 @@ public class InventaireManager extends bllBase {
             "AND EXISTS (SELECT 1 FROM TPreenregistrementDetail d WHERE d.lgFAMILLEID.lgFAMILLEID"
                     + " = t.lgFAMILLEID.lgFAMILLEID AND " + VENTE_APRES_INVENTAIRE + ")");
 
+    /*
+     * Plan du 19/11, point 4 : la sous-requete ne depend plus de chaque ligne. Les produits vendus depuis la creation
+     * de l'inventaire, sur son emplacement, sont lus UNE fois (index sur la date de la vente) ; avant, un EXISTS
+     * correle relisait toutes les ventes de chaque produit de l'inventaire, pour le compte puis pour la liste (3 s pour
+     * un inventaire de 5 000 lignes sans aucune vente). Meme regle (VENTE_APRES_INVENTAIRE), memes lignes.
+     */
+    static final String PRODUITS_VENDUS_DEPUIS = "SELECT d.lgFAMILLEID.lgFAMILLEID FROM TPreenregistrementDetail d"
+            + " WHERE d.lgPREENREGISTREMENTID.strSTATUT = 'is_Closed'"
+            + " AND d.lgPREENREGISTREMENTID.bISCANCEL = FALSE AND d.lgPREENREGISTREMENTID.intPRICE > 0"
+            + " AND d.lgPREENREGISTREMENTID.dtUPDATED >= ?10"
+            + " AND d.lgPREENREGISTREMENTID.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = ?11";
+    private static final String INVENTAIRE_VENDUS_DEPUIS_WHERE = INVENTAIRE_NEGATIF_WHERE.replace("AND t.intNUMBER < 0",
+            "AND t.lgFAMILLEID.lgFAMILLEID IN (" + PRODUITS_VENDUS_DEPUIS + ")");
+
+    /** Inventaire du filtre (date de creation, emplacement), ou null : on garde alors l'ancienne requete. */
+    private dal.TInventaire inventaireDuFiltre(String lg_INVENTAIRE_ID) {
+        try {
+            dal.TInventaire inv = lg_INVENTAIRE_ID == null ? null
+                    : this.getOdataManager().getEm().find(dal.TInventaire.class, lg_INVENTAIRE_ID);
+            return inv != null && inv.getDtCREATED() != null && inv.getLgEMPLACEMENTID() != null ? inv : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private javax.persistence.Query requeteVendusApres(String debut, String lg_INVENTAIRE_ID, String search_value,
+            String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String lg_USER_ID, String fin) {
+        String recherche = search_value == null || "".equals(search_value) ? "%%" : search_value;
+        dal.TInventaire inv = inventaireDuFiltre(lg_INVENTAIRE_ID);
+        javax.persistence.Query query = this.getOdataManager().getEm()
+                .createQuery(
+                        debut + (inv != null ? INVENTAIRE_VENDUS_DEPUIS_WHERE : INVENTAIRE_VENDUS_APRES_WHERE) + fin)
+                .setParameter(1, lg_INVENTAIRE_ID).setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + recherche + "%").setParameter(8, true)
+                .setParameter(9, lg_USER_ID).setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS);
+        if (inv != null) {
+            query.setParameter(10, inv.getDtCREATED()).setParameter(11, inv.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        }
+        return query;
+    }
+
     public List<TInventaireFamille> listInventaireVendusApres(String search_value, String lg_INVENTAIRE_ID,
             String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, int start, int limit,
             String lg_USER_ID) {
         List<TInventaireFamille> lignes = new ArrayList<>();
         try {
-            String recherche = search_value == null || "".equals(search_value) ? "%%" : search_value;
-            String jpql = "SELECT t" + INVENTAIRE_VENDUS_APRES_WHERE + " " + buildOrderByInventaire(lg_INVENTAIRE_ID);
-            lignes = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
-                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
-                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + recherche + "%").setParameter(8, true)
-                    .setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
-                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+            lignes = requeteVendusApres("SELECT t", lg_INVENTAIRE_ID, search_value, lg_FAMILLEARTICLE_ID,
+                    lg_ZONE_GEO_ID, lg_GROSSISTE_ID, lg_USER_ID, " " + buildOrderByInventaire(lg_INVENTAIRE_ID))
+                            .setFirstResult(start).setMaxResults(limit).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
             this.setMessage(commonparameter.PROCESS_FAILED);
@@ -2419,13 +2456,8 @@ public class InventaireManager extends bllBase {
             String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String lg_USER_ID) {
         long count = 0L;
         try {
-            String recherche = search_value == null || "".equals(search_value) ? "%%" : search_value;
-            Object object = this.getOdataManager().getEm()
-                    .createQuery("SELECT COUNT(t)" + INVENTAIRE_VENDUS_APRES_WHERE).setParameter(1, lg_INVENTAIRE_ID)
-                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
-                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + recherche + "%").setParameter(8, true)
-                    .setParameter(9, lg_USER_ID)
-                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
+            Object object = requeteVendusApres("SELECT COUNT(t)", lg_INVENTAIRE_ID, search_value, lg_FAMILLEARTICLE_ID,
+                    lg_ZONE_GEO_ID, lg_GROSSISTE_ID, lg_USER_ID, "").getSingleResult();
             count = Long.valueOf(object + "");
         } catch (Exception e) {
             e.printStackTrace();

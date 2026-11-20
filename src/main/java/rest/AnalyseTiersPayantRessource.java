@@ -57,11 +57,20 @@ public class AnalyseTiersPayantRessource {
     @Path("produits")
     public Response parProduit(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
-            @QueryParam("tri") String tri, @QueryParam("groupeId") String groupeId) {
+            @QueryParam("tri") String tri, @QueryParam("groupeId") String groupeId, @QueryParam("start") Integer start,
+            @QueryParam("limit") Integer limit) {
         if (utilisateur() == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return reponse(analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri, groupeId));
+        /*
+         * Plan du 19/11, point 3 : une page a la fois (limit), avec les totaux de toute la liste pour le pied de la
+         * grille. Sans limit, toute la liste, comme avant.
+         */
+        return Response.ok()
+                .entity(rest.service.dto.PageAnalyse.reponse(
+                        analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri, groupeId),
+                        start, limit).toString())
+                .build();
     }
 
     /**

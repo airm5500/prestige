@@ -285,11 +285,21 @@ public class ListeReserveService {
             ambigus.put(new JSONObject().put("code", e.getKey()).put("produits", noms));
         }
         int doublons = res.doublons.values().stream().mapToInt(Integer::intValue).sum();
+        /* plan du 19/11, point 9 : les codes en double, un par un (avant : seulement leur nombre) */
+        JSONArray enDouble = new JSONArray();
+        for (ImportCodesReserve.EnDouble x : ImportCodesReserve.enDouble(lecture.codes, res)) {
+            Object[] r = x.id == null ? null : lignes.get(x.id);
+            String designation = r != null ? ((r[1] == null ? "" : r[1]) + " " + (r[2] == null ? "" : r[2])).trim()
+                    : res.ambigus.containsKey(x.code) ? "Code ambigu" : "Code inconnu";
+            enDouble.put(new JSONObject().put("code", x.code).put("designation", designation).put("fois", x.fois)
+                    .put("memeQue", x.premierCode == null ? "" : x.premierCode));
+        }
         LOG.log(Level.INFO, "liste reserve, import : {0} codes lus, {1} reconnus, {2} inconnus, {3} ambigus",
                 new Object[] { lecture.codes.size(), res.reconnus.size(), res.inconnus.size(), res.ambigus.size() });
         return new JSONObject().put("success", true).put("lus", lecture.codes.size()).put("ignorees", lecture.ignorees)
                 .put("reconnus", reconnus).put("memeProduit", res.memeProduit.size())
-                .put("inconnus", new JSONArray(res.inconnus)).put("ambigus", ambigus).put("doublons", doublons);
+                .put("inconnus", new JSONArray(res.inconnus)).put("ambigus", ambigus).put("doublons", doublons)
+                .put("enDouble", enDouble);
     }
 
     private static String marques(int n) {

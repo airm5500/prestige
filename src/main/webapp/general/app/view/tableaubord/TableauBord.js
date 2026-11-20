@@ -35,6 +35,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         CARTES: [
             {id: 'evolution', titre: 'Évolution du chiffre d\'affaires (Net TTC)', ico: 'fa-chart-area', t: 't-bleu', l: 'l8'},
             {id: 'valorisation', titre: 'Valorisation du stock', ico: 'fa-cubes', t: 't-cyan', l: 'l4'},
+            /* Plan du 19/11 : besoin en fonds de roulement, memes chiffres que le menu « BFR » (reservee a son droit) */
+            {id: 'bfr', titre: 'BFR (besoin en fonds de roulement)', ico: 'fa-scale-balanced', t: 't-ambre', l: 'l4', droit: 'bfr'},
             {id: 'encaissements', titre: 'Encaissements du jour', ico: 'fa-money-bill-wave', t: 't-vert', l: 'l4'},
             {id: 'mouvements', titre: 'Mouvements de caisse du jour', ico: 'fa-right-left', t: 't-violet', l: 'l4'},
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
@@ -46,6 +48,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             /* Retour du 24/10 : carte d'affluence jour x heure, semaine au choix */
             {id: 'affluence', titre: 'Carte d\'affluence (jour × heure)', ico: 'fa-fire', t: 't-cyan', l: 'l12'},
             {id: 'topmois', titre: 'Top 5 des ventes du mois', ico: 'fa-trophy', t: 't-bleu', l: 'l6'},
+            /* Plan du 19/11, point 13 : produits qui apportent le plus de marge (memes chiffres que Marges > Analyse) */
+            {id: 'topmarges', titre: 'Top 10 des marges du mois', ico: 'fa-coins', t: 't-vert', l: 'l6'},
             {id: 'grossistes', titre: 'Achats par grossiste (mois)', ico: 'fa-truck-fast', t: 't-violet', l: 'l6'},
             {id: 'topca', titre: 'Top 5 du chiffre d\'affaires (jour)', ico: 'fa-chart-column', t: 't-vert', l: 'l4'},
             {id: 'topqte', titre: 'Top 5 des quantités vendues (jour)', ico: 'fa-arrow-down-wide-short', t: 't-cyan', l: 'l4'},
@@ -524,6 +528,11 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                     me.dessinerValorisation(o);
                 });
             },
+            bfr: function () {
+                lire('../api/v1/tableau-bord/bfr', {frais: fr}, function (o) {
+                    me.dessinerBfr(o);
+                });
+            },
             encaissements: function () {
                 lire('../api/v1/tableau-bord/encaissements', {date: j, frais: fr}, function (o) {
                     me.dessinerEncaissements(o);
@@ -556,6 +565,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 lire('../api/v1/tableau-bord/top-mois', {date: j, limite: 5, frais: fr}, function (o) {
                     me.donneesTopMois = o;
                     me.dessinerTopMois();
+                });
+            },
+            topmarges: function () {
+                lire('../api/v1/tableau-bord/top-marges', {date: j, limite: 10, frais: fr}, function (o) {
+                    me.donneesTopMarges = o;
+                    me.dessinerTopMarges();
                 });
             },
             grossistes: function () {
@@ -797,6 +812,30 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<div style="display:flex;gap:16px;align-items:baseline"><div class="tb-v" style="font-size:19px">' + me.fmt(o.dormants.produits) + ' produits</div>'
                 + '<div class="tb-d"><b>' + f(o.dormants.valeurAchat) + '</b> FCFA (achat)</div></div><div class="tb-d">' + me.lien('stockmort', 'Voir la liste →')
                 + ' · à comparer : <b>' + me.fmt(o.dormants.vendus) + '</b> produits entrés et vendus</div></div>';
+    },
+
+    /* --- BFR (plan du 19/11) : synthese ; le detail est dans le menu « BFR » */
+
+    dessinerBfr: function (o) {
+        var me = this, c = me.corps('bfr');
+        if (!c) {
+            return;
+        }
+        if (!o || !o.success) {
+            me.erreur('bfr');
+            return;
+        }
+        var l = function (libelle, v, cle, signe) {
+            return '<tr><td>' + libelle + '</td><td class="tb-n" data-bfr="' + cle + '">' + (signe || '') + me.fmt(v) + '</td></tr>';
+        };
+        var jours = o.joursCalculable ? Number(o.jours).toLocaleString('fr-FR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + ' j'
+                : 'non calculable (CA HT nul)';
+        c.innerHTML = '<div style="display:flex;gap:16px;align-items:baseline"><div class="tb-v" style="font-size:22px" data-bfr="bfr">' + me.fmt(o.bfr) + '</div>'
+                + '<div class="tb-d">FCFA, soit <b data-bfr="jours">' + jours + '</b> de CA HT</div></div>'
+                + '<table style="margin-top:6px">' + l('Stock valorisé (achat)', o.stock.total, 'stock', '+ ')
+                + l('Créances clients', o.creances.total, 'creances', '+ ') + l('Dettes fournisseurs', o.dettes.total, 'dettes', '− ') + '</table>'
+                + '<div class="tb-note" style="margin-top:6px" data-bfr="mention">' + me.esc(o.mention) + ' ; dettes fiscales et sociales : '
+                + me.esc(o.dettes.nonSuivi) + '.</div><div class="tb-d">' + me.lien('bfr', 'Voir le détail →') + '</div>';
     },
 
     /* --- encaissements */
@@ -1161,6 +1200,45 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 }).join('') + '</table><div class="tb-note" style="margin-top:6px">Marge = prix de vente HT − prix d\'achat × quantité, sur les ventes du mois.</div>';
     },
 
+    /* --- plan du 19/11, point 13 : top 10 des marges du mois, « Voir plus » */
+
+    /** Lignes d'un tableau de produits par marge : #, produit, marge (barre), taux de marque, CA HT, quantite. */
+    lignesMarges: function (l, debut) {
+        var me = this, max = Ext.Array.max(Ext.Array.map(l, function (p) {
+            return Math.max(0, p.marge);
+        })) || 1;
+        return '<table class="tb-fixe tb-marges"><tr><th style="width:5%">#</th><th style="width:37%">Produit</th><th class="tb-n" style="width:13%">Marge</th>'
+                + '<th style="width:12%"></th><th class="tb-n" style="width:11%">Taux</th><th class="tb-n" style="width:13%">CA HT</th><th class="tb-n" style="width:9%">Qté</th></tr>'
+                + l.map(function (p, i) {
+                    return '<tr><td>' + ((debut || 0) + i + 1) + '</td><td class="tb-nom1" title="' + me.esc(p.libelle + (p.cip ? ' · ' + p.cip : '')) + '">' + me.esc(p.libelle)
+                            + '</td><td class="tb-n"><b>' + me.fmt(p.marge) + '</b></td><td><div class="tb-barre"><i style="width:' + (Math.max(0, p.marge) * 100 / max)
+                            + '%;background:#16a34a"></i></div></td><td class="tb-n">' + String(p.tauxMarque).replace('.', ',') + ' %</td><td class="tb-n">' + me.fmt(p.ht)
+                            + '</td><td class="tb-n">' + me.fmt(p.quantite) + '</td></tr>';
+                }).join('') + '</table>';
+    },
+
+    dessinerTopMarges: function () {
+        var me = this, o = me.donneesTopMarges, c = me.corps('topmarges');
+        if (!c) {
+            return;
+        }
+        if (!o || !o.success) {
+            me.erreur('topmarges');
+            return;
+        }
+        var out = me.outils('topmarges'), l = o.data || [];
+        if (out) {
+            out.innerHTML = '<span class="tb-lien" data-plus="topmarges">Voir plus →</span>';
+        }
+        if (!l.length) {
+            c.innerHTML = '<div class="tb-attente">Aucune vente ce mois-ci.</div>';
+            return;
+        }
+        c.innerHTML = me.lignesMarges(l.slice(0, 10)) + '<div class="tb-note" style="margin-top:6px">Marge = CA HT (remises et TVA déduites) − prix d\'achat '
+                + 'des produits vendus, du ' + String(o.debut || '').split('-').reverse().join('/') + ' au ' + String(o.fin || '').split('-').reverse().join('/')
+                + ' ; mêmes chiffres que Marges › Analyse.</div>';
+    },
+
     /* --- TVA : la route de l'ecran « Statistique par TVA » (memes chiffres) */
 
     dessinerTva: function () {
@@ -1309,6 +1387,16 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
 
     voirPlus: function (cle) {
         var me = this, j = me.jour();
+        if (cle === 'topmarges') {
+            me.lire('../api/v1/tableau-bord/top-marges', {date: j, limite: 0}, function (o) {
+                var l = o && o.success ? o.data || [] : [];
+                me.fenetre('Produits qui apportent le plus de marge (mois)', l.length ? me.lignesMarges(l)
+                        + '<div class="tb-note" style="margin-top:8px">' + l.length + ' produit(s) sur ' + me.fmt(o.nombreProduits) + ' vendu(s), du '
+                        + String(o.debut).split('-').reverse().join('/') + ' au ' + String(o.fin).split('-').reverse().join('/') + '.</div>'
+                        : '<div class="tb-attente">Aucune donnée.</div>', {xtype: 'margeproducts', texte: 'Ouvrir les marges'});
+            });
+            return;
+        }
         var def = {
             grossistes: ['Achats par grossiste (mois)', '../api/v1/tableau-bord/grossistes'],
             emplacements: [me.prefs.empl === 'famille' ? 'CA par famille (mois)' : 'CA par emplacement (mois)', '../api/v1/tableau-bord/emplacements'],

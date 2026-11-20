@@ -353,10 +353,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             // Plan du 14/11, point 7 : ordonnancier et produit sensible, modifiables ici sous le droit
                             // du menu Ordonnancier (cases grisees sans ce droit). Hors du formulaire envoye : chaque case
                             // changee part apres l'enregistrement vers v1/fichearticle/ordonnancier/{id}.
-                            xtype: 'fieldcontainer', fieldLabel: 'Ordonnancier', itemId: 'ordo_container', layout: 'hbox',
+                            // Plan du 19/11, point 6 a : une seule zone « Ordonnancier », les deux cases l'une sous
+                            // l'autre. Sur une ligne, dans le bloc borne a 380 px, « Produit sensible » sortait du bloc.
+                            xtype: 'fieldcontainer', fieldLabel: 'Ordonnancier', itemId: 'ordo_container',
+                            layout: { type: 'vbox', align: 'stretch' },
                             items: [
-                                { xtype: 'checkbox', itemId: 'cb_ordonnancier', boxLabel: "inscrit à l'ordonnancier", submitValue: false, disabled: true, valeurOrigine: false, margin: '0 18 0 0' },
-                                { xtype: 'checkbox', itemId: 'cb_sensible', boxLabel: 'produit sensible', submitValue: false, disabled: true, valeurOrigine: false }
+                                { xtype: 'checkbox', itemId: 'cb_ordonnancier', boxLabel: "Inscrit à l'ordonnancier", submitValue: false, disabled: true, valeurOrigine: false, margin: 0 },
+                                { xtype: 'checkbox', itemId: 'cb_sensible', boxLabel: 'Produit sensible', submitValue: false, disabled: true, valeurOrigine: false, margin: 0 }
                             ]
                         },
                         {

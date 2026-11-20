@@ -173,6 +173,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     name: 'intMONTANTREGLE',
                     type: 'number'
                 },
+                /* plan du 19/11, point 16 : reste a payer (meme regle que l'onglet « Règlements fournisseurs ») */
+                {name: 'resteAPayer', type: 'auto'}, {name: 'avantSuivi', type: 'boolean'},
                 {
                     name: 'intHTTC',
                     type: 'number'
@@ -275,6 +277,23 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     renderer: montantFormat,
                     align: 'right',
                     flex: 1
+                },
+                {
+                    header: 'Reste à payer',
+                    dataIndex: 'resteAPayer',
+                    itemId: 'colResteAPayer',
+                    align: 'right',
+                    flex: 1,
+                    renderer: function (v, meta, r) {
+                        if (v === null || v === undefined || v === '') {
+                            return '';
+                        }
+                        if (r.get('avantSuivi')) {
+                            meta.tdAttr = 'data-qtip="BL antérieur au début du suivi des règlements : considéré comme réglé"';
+                            return '<span style="color:#888">' + montantFormat(v) + '</span>';
+                        }
+                        return montantFormat(v);
+                    }
                 },
 
                 {

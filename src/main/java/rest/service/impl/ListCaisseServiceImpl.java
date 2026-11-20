@@ -246,13 +246,9 @@ public class ListCaisseServiceImpl implements ListCaisseService {
     }
 
     private VisualisationCaisseDTO buildFromMvtTransaction(MvtTransaction m) {
-        TTypeReglement reglement = m.getReglement();
-        VisualisationCaisseDTO caisse = new VisualisationCaisseDTO();
-
         List<VenteReglementDTO> reglements = new ArrayList<>();
         TClient client = null;
-        if (m.getTypeTransaction() == TypeTransaction.VENTE_COMPTANT
-                || m.getTypeTransaction() == TypeTransaction.VENTE_CREDIT) {
+        if (estVente(m)) {
             TPreenregistrement p = findVenteByVenteId(m.getPkey());
             List<VenteReglement> venteReglements = p.getVenteReglements();
             if (CollectionUtils.isNotEmpty(venteReglements)) {
@@ -262,6 +258,173 @@ public class ListCaisseServiceImpl implements ListCaisseService {
             client = p.getClient();
 
         }
+        return construireLigne(m, client == null ? null : client.getStrFIRSTNAME() + " " + client.getStrLASTNAME(),
+                reglements);
+    }
+
+    private static boolean estVente(MvtTransaction m) {
+        return m.getTypeTransaction() == TypeTransaction.VENTE_COMPTANT
+                || m.getTypeTransaction() == TypeTransaction.VENTE_CREDIT;
+    }
+
+    /**
+     * Plan du 19/11, point 15 : les memes lignes que {@link #fetchAll}, pour l'export de toute une periode. fetchAll
+     * charge chaque mouvement en entite, avec sa vente et ses liens (52 a 77 s pour un mois sur le banc) ; ici une
+     * seule requete lit les colonnes utiles, avec les memes criteres et le meme ordre (heure de creation), puis clients
+     * et reglements des ventes sont lus par lots, dans l'ordre ou la vente les rend (vente, puis identifiant).
+     */
+    @Override
+    public List<VisualisationCaisseDTO> fetchAllExport(CaisseParamsDTO caisseParams) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT m.typeTransaction, m.typeMvtCaisseId, tm.str_NAME AS typeLibelle, m.reference,"
+                        + " u.str_FIRST_NAME, u.str_LAST_NAME, m.montant, m.montantRegle, m.pkey, m.mvtdate, m.createdAt,"
+                        + " tr.str_NAME AS reglementLibelle FROM MvtTransaction m JOIN t_user u ON u.lg_USER_ID = m.caisse"
+                        + " LEFT JOIN t_type_mvt_caisse tm ON tm.lg_TYPE_MVT_CAISSE_ID = m.typeMvtCaisseId"
+                        + " LEFT JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID = m.typeReglementId"
+                        + " WHERE m.lg_EMPLACEMENT_ID = ?1 AND m.typeTransaction <> ?2");
+        List<Object> valeurs = new ArrayList<>();
+        valeurs.add(caisseParams.getEmplacementId());
+        valeurs.add(TypeTransaction.ACHAT.ordinal());
+        if (caisseParams.getStartHour() != null && caisseParams.getStartEnd() != null) {
+            sql.append(" AND m.createdAt BETWEEN ?3 AND ?4");
+            valeurs.add(java.sql.Timestamp
+                    .valueOf(LocalDateTime.of(caisseParams.getStartDate(), caisseParams.getStartHour())));
+            valeurs.add(
+                    java.sql.Timestamp.valueOf(LocalDateTime.of(caisseParams.getEnd(), caisseParams.getStartEnd())));
+        } else if (caisseParams.getStartHour() == null && caisseParams.getStartEnd() == null) {
+            sql.append(" AND m.mvtdate BETWEEN ?3 AND ?4");
+            valeurs.add(java.sql.Date.valueOf(caisseParams.getStartDate()));
+            valeurs.add(java.sql.Date.valueOf(caisseParams.getEnd()));
+        }
+        if (StringUtils.isNotEmpty(caisseParams.getTypeReglementId())) {
+            valeurs.add(caisseParams.getTypeReglementId());
+            sql.append(" AND m.pkey IN (SELECT r.vente_id FROM vente_reglement r WHERE r.type_regelement = ?")
+                    .append(valeurs.size()).append(")");
+        }
+        if (caisseParams.getUtilisateurId() != null) {
+            valeurs.add(caisseParams.getUtilisateurId());
+            sql.append(" AND m.caisse = ?").append(valeurs.size());
+        }
+        sql.append(" ORDER BY m.createdAt");
+        Query qm = getEntityManager().createNativeQuery(sql.toString());
+        for (int k = 0; k < valeurs.size(); k++) {
+            qm.setParameter(k + 1, valeurs.get(k));
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> mvts = qm.getResultList();
+        int comptant = TypeTransaction.VENTE_COMPTANT.ordinal(), credit = TypeTransaction.VENTE_CREDIT.ordinal();
+        java.util.function.Predicate<Object[]> vente = l -> l[0] != null
+                && (((Number) l[0]).intValue() == comptant || ((Number) l[0]).intValue() == credit);
+        List<String> ventes = mvts.stream().filter(vente).map(l -> (String) l[8]).distinct()
+                .collect(Collectors.toList());
+        Map<String, String> clients = new java.util.HashMap<>();
+        Map<String, List<VenteReglementDTO>> reglements = new java.util.HashMap<>();
+        for (int i = 0; i < ventes.size(); i += 500) {
+            List<String> lot = ventes.subList(i, Math.min(ventes.size(), i + 500));
+            StringBuilder in = new StringBuilder();
+            for (int k = 1; k <= lot.size(); k++) {
+                in.append(k == 1 ? "?" : ",?").append(k);
+            }
+            Query qc = getEntityManager().createNativeQuery(
+                    "SELECT p.lg_PREENREGISTREMENT_ID, c.str_FIRST_NAME, c.str_LAST_NAME FROM t_preenregistrement p"
+                            + " JOIN t_client c ON c.lg_CLIENT_ID = p.lg_CLIENT_ID WHERE p.lg_PREENREGISTREMENT_ID IN ("
+                            + in + ")");
+            Query qr = getEntityManager().createNativeQuery(
+                    "SELECT r.vente_id, r.type_regelement, t.str_NAME, r.montant, r.montant_attentu FROM vente_reglement r"
+                            + " JOIN t_type_reglement t ON t.lg_TYPE_REGLEMENT_ID = r.type_regelement"
+                            + " WHERE r.vente_id IN (" + in + ") ORDER BY r.vente_id, r.id");
+            for (int k = 0; k < lot.size(); k++) {
+                qc.setParameter(k + 1, lot.get(k));
+                qr.setParameter(k + 1, lot.get(k));
+            }
+            for (Object o : qc.getResultList()) {
+                Object[] l = (Object[]) o;
+                /* meme concatenation que l'ecran (un nom absent s'y ecrit « null ») */
+                clients.put((String) l[0], (String) l[1] + " " + (String) l[2]);
+            }
+            for (Object o : qr.getResultList()) {
+                Object[] l = (Object[]) o;
+                int montant = l[3] == null ? 0 : ((Number) l[3]).intValue();
+                int attendu = l[4] == null ? 0 : ((Number) l[4]).intValue();
+                VenteReglementDTO r = new VenteReglementDTO();
+                r.setMontant(attendu);
+                r.setMontantAttentu(attendu);
+                r.setTypeReglement((String) l[2]);
+                r.setTypeReglementId((String) l[1]);
+                if (montant < 0) {
+                    r.setMontantAnnulation(montant);
+                }
+                reglements.computeIfAbsent((String) l[0], x -> new ArrayList<>()).add(r);
+            }
+        }
+        List<VisualisationCaisseDTO> l = new ArrayList<>(mvts.size());
+        for (Object[] m : mvts) {
+            /* memes regles que construireLigne */
+            String type = (String) m[1];
+            VisualisationCaisseDTO c = new VisualisationCaisseDTO();
+            c.setTypeMouvement(Constant.MVT_VENTE_VO.equals(type) ? "VENTE A CREDIT"
+                    : Constant.MVT_VENTE_VNO.equals(type) ? "VENTE AU COMPTANT" : (String) m[2]);
+            c.setTypeMvt(type);
+            c.setReference((String) m[3]);
+            c.setOperateur((String) m[4] + " " + (String) m[5]);
+            int montant = m[6] == null ? 0 : ((Number) m[6]).intValue();
+            boolean venteCaisse = Constant.MVT_VENTE_VO.equals(type) || Constant.MVT_VENTE_VNO.equals(type);
+            c.setMontant(venteCaisse ? (m[7] == null ? 0 : ((Number) m[7]).intValue()) : montant);
+            List<VenteReglementDTO> rg = new ArrayList<>();
+            if (vente.test(m)) {
+                String client = clients.get((String) m[8]);
+                if (client != null) {
+                    c.setClient(client);
+                }
+                rg.addAll(reglements.getOrDefault((String) m[8], Collections.emptyList()));
+            }
+            if (!venteCaisse) {
+                VenteReglementDTO r = new VenteReglementDTO();
+                r.setMontant(montant);
+                r.setMontantAttentu(montant);
+                r.setTypeReglement((String) m[11]);
+                if (montant < 0) {
+                    r.setMontantAnnulation(montant);
+                }
+                rg.add(r);
+            }
+            c.setReglements(rg);
+            java.time.LocalDate jour = jour(m[9]);
+            c.setTaskDate(jour == null ? null : jour.format(dateFormat));
+            LocalDateTime cree = instant(m[10]);
+            if (cree != null) {
+                c.setDateOperation(cree);
+                c.setTaskHeure(cree.format(heureFormat));
+            }
+            l.add(c);
+        }
+        return l;
+    }
+
+    private static java.time.LocalDate jour(Object v) {
+        if (v instanceof java.sql.Date) {
+            return ((java.sql.Date) v).toLocalDate();
+        }
+        if (v instanceof java.sql.Timestamp) {
+            return ((java.sql.Timestamp) v).toLocalDateTime().toLocalDate();
+        }
+        if (v instanceof java.time.LocalDate) {
+            return (java.time.LocalDate) v;
+        }
+        return v instanceof LocalDateTime ? ((LocalDateTime) v).toLocalDate() : null;
+    }
+
+    private static LocalDateTime instant(Object v) {
+        if (v instanceof java.sql.Timestamp) {
+            return ((java.sql.Timestamp) v).toLocalDateTime();
+        }
+        return v instanceof LocalDateTime ? (LocalDateTime) v : null;
+    }
+
+    private VisualisationCaisseDTO construireLigne(MvtTransaction m, String client,
+            List<VenteReglementDTO> reglements) {
+        TTypeReglement reglement = m.getReglement();
+        VisualisationCaisseDTO caisse = new VisualisationCaisseDTO();
 
         TTypeMvtCaisse mvt = m.gettTypeMvtCaisse();
         caisse.setTypeMouvement(libelleMouvement(mvt));
@@ -272,7 +435,7 @@ public class ListCaisseServiceImpl implements ListCaisseService {
         caisse.setOperateur(caissier.getStrFIRSTNAME() + " " + caissier.getStrLASTNAME());
         caisse.setOperateurId(caissier.getLgUSERID());
         if (client != null) {
-            caisse.setClient(client.getStrFIRSTNAME() + " " + client.getStrLASTNAME());
+            caisse.setClient(client);
         }
         switch (mvt.getLgTYPEMVTCAISSEID()) {
         case Constant.MVT_VENTE_VO:

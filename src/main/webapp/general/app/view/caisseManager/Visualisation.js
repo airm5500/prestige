@@ -5,6 +5,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
     xtype: 'visualisercaissemanager',
     requires: [
         'testextjs.view.caisseManager.VisualisationGrid',
+        'testextjs.view.caisseManager.ListeCaisse',
         'testextjs.model.caisse.Reglement',
         'testextjs.model.caisse.User',
         'testextjs.model.caisse.Caisse',
@@ -140,7 +141,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
-                        }/*
+                        }, testextjs.view.caisseManager.ListeCaisse.boutonExporter('visualisation')/*
                          , {
                          text: 'imprimer',
                          itemId: 'imprimer',

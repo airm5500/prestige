@@ -69,6 +69,15 @@ public interface GenerateTicketService {
     List<rest.service.ticket.TicketDocument> apercuTicketCombine(String voId);
 
     /**
+     * Plan du 19/11, point 8 : ticket de la vente modifiee (vente d'origine, vente modifiee, differences, reglement),
+     * imprime.
+     */
+    JSONObject imprimerTicketVenteModifiee(String id) throws JSONException;
+
+    /** Plan du 19/11, point 8 : le meme ticket, construit sans impression (apercu, rapprochement). */
+    List<rest.service.ticket.TicketDocument> apercuTicketVenteModifiee(String id) throws JSONException;
+
+    /**
      * Tickets de la premiere impression d'une vente assurance (appel de l'ecran apres la cloture, avec ses parametres),
      * construits sans les imprimer : test de la monnaie des ventes liees du 08/11.
      */

@@ -69,14 +69,21 @@ public class PointageBonRessource {
     @GET
     @Path("liste")
     public Response liste(@QueryParam("tiersPayantId") String tp, @QueryParam("dtStart") String debut,
-            @QueryParam("dtEnd") String fin, @QueryParam("filtre") String filtre, @QueryParam("search") String search) {
+            @QueryParam("dtEnd") String fin, @QueryParam("filtre") String filtre, @QueryParam("search") String search,
+            @QueryParam("groupeId") String groupeId) {
         TUser u = Droits.utilisateur(servletRequest);
         if (u == null) {
             return deconnecte();
         }
         LocalDate[] p = periode(debut, fin);
-        if (tp == null || tp.isEmpty() || p == null) {
-            return erreur("Choisissez un organisme et une période valide.");
+        boolean organisme = tp != null && !tp.isEmpty();
+        boolean groupe = !organisme && groupeId != null && !groupeId.trim().isEmpty();
+        if ((!organisme && !groupe) || p == null) {
+            return erreur("Choisissez un organisme ou un groupe, et une période valide (au plus 400 jours).");
+        }
+        /* plan du 19/11, point 11 : les bons de chaque organisme du groupe, l'un apres l'autre */
+        if (groupe) {
+            return json(service.listeGroupe(u, groupeId.trim(), p[0], p[1], filtre, search));
         }
         return json(service.liste(u, tp, p[0], p[1], filtre, search));
     }

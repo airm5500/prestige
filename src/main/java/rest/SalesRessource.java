@@ -146,6 +146,25 @@ public class SalesRessource {
     }
 
     /**
+     * Plan du 19/11, point 8 : ticket de la vente modifiee (« Ventes terminées », bouton « ticket vente modifiée ») :
+     * vente d'origine, vente modifiee, differences et reglement sur un seul papier.
+     */
+    @POST
+    @Path("ticket/modifiee/{id}")
+    public Response ticketVenteModifiee(@PathParam("id") String id) throws JSONException {
+        JSONObject json = suiviImpressionTicket.mesurer("vente/ticket/modifiee", login(null),
+                () -> generateTicketService.imprimerTicketVenteModifiee(id));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /** Plan du 19/11, point 8 : le meme ticket, bloc par bloc, sans impression (rapprochement). Lecture seule. */
+    @GET
+    @Path("ticket/modifiee/{id}/apercu")
+    public Response apercuTicketVenteModifiee(@PathParam("id") String id) throws JSONException {
+        return apercuTickets(() -> generateTicketService.apercuTicketVenteModifiee(id));
+    }
+
+    /**
      * Apercu du 05/11 : contenu du ticket de reimpression de la vente, bloc par bloc, sans impression (tests de
      * rapprochement ecran / ticket / base). Lecture seule.
      */
@@ -198,9 +217,11 @@ public class SalesRessource {
                     .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
                     .build();
         }
-        if (!"vno".equals(type) && !"vo".equals(type) && !"prevente".equals(type)) {
-            return Response.status(Response.Status.BAD_REQUEST).type("application/json").entity(new JSONObject()
-                    .put("success", false).put("msg", "Type de ticket inconnu : vno, vo ou prevente.").toString())
+        /* plan du 19/11, point 8 : « modifiee », le ticket de la vente modifiee */
+        if (!"vno".equals(type) && !"vo".equals(type) && !"prevente".equals(type) && !"modifiee".equals(type)) {
+            return Response.status(Response.Status.BAD_REQUEST).type("application/json")
+                    .entity(new JSONObject().put("success", false)
+                            .put("msg", "Type de ticket inconnu : vno, vo, prevente ou modifiee.").toString())
                     .build();
         }
         int mm = rest.service.ticket.ModeleTicketService.largeurValide(largeur == null ? 80 : largeur);

@@ -1399,6 +1399,19 @@ public class ReglementServiceImpl implements ReglementService {
         }
     }
 
+    /**
+     * Plan du 19/11 (BFR) : ce que les clients doivent au titre des differes, tous clients, a cet instant ; meme calcul
+     * que le solde global du releve des differes (ventes differees moins acompte, moins reglements).
+     */
+    static long soldeDifferes(EntityManager em, String emplacement) {
+        Number ventes = (Number) em
+                .createNativeQuery("SELECT COALESCE(SUM(" + DETTE_DIFFEREE + "), 0)" + VENTES_DIFFEREES)
+                .setParameter(1, emplacement).setParameter(2, "").getSingleResult();
+        Number regles = (Number) em.createNativeQuery("SELECT COALESCE(SUM(m.montantRegle), 0)" + REGLEMENTS)
+                .setParameter(1, emplacement).setParameter(2, "").getSingleResult();
+        return ventes.longValue() - regles.longValue();
+    }
+
     /** Point 16 : solde de chaque client au debut de la periode (ventes, annulations, reglements anterieurs). */
     @SuppressWarnings("unchecked")
     private static java.util.Map<String, Long> soldesDebutParClient(EntityManager em, String emplacement, String client,

@@ -5814,6 +5814,11 @@ public class SalesServiceImpl implements SalesService {
     @Override
     public JSONObject updateClientOrTierpayant(SalesParams salesParams) throws JSONException {
         try {
+            /* plan du 19/11, point 7 : rien de change -> rien n'est ecrit (ni copie, ni annulation, ni notification) */
+            if (infosClientSansChangement(salesParams)) {
+                return refusSansChangement(new JSONObject()).put("msg",
+                        "Aucun changement détecté : la vente n'a pas été modifiée.");
+            }
             if (!checkResumeCaisse(salesParams.getUserId()).isPresent()) {
                 return new JSONObject().put("success", false).put("msg",
                         "Désolé votre caisse est fermée. Veuillez l'ouvrir avant de proceder à l'annulation");
@@ -5867,6 +5872,39 @@ public class SalesServiceImpl implements SalesService {
             // échoué ». La transaction est donc annulee : la vente reste telle qu'elle etait.
             sessionContext.setRollbackOnly();
             return new JSONObject().put("success", false).put("msg", "l'opération a échoué");
+        }
+    }
+
+    /**
+     * Plan du 19/11, point 7 : la demande de « Modifier infos client » reprend-elle exactement la vente (client, ayant
+     * droit, lignes de tiers payant) ? En cas d'erreur de lecture : non (la modification suit son cours habituel).
+     */
+    boolean infosClientSansChangement(SalesParams salesParams) {
+        try {
+            TPreenregistrement vente = getEm().find(TPreenregistrement.class, salesParams.getVenteId());
+            if (vente == null) {
+                return false;
+            }
+            List<InfosClientSansChangement.Ligne> avant = getTPreenregistrementCompteClientTiersPayent(
+                    vente.getLgPREENREGISTREMENTID()).stream().map(l -> {
+                        TCompteClientTiersPayant c = l.getLgCOMPTECLIENTTIERSPAYANTID();
+                        return new InfosClientSansChangement.Ligne(l.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(),
+                                c == null ? null : c.getLgCOMPTECLIENTTIERSPAYANTID(), l.getStrREFBON(),
+                                valeur(l.getIntPERCENT()),
+                                c != null && c.getIntPRIORITY() != null && c.getIntPRIORITY() == 1);
+                    }).collect(Collectors.toList());
+            List<InfosClientSansChangement.Ligne> demande = salesParams.getTierspayants() == null ? null
+                    : salesParams
+                            .getTierspayants().stream().map(t -> new InfosClientSansChangement.Ligne(t.getItemId(),
+                                    t.getCompteTp(), t.getNumBon(), t.getTaux(), t.isPrincipal()))
+                            .collect(Collectors.toList());
+            return InfosClientSansChangement.sansChangement(
+                    vente.getClient() == null ? null : vente.getClient().getLgCLIENTID(),
+                    vente.getAyantDroit() == null ? null : vente.getAyantDroit().getLgAYANTSDROITSID(), avant,
+                    salesParams.getClientId(), salesParams.getAyantDroitId(), demande);
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "infosClientSansChangement", e);
+            return false;
         }
     }
 

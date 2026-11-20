@@ -192,6 +192,42 @@ public class TableauBordRessource {
         return Response.ok(o.put("success", !o.optBoolean("erreur", false)).toString()).build();
     }
 
+    @javax.ejb.EJB
+    private rest.service.impl.AnalyseMargesService analyseMarges;
+
+    /**
+     * Plan du 19/11, point 13 : produits qui apportent le plus de marge sur le mois (du 1er au jour choisi), memes
+     * regles et memes chiffres que l'onglet « Analyse » des marges ; limite 0 = « Voir plus ».
+     */
+    @GET
+    @Path("top-marges")
+    public Response topMarges(@QueryParam("date") String date, @DefaultValue("10") @QueryParam("limite") int limite,
+            @DefaultValue("0") @QueryParam("frais") int frais) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        LocalDate j = jour(date);
+        String e = emplacement(u);
+        return cache("top-marges|" + j + "|" + limite + "|" + e, COURT * 3, frais == 1,
+                () -> analyseMarges.topMarges(j.withDayOfMonth(1), j, e, limite));
+    }
+
+    /** Plan du 19/11 : carte « BFR », meme service que le menu ; reservee au droit du menu ; cache de 15 minutes. */
+    @javax.ejb.EJB
+    private rest.service.impl.BfrService bfr;
+
+    @GET
+    @Path("bfr")
+    public Response bfr(@DefaultValue("0") @QueryParam("frais") int frais) {
+        JSONObject refus = BfrRessource.refus(servletRequest);
+        if (refus != null) {
+            return Response.ok(refus.toString()).build();
+        }
+        String e = BfrRessource.emplacement(servletRequest);
+        return cache("bfr|" + e, COURT * 15, frais == 1, () -> bfr.calculer(e));
+    }
+
     @GET
     @Path("top-mois")
     public Response topMois(@QueryParam("date") String date, @DefaultValue("5") @QueryParam("limite") int limite,

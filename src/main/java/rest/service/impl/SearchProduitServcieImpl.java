@@ -405,13 +405,48 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         }
     }
 
+    /*
+     * Plan du 19/11, point 6 b : les huit droits de la fiche en UNE lecture. La procedure
+     * proc_getprivilege_user_for_product recreait a chaque appel une table temporaire (DROP puis CREATE TEMPORARY
+     * TABLE, fichiers sur disque sous Windows), puis huit lectures et une insertion. Meme regle : un droit est accorde
+     * si l'utilisateur a au moins un role qui porte le privilege actif de ce nom. Meme forme de resultat : { "1", huit
+     * Boolean }, dans l'ordre de la procedure.
+     */
+    static final String[] DROITS_PRODUIT = { "P_BT_DELETE", "P_BT_UPDATE", "P_UPDATE_PAF", "P_UPDATE_PRIXVENTE",
+            "P_UPDATE_CODETABLEAU", "P_UPDATE_CODEREMISE", "P_UPDATE_CIP", "P_UPDATE_DESIGNATION" };
+    static final String DROITS_PRODUIT_SQL;
+    static {
+        StringBuilder sb = new StringBuilder("SELECT ");
+        for (int i = 0; i < DROITS_PRODUIT.length; i++) {
+            sb.append(i > 0 ? ", " : "").append("COALESCE(SUM(p.str_NAME = '").append(DROITS_PRODUIT[i])
+                    .append("'), 0)");
+        }
+        DROITS_PRODUIT_SQL = sb.append(" FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID")
+                .append(" JOIN t_role r ON r.lg_ROLE_ID = ru.lg_ROLE_ID")
+                .append(" JOIN t_role_privelege rp ON rp.lg_ROLE_ID = r.lg_ROLE_ID")
+                .append(" JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID")
+                .append(" WHERE u.lg_USER_ID = ?1 AND p.str_STATUT = 'enable' AND p.str_NAME IN ('")
+                .append(String.join("', '", DROITS_PRODUIT)).append("')").toString();
+    }
+
     public Object[] getPrivilegeProductByUser(String userId) {
         try {
-            return (Object[]) em.createNativeQuery("call proc_getprivilege_user_for_product(?)").setParameter(1, userId)
+            Object[] compte = (Object[]) em.createNativeQuery(DROITS_PRODUIT_SQL).setParameter(1, userId)
                     .getSingleResult();
-
+            Object[] droits = new Object[DROITS_PRODUIT.length + 1];
+            droits[0] = "1";
+            for (int i = 0; i < DROITS_PRODUIT.length; i++) {
+                droits[i + 1] = compte[i] instanceof Number && ((Number) compte[i]).longValue() > 0;
+            }
+            return droits;
         } catch (Exception e) {
-            return null;
+            LOG.log(Level.FINE, "droits produit : repli sur la procedure", e);
+            try {
+                return (Object[]) em.createNativeQuery("call proc_getprivilege_user_for_product(?)")
+                        .setParameter(1, userId).getSingleResult();
+            } catch (Exception e2) {
+                return null;
+            }
         }
     }
 
@@ -847,6 +882,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     private JSONObject buildProduitData(boolean canceledAction, Object[] tuple, Object[] objArray, TUser user,
             String empl, boolean checkExpirationdate, boolean complet) {
         JSONObject json = new JSONObject();
+        Object[] datesGroupees = null;
         try {
             TFamille t = (TFamille) tuple[0];
             int stock = ((Number) tuple[1]).intValue();
@@ -1036,21 +1072,28 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             if (!complet) {
                 return json;
             }
-            try {
+            /* plan du 19/11, point 6 b : une lecture pour les quatre dates, repli sur les lectures separees */
+            datesGroupees = datesFiche(t.getLgFAMILLEID(), empl);
+            if (datesGroupees != null) {
+                json.put("dt_LAST_INVENTAIRE", datesGroupees[0]);
+                json.put("dt_LAST_VENTE", datesGroupees[1]);
+            } else {
+                try {
 
-                json.put("dt_LAST_INVENTAIRE", dateDerniereInventare(t.getLgFAMILLEID(), user));
-            } catch (Exception e) {
-                LOG.log(Level.SEVERE, null, e);
-            }
+                    json.put("dt_LAST_INVENTAIRE", dateDerniereInventare(t.getLgFAMILLEID(), user));
+                } catch (Exception e) {
+                    LOG.log(Level.SEVERE, null, e);
+                }
 
-            try {
+                try {
 
-                String dateVente = dateDerniereVente(t.getLgFAMILLEID(), user);
+                    String dateVente = dateDerniereVente(t.getLgFAMILLEID(), user);
 
-                json.put("dt_LAST_VENTE", dateVente);
+                    json.put("dt_LAST_VENTE", dateVente);
 
-            } catch (Exception e) {
-                LOG.log(Level.SEVERE, null, e);
+                } catch (Exception e) {
+                    LOG.log(Level.SEVERE, null, e);
+                }
             }
             // Vue details de la fiche article : date de peremption la plus proche (lot en stock, sinon fiche)
             // avec le numero du lot et sa quantite en stock
@@ -1059,24 +1102,34 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("lot_PEREMPTION_PROCHE", proche[1]);
             json.put("qte_PEREMPTION_PROCHE", proche[2]);
 
-            try {
+            if (datesGroupees != null) {
+                json.put("dt_LAST_ENTREE", datesGroupees[2]);
+            } else {
+                try {
 
-                String dateEntree = dateEntree(t.getLgFAMILLEID());
+                    String dateEntree = dateEntree(t.getLgFAMILLEID());
 
-                json.put("dt_LAST_ENTREE", dateEntree);
+                    json.put("dt_LAST_ENTREE", dateEntree);
 
-            } catch (Exception e) {
-                LOG.log(Level.SEVERE, null, e);
+                } catch (Exception e) {
+                    LOG.log(Level.SEVERE, null, e);
+                }
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
 
         TFamille t = (TFamille) tuple[0];
-        java.util.Date deliveryDate = findLatestDeliveryDate(t.getLgFAMILLEID());
+        if (datesGroupees != null) {
+            if (datesGroupees[3] != null) {
+                json.put("dt_DATE_LIVRAISON", datesGroupees[3]);
+            }
+        } else {
+            java.util.Date deliveryDate = findLatestDeliveryDate(t.getLgFAMILLEID());
 
-        if (deliveryDate != null) {
-            json.put("dt_DATE_LIVRAISON", DateConverter.convertDateToDD_MM_YYYY(deliveryDate));
+            if (deliveryDate != null) {
+                json.put("dt_DATE_LIVRAISON", DateConverter.convertDateToDD_MM_YYYY(deliveryDate));
+            }
         }
 
         json.put("produitState", new JSONObject(productStateService.getEtatProduit(t.getLgFAMILLEID())));
@@ -1283,6 +1336,56 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      */
     private static final String VENTE_VALIDE = " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
             + " WHERE u.lg_EMPLACEMENT_ID = ?2 AND p.b_IS_CANCEL = 0 AND p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0";
+
+    /*
+     * Plan du 19/11, point 6 b : les deux lectures de dateDerniereVente en une instruction (meme regle : la vente de la
+     * ligne la plus recente, sinon une vente valide cloturee apres elle). ?1 article, ?2 emplacement.
+     */
+    static final String DERNIERE_VENTE_SQL = "SELECT DATE_FORMAT(COALESCE((SELECT MAX(p.dt_UPDATED)"
+            + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d"
+            + " ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND d.lg_FAMILLE_ID = ?1" + VENTE_VALIDE
+            + " AND p.dt_UPDATED > v.a), v.a), '%d/%m/%Y %H:%i') FROM (SELECT (SELECT p.dt_UPDATED"
+            + " FROM t_preenregistrement_detail d"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID" + VENTE_VALIDE
+            + " AND d.lg_FAMILLE_ID = ?1 ORDER BY d.dt_CREATED DESC LIMIT 1) AS a) v";
+
+    /*
+     * Plan du 19/11, point 6 b : dates de la fiche « Detail » en UNE lecture (dernier inventaire clos de l'emplacement,
+     * derniere vente, derniere entree, derniere livraison) ; avant, cinq lectures separees. Chaque sous-requete reprend
+     * la regle de la methode qui la calculait seule (dateDerniereInventare, dateDerniereVente, dateEntree,
+     * findLatestDeliveryDate). Colonne 1 : 1 si un inventaire clos existe (sa date peut etre nulle).
+     */
+    static final String DATES_FICHE_SQL = "SELECT EXISTS (SELECT 1 FROM t_inventaire_famille f"
+            + " JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = f.lg_INVENTAIRE_ID JOIN t_user ui ON ui.lg_USER_ID = i.lg_USER_ID"
+            + " WHERE ui.lg_EMPLACEMENT_ID = ?2 AND i.str_STATUT = 'is_Closed' AND f.lg_FAMILLE_ID = ?1),"
+            + " (SELECT DATE_FORMAT(i.dt_UPDATED, '%d/%m/%Y %H:%i') FROM t_inventaire_famille f"
+            + " JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = f.lg_INVENTAIRE_ID JOIN t_user ui ON ui.lg_USER_ID = i.lg_USER_ID"
+            + " WHERE ui.lg_EMPLACEMENT_ID = ?2 AND i.str_STATUT = 'is_Closed' AND f.lg_FAMILLE_ID = ?1"
+            + " ORDER BY i.dt_UPDATED DESC LIMIT 1)," + " (" + DERNIERE_VENTE_SQL + "),"
+            + " (SELECT DATE_FORMAT(GREATEST(COALESCE(z.a, z.b), COALESCE(z.b, z.a)), '%d/%m/%Y %H:%i') FROM (SELECT y.a, ("
+            + ENTREE_SANS_MOUVEMENT_SQL + ") AS b FROM (SELECT (" + DERNIER_MOUVEMENT_ENTREE_SQL + ") AS a) y) z),"
+            + " (SELECT DATE_FORMAT(bl.dt_DATE_LIVRAISON, '%d/%m/%Y') FROM t_bon_livraison_detail bld"
+            + " INNER JOIN t_bon_livraison bl ON bld.lg_BON_LIVRAISON_ID = bl.lg_BON_LIVRAISON_ID"
+            + " WHERE bld.lg_FAMILLE_ID = ?1 AND bl.str_STATUT = 'is_Closed' ORDER BY bl.dt_DATE_LIVRAISON DESC LIMIT 1)";
+
+    /**
+     * { dt_LAST_INVENTAIRE, dt_LAST_VENTE, dt_LAST_ENTREE, dt_DATE_LIVRAISON } comme les quatre methodes separees
+     * (inventaire : "" sans inventaire clos ; vente et entree : "" ; livraison : null si aucune), ou null si la lecture
+     * groupee echoue (l'appelant revient alors aux methodes separees).
+     */
+    Object[] datesFiche(String produitId, String empl) {
+        try {
+            Object[] r = (Object[]) em.createNativeQuery(DATES_FICHE_SQL).setParameter(1, produitId)
+                    .setParameter(2, empl).getSingleResult();
+            boolean inventaire = r[0] instanceof Number ? ((Number) r[0]).intValue() != 0 : Boolean.TRUE.equals(r[0]);
+            return new Object[] { inventaire ? (r[1] == null ? null : r[1].toString()) : "",
+                    r[2] == null ? "" : r[2].toString(), r[3] == null ? "" : r[3].toString(),
+                    r[4] == null ? null : r[4].toString() };
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "datesFiche : repli sur les lectures separees", e);
+            return null;
+        }
+    }
 
     public String dateDerniereVente(String lgFAMILLEID, TUser user) {
         try {

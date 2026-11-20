@@ -62,7 +62,8 @@ const OBJ0 = ['KEY_OBJECTIF_TAUX_MARQUE', 'KEY_OBJECTIF_TAUX_MARGE'].map((k) => 
 
     /* ecran : septembre, objectifs */
     await p.evaluate(() => { const o = Ext.ComponentQuery.query('margeonglets')[0]; o.analyse.down('#mgDebut').setValue(new Date(2026, 8, 1)); o.analyse.down('#mgFin').setValue(new Date(2026, 8, 30)); o.afficher('analyse'); });
-    await p.waitForFunction(() => !!Ext.ComponentQuery.query('margeonglets')[0].donnees, null, { timeout: 60000 });
+    /* plan du 19/11, point 13 : la periode s'affiche d'abord, l'historique (moyennes, six mois) ensuite */
+    await p.waitForFunction(() => { const d = Ext.ComponentQuery.query('margeonglets')[0].donnees; return !!d && d.historique; }, null, { timeout: 60000 });
     const etat = () => p.evaluate(() => { const d = Ext.ComponentQuery.query('margeonglets #mgContenu')[0].getEl().dom;
       return { tuiles: [...d.querySelectorAll('.pml-tuile')].map((t) => t.className + ' :: ' + t.innerText.replace(/\s+/g, ' ')), comparaisons: d.querySelectorAll('tr.mg-comp').length,
         mois: d.querySelectorAll('tr.mg-mois').length, familles: d.querySelectorAll('tr.mg-famille').length, texte: d.innerText }; });

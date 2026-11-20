@@ -56,6 +56,42 @@ public class GroupeTierspayantRessource {
     @Inject
     private HttpServletRequest servletRequest;
 
+    @javax.ejb.EJB
+    private rest.service.ReleveGroupeFactureService releveGroupeFactureService;
+
+    /**
+     * Plan du 19/11, point 14 : releve des factures de groupe en Excel, sous-totaux par facture de groupe ou par tiers
+     * payant ; memes criteres, memes donnees et memes blocs que le PDF (releveFactureGroupeServlet).
+     */
+    @GET
+    @Path("releve/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response releveExcel(@QueryParam("dt_start") String dtStart, @QueryParam("dt_end") String dtEnd,
+            @QueryParam("lg_GROUPE_ID") String groupe, @QueryParam("search_value") String recherche,
+            @QueryParam("CODEGROUPE") String codeFacture, @QueryParam("regroupement") String regroupement)
+            throws java.io.IOException {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        String debut = StringUtils.isEmpty(dtStart) ? java.time.LocalDate.now().minusYears(1).toString() : dtStart;
+        String fin = StringUtils.isEmpty(dtEnd) ? java.time.LocalDate.now().toString() : dtEnd;
+        Integer idGroupe = 0;
+        try {
+            idGroupe = StringUtils.isEmpty(groupe) ? 0 : Integer.valueOf(groupe.trim());
+        } catch (NumberFormatException e) {
+            idGroupe = 0;
+        }
+        String mode = rest.service.ModeRegroupement.normaliser(regroupement);
+        rest.service.dto.ReleveGroupeFactureDTO d = releveGroupeFactureService.releve(debut, fin, idGroupe, recherche,
+                codeFacture, mode);
+        java.time.format.DateTimeFormatter f = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String periode = java.time.LocalDate.parse(debut).format(f) + " au " + java.time.LocalDate.parse(fin).format(f);
+        byte[] data = rest.report.excel.ReleveGroupeExcel.construire(d, mode, periode);
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"releve_factures_groupe_"
+                + (rest.service.ModeRegroupement.PAR_TIERS_PAYANT.equals(mode) ? "par_tiers_payant" : "par_facture")
+                + ".xlsx\"").build();
+    }
+
     private TUser utilisateurSession() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }

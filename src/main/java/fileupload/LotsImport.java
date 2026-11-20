@@ -19,14 +19,26 @@ public final class LotsImport {
 
     /** Ajoute une quantite au lot de meme numero et de meme date, ou cree le lot. */
     public static void ajouter(List<OrderDetailLot> lots, String numeroLot, String datePeremption, int quantite) {
+        ajouter(lots, numeroLot, datePeremption, quantite, 0);
+    }
+
+    /**
+     * Plan du 19/11, point 2 : meme regle, avec les unites gratuites de la ligne ({@code quantityGratuit} du lot). La
+     * quantite du lot reste celle des boites payees ; a la creation du BL, le lot entre pour payees + gratuites.
+     */
+    public static void ajouter(List<OrderDetailLot> lots, String numeroLot, String datePeremption, int quantite,
+            int gratuit) {
         String numero = vide(numeroLot), date = vide(datePeremption);
         for (OrderDetailLot l : lots) {
             if (Objects.equals(vide(l.getNumeroLot()), numero) && Objects.equals(vide(l.getDatePeremption()), date)) {
                 l.setQuantity(l.getQuantity() + quantite);
+                l.setQuantityGratuit(l.getQuantityGratuit() + gratuit);
                 return;
             }
         }
-        lots.add(new OrderDetailLot(numeroLot, datePeremption, quantite));
+        OrderDetailLot lot = new OrderDetailLot(numeroLot, datePeremption, quantite);
+        lot.setQuantityGratuit(gratuit);
+        lots.add(lot);
     }
 
     private static String vide(String s) {

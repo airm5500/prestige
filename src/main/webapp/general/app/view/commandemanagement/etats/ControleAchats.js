@@ -10,7 +10,8 @@
 Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
     extend: 'Ext.panel.Panel',
     xtype: 'controleachats',
-    requires: ['testextjs.view.commandemanagement.etats.EtatControleManager'],
+    requires: ['testextjs.view.commandemanagement.etats.EtatControleManager',
+        'testextjs.view.commandemanagement.etats.ReglementsFournisseurs'],
     layout: 'card',
     border: false,
     header: false,
@@ -21,7 +22,10 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
     },
 
     /* retour du 31/10 : onglet « BL annulés » (retours complets de BL) */
-    ONGLETS: [{cle: 'liste', texte: 'Liste des BL'}, {cle: 'tableau', texte: 'Tableau de bord'}, {cle: 'annules', texte: 'BL annulés'}],
+    /* plan du 19/11, point 12 : onglet « Modifications des BL » (journal des modifications et reglements de BL) */
+    /* plan du 19/11, point 16 : onglet « Règlements fournisseurs » (à régler, saisie, historique, date de départ) */
+    ONGLETS: [{cle: 'liste', texte: 'Liste des BL'}, {cle: 'tableau', texte: 'Tableau de bord'}, {cle: 'annules', texte: 'BL annulés'},
+        {cle: 'modifications', texte: 'Modifications des BL'}, {cle: 'reglements', texte: 'Règlements fournisseurs'}],
 
     initComponent: function () {
         var me = this;
@@ -31,8 +35,10 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
         me.habiller(me.liste);
         me.tableau = me.creerTableau();
         me.annules = me.creerAnnules();
+        me.modifications = me.creerModifications();
+        me.reglements = Ext.create('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {itemId: 'reglementsFrs'});
         Ext.apply(me, {
-            items: [me.liste, me.tableau, me.annules],
+            items: [me.liste, me.tableau, me.annules, me.modifications, me.reglements],
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsCa', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
@@ -77,6 +83,16 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
             me.reprendreCriteresAnnules();
             me.annules.getStore().load();
             return me.annules;
+        }
+        if (cle === 'reglements') {
+            me.getLayout().setActiveItem(me.reglements);
+            me.reglements.charger();
+            return me.reglements;
+        }
+        if (cle === 'modifications') {
+            me.getLayout().setActiveItem(me.modifications);
+            me.modifications.getStore().load();
+            return me.modifications;
         }
         me.getLayout().setActiveItem(me.liste);
         return me.liste;
@@ -136,6 +152,79 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
                 {text: 'Annulé par', dataIndex: 'annulePar', width: 170},
                 {text: 'Montant HT', dataIndex: 'montantHt', width: 110, align: 'right', renderer: montant},
                 {text: 'Montant TTC', dataIndex: 'montantTtc', width: 115, align: 'right', renderer: montant}
+            ]
+        });
+    },
+
+    /* ------------------------------------------------------------------ modifications des BL (plan du 19/11, point 12) */
+
+    /**
+     * Une ligne par information changee : date et auteur de l'operation, BL (numero actuel), grossiste actuel,
+     * operation (modification ou reglement), champ, valeur avant, valeur apres. Periode = date de l'operation.
+     */
+    creerModifications: function () {
+        var me = this, aujourdhui = new Date();
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['logId', 'groupe', 'date', 'tri', 'operation', 'utilisateur', 'bonId', 'numero', 'grossiste', 'champ', 'avant', 'apres'],
+            groupField: 'groupe', groupDir: 'DESC',
+            proxy: {type: 'ajax', url: '../api/v1/etat-control-bon/modifications', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
+            listeners: {beforeload: function (s) {
+                    var g = me.modifications;
+                    s.getProxy().extraParams = {
+                        dtStart: Ext.Date.format(g.down('#mbDebut').getValue() || aujourdhui, 'Y-m-d'),
+                        dtEnd: Ext.Date.format(g.down('#mbFin').getValue() || aujourdhui, 'Y-m-d'),
+                        search: g.down('#mbRecherche').getValue() || ''
+                    };
+                }, load: function (s, recs, ok) {
+                    var ops = {};
+                    s.each(function (r) {
+                        ops[r.get('groupe')] = true;
+                    });
+                    me.modifications.down('#mbTotal').setText(ok === false ? 'Chargement impossible'
+                            : Ext.Object.getKeys(ops).length + ' opération(s) · ' + s.getCount() + ' information(s) changée(s)');
+                }}
+        });
+        var charger = function () {
+            store.load();
+        };
+        var entree = {specialkey: function (f, e) {
+                if (e.getKey() === e.ENTER) {
+                    charger();
+                }
+            }};
+        var groupe = function (v) {
+            var r = store.findRecord('groupe', v.name, 0, false, true, true);
+            return r ? r.get('date') + ' · ' + r.get('operation') + ' du BL ' + Ext.String.htmlEncode(r.get('numero'))
+                    + ' (' + Ext.String.htmlEncode(r.get('grossiste')) + ') · ' + Ext.String.htmlEncode(r.get('utilisateur')) : '';
+        };
+        var texte = function (v) {
+            return Ext.String.htmlEncode(v || '');
+        };
+        return Ext.create('Ext.grid.Panel', {
+            itemId: 'gridModificationsBl', store: store, cls: 'ca-modifications', columnLines: true,
+            features: [{ftype: 'grouping', groupHeaderTpl: Ext.create('Ext.XTemplate', '{[this.texte(values)]}', {texte: groupe}),
+                    enableGroupingMenu: false, hideGroupedHeader: true}],
+            viewConfig: {emptyText: 'Aucune modification de BL sur la période.', deferEmptyText: false},
+            dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'barreModifications', items: [
+                        {xtype: 'datefield', itemId: 'mbDebut', fieldLabel: 'Modifiés du', labelWidth: 75, width: 188, format: 'd/m/Y',
+                            value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui, listeners: entree},
+                        {xtype: 'datefield', itemId: 'mbFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y',
+                            value: aujourdhui, maxValue: aujourdhui, listeners: entree},
+                        {xtype: 'textfield', itemId: 'mbRecherche', width: 260, emptyText: 'Numéro de BL, grossiste ou valeur (contient)',
+                            enableKeyEvents: true, listeners: entree},
+                        {text: 'Rechercher', itemId: 'mbRechercher', iconCls: 'searchicon', handler: charger},
+                        '->', {xtype: 'tbtext', itemId: 'mbTotal', text: ''}]}],
+            columns: [
+                {text: 'Date', dataIndex: 'date', width: 125},
+                {text: 'Opération', dataIndex: 'operation', width: 100},
+                {text: 'BL', dataIndex: 'numero', width: 130, renderer: texte},
+                {text: 'Grossiste', dataIndex: 'grossiste', width: 170, renderer: texte},
+                {text: 'Information', dataIndex: 'champ', width: 140},
+                {text: 'Avant', dataIndex: 'avant', flex: 1, minWidth: 140, renderer: texte},
+                {text: 'Après', dataIndex: 'apres', flex: 1, minWidth: 140, renderer: function (v) {
+                        return '<b>' + texte(v) + '</b>';
+                    }},
+                {text: 'Par', dataIndex: 'utilisateur', width: 160, renderer: texte}
             ]
         });
     },

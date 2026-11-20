@@ -185,6 +185,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
                 dockedItems: [{xtype: 'toolbar', dock: 'top', style: 'background:#eef5fc', items: [
                             {xtype: 'tbtext', itemId: 'lrImportResume', text: ''},
                             '->',
+                            /* plan du 19/11, point 9 : liste entiere des codes non retenus (inconnus, ambigus, en double) */
+                            {xtype: 'button', itemId: 'lrImportExcel', text: 'Excel des codes non retenus', iconCls: 'export_excel_icon', hidden: true,
+                                handler: function (b) {
+                                    me.excelNonRetenus(b);
+                                }},
+                            {xtype: 'button', itemId: 'lrImportImprimer', text: 'Imprimer', iconCls: 'printable', hidden: true,
+                                handler: function (b) {
+                                    me.imprimerNonRetenus(b);
+                                }},
                             {xtype: 'button', itemId: 'lrImportValider', text: 'Cocher', cls: 'btn-primary', disabled: true,
                                 handler: function (b) {
                                     me.validerImport(b);
@@ -208,7 +217,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
                                             : coche ? '<b style="color:#17795f">Coché</b>' : 'À cocher';
                                 }}
                         ]},
-                    {xtype: 'component', itemId: 'lrImportDetail', padding: '4 8', style: 'color:#5b6b7c', html: ''}]
+                    {xtype: 'component', itemId: 'lrImportDetail', padding: '4 8', style: 'color:#5b6b7c', html: '', maxHeight: 160, autoScroll: true}]
             }, {
                 xtype: 'pagingtoolbar', dock: 'bottom', store: me.store, displayInfo: true,
                 displayMsg: 'Produits {0} à {1} sur {2} · les coches sont gardées en changeant de page ou de filtre',
@@ -668,8 +677,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
         }
         me.down('#lrImportResume').setText(t);
         var detail = [];
+        /* plan du 19/11, point 9 : tous les codes inconnus (avant : 30 au plus), et les codes en double un par un */
         if (d.inconnus.length) {
-            detail.push('<b>Inconnus</b> : ' + e(d.inconnus.slice(0, 30).join(', ')) + (d.inconnus.length > 30 ? '…' : ''));
+            detail.push('<b>Inconnus (' + d.inconnus.length + ')</b> : <span class="lr-inconnus">' + e(d.inconnus.join(', ')) + '</span>');
+        }
+        if (d.enDouble && d.enDouble.length) {
+            detail.push('<b>En double (' + d.enDouble.length + ')</b> : ' + Ext.Array.map(d.enDouble, function (x) {
+                return '<span class="lr-double">' + e(x.code) + ' → ' + e(x.designation) + ' (' + e(me.detailEnDouble(x)) + ')</span>';
+            }).join(' ; '));
         }
         if (d.ambigus.length) {
             detail.push('<b>Ambigus</b> (plusieurs produits, à cocher à la main) : ' + Ext.Array.map(d.ambigus.slice(0, 10), function (a) {
@@ -679,11 +694,84 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
         if (d.ignorees) {
             detail.push(d.ignorees + ' cellule(s) ignorée(s) (en-tête, texte, nombre trop court)');
         }
-        var det = me.down('#lrImportDetail');
+        var det = me.down('#lrImportDetail'), nonRetenus = me.lignesNonRetenus().length > 0;
         det.update(detail.join('<br>'));
         det.setVisible(detail.length > 0);
+        me.down('#lrImportExcel').setVisible(nonRetenus);
+        me.down('#lrImportImprimer').setVisible(nonRetenus);
         me.majImport();
         p.show();
+    },
+
+    /* plan du 19/11, point 9 : memes regles que ImportReserveExcel.detailEnDouble */
+    detailEnDouble: function (x) {
+        var l = [];
+        if ((x.fois || 1) > 1) {
+            l.push('lu ' + x.fois + ' fois');
+        }
+        if (x.memeQue) {
+            l.push('même produit que ' + x.memeQue);
+        }
+        return l.join(' ; ');
+    },
+
+    /* lignes {motif, code, designation, detail} dans l'ordre de ImportReserveExcel.lignes : l'impression et l'Excel
+       montrent les memes lignes */
+    lignesNonRetenus: function () {
+        var me = this, d = me.importe || {}, l = [];
+        Ext.Array.each(d.inconnus || [], function (c) {
+            l.push(['Inconnu', c, '', 'aucun produit ne porte ce code']);
+        });
+        Ext.Array.each(d.ambigus || [], function (a) {
+            l.push(['Ambigu', a.code, (a.produits || []).join(' / '), 'à cocher à la main']);
+        });
+        Ext.Array.each(d.enDouble || [], function (x) {
+            l.push(['En double', x.code, x.designation, me.detailEnDouble(x)]);
+        });
+        return l;
+    },
+
+    excelNonRetenus: function (b) {
+        var d = this.importe || {};
+        PrestigeChargement.telecharger(b, '../api/v1/reserve/liste/import/excel', 'Excel', 'import_reserve_codes_non_retenus.xlsx',
+                {method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: Ext.JSON.encode({lus: d.lus, inconnus: d.inconnus || [], ambigus: d.ambigus || [], enDouble: d.enDouble || []})});
+    },
+
+    /* impression par le navigateur, dans un cadre invisible (pas de fenetre) : titre, date, compte, tableau */
+    imprimerNonRetenus: function (b) {
+        var me = this, e = Ext.String.htmlEncode, l = me.lignesNonRetenus(), d = me.importe || {};
+        var compte = {Inconnu: 0, Ambigu: 0, 'En double': 0};
+        Ext.Array.each(l, function (x) {
+            compte[x[0]]++;
+        });
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Import liste réserve : codes non retenus</title>'
+                + '<style>body{font:12px Arial,sans-serif;margin:12mm}h3{margin:0 0 4px}p{margin:0 0 8px;color:#444}'
+                + 'table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:3px 6px;text-align:left;vertical-align:top}'
+                + 'th{background:#eee}tr{page-break-inside:avoid}</style></head><body>'
+                + '<h3>IMPORT LISTE RÉSERVE : CODES NON RETENUS</h3>'
+                + '<p>' + e(Ext.Date.format(new Date(), 'd/m/Y H:i')) + ' · ' + (d.lus || 0) + ' code(s) lu(s) · ' + compte.Inconnu + ' inconnu(s) · '
+                + compte.Ambigu + ' ambigu(s) · ' + compte['En double'] + ' code(s) en double</p>'
+                + '<table class="lr-non-retenus"><thead><tr><th>Motif</th><th>Code</th><th>Désignation</th><th>Détail</th></tr></thead><tbody>'
+                + Ext.Array.map(l, function (x) {
+                    return '<tr><td>' + e(x[0]) + '</td><td>' + e(x[1]) + '</td><td>' + e(x[2]) + '</td><td>' + e(x[3]) + '</td></tr>';
+                }).join('') + '</tbody></table></body></html>';
+        var ancien = document.getElementById('lr-impression-non-retenus');
+        if (ancien) {
+            ancien.parentNode.removeChild(ancien);
+        }
+        var f = document.createElement('iframe');
+        f.id = 'lr-impression-non-retenus';
+        f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+        document.body.appendChild(f);
+        var doc = f.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+        setTimeout(function () {
+            f.contentWindow.focus();
+            f.contentWindow.print();
+        }, 100);
     },
 
     majImport: function () {

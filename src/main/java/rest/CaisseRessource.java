@@ -111,6 +111,71 @@ public class CaisseRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Plan du 19/11, point 15 : export CSV ou Excel de « Liste de caisse » et de « Visualiser la caisse ». Memes
+     * criteres et memes donnees que l'ecran (meme service), mais toute la periode et non la seule page affichee : les
+     * mouvements, puis les totaux par mode de reglement de la barre du bas.
+     */
+    @GET
+    @Path("listecaisse/export")
+    public Response exporterListeCaisse(@QueryParam("format") String format, @QueryParam("ecran") String ecran,
+            @QueryParam(value = "user") String lgUserId, @QueryParam(value = "reglement") String lgTypeReglementId,
+            @QueryParam(value = "startDate") String dtDateDebut, @QueryParam(value = "endDate") String dtDateFin,
+            @QueryParam(value = "startH") String hdebut, @QueryParam(value = "endH") String hfin,
+            @QueryParam("reglementLibelle") String reglementLibelle,
+            @QueryParam("utilisateurLibelle") String utilisateurLibelle) throws java.io.IOException {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        CaisseParamsDTO caisseParams = new CaisseParamsDTO();
+        caisseParams.setAll(true);
+        LocalDate debut = StringUtils.isEmpty(dtDateDebut) ? LocalDate.now() : LocalDate.parse(dtDateDebut);
+        LocalDate fin = StringUtils.isEmpty(dtDateFin) ? LocalDate.now() : LocalDate.parse(dtDateFin);
+        caisseParams.setStartDate(debut);
+        caisseParams.setEnd(fin);
+        if (!StringUtils.isEmpty(hdebut)) {
+            caisseParams.setStartHour(LocalTime.parse(hdebut));
+        }
+        if (!StringUtils.isEmpty(hfin)) {
+            caisseParams.setStartEnd(LocalTime.parse(hfin));
+        }
+        if (!StringUtils.isEmpty(lgTypeReglementId)) {
+            caisseParams.setTypeReglementId(lgTypeReglementId);
+        }
+        if (!StringUtils.isEmpty(lgUserId)) {
+            caisseParams.setUtilisateurId(lgUserId);
+        }
+        caisseParams.setEmplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        List<rest.service.v2.dto.VisualisationCaisseDTO> mouvements = listCaisseService.fetchAllExport(caisseParams);
+        /* comme l'ecran : sans mouvement, pas de totaux */
+        List<commonTasks.dto.SumCaisseDTO> totaux = mouvements.isEmpty() ? java.util.Collections.emptyList()
+                : listCaisseService.fetchSummary(caisseParams);
+        List<rest.report.excel.ListeCaisseExport.Ligne> lignes = rest.report.excel.ListeCaisseExport.lignes(mouvements,
+                totaux);
+        boolean visualisation = "visualisation".equalsIgnoreCase(ecran);
+        String nom = (visualisation ? "visualisation_caisse_" : "liste_caisse_") + debut + "_" + fin;
+        if ("csv".equalsIgnoreCase(format)) {
+            return Response.ok(rest.report.excel.ListeCaisseExport.csv(lignes), "text/csv; charset=UTF-8")
+                    .header("Content-Disposition", "attachment; filename=\"" + nom + ".csv\"").build();
+        }
+        java.time.format.DateTimeFormatter f = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        List<String> criteres = new java.util.ArrayList<>();
+        criteres.add("Période : du " + debut.format(f) + (StringUtils.isEmpty(hdebut) ? "" : " " + hdebut) + " au "
+                + fin.format(f) + (StringUtils.isEmpty(hfin) ? "" : " " + hfin));
+        if (!StringUtils.isEmpty(lgTypeReglementId)) {
+            criteres.add("Type de règlement : "
+                    + (StringUtils.isEmpty(reglementLibelle) ? lgTypeReglementId : reglementLibelle));
+        }
+        if (!StringUtils.isEmpty(lgUserId)) {
+            criteres.add("Utilisateur : " + (StringUtils.isEmpty(utilisateurLibelle) ? lgUserId : utilisateurLibelle));
+        }
+        byte[] data = rest.report.excel.ListeCaisseExport.excel(lignes,
+                visualisation ? "Visualisation de la caisse" : "Liste de caisse", criteres);
+        return Response.ok(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("Content-Disposition", "attachment; filename=\"" + nom + ".xlsx\"").build();
+    }
+
     @GET
     @Path("balancesalecash")
     public Response balanceCaisse(@QueryParam(value = "dtStart") String dtStart,

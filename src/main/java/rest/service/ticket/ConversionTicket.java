@@ -828,7 +828,8 @@ public final class ConversionTicket {
     /** Montant suivi de l'unite : « F CFA », ou « F » sur un rouleau de 58 mm. */
     private String montantF(String v) {
         String m = montant(v);
-        if (m.isEmpty() || !m.matches("-?[\\d ]+")) {
+        // plan du 19/11, point 8 : un ecart positif (« +1 500 ») garde son unite, comme un montant
+        if (m.isEmpty() || !m.matches("[-+]?[\\d ]+")) {
             return m;
         }
         return m + (court ? " F" : " F CFA");
