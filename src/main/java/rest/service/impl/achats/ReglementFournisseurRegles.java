@@ -32,6 +32,8 @@ public final class ReglementFournisseurRegles {
     public static final String VIREMENT = "VIREMENT";
     public static final String MOBILE_MONEY = "MOBILE_MONEY";
     public static final List<String> MODES = List.of(ESPECES, CHEQUE, VIREMENT, MOBILE_MONEY);
+    /** Reglement fait par l'ancienne fenetre « Regler les BL » (jamais choisi dans l'onglet). */
+    public static final String ANCIEN_ECRAN = "ANCIEN_ECRAN";
 
     private ReglementFournisseurRegles() {
     }
@@ -135,6 +137,34 @@ public final class ReglementFournisseurRegles {
         return parts;
     }
 
+    /**
+     * Ancienne fenetre « Regler les BL » : elle donne le montant regle VOULU du BL (0, une partie, ou le TTC), pas un
+     * versement. Ce qui manque devient un reglement « Regler les BL » ; une baisse n'est permise que si le BL n'a aucun
+     * reglement de l'onglet (elle annulerait des parts sans trace) : elle annule alors les reglements « Regler les BL »
+     * du BL, et ce qui reste au-dessus de la cible (ancien regle sans historique) est simplement ramene a la cible.
+     *
+     * @param regle
+     *            regle actuel du BL
+     * @param partsOnglet
+     *            parts actives des reglements de l'onglet
+     * @param partsAncien
+     *            parts actives des reglements « Regler les BL »
+     *
+     * @return {0 : parts « Regler les BL » a annuler (toutes : 1, aucune : 0), 1 : nouveau reglement « Regler les BL »,
+     *         2 : regle final} ; null si la baisse est refusee
+     */
+    public static int[] ajustementAncienEcran(int ttc, int regle, int partsOnglet, int partsAncien, int cible) {
+        int c = Math.max(0, Math.min(cible, Math.max(0, ttc)));
+        if (c >= regle) {
+            return new int[] { 0, c - regle, c };
+        }
+        if (partsOnglet > 0) {
+            return null;
+        }
+        int sansAncien = Math.max(0, regle - partsAncien);
+        return new int[] { partsAncien > 0 ? 1 : 0, Math.max(0, c - sansAncien), c };
+    }
+
     /** Tranche d'age d'un BL au jour donne. */
     public static String tranche(LocalDate dateBl, LocalDate jour) {
         long j = dateBl == null ? 0 : Math.max(0, ChronoUnit.DAYS.between(dateBl, jour));
@@ -173,6 +203,8 @@ public final class ReglementFournisseurRegles {
             return "Virement";
         case MOBILE_MONEY:
             return "Mobile money";
+        case ANCIEN_ECRAN:
+            return "Régler les BL";
         default:
             return mode == null ? "" : mode;
         }

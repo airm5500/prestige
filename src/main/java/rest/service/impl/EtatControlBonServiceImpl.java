@@ -105,6 +105,9 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     private static final String DATE_TYPE_ENTREE = "ENTREE";
     @EJB
     private ExcelGeneratorService excelGeneratorService;
+    /** Plan du 19/11, point 16 : « Regler les BL » passe par le cumul et l'historique des reglements fournisseurs. */
+    @EJB
+    private rest.service.ReglementFournisseurService reglementFournisseurService;
 
     /**
      * Journal du support du 03/11 : une date videe a l'ecran (ou absente) donnait une erreur. Elle vaut la date du
@@ -854,6 +857,26 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             return json.put("success", false).put("msg", "Veuillez indiquer le montant réglé.");
         }
         int marques = 0;
+        /*
+         * Plan du 19/11, point 16 : avec un utilisateur (ecran), le montant regle voulu passe par le cumul et
+         * l'historique des reglements fournisseurs ; une baisse sous les reglements de l'onglet est refusee pour tout
+         * le lot, avant toute ecriture.
+         */
+        if (user != null) {
+            List<String> refus = new ArrayList<>();
+            for (String id : bonIds) {
+                TBonLivraison bon = getById(id);
+                if (bon != null) {
+                    String r = reglementFournisseurService.refusAncienEcran(id, cible(bon, etat, montantRegle));
+                    if (r != null) {
+                        refus.add(r);
+                    }
+                }
+            }
+            if (!refus.isEmpty()) {
+                return json.put("success", false).put("msg", String.join(" ", refus));
+            }
+        }
         try {
             for (String id : bonIds) {
                 TBonLivraison bon = getById(id);
@@ -869,20 +892,25 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                 Integer regleAvant = bon.getIntMONTANTREGLE();
                 Integer resteAvant = bon.getIntMONTANTRESTANT();
                 Date dateAvant = bon.getDtREGLEMENTDATE();
-                bon.setSTATUS(etat);
-                bon.setDtREGLEMENTDATE(date);
-                if (NON_REGLE.equals(etat)) {
-                    bon.setIntMONTANTREGLE(0);
-                    bon.setIntMONTANTRESTANT(ttc);
-                } else if (REGLE_EN_PARTIE.equals(etat)) {
-                    int verse = Math.min(montantRegle, ttc);
-                    bon.setIntMONTANTREGLE(verse);
-                    bon.setIntMONTANTRESTANT(ttc - verse);
+                if (user != null) {
+                    reglementFournisseurService.ajusterAncienEcran(user, id, cible(bon, etat, montantRegle),
+                            date == null ? null : jourDe(date));
                 } else {
-                    bon.setIntMONTANTREGLE(ttc);
-                    bon.setIntMONTANTRESTANT(0);
+                    bon.setSTATUS(etat);
+                    bon.setDtREGLEMENTDATE(date);
+                    if (NON_REGLE.equals(etat)) {
+                        bon.setIntMONTANTREGLE(0);
+                        bon.setIntMONTANTRESTANT(ttc);
+                    } else if (REGLE_EN_PARTIE.equals(etat)) {
+                        int verse = Math.min(montantRegle, ttc);
+                        bon.setIntMONTANTREGLE(verse);
+                        bon.setIntMONTANTRESTANT(ttc - verse);
+                    } else {
+                        bon.setIntMONTANTREGLE(ttc);
+                        bon.setIntMONTANTRESTANT(0);
+                    }
+                    em.merge(bon);
                 }
-                em.merge(bon);
                 /* plan du 19/11, point 12 : le reglement est trace au journal, avant / apres */
                 List<ModificationBl.Champ> champs = new ArrayList<>();
                 ModificationBl.ajouter(champs, ModificationBl.STATUT, ModificationBl.texte(statutAvant),
@@ -905,6 +933,15 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             return json.put("success", false).put("msg", "Aucun des bons sélectionnés n'a été retrouvé.");
         }
         return json.put("success", true).put("count", marques).put("statut", etat);
+    }
+
+    /** Montant regle voulu par « Regler les BL » : 0, la partie saisie (au plus le TTC), ou le TTC. */
+    private static int cible(TBonLivraison bon, String etat, Integer montantRegle) {
+        int ttc = bon.getIntHTTC() != null ? Math.max(0, bon.getIntHTTC()) : 0;
+        if (NON_REGLE.equals(etat)) {
+            return 0;
+        }
+        return REGLE_EN_PARTIE.equals(etat) ? Math.min(montantRegle == null ? 0 : montantRegle, ttc) : ttc;
     }
 
     @Override

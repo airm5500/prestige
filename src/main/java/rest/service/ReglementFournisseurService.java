@@ -39,4 +39,16 @@ public interface ReglementFournisseurService {
     JSONObject releve(String grossisteId, String dtStart, String dtEnd);
 
     String officine();
+
+    /**
+     * Ancienne fenetre « Regler les BL » : message de refus si le montant regle voulu baisserait des parts de l'onglet,
+     * null sinon.
+     */
+    String refusAncienEcran(String blId, int cible);
+
+    /**
+     * Ancienne fenetre « Regler les BL » : amene le regle du BL a la cible par le cumul et l'historique (reglement «
+     * Regler les BL » pour ce qui manque ; annulation des reglements « Regler les BL » pour une baisse).
+     */
+    void ajusterAncienEcran(TUser user, String blId, int cible, java.time.LocalDate date);
 }

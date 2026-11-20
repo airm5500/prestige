@@ -469,6 +469,92 @@ public class ReglementFournisseurServiceImpl implements ReglementFournisseurServ
                 .executeUpdate();
     }
 
+    /* ------------------------------------------------------------------ ancienne fenetre « Regler les BL » */
+
+    /** Parts actives sur un BL : {onglet, « Regler les BL »}. */
+    private int[] partsActives(String blId) {
+        Object[] r = (Object[]) em
+                .createNativeQuery("SELECT IFNULL(SUM(CASE WHEN f.mode <> ?2 THEN p.montant END), 0)"
+                        + " AS onglet, IFNULL(SUM(CASE WHEN f.mode = ?2 THEN p.montant END), 0) AS ancien"
+                        + " FROM reglement_fournisseur_bl p JOIN reglement_fournisseur f ON f.id = p.reglement_id"
+                        + " WHERE p.bl_id = ?1 AND f.annule = 0")
+                .setParameter(1, blId).setParameter(2, ReglementFournisseurRegles.ANCIEN_ECRAN).getSingleResult();
+        return new int[] { entier(r[0]), entier(r[1]) };
+    }
+
+    private int[] ajustement(TBonLivraison bon, int cible) {
+        int ttc = bon.getIntHTTC() == null ? 0 : Math.max(0, bon.getIntHTTC());
+        int regle = ReglementFournisseurRegles.regle(ttc, bon.getIntMONTANTREGLE(), bon.getSTATUS());
+        int[] parts = partsActives(bon.getLgBONLIVRAISONID());
+        return ReglementFournisseurRegles.ajustementAncienEcran(ttc, regle, parts[0], parts[1], cible);
+    }
+
+    @Override
+    public String refusAncienEcran(String blId, int cible) {
+        TBonLivraison bon = em.find(TBonLivraison.class, blId);
+        if (bon == null || ajustement(bon, cible) != null) {
+            return null;
+        }
+        return "Le BL n° " + bon.getStrREFLIVRAISON() + " a des règlements dans l'onglet « Règlements fournisseurs »"
+                + " (réglé : " + montant(partsActives(blId)[0]) + ") : annulez-les depuis l'onglet.";
+    }
+
+    @Override
+    public void ajusterAncienEcran(TUser user, String blId, int cible, LocalDate date) {
+        TBonLivraison bon = em.find(TBonLivraison.class, blId);
+        if (bon == null) {
+            return;
+        }
+        int[] a = ajustement(bon, cible);
+        if (a == null) {
+            throw new ReglementFournisseurRegles.Refus(refusAncienEcran(blId, cible));
+        }
+        LocalDate jour = date == null ? LocalDate.now() : date;
+        dal.TOrder order = bon.getLgORDERID();
+        String grossisteId = order != null && order.getLgGROSSISTEID() != null
+                ? order.getLgGROSSISTEID().getLgGROSSISTEID() : null;
+        String grossiste = order != null && order.getLgGROSSISTEID() != null ? order.getLgGROSSISTEID().getStrLIBELLE()
+                : "";
+        if (a[0] == 1) {
+            @SuppressWarnings("unchecked")
+            List<Object[]> anciens = em
+                    .createNativeQuery("SELECT DISTINCT f.id, f.reference, f.montant"
+                            + " FROM reglement_fournisseur f JOIN reglement_fournisseur_bl p ON p.reglement_id = f.id"
+                            + " WHERE p.bl_id = ?1 AND f.annule = 0 AND f.mode = ?2")
+                    .setParameter(1, blId).setParameter(2, ReglementFournisseurRegles.ANCIEN_ECRAN).getResultList();
+            for (Object[] f : anciens) {
+                em.createNativeQuery("UPDATE reglement_fournisseur SET annule = 1, annule_le = ?2, annule_par = ?3"
+                        + " WHERE id = ?1").setParameter(1, f[0])
+                        .setParameter(2, java.sql.Timestamp.valueOf(LocalDateTime.now()))
+                        .setParameter(3, user.getLgUSERID()).executeUpdate();
+                journal(user, TypeLog.ANNULATION_REGLEMENT_FOURNISSEUR, "reglement_fournisseur", (String) f[0],
+                        "Annulation du règlement fournisseur " + f[1] + " de " + montant(entier(f[2])) + " à "
+                                + grossiste + " (Régler les BL) par " + nom(user),
+                        "BL n° " + bon.getStrREFLIVRAISON() + " : " + montant(entier(f[2])));
+            }
+        }
+        if (a[1] > 0 && grossisteId != null) {
+            String id = UUID.randomUUID().toString();
+            String reference = reference(jour);
+            em.createNativeQuery(
+                    "INSERT INTO reglement_fournisseur (id, reference, grossiste_id, montant, date_reglement,"
+                            + " mode, reference_paiement, user_id, created_at, annule) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7,"
+                            + " ?8, 0)")
+                    .setParameter(1, id).setParameter(2, reference).setParameter(3, grossisteId).setParameter(4, a[1])
+                    .setParameter(5, java.sql.Date.valueOf(jour))
+                    .setParameter(6, ReglementFournisseurRegles.ANCIEN_ECRAN).setParameter(7, user.getLgUSERID())
+                    .setParameter(8, java.sql.Timestamp.valueOf(LocalDateTime.now())).executeUpdate();
+            em.createNativeQuery("INSERT INTO reglement_fournisseur_bl (id, reglement_id, bl_id, montant)"
+                    + " VALUES (?1, ?2, ?3, ?4)").setParameter(1, UUID.randomUUID().toString()).setParameter(2, id)
+                    .setParameter(3, blId).setParameter(4, a[1]).executeUpdate();
+            journal(user, TypeLog.REGLEMENT_FOURNISSEUR, "reglement_fournisseur", id,
+                    "Règlement fournisseur " + reference + " de " + montant(a[1]) + " à " + grossiste
+                            + " (Régler les BL) par " + nom(user) + " : 1 BL",
+                    "BL n° " + bon.getStrREFLIVRAISON() + " : " + montant(a[1]));
+        }
+        appliquer(blId, a[2], jour);
+    }
+
     /* ------------------------------------------------------------------ annulation */
 
     @Override

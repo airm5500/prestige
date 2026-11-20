@@ -177,4 +177,84 @@ class ReglementFournisseurCoherenceTest {
         assertTrue(ReglementFournisseurRegles.suivi(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 1)));
         assertTrue(!ReglementFournisseurRegles.suivi(LocalDate.of(2026, 10, 31), LocalDate.of(2026, 11, 1)));
     }
+
+    /**
+     * Ancienne fenetre « Regler les BL » melee aux reglements de l'onglet, sur 3 000 BL tires au hasard (graine fixe),
+     * 40 operations chacun : le regle du BL vaut toujours l'ancien regle sans historique + les parts actives ; il ne
+     * descend jamais sous les parts de l'onglet ; une baisse refusee ne change rien ; jamais negatif ni au-dessus du
+     * TTC.
+     */
+    @Test
+    void ancienneFenetreEtOngletCumulent() {
+        Random r = new Random(20261121L);
+        int refus = 0, hausses = 0, baisses = 0, annulations = 0;
+        for (int n = 0; n < 3000; n++) {
+            int ttc = r.nextInt(10) == 0 ? 0 : 1 + r.nextInt(500000);
+            int sansHisto = r.nextBoolean() ? 0 : r.nextInt(ttc + 1); // regle d'avant le suivi (sans historique)
+            int onglet = 0, ancien = 0;
+            for (int k = 0; k < 40; k++) {
+                int regle = sansHisto + onglet + ancien;
+                assertTrue(regle >= 0 && regle <= ttc, "regle hors bornes : " + regle + " / " + ttc);
+                int choix = r.nextInt(5);
+                if (choix == 0) {
+                    int du = ttc - regle;
+                    if (du > 0) {
+                        onglet += 1 + r.nextInt(du); // reglement de l'onglet
+                    }
+                    continue;
+                }
+                if (choix == 1 && onglet > 0) {
+                    onglet -= 1 + r.nextInt(onglet); // annulation dans l'onglet
+                    continue;
+                }
+                int cible;
+                switch (r.nextInt(4)) {
+                case 0:
+                    cible = 0; // « non regle »
+                    break;
+                case 1:
+                    cible = ttc; // « regle »
+                    break;
+                case 2:
+                    cible = regle; // meme montant
+                    break;
+                default:
+                    cible = r.nextInt(ttc + 2000) - 500; // « en partie », parfois hors bornes
+                }
+                int[] a = ReglementFournisseurRegles.ajustementAncienEcran(ttc, regle, onglet, ancien, cible);
+                int c = Math.max(0, Math.min(cible, ttc));
+                if (a == null) {
+                    refus++;
+                    assertTrue(c < regle && onglet > 0, "refus injustifie");
+                    continue;
+                }
+                assertEquals(c, a[2], "regle final = cible bornee");
+                assertTrue(a[1] >= 0, "reglement negatif");
+                if (c >= regle) {
+                    hausses++;
+                    assertEquals(0, a[0]);
+                    assertEquals(c - regle, a[1], "le reglement « Regler les BL » = ce qui manque");
+                    ancien += a[1];
+                } else {
+                    baisses++;
+                    assertEquals(0, onglet, "baisse avec des parts de l'onglet");
+                    if (a[0] == 1) {
+                        annulations++;
+                        ancien = 0;
+                    } else {
+                        assertEquals(0, ancien);
+                    }
+                    ancien += a[1];
+                    sansHisto = c - ancien; // le regle sans historique peut seulement baisser
+                }
+                assertTrue(sansHisto >= 0, "regle sans historique negatif");
+                assertEquals(a[2], sansHisto + onglet + ancien, "regle = sans historique + parts actives");
+            }
+        }
+        assertTrue(refus > 1000 && hausses > 1000 && baisses > 1000 && annulations > 500,
+                refus + " / " + hausses + " / " + baisses + " / " + annulations);
+        assertEquals("Régler les BL", ReglementFournisseurRegles.libelleMode(ReglementFournisseurRegles.ANCIEN_ECRAN));
+        assertThrows(ReglementFournisseurRegles.Refus.class,
+                () -> ReglementFournisseurRegles.mode(ReglementFournisseurRegles.ANCIEN_ECRAN));
+    }
 }
