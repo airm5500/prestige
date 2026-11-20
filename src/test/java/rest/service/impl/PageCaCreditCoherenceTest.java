@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
  * <li>sans {@code limit} ni filtre : la liste d'origine, telle quelle (meme objet, meme ordre) ;</li>
  * <li>total = nombre de lignes apres filtres ; montant = leur somme ; clients = clients distincts apres filtres ;</li>
  * <li>tiersPayants = libelles distincts de la periode, AVANT les filtres, tries ;</li>
+ * <li>tiersPayantsRetenus = nombre de libelles distincts des lignes retenues, APRES les filtres ;</li>
  * <li>les pages mises bout a bout redonnent exactement les lignes filtrees, triees par date decroissante puis numero de
  * facture ; une page ne depasse jamais {@code limit} ; au-dela du total, page vide ;</li>
  * <li>chaque ligne retenue contient la recherche (sans tenir compte de la casse) et porte le tiers payant demande.</li>
@@ -120,6 +121,11 @@ class PageCaCreditCoherenceTest {
             assertEquals((long) attendu.stream()
                     .map(o -> o.getClientId() != null ? "id:" + o.getClientId() : "nom:" + o.getClientName()).distinct()
                     .count(), premiere.get("clients"));
+            // retour du 20/11 : nombre de tiers payants distincts des lignes retenues (apres les filtres)
+            assertEquals(
+                    (long) attendu.stream().map(ErpTiersPayantDTO::getTiersPayantLibelle).filter(v -> v != null)
+                            .distinct().count(),
+                    premiere.get("tiersPayantsRetenus"), "tiersPayantsRetenus (cas " + cas + ")");
             assertEquals(
                     new ArrayList<>(periode.stream().map(ErpTiersPayantDTO::getTiersPayantLibelle)
                             .filter(v -> v != null).collect(Collectors.toCollection(TreeSet::new))),

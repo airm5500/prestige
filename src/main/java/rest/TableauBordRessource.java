@@ -95,7 +95,10 @@ public class TableauBordRessource {
         }
         String v = parametre("KEY_TABLEAU_BORD_VERSION", "NOUVEAU");
         return Response.ok(new JSONObject().put("success", true)
-                .put("version", "ANCIEN".equalsIgnoreCase(v) ? "ANCIEN" : "NOUVEAU").toString()).build();
+                .put("version", "ANCIEN".equalsIgnoreCase(v) ? "ANCIEN" : "NOUVEAU")
+                // retour de l'application Prestige Pharmacien (20/11) : routes disponibles, pour eviter les essais
+                // « tva » = GET v1/tableau-bord/tva ; « ca-credit » = GET v1/ca-credit pagine (start, limit, luLe...)
+                .put("routes", new org.json.JSONArray().put("tva").put("ca-credit")).toString()).build();
     }
 
     @GET
