@@ -604,6 +604,9 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                             id: 'btn_add',
                                             margins: '0 0 0 15',
                                             xtype: 'button',
+                                            /* plan du 19/11, point 10 : boutons au nouveau style (modele : entree en stock d'un BL) */
+                                            cls: 'ordo-btn',
+                                            iconCls: 'searchicon',
                                             handler: this.onbtnadd
 
                                         }, {
@@ -677,6 +680,7 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                 }, {
                                     text: 'Rechercher',
                                     iconCls: 'searchicon',
+                                    cls: 'ordo-btn',
                                     handler: function () {
                                         store_detail_tiers_payant.loadPage(1);
                                     }
@@ -729,24 +733,12 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                         ui: 'footer',
                                         dock: 'bottom',
                                         border: '0',
+                                        /* plan du 19/11, point 10 : « Retour » sobre puis le geste principal en vert */
                                         items: ['->',
-                                            {
-                                                text: 'G&eacute;n&eacute;rer facture',
-                                                id: 'btn_create_facture',
-                                                iconCls: 'icon-clear-group',
-                                                scope: this,
-                                                hidden: false,
-                                                //disabled: true,
-                                                handler: this.CreateFacture
-                                            }, {
-                                                text: 'RETOUR',
-                                                id: 'btn_cancel',
-                                                iconCls: 'icon-clear-group',
-                                                scope: this,
-                                                hidden: false,
-                                                //disabled: true,
-                                                handler: this.onbtncancel
-                                            }
+                                            {text: 'Retour', id: 'btn_cancel', cls: 'ordo-btn', scale: 'medium', iconCls: 'icon-clear-group',
+                                                margin: '0 8 0 0', scope: this, handler: this.onbtncancel},
+                                            {text: 'Générer facture', id: 'btn_create_facture', cls: 'ordo-btn-primaire', scale: 'medium',
+                                                iconCls: 'icon-clear-group', scope: this, handler: this.CreateFacture}
                                         ]
                                     }
 
@@ -762,26 +754,12 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                         ui: 'footer',
                                         dock: 'bottom',
                                         border: '0',
+                                        /* plan du 19/11, point 10 : « Retour » sobre puis le geste principal en vert */
                                         items: ['->',
-
-                                            {
-                                                text: 'G&eacute;n&eacute;rer facture',
-                                                xtype: 'button',
-
-                                                /* iconCls: 'invoice',*/iconCls: 'icon-clear-group',
-                                                tooltip: 'Générer',
-
-                                                scope: this,
-                                                handler: this.onGenerateInvoice
-                                            }, {
-                                                text: 'RETOUR',
-
-                                                iconCls: 'icon-clear-group',
-                                                scope: this,
-                                                hidden: false,
-
-                                                handler: this.onbtncancel
-                                            }
+                                            {text: 'Retour', xtype: 'button', cls: 'ordo-btn', scale: 'medium', iconCls: 'icon-clear-group',
+                                                margin: '0 8 0 0', scope: this, handler: this.onbtncancel},
+                                            {text: 'Générer facture', xtype: 'button', cls: 'ordo-btn-primaire', scale: 'medium',
+                                                iconCls: 'icon-clear-group', tooltip: 'Générer', scope: this, handler: this.onGenerateInvoice}
                                         ]
                                     }
                             ,
@@ -927,26 +905,12 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                         ui: 'footer',
                                         dock: 'bottom',
                                         border: '0',
+                                        /* plan du 19/11, point 10 : « Retour » sobre puis le geste principal en vert */
                                         items: ['->',
-
-                                            {
-                                                text: 'G&eacute;n&eacute;rer facture',
-                                                xtype: 'button',
-
-                                                /* iconCls: 'invoice',*/iconCls: 'icon-clear-group',
-                                                tooltip: 'Générer',
-
-                                                scope: this,
-                                                handler: this.onGenerateSelectedBonsInvoice
-                                            }, {
-                                                text: 'RETOUR',
-
-                                                iconCls: 'icon-clear-group',
-                                                scope: this,
-                                                hidden: false,
-                                                //disabled: true,
-                                                handler: this.onbtncancel
-                                            }
+                                            {text: 'Retour', xtype: 'button', cls: 'ordo-btn', scale: 'medium', iconCls: 'icon-clear-group',
+                                                margin: '0 8 0 0', scope: this, handler: this.onbtncancel},
+                                            {text: 'Générer facture', xtype: 'button', cls: 'ordo-btn-primaire', scale: 'medium',
+                                                iconCls: 'icon-clear-group', tooltip: 'Générer', scope: this, handler: this.onGenerateSelectedBonsInvoice}
                                         ]
                                     }
                             ,
