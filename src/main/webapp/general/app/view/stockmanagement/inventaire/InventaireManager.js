@@ -30,6 +30,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
     initComponent: function() {
 
         Me = this;
+        /* journal de leana (16/11) : « Me.rechargerAvecFiltres is not a function ». Me est une variable globale que
+           d'autres ecrans reecrivent a leur ouverture ; les ecouteurs de cet ecran gardent leur propre reference. */
+        var vue = this;
         var itemsPerPage = 20;
 
         var store = new Ext.data.Store({
@@ -96,7 +99,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     },
                     listeners: {
                         beforecheckchange: function (col, rowIndex, checked) {
-                            var rec = Me.getStore().getAt(rowIndex);
+                            var rec = vue.getStore().getAt(rowIndex);
                             /* garde-fou : la case des lignes cloturees n'est pas affichee, mais
                              * un clic sur la cellule ne doit rien cocher pour autant */
                             return !(rec && rec.get('etat') === 'is_Closed');
@@ -104,11 +107,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                         checkchange: function (col, rowIndex) {
                             /* la coche est un etat d'ecran, pas une modification a enregistrer :
                              * on la valide tout de suite pour ne pas marquer la ligne modifiee */
-                            var rec = Me.getStore().getAt(rowIndex);
+                            var rec = vue.getStore().getAt(rowIndex);
                             if (rec) {
                                 rec.commit();
                             }
-                            Me.majBoutonSuppressionMultiple();
+                            vue.majBoutonSuppressionMultiple();
                         }
                     }
                 }, {
@@ -363,7 +366,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             return true;
                         },
                         edit: function (editor, e) {
-                            Me.enregistrerCommentaire(e.record, e.value, e.originalValue);
+                            vue.enregistrerCommentaire(e.record, e.value, e.originalValue);
                         }
                     }
                 })],
@@ -396,8 +399,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                         specialkey: function (f, e) {
                             if (e.getKey() === e.ENTER) {
                                 f.dernierTerme = (f.getValue() || '').trim();
-                                Me.filtreRecherche = f.dernierTerme;
-                                Me.rechargerAvecFiltres();
+                                vue.filtreRecherche = f.dernierTerme;
+                                vue.rechargerAvecFiltres();
                             }
                         },
                         change: {
@@ -411,21 +414,21 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                                     return;
                                 }
                                 f.dernierTerme = terme;
-                                Me.filtreRecherche = terme;
-                                Me.rechargerAvecFiltres();
+                                vue.filtreRecherche = terme;
+                                vue.rechargerAvecFiltres();
                             }
                         }
                     }
                 }, {
                     text: 'Effacer',
                     handler: function () {
-                        var champ = Me.down('#rechercheInventaire');
+                        var champ = vue.down('#rechercheInventaire');
                         if (champ) {
                             champ.dernierTerme = '';
                             champ.setValue('');
                         }
-                        Me.filtreRecherche = '';
-                        Me.rechargerAvecFiltres();
+                        vue.filtreRecherche = '';
+                        vue.rechargerAvecFiltres();
                     }
                 }, '-', {
                     xtype: 'combobox',
@@ -440,8 +443,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     emptyText: 'Type...',
                     listeners: {
                         select: function(cmp) {
-                            Me.filtreStatut = cmp.getValue();
-                            Me.rechargerAvecFiltres();
+                            vue.filtreStatut = cmp.getValue();
+                            vue.rechargerAvecFiltres();
                         }
                     }
                 }, '-', {
@@ -458,8 +461,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     emptyText: 'Rayon / Reserve...',
                     listeners: {
                         select: function (cmp) {
-                            Me.filtreZone = cmp.getValue();
-                            Me.rechargerAvecFiltres();
+                            vue.filtreZone = cmp.getValue();
+                            vue.rechargerAvecFiltres();
                         }
                     }
                 }, '-', {
@@ -630,7 +633,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
      * Utilisable meme apres cloture de l'inventaire. */
     onPrintEcartsClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-        Me.demanderAffichageStock(function (showStock) {
+        this.demanderAffichageStock(function (showStock) {
             var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
                     + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=ecart"
                     + "&showStock=" + showStock;
@@ -692,7 +695,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
 
         /* Plus de confirmation prealable : cliquer sur le bouton d'impression EST la
          * confirmation. On enchaine directement sur la seule question utile, celle du stock. */
-        Me.demanderAffichageStock(function (showStock) {
+        this.demanderAffichageStock(function (showStock) {
             /* meme modele que l'impression depuis la fiche (str_NAME_FILE vide) pour
              * eviter deux documents divergents */
             var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
