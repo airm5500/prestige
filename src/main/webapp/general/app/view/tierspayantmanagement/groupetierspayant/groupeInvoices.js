@@ -625,6 +625,32 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                                 }
                             }]
                     }
+                }, {
+                    /* plan du 19/11, point 14 : le meme releve en Excel, avec les memes deux sous-totaux */
+                    text: 'Relevé Excel',
+                    itemId: 'releveExcel',
+                    tooltip: 'Exporter en Excel le relev&eacute; des factures de groupe affich&eacute;es',
+                    iconCls: 'excel',
+                    scope: this,
+                    menu: {
+                        items: [{
+                                text: 'Sous-total par facture de groupe',
+                                itemId: 'releveExcelFacture',
+                                iconCls: 'excel',
+                                scope: this,
+                                handler: function (b) {
+                                    this.onReleveExcelClick('facture', b);
+                                }
+                            }, {
+                                text: 'Sous-total par tiers payant',
+                                itemId: 'releveExcelTiers',
+                                iconCls: 'excel',
+                                scope: this,
+                                handler: function (b) {
+                                    this.onReleveExcelClick('tierspayant', b);
+                                }
+                            }]
+                    }
                 }
 
 
@@ -703,6 +729,23 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
             parametres.CODEGROUPE = codeFact;
         }
         window.open('../releveFactureGroupeServlet?' + Ext.Object.toQueryString(parametres));
+    },
+
+    /* plan du 19/11, point 14 : memes criteres que le PDF ; le telechargement se suit sur le bouton « Relevé Excel » */
+    onReleveExcelClick: function (regroupement, item) {
+        const parametres = {
+            dt_start: Ext.getCmp('dt_start').getSubmitValue() || '',
+            dt_end: Ext.getCmp('dt_end').getSubmitValue() || '',
+            lg_GROUPE_ID: Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue() || '',
+            search_value: Ext.getCmp('groupeSearch').getValue() || '',
+            regroupement: regroupement === 'tierspayant' ? 'tierspayant' : 'facture'
+        };
+        if (codeFact !== undefined && codeFact !== null && codeFact !== '') {
+            parametres.CODEGROUPE = codeFact;
+        }
+        const bouton = this.down('#releveExcel') || item;
+        PrestigeChargement.telecharger(bouton, '../api/v1/groupe-tierspayant/releve/excel?' + Ext.Object.toQueryString(parametres), 'Excel',
+                'releve_factures_groupe_' + (parametres.regroupement === 'tierspayant' ? 'par_tiers_payant' : 'par_facture') + '.xlsx');
     },
 
     onPrint: function (grid, rowIndex) {
