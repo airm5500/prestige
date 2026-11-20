@@ -166,16 +166,23 @@ function nettoyerSuggestions(avant) {
      JSON.stringify(suggestion.json));
 
   // La suggestion doit porter sur le RESULTAT FILTRE, pas sur l'ensemble des produits : en
-  // restreignant la recherche a un seul CIP, elle ne doit retenir que ce produit-la.
+  // restreignant la recherche a un CIP, elle retient exactement les produits que l'ecran affiche
+  // pour cette recherche. Ce n'est pas toujours un seul produit : la recherche trouve aussi le
+  // deconditionne (CIP 3532111 -> 3532111 et 3532111D, demande de preuve du 20/11).
   const unCip = q("SELECT f.int_CIP FROM t_famille f JOIN t_preenregistrement_detail d"
     + " ON d.lg_FAMILLE_ID=f.lg_FAMILLE_ID WHERE d.lg_PREENREGISTREMENT_ID='" + MARQUE + "-V' LIMIT 1");
-  const suggestionUnProduit = await appel('../api/v1/analyse-tierspayant/suggestion?dtStart=2020-01-01&dtEnd='
-      + new Date().toISOString().slice(0, 10) + '&tiersPayantId=&query=' + encodeURIComponent(unCip)
-      + '&tri=MARGE&groupeId=');
+  const parametresCip = '?dtStart=2020-01-01&dtEnd=' + new Date().toISOString().slice(0, 10)
+      + '&tiersPayantId=&query=' + encodeURIComponent(unCip) + '&tri=MARGE&groupeId=';
+  const resultatCip = await appel('../api/v1/analyse-tierspayant/produits' + parametresCip);
+  const produitsCip = (resultatCip.json && resultatCip.json.data) || [];
+  const suggestionUnProduit = await appel('../api/v1/analyse-tierspayant/suggestion' + parametresCip);
   ok('la suggestion ne retient que les produits du resultat filtre',
      suggestionUnProduit.json && suggestionUnProduit.json.success === true
-       && suggestionUnProduit.json.produitsDuResultat === 1,
-     'cip=' + unCip + ' -> ' + JSON.stringify(suggestionUnProduit.json));
+       && produitsCip.length >= 1 && suggestionUnProduit.json.produitsDuResultat === produitsCip.length
+       && suggestion.json && produitsCip.length < suggestion.json.produitsDuResultat
+       && produitsCip.some((x) => JSON.stringify(x).indexOf('"' + unCip + '"') >= 0),
+     'cip=' + unCip + ' -> ' + JSON.stringify(suggestionUnProduit.json) + ' ; ecran : ' + produitsCip.length
+       + ' produit(s) sur ' + (suggestion.json && suggestion.json.produitsDuResultat));
 
   const suggestionFiltree = await appel('../api/v1/analyse-tierspayant/suggestion?dtStart=2020-01-01&dtEnd='
       + new Date().toISOString().slice(0, 10)
