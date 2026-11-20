@@ -53,6 +53,9 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
             },
             'analysetierspayant #btnSuggestion': {
                 click: this.onCreerSuggestion
+            },
+            'analysetierspayant #btnTousProduits': {
+                click: this.onTousProduits
             }
         });
     },
@@ -139,7 +142,7 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
         var me = this, ecran = me.ecran(bouton), p = ecran.parametres();
         var nbAffiches = ecran.storeProduits.getCount();
         if (!nbAffiches) {
-            Ext.Msg.alert('Message', 'Aucun produit dans le résultat affiché : lancez d\'abord une recherche.');
+            Ext.Msg.alert('Message', 'Aucun produit affiché : cliquez d\'abord sur un tiers payant ou sur « Tous les produits ».');
             return;
         }
         Ext.MessageBox.show({
@@ -199,17 +202,29 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
         return Ext.ComponentQuery.query('analysetierspayant')[0];
     },
 
+    /* Plan du 19/11, point 3 : a l'ouverture, les tiers payants seulement ; les produits au clic. */
     onEcranAffiche: function (ecran) {
         ecran.chargerTiersPayants();
-        ecran.chargerProduits();
+        ecran.viderProduits();
     },
 
     onRechercher: function (bouton) {
         var ecran = this.ecran(bouton);
-        /* La liste des tiers payants change : la selection precedente n'a plus de sens,
-         * on repart de la vue « tous tiers payants » plutot que de garder une ligne fantome. */
-        ecran.down('#grilleTiersPayants').getSelectionModel().deselectAll();
+        /* La liste des tiers payants change : la selection precedente n'a plus de sens.
+         * Deselection SANS evenement : avant, elle rechargeait les produits, puis une seconde fois ici. */
+        var modeTous = ecran.modeProduits === 'TOUS' || !!ecran.parametres().queryProduit;
+        ecran.down('#grilleTiersPayants').getSelectionModel().deselectAll(true);
         ecran.chargerTiersPayants();
+        if (modeTous) {
+            ecran.chargerProduits();
+        } else {
+            ecran.viderProduits();
+        }
+    },
+
+    onTousProduits: function (bouton) {
+        var ecran = this.ecran(bouton);
+        ecran.down('#grilleTiersPayants').getSelectionModel().deselectAll(true);
         ecran.chargerProduits();
     },
 
@@ -219,9 +234,9 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
         }
     },
 
-    onTiersPayantSelectionne: function (modele) {
+    onTiersPayantSelectionne: function (modele, selection) {
         var ecran = this.ecran(modele.view);
-        if (ecran) {
+        if (ecran && selection && selection.length) {
             ecran.chargerProduits();
         }
     }

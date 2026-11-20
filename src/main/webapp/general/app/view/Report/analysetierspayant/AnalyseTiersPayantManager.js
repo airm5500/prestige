@@ -57,12 +57,21 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
             }
         });
 
+        /* Plan du 19/11, point 3 : les produits ne se chargent qu'au clic (un tiers payant, ou « Tous les
+         * produits »), une page a la fois. Le serveur rend les totaux de toute la liste pour le pied de grille. */
         var storeProduits = new Ext.data.Store({
             fields: champsCommuns.concat([
                 {name: 'cip', type: 'string'},
                 {name: 'designation', type: 'string'}
             ]),
             autoLoad: false,
+            pageSize: 50,
+            listeners: {
+                load: function (magasin) {
+                    var brut = magasin.getProxy().getReader().rawData;
+                    me.totauxProduits = brut && brut.totaux ? brut.totaux : null;
+                }
+            },
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/analyse-tierspayant/produits',
@@ -106,7 +115,16 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
             };
         };
         var tauxGlobalTiersPayants = tauxGlobalDe(storeTiersPayants);
-        var tauxGlobalProduits = tauxGlobalDe(storeProduits);
+        /* Pied de la grille des produits : totaux de TOUTE la liste (rendus par le serveur), pas de la page. */
+        var totalProduits = function (cle, format) {
+            return function () {
+                var t = me.totauxProduits;
+                return '<b>' + format(t ? t[cle] : 0) + '</b>';
+            };
+        };
+        var entier = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
 
         Ext.applyIf(me, {
             /* Deux barres : les filtres sur la premiere ligne, le tri et les actions sur la seconde.
@@ -257,18 +275,24 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                     title: 'Par produit — tous tiers payants',
                     flex: 1,
                     store: storeProduits,
-                    viewConfig: {forceFit: true, columnLines: true},
                     columns: [
                         {header: 'CIP', dataIndex: 'cip', flex: 0.7},
                         {header: 'Désignation', dataIndex: 'designation', flex: 2},
-                        {header: 'Quantité', dataIndex: 'quantite', flex: 0.6, align: 'right', summaryType: 'sum', summaryRenderer: sommeEntier},
-                        {header: 'CA TTC', dataIndex: 'caTtc', flex: 0.9, align: 'right', renderer: montant, summaryType: 'sum', summaryRenderer: sommeMontant},
-                        {header: 'CA HT', dataIndex: 'caHt', flex: 0.9, align: 'right', renderer: montant, summaryType: 'sum', summaryRenderer: sommeMontant},
-                        {header: 'Achat', dataIndex: 'montantAchat', flex: 0.9, align: 'right', renderer: montant, summaryType: 'sum', summaryRenderer: sommeMontant},
-                        {header: 'Marge', dataIndex: 'marge', flex: 0.9, align: 'right', renderer: margeRenderer, summaryType: 'sum', summaryRenderer: sommeMontant},
+                        {header: 'Quantité', dataIndex: 'quantite', flex: 0.6, align: 'right', summaryType: 'sum', summaryRenderer: totalProduits('quantite', entier)},
+                        {header: 'CA TTC', dataIndex: 'caTtc', flex: 0.9, align: 'right', renderer: montant, summaryType: 'sum', summaryRenderer: totalProduits('caTtc', montant)},
+                        {header: 'CA HT', dataIndex: 'caHt', flex: 0.9, align: 'right', renderer: montant, summaryType: 'sum', summaryRenderer: totalProduits('caHt', montant)},
+                        {header: 'Achat', dataIndex: 'montantAchat', flex: 0.9, align: 'right', renderer: montant, summaryType: 'sum', summaryRenderer: totalProduits('montantAchat', montant)},
+                        {header: 'Marge', dataIndex: 'marge', flex: 0.9, align: 'right', renderer: margeRenderer, summaryType: 'sum', summaryRenderer: totalProduits('marge', montant)},
                         {header: 'Marge / CA HT', dataIndex: 'tauxMarge', flex: 0.8, align: 'right',
-                         renderer: pourcent, summaryType: 'sum', summaryRenderer: tauxGlobalProduits}
+                         renderer: pourcent, summaryType: 'sum', summaryRenderer: totalProduits('tauxMarge', pourcent)}
                     ],
+                    viewConfig: {forceFit: true, columnLines: true, deferEmptyText: false,
+                        emptyText: '<div style="padding:12px;color:#555;">Cliquez sur un tiers payant pour afficher ses produits, '
+                                + 'ou sur « Tous les produits ».</div>'},
+                    tbar: [{text: 'Tous les produits', itemId: 'btnTousProduits', iconCls: 'searchicon',
+                            tooltip: 'Afficher les produits de tous les tiers payants de la p&eacute;riode'}],
+                    dockedItems: [{xtype: 'pagingtoolbar', store: storeProduits, dock: 'bottom', displayInfo: true,
+                            displayMsg: 'Produits {0} - {1} sur {2}', emptyMsg: 'Aucun produit affiché'}],
                     features: [{ftype: 'summary', dock: 'bottom'}]
                 }
             ]
@@ -315,15 +339,30 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
         });
     },
 
+    /* Plan du 19/11, point 3 : produits charges au clic seulement, une page a la fois. Les filtres vont dans
+     * extraParams : la barre de pagination les garde d'une page a l'autre. */
     chargerProduits: function () {
         var me = this, p = me.parametres(), tp = me.tiersPayantSelectionne();
         var selection = me.down('#grilleTiersPayants').getSelectionModel().getSelection();
+        me.modeProduits = selection.length ? 'TIERS' : 'TOUS';
         me.down('#grilleProduits').setTitle(selection.length
                 ? 'Par produit — ' + selection[0].get('tiersPayant')
                 : 'Par produit — tous tiers payants');
-        me.storeProduits.load({
-            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, tiersPayantId: tp, query: p.queryProduit,
-                     tri: p.tri, groupeId: p.groupeId}
-        });
+        me.storeProduits.getProxy().extraParams = {dtStart: p.dtStart, dtEnd: p.dtEnd, tiersPayantId: tp,
+            query: p.queryProduit, tri: p.tri, groupeId: p.groupeId};
+        me.storeProduits.loadPage(1);
+    },
+
+    /* Grille des produits remise a vide (nouvelle recherche sans produit demande). */
+    viderProduits: function () {
+        this.modeProduits = null;
+        this.totauxProduits = null;
+        this.storeProduits.removeAll();
+        this.storeProduits.totalCount = 0;
+        this.down('#grilleProduits').setTitle('Par produit');
+        var pg = this.down('#grilleProduits pagingtoolbar');
+        if (pg) {
+            pg.onLoad();
+        }
     }
 });
