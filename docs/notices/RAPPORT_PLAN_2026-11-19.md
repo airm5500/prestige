@@ -5,7 +5,7 @@ Branche `PRES-/plan-19112026-e7b871`. Un commit par point. Rien n'a été fusion
 Les essais ont tourné sur le serveur domain3 (port 10090), sur la copie de travail `laborex_audit`. Aucune base de
 production n'a été touchée. Chaque test d'écran a été lancé seul et retire ses données à la fin.
 
-Points non traités, comme convenu : 0, 1 et 5. Le BFR (ancien point 16) revient en fin du nouveau point 16.
+Points non traités, comme convenu : 0, 1 et 5. Le BFR (ancien point 16) est traité après le point 16 (§ BFR).
 
 Abréviations :
 - **R** : test de rapprochement (une donnée comparée partout où elle apparaît) ;
@@ -29,7 +29,9 @@ Chaque nouveau test a d'abord échoué sur l'ancien code, puis il est passé.
 | 13 | f39a8fc20 | Top 10 des marges au tableau de bord ; produits par marge dans l'Analyse |
 | 14 | 764edb782 | Relevé des factures de groupe en Excel |
 | 15 | ffe5da468 | Export Excel et CSV de « Liste de caisse » et « Visualiser la caisse » |
-| 16 | (voir § 16) | Onglet « Règlements fournisseurs » |
+| 16 | af581a162 | Onglet « Règlements fournisseurs » |
+| 16 (suite) | 5a77da562 | « Régler les BL » passe par le cumul et l'historique des règlements |
+| BFR | 33dc6b6c3 | BFR : carte du tableau de bord et menu « BFR » (ANALYSE DE GESTION) |
 
 ---
 
@@ -119,8 +121,8 @@ Chaque nouveau test a d'abord échoué sur l'ancien code, puis il est passé.
 - **R** : `achats/test-modification-bl-journal-1911.js`, 20/20. Onglet = journal = écran Journal = base.
 - **C** : `ModificationBlCoherenceTest` (40 000 cas). Reste à payer = TTC − réglé ; jamais négatif ; statut dérivé.
 - **B** : une ligne de journal par opération ; aucune si rien ne change.
-- **Constat** : « Régler les BL » (`reglerBons`) ne met pas à jour le reste à payer du mouvement d'achat. Le point 16 le
-  fait pour ses propres règlements ; l'ancien chemin est inchangé.
+- **Constat** : « Régler les BL » (`reglerBons`) ne mettait pas à jour le reste à payer du mouvement d'achat. C'est
+  corrigé au § 16 (suite) : l'ancien chemin passe désormais par le même calcul que l'onglet.
 
 ## Point 13 : top des marges
 
@@ -242,16 +244,133 @@ Le test échoue si l'on retire le refus du dépassement (« cas 15 : refus atten
 - test-controle-achats-tableau 13/13. Son attendu listait encore 3 onglets ; il en compte désormais 5, dont
   « Modifications des BL », ajouté au point 12.
 
-**Non fait** : le BFR (carte du tableau de bord et menu « BFR »), prévu « si le temps le permet ». Ses sources sont
-prêtes :
-- dettes fournisseurs = « À régler », suivi depuis la date de départ ;
-- stock valorisé = `ProduitServiceImpl.valorisationStock`.
-
-**Remarques** :
-- « Régler les BL » (`reglerBons`, `paybls.js`) fixe toujours des montants absolus dans les mêmes colonnes. Les deux
-  chemins restent cohérents à la lecture.
+**Remarque** :
 - Le billetage ne voit les sorties qu'à la clôture. Le « solde » affiché avant clôture (`t_caisse`) ne bouge pas avec
   une sortie de caisse ; c'était déjà le cas avant ce plan, pour toute sortie de caisse.
+
+## Point 16 (suite) : l'ancienne fenêtre « Régler les BL »
+
+**Défaut, confirmé par un test qui échoue.** L'ancienne fenêtre (`reglerBons`, `paybls.js`, route
+`etat-control-bon/reglement`) écrivait un montant réglé absolu. Exemple : un BL réglé deux fois dans l'onglet (1 000 puis
+2 000), puis passé « en partie » à 5 000 par l'ancienne fenêtre. Le BL affichait 5 000 réglés, mais l'historique n'en
+connaissait que 3 000. Le mouvement d'achat gardait aussi l'ancien reste à payer. Sur l'ancien code, le test donne 5/19.
+
+**Correction.** L'ancienne fenêtre donne maintenant le montant réglé voulu (0, la partie saisie ou le TTC) :
+- **hausse** : ce qui manque devient un règlement « Régler les BL », avec sa part sur le BL et sa ligne de journal. Il ne
+  touche pas la caisse. Il apparaît dans l'historique de l'onglet ;
+- **baisse sous les règlements de l'onglet** : refusée pour tout le lot, avant toute écriture, avec un message clair :
+  « Le BL n° … a des règlements dans l'onglet « Règlements fournisseurs » (réglé : 3 000) : annulez-les depuis
+  l'onglet. » ;
+- **baisse sans règlement de l'onglet** : les règlements « Régler les BL » du BL sont annulés, avec une ligne de journal.
+  Un réglé ancien, saisi avant le suivi, est ramené à la cible ;
+- le statut, le reste à payer, la date de règlement et le mouvement d'achat suivent le même calcul que l'onglet ;
+- la trace « Règlement du BL » du point 12 (valeurs avant et après) est conservée.
+
+**Tests** :
+- **R** : `achats/test-regler-bls-ancien-chemin-1911.js`, 19/19 (5/19 sur l'ancien code). BL par BL, le reste à payer est
+  le même dans l'onglet, dans « Liste des BL », en base (TTC − réglé, reste du BL, reste du mouvement d'achat) et dans
+  l'historique (TTC − parts actives). L'historique vu par l'écran contient la ligne « Régler les BL ».
+- **C** : `ReglementFournisseurCoherenceTest.ancienneFenetreEtOngletCumulent`. 3 000 BL tirés au hasard, 40 opérations
+  chacun, mêlant onglet, annulations et ancienne fenêtre. Règles vérifiées :
+  - réglé = réglé ancien sans historique + parts actives ;
+  - jamais sous les parts de l'onglet ;
+  - jamais négatif ni au-dessus du TTC ;
+  - un refus ne change rien.
+
+  Une mutation (le refus retiré) est détectée.
+- **B** : à chaque étape, le nombre de règlements, de parts, de lignes de journal (règlement, annulation, trace du BL)
+  et de mouvements de caisse (toujours 0) est exactement celui attendu. Un refus n'écrit rien.
+
+**Cas couverts** :
+- 2 règlements de l'onglet (chèque, virement), puis « en partie » au-dessus ;
+- « en partie » sous l'onglet : refusé ;
+- « réglé » en entier ;
+- « non réglé » : refusé ;
+- un BL sans onglet : hausse, puis remise à 0 ;
+- un lot mixte de 2 BL : tout le lot est refusé.
+
+**Non-régression** :
+- test-reglements-fournisseurs-1911 52/52 ;
+- test-modification-bl-journal-1911 20/20 (le premier passage a donné une précondition vide, non reproduite ensuite).
+
+## BFR : carte du tableau de bord et menu « BFR »
+
+Menu ANALYSE DE GESTION > « BFR », déclaré dans `correctifs-affichage.js`, droit `P_SM_BFR`. La migration le donne aux
+rôles qui voient le Pilotage et au rôle du compte admin. Lecture seule. Sans le droit, il n'y a ni menu ni carte, et le
+serveur refuse.
+
+**Calcul** :
+- BFR = stock valorisé + créances clients − dettes fournisseurs ;
+- BFR en jours = BFR / CA HT des 360 derniers jours × 360, arrondi à une décimale ;
+- avec un CA HT nul, le résultat est « non calculable » (aucune division par zéro).
+
+**Sources** :
+
+| Composante | Source | Rapprochée avec |
+|---|---|---|
+| Stock valorisé (achat, rayon + réserve) | `valorisationStock` | écran « Valorisation du stock » |
+| Différés clients | solde global du relevé des différés (même calcul) | relevé des différés |
+| Factures tiers payant non réglées | reste des factures, par organisme | base |
+| Parts tiers payant non facturées | mêmes ventes que la carte « Encours tiers payants », toutes dates | base |
+| Dettes fournisseurs | « À régler » de l'onglet « Règlements fournisseurs » | onglet « À régler » |
+| CA HT 360 j | règle de l'Analyse des marges | Marges › Analyse, même période |
+
+Postes à 0 avec « non suivi dans Prestige » :
+- dettes fiscales et sociales ;
+- autres créances ;
+- autres dettes.
+
+Le menu et la carte portent la mention « Dettes fournisseurs suivies depuis le JJ/MM/AAAA ». Le menu détaille les factures
+et les parts par organisme, et les dettes par grossiste.
+
+**Tests** :
+- **R** : `analyse/test-bfr-1911.js`, 30/30. Composante par composante : carte = menu = API = écrans sources = base,
+  la base étant un calcul SQL indépendant. Le détail du menu est comparé à la base ligne par ligne, et sa somme à la
+  composante. Deux organismes portent le même nom : les lignes sont comparées triées, pas par nom.
+- **C** : `BfrCoherenceTest`, 20 000 cas tirés au hasard avec une graine fixe. Règles vérifiées :
+  - BFR = stock + créances − dettes ;
+  - créances = différés + factures + parts ;
+  - jours = BFR / CA HT × 360 à 0,05 près, même signe que le BFR ;
+  - CA HT à 0 ou négatif : non calculable.
+
+  Les cas couvrent des stocks négatifs, des BFR négatifs, des montants au-delà de 2,1 milliards et des composantes à 0.
+  Une mutation (base de 365 jours) est détectée.
+- **B** : lecture seule. L'empreinte de toutes les tables concernées est identique avant et après :
+  - ventes, BL et leurs règlements ;
+  - factures, règlements fournisseurs ;
+  - caisse, mouvements, stock ;
+  - paramètres, journal.
+
+**Chiffres de la copie de travail** (date de départ mise au 01/10/2026 le temps du test, puis remise) :
+
+| Composante | Montant |
+|---|---|
+| Stock | 305 211 472 |
+| Différés | 7 639 |
+| Factures tiers payant non réglées | 517 889 691 |
+| Parts non facturées | 47 822 410 |
+| Dettes fournisseurs (415 BL) | 106 826 053 |
+| **BFR** | **764 105 159** |
+| CA HT (360 j) | 1 580 095 877 |
+| **Jours de CA HT** | **174,1 j** |
+
+**Mesures** :
+
+| Mesure | Durée |
+|---|---|
+| Calcul complet, côté serveur | 2,3 à 2,5 s |
+| Carte BFR, relue sans cache | 2,4 s (plafond 15 s) |
+| Premières cartes, « Actualiser » sans cache, avec la carte BFR (médiane de 3) | 520 ms |
+| Premières cartes, même mesure, sans la carte BFR | 497 ms |
+| Menu « BFR » ouvert depuis le menu | 3 s |
+
+Le tableau de bord ne ralentit pas : la carte BFR a sa propre route, se charge quand elle est visible et reste en cache
+15 minutes.
+
+**Non-régression** :
+- test-tableau-bord 61/61. Son attendu passe de 16 à 17 cartes ;
+- test-tableau-bord-impression 11/11 ;
+- test-marges-top-analyse-1911 25/25.
 
 ---
 
@@ -260,5 +379,5 @@ prêtes :
 - Le disque C: était plein (273 Mo libres au point 14). Le dossier temporaire de Maven et les WAR ont été déplacés sur
   D:.
 - domain3 est tombé en `OutOfMemoryError` (tas plein après de nombreux redéploiements). Il a été arrêté, puis
-  redémarré.
+  redémarré, et redémarré de nouveau avant la série « Régler les BL » et BFR.
 - Une nouvelle interface EJB oblige à supprimer `generated/policy/prestige` entre `undeploy` et `deploy`.
