@@ -39,6 +39,11 @@ public class TableauBordRessource {
 
     @EJB
     private TableauBordService service;
+    /* demande 68 : memes services que api/v3/tvas */
+    @EJB
+    private rest.service.BalanceService balanceService;
+    @EJB
+    private rest.service.TvaDataService tvaDataService;
     @Context
     private HttpServletRequest servletRequest;
 
@@ -226,6 +231,37 @@ public class TableauBordRessource {
         }
         String e = BfrRessource.emplacement(servletRequest);
         return cache("bfr|" + e, COURT * 15, frais == 1, () -> bfr.calculer(e));
+    }
+
+    /*
+     * Demande 68 (20/11) : ventes du mois par taux de TVA pour la carte de l'accueil de l'application, en cache court
+     * comme top-mois. Memes montants que api/v3/tvas avec typeVente=TOUT, du 1er du mois au jour demande. Cle du cache
+     * : le jour (et non le mois) et l'emplacement, pour qu'un jour passe ne serve pas la periode d'un autre.
+     */
+    @GET
+    @Path("tva")
+    public Response tva(@QueryParam("date") String date, @DefaultValue("0") @QueryParam("frais") int frais) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        LocalDate j = jour(date);
+        String debut = j.withDayOfMonth(1).toString();
+        String fin = j.toString();
+        return cache("tva|" + j + "|" + emplacement(u), COURT * 3, frais == 1, () -> {
+            JSONObject brut;
+            if (balanceService.useLastUpdateStats()) {
+                brut = balanceService.statistiqueTvaView(rest.service.dto.BalanceParamsDTO.builder().dtEnd(fin)
+                        .dtStart(debut).vnoOnly(false).emplacementId(emplacement(u)).build());
+            } else {
+                commonTasks.dto.Params params = new commonTasks.dto.Params();
+                params.setDtEnd(fin);
+                params.setDtStart(debut);
+                params.setOperateur(u);
+                brut = tvaDataService.statistiqueTvaView(params);
+            }
+            return TvaTableauBord.convertir(brut);
+        });
     }
 
     @GET
