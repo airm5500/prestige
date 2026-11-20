@@ -726,7 +726,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             }
                                             OGridStore.getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + value + "&search_value=" + rechecher + "&lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID;
 
-                                            OGridStore.load();
+                                            /* plan du 19/11, point 4 : une seule requete (load() puis loadPage(1) en envoyaient deux) */
                                             OGridStore.loadPage(1);
 //                                           
                                         }
@@ -766,7 +766,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             }
                                             var OGridStore = Ext.getCmp('gridpanelInventaireID').getStore();
                                             OGridStore.getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + str_TYPE + "&search_value=" + rechecher + "&lg_FAMILLEARTICLE_ID=" + value + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID;
-                                            OGridStore.load();
+                                            /* plan du 19/11, point 4 : une seule requete (load() puis loadPage(1) en envoyaient deux) */
                                             OGridStore.loadPage(1);
                                         }
                                     }
@@ -810,7 +810,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             }
                                             var OGridStore = Ext.getCmp('gridpanelInventaireID').getStore();
                                             OGridStore.getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + str_TYPE + "&search_value=" + rechecher + "&lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_ZONE_GEO_ID=" + value + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID;
-                                            OGridStore.load();
+                                            /* plan du 19/11, point 4 : une seule requete (load() puis loadPage(1) en envoyaient deux) */
                                             OGridStore.loadPage(1);
                                         }
                                     }
@@ -849,7 +849,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             }
                                             var OGridStore = Ext.getCmp('gridpanelInventaireID').getStore();
                                             OGridStore.getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + str_TYPE + "&search_value=" + rechecher + "&lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&lg_GROSSISTE_ID=" + value + "&lg_USER_ID=" + lg_USER_ID;
-                                            OGridStore.load();
+                                            /* plan du 19/11, point 4 : une seule requete (load() puis loadPage(1) en envoyaient deux) */
                                             OGridStore.loadPage(1);
                                         }
                                     }
@@ -889,7 +889,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             }
                                             var OGridStore = Ext.getCmp('gridpanelInventaireID').getStore();
                                             OGridStore.getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + str_TYPE + "&search_value=" + rechecher + "&lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_USER_ID=" + value;
-                                            OGridStore.load();
+                                            /* plan du 19/11, point 4 : une seule requete (load() puis loadPage(1) en envoyaient deux) */
                                             OGridStore.loadPage(1);
                                         }
                                     }
@@ -1499,7 +1499,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         fn: function () {
                             // Recharger le store et fermer la fenêtre
                             var OGridStore = Ext.getCmp('gridpanelInventaireID').getStore();
-                            OGridStore.load();
+                            /* plan du 19/11, point 4 : une seule requete (load() puis loadPage(1) en envoyaient deux) */
                             OGridStore.loadPage(1);
                             fenetre.close();
 

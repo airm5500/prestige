@@ -728,8 +728,9 @@ public class InventaireRessource {
             } else if (VENDUS_APRES.equalsIgnoreCase(type)) {
                 /* plan du 09/11, point 12 : vendus depuis la creation de l'inventaire */
                 total = manager.getCountInventaireVendusApres(search, inv, famille, zone, grossiste, utilisateur);
-                lignes = manager.listInventaireVendusApres(search, inv, famille, zone, grossiste, start, limit,
-                        utilisateur);
+                /* plan du 19/11, point 4 : aucune vente depuis la creation -> la liste n'est pas relue */
+                lignes = total == 0 ? new java.util.ArrayList<>() : manager.listInventaireVendusApres(search, inv,
+                        famille, zone, grossiste, start, limit, utilisateur);
             } else if ("NEGATIF".equalsIgnoreCase(type)) {
                 total = manager.getCountInventaireNegatif(search, inv, famille, zone, grossiste, utilisateur);
                 lignes = manager.listInventaireNegatif(search, inv, famille, zone, grossiste, start, limit,
