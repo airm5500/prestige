@@ -131,15 +131,37 @@ public class AnalyseMargesService {
         }
     }
 
+    /** Analyse complete (periode, historique, familles, produits) : l'Excel. */
     public JSONObject analyser(LocalDate debut, LocalDate fin, String emplacement) {
+        JSONObject o = analyserPeriode(debut, fin, emplacement);
+        JSONObject h = historique(debut, fin, emplacement);
+        return o.put("moyenne3", h.get("moyenne3")).put("moyenne6", h.get("moyenne6")).put("mois", h.get("mois"))
+                .put("historique", true);
+    }
+
+    /**
+     * Plan du 19/11, point 13 : la periode choisie et sa precedente seules (l'ecran s'affiche sans attendre les six
+     * mois : 01/11 -> 19/11 lisait 6 mois et demi de ventes avant le moindre chiffre), avec les familles et les
+     * produits qui apportent le plus de marge. L'historique suit par {@link #historique}.
+     */
+    public JSONObject analyserPeriode(LocalDate debut, LocalDate fin, String emplacement) {
         long duree = java.time.temporal.ChronoUnit.DAYS.between(debut, fin) + 1;
-        LocalDate depuis = java.util.Collections.min(java.util.Arrays.asList(debut.minusDays(duree),
-                YearMonth.from(debut).minusMonths(6).atDay(1), YearMonth.from(fin).minusMonths(5).atDay(1)));
-        java.util.TreeMap<LocalDate, long[]> jours = parJour(depuis, fin, emplacement);
+        java.util.TreeMap<LocalDate, long[]> jours = parJour(debut.minusDays(duree), fin, emplacement);
         JSONObject courante = periode(jours, debut, fin);
         JSONObject precedente = periode(jours, debut.minusDays(duree), debut.minusDays(1));
+        List<Object[]> produits = parProduit(debut, fin, emplacement);
+        return new JSONObject().put("success", true).put("debut", debut.toString()).put("fin", fin.toString())
+                .put("courante", courante).put("precedente", precedente).put("familles", familles(produits, 15))
+                .put("produits", produits(produits, PRODUITS_ANALYSE)).put("nombreProduits", produits.size())
+                .put("objectifs", objectifs()).put("historique", false);
+    }
 
-        /* six derniers mois (jusqu'au mois de fin) */
+    /** Plan du 19/11, point 13 : moyennes des 3 et 6 derniers mois et six derniers mois (lu apres la periode). */
+    public JSONObject historique(LocalDate debut, LocalDate fin, String emplacement) {
+        LocalDate depuis = YearMonth.from(debut).minusMonths(6).atDay(1);
+        LocalDate depuisFin = YearMonth.from(fin).minusMonths(5).atDay(1);
+        java.util.TreeMap<LocalDate, long[]> jours = parJour(depuis.isBefore(depuisFin) ? depuis : depuisFin, fin,
+                emplacement);
         JSONArray parMois = new JSONArray();
         YearMonth dernier = YearMonth.from(fin);
         for (int i = 5; i >= 0; i--) {
@@ -148,29 +170,73 @@ public class AnalyseMargesService {
             parMois.put(periode(jours, m.atDay(1), f).put("mois", m.toString()).put("partiel",
                     i == 0 && !f.equals(m.atEndOfMonth())));
         }
+        return new JSONObject().put("success", true).put("moyenne3", moyenneMois(jours, debut, 3))
+                .put("moyenne6", moyenneMois(jours, debut, 6)).put("mois", parMois);
+    }
 
-        JSONArray familles = new JSONArray();
-        /* cumul par produit d'abord, puis rattachement aux familles (sinon le plan part de t_famille : 6 s -> 0,3 s) */
-        for (Object[] l : lignes(
-                "SELECT IFNULL(fa.str_LIBELLE, '(sans famille)'), SUM(x.ttc), SUM(x.remise), SUM(x.tva), SUM(x.achat) FROM ("
-                        + "SELECT d.lg_FAMILLE_ID, SUM(d.int_PRICE) ttc, SUM(IFNULL(d.int_PRICE_REMISE, 0)) remise, SUM(IFNULL(d.montantTva, 0)) tva,"
-                        + " SUM(IFNULL(d.prixAchat, 0) * d.int_QUANTITY) achat" + FROM + " GROUP BY d.lg_FAMILLE_ID) x"
-                        + " JOIN t_famille f ON f.lg_FAMILLE_ID = x.lg_FAMILLE_ID LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID"
-                        + " GROUP BY fa.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE",
-                debut, fin, emplacement)) {
-            familles.put(indicateurs(n(l[1]), n(l[2]), n(l[3]), n(l[4])).put("libelle", l[0]));
+    /** Produits de l'onglet Analyse (les premiers par marge). */
+    public static final int PRODUITS_ANALYSE = 20;
+    /** « Voir plus » du tableau de bord : au plus tant de produits. */
+    public static final int PRODUITS_MAX = 500;
+
+    /**
+     * Plan du 19/11, point 13 : produits qui apportent le plus de marge sur la periode (tableau de bord et onglet
+     * Analyse : memes regles, memes chiffres). limite <= 0 : jusqu'a {@link #PRODUITS_MAX}.
+     */
+    public JSONObject topMarges(LocalDate debut, LocalDate fin, String emplacement, int limite) {
+        List<Object[]> l = parProduit(debut, fin, emplacement);
+        return new JSONObject().put("success", true).put("debut", debut.toString()).put("fin", fin.toString())
+                .put("nombreProduits", l.size()).put("data", produits(l, limite <= 0 ? PRODUITS_MAX : limite));
+    }
+
+    /**
+     * Montants par produit (cumul par produit d'abord, puis rattachement : sinon le plan part de t_famille, 6 s -> 0,3
+     * s) : {id, nom, cip, famille id, famille, quantite, ttc, remise, tva, achat}.
+     */
+    private List<Object[]> parProduit(LocalDate debut, LocalDate fin, String emplacement) {
+        return lignes("SELECT x.lg_FAMILLE_ID, f.str_NAME, f.int_CIP, fa.lg_FAMILLEARTICLE_ID,"
+                + " IFNULL(fa.str_LIBELLE, '(sans famille)'), x.qte, x.ttc, x.remise, x.tva, x.achat FROM ("
+                + "SELECT d.lg_FAMILLE_ID, SUM(d.int_QUANTITY) qte, SUM(d.int_PRICE) ttc, SUM(IFNULL(d.int_PRICE_REMISE, 0)) remise,"
+                + " SUM(IFNULL(d.montantTva, 0)) tva, SUM(IFNULL(d.prixAchat, 0) * d.int_QUANTITY) achat" + FROM
+                + " GROUP BY d.lg_FAMILLE_ID) x JOIN t_famille f ON f.lg_FAMILLE_ID = x.lg_FAMILLE_ID"
+                + " LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID", debut, fin,
+                emplacement);
+    }
+
+    /** Familles (par identifiant de famille d'article) qui degagent le plus de marge, les n premieres. */
+    static JSONArray familles(List<Object[]> produits, int n) {
+        java.util.TreeMap<String, long[]> parFamille = new java.util.TreeMap<>();
+        java.util.Map<String, Object> libelles = new java.util.HashMap<>();
+        for (Object[] l : produits) {
+            String cle = l[3] == null ? "" : String.valueOf(l[3]);
+            long[] t = parFamille.computeIfAbsent(cle, k -> new long[4]);
+            for (int i = 0; i < 4; i++) {
+                t[i] += n(l[6 + i]);
+            }
+            libelles.put(cle, l[4]);
         }
         java.util.List<JSONObject> tri = new java.util.ArrayList<>();
-        for (int i = 0; i < familles.length(); i++) {
-            tri.add(familles.getJSONObject(i));
-        }
+        parFamille.forEach((k, t) -> tri.add(indicateurs(t[0], t[1], t[2], t[3]).put("libelle", libelles.get(k))));
         tri.sort((a, b) -> Long.compare(b.getLong("marge"), a.getLong("marge")));
         JSONArray premieres = new JSONArray();
-        tri.stream().limit(15).forEach(premieres::put);
+        tri.stream().limit(n).forEach(premieres::put);
+        return premieres;
+    }
 
-        return new JSONObject().put("success", true).put("debut", debut.toString()).put("fin", fin.toString())
-                .put("courante", courante).put("precedente", precedente).put("moyenne3", moyenneMois(jours, debut, 3))
-                .put("moyenne6", moyenneMois(jours, debut, 6)).put("mois", parMois).put("familles", premieres)
-                .put("objectifs", objectifs());
+    /** Produits par marge decroissante (a marge egale : par nom), les n premiers. */
+    static JSONArray produits(List<Object[]> produits, int n) {
+        java.util.List<JSONObject> tri = new java.util.ArrayList<>();
+        for (Object[] l : produits) {
+            tri.add(indicateurs(n(l[6]), n(l[7]), n(l[8]), n(l[9])).put("id", String.valueOf(l[0]))
+                    .put("libelle", l[1] == null ? "" : String.valueOf(l[1]).trim())
+                    .put("cip", l[2] == null ? "" : String.valueOf(l[2])).put("famille", l[4])
+                    .put("quantite", n(l[5])));
+        }
+        tri.sort((a, b) -> b.getLong("marge") != a.getLong("marge")
+                ? Long.compare(b.getLong("marge"), a.getLong("marge"))
+                : a.getString("libelle").compareTo(b.getString("libelle")));
+        JSONArray premiers = new JSONArray();
+        tri.stream().limit(n).forEach(premiers::put);
+        return premiers;
     }
 }

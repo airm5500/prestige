@@ -192,6 +192,27 @@ public class TableauBordRessource {
         return Response.ok(o.put("success", !o.optBoolean("erreur", false)).toString()).build();
     }
 
+    @javax.ejb.EJB
+    private rest.service.impl.AnalyseMargesService analyseMarges;
+
+    /**
+     * Plan du 19/11, point 13 : produits qui apportent le plus de marge sur le mois (du 1er au jour choisi), memes
+     * regles et memes chiffres que l'onglet « Analyse » des marges ; limite 0 = « Voir plus ».
+     */
+    @GET
+    @Path("top-marges")
+    public Response topMarges(@QueryParam("date") String date, @DefaultValue("10") @QueryParam("limite") int limite,
+            @DefaultValue("0") @QueryParam("frais") int frais) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        LocalDate j = jour(date);
+        String e = emplacement(u);
+        return cache("top-marges|" + j + "|" + limite + "|" + e, COURT * 3, frais == 1,
+                () -> analyseMarges.topMarges(j.withDayOfMonth(1), j, e, limite));
+    }
+
     @GET
     @Path("top-mois")
     public Response topMois(@QueryParam("date") String date, @DefaultValue("5") @QueryParam("limite") int limite,

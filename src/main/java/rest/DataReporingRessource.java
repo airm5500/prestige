@@ -181,7 +181,8 @@ public class DataReporingRessource {
     @GET
     @Path("marges/analyse")
     public Response analyserMarges(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "partie") String partie)
+            throws JSONException {
         TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -200,7 +201,45 @@ public class DataReporingRessource {
             return Response.ok(new JSONObject().put("success", false)
                     .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
         }
-        return Response.ok(analyseMarges.analyser(debut, fin, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).toString())
+        String emplacement = tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        /* plan du 19/11, point 13 : la periode d'abord, l'historique (six mois) ensuite */
+        if ("periode".equals(partie)) {
+            return Response.ok(analyseMarges.analyserPeriode(debut, fin, emplacement).toString()).build();
+        }
+        if ("historique".equals(partie)) {
+            return Response.ok(analyseMarges.historique(debut, fin, emplacement).toString()).build();
+        }
+        return Response.ok(analyseMarges.analyser(debut, fin, emplacement).toString()).build();
+    }
+
+    /** Plan du 19/11, point 13 : Excel de l'onglet « Analyse » (memes chiffres que l'ecran). */
+    @GET
+    @Path("marges/analyse/excel")
+    @javax.ws.rs.Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response analyserMargesExcel(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException, java.io.IOException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        java.time.LocalDate debut, fin;
+        try {
+            fin = org.apache.commons.lang3.StringUtils.isBlank(dtEnd) ? java.time.LocalDate.now()
+                    : java.time.LocalDate.parse(dtEnd);
+            debut = org.apache.commons.lang3.StringUtils.isBlank(dtStart) ? fin.withDayOfMonth(1)
+                    : java.time.LocalDate.parse(dtStart);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new JSONObject().put("success", false).put("msg", "Dates invalides.").toString()).build();
+        }
+        if (debut.isAfter(fin)) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        byte[] data = rest.report.excel.AnalyseMargesExcel
+                .construire(analyseMarges.analyser(debut, fin, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()));
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"analyse_marges_" + debut + "_" + fin + ".xlsx\"")
                 .build();
     }
 
