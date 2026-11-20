@@ -4,6 +4,13 @@ Analyse en lecture seule de la copie locale `pontmain` (base du 19/11 au soir, d
 Aucune donnée modifiée. Les comptes sont désignés par une lettre, jamais par un nom :
 caissière A (identifiant finissant par 105839), B (576420), C (314875), compte D (793170).
 
+## Suite du 20/11 : dossier clos côté logiciel
+
+L'officine a trouvé l'explication : une erreur de billetage des caissières (information rapportée par l'officine le
+20/11, non vérifiable dans la base). Elle remplace la cause suspectée plus bas (retraits d'espèces non saisis).
+Elle confirme que les écarts ne viennent pas de Prestige. Les défauts 1 à 3 décrits plus bas restent à traiter :
+ils sont réels, mais sans lien avec ces écarts.
+
 ## Réponse courte
 
 - **Le calcul de Prestige est juste.** La « Recette » de chaque clôture se retrouve à l'identique en repartant des
