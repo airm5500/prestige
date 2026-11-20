@@ -4198,6 +4198,29 @@ Ext.define('testextjs.controller.VenteCtr', {
         return false;
     },
 
+    /**
+     * Journal de Pontmain (17/11) : un prix unitaire decimal tape dans la grille partait au serveur, qui le refusait
+     * (« itemPu : un nombre entier est attendu »). Le prix est en francs entiers : un texte qui n'est pas un entier est
+     * refuse des la saisie, avis discret sous forme de bandeau (pas de fenetre), le prix precedent reste en place et
+     * rien n'est envoye. « 1.500 » n'est pas transforme en 1500 ni en 1,5 : la caissiere retape le prix.
+     */
+    controlerPrixEntier: function (editor, e) {
+        if (e.field !== 'intPRICEUNITAIR') {
+            return true;
+        }
+        var champ = e.column && e.column.getEditor ? e.column.getEditor(e.record) : null;
+        var brut = String(champ && champ.getRawValue ? champ.getRawValue() : e.value).replace(/\s/g, '');
+        if (brut === '' || /^\d+$/.test(brut)) {
+            return true;
+        }
+        if (window.PrestigeToast) {
+            PrestigeToast.afficher('Le prix doit être un nombre entier de francs (« ' + Ext.String.htmlEncode(brut)
+                    + ' » refusé). Le prix précédent (' + e.originalValue + ') est conservé.',
+                    {titre: 'Prix', niveau: 'alerte', duree: 6000});
+        }
+        return false;
+    },
+
     onGridEdit: function (editor, e) {
         const me = this;
         me.toRecalculate = true;
@@ -8587,6 +8610,9 @@ Ext.define('testextjs.controller.VenteCtr', {
             return false;
         }
         if (this.scanDansCellule(editor, e)) {
+            return false;
+        }
+        if (!this.controlerPrixEntier(editor, e)) {
             return false;
         }
         return this.controlerQuantiteEntiere(editor, e);
