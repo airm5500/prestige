@@ -167,4 +167,53 @@ public final class ImportCodesReserve {
         }
         return r;
     }
+
+    /**
+     * Plan du 19/11, point 9 : un code « en double » du fichier, montre au pharmacien. {@code fois} : lectures du code
+     * dans le fichier ; {@code premierCode} : code qui avait deja fait reconnaitre le meme produit (sinon null) ;
+     * {@code id} : produit designe (null pour un code inconnu ou ambigu).
+     */
+    public static final class EnDouble {
+        public final String code;
+        public final String id;
+        public final int fois;
+        public final String premierCode;
+
+        EnDouble(String code, String id, int fois, String premierCode) {
+            this.code = code;
+            this.id = id;
+            this.fois = fois;
+            this.premierCode = premierCode;
+        }
+    }
+
+    /**
+     * Plan du 19/11, point 9 : liste des codes en double, dans l'ordre du fichier, un code une seule fois : code lu
+     * plusieurs fois, ou code d'un produit deja reconnu par un code precedent (les deux a la fois possibles). Le compte
+     * affiche a l'ecran (doublons + meme produit) se retrouve : somme des (fois - 1) + nombre de « meme produit ».
+     */
+    public static List<EnDouble> enDouble(List<String> codes, Resultat r) {
+        Map<String, Integer> fois = new LinkedHashMap<>();
+        for (String c : codes == null ? new ArrayList<String>() : codes) {
+            fois.merge(c, 1, Integer::sum);
+        }
+        Map<String, String> idParCode = new LinkedHashMap<>();
+        Map<String, String> premierParId = new LinkedHashMap<>();
+        for (Reconnu x : r.reconnus) {
+            idParCode.put(x.code, x.id);
+            premierParId.put(x.id, x.code);
+        }
+        Map<String, String> meme = new LinkedHashMap<>();
+        for (Reconnu x : r.memeProduit) {
+            idParCode.put(x.code, x.id);
+            meme.put(x.code, premierParId.get(x.id));
+        }
+        List<EnDouble> l = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : fois.entrySet()) {
+            if (e.getValue() > 1 || meme.containsKey(e.getKey())) {
+                l.add(new EnDouble(e.getKey(), idParCode.get(e.getKey()), e.getValue(), meme.get(e.getKey())));
+            }
+        }
+        return l;
+    }
 }

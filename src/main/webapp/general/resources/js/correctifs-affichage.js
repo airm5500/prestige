@@ -2444,9 +2444,10 @@ window.PrestigeChargement = (function () {
         var cd = reponse.headers.get('content-disposition') || '', m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
         return m ? decodeURIComponent(m[1]) : defaut;
     }
-    function telecharger(bouton, url, texte, defaut) {
+    /* plan du 19/11, point 9 : options de fetch facultatives (envoi POST d'un corps JSON, par exemple) */
+    function telecharger(bouton, url, texte, defaut, options) {
         var fin = occuper(bouton, texte || 'Préparation du fichier');
-        return fetch(url, {credentials: 'same-origin'}).then(function (r) {
+        return fetch(url, Ext.apply({credentials: 'same-origin'}, options || {})).then(function (r) {
             if (!r.ok) {
                 throw new Error('code ' + r.status);
             }

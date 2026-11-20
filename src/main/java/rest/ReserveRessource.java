@@ -494,6 +494,35 @@ public class ReserveRessource {
         return Response.ok().entity(listeReserveService.importer(user, contenu).toString()).build();
     }
 
+    /**
+     * Plan du 19/11, point 9 : Excel des codes non retenus d'un import (inconnus, ambigus, en double), construit sur le
+     * resultat que l'ecran a recu (meme lignes que le panneau et que l'impression). Rien n'est lu ni ecrit en base.
+     */
+    @POST
+    @Path("liste/import/excel")
+    @Consumes("application/json")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response listeImportExcel(String body) throws java.io.IOException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
+        if (currentUser() == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject resultat;
+        try {
+            resultat = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        } catch (JSONException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new JSONObject().put("success", false).put("msg", "Requête illisible.").toString()).build();
+        }
+        byte[] data = rest.report.excel.ImportReserveExcel.construire(resultat);
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"import_reserve_codes_non_retenus.xlsx\"")
+                .build();
+    }
+
     /** Excel de toute la recherche, construit sur le meme JSON que la grille. */
     @GET
     @Path("liste/excel")
