@@ -493,15 +493,33 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var choixSens = (me.typeParam === 'ALL');
         var categorie = (me.typeParam === 'REAPPRO') ? 'RESERVE' : 'RAYON';
         var storeMotifs = new Ext.data.Store({
-            fields: ['id', 'libelle'],
+            fields: ['id', 'libelle', 'categorie'],
             proxy: {
                 type: 'ajax', url: '../api/v1/suggestion-reserve/motifs',
                 extraParams: {categorie: categorie}, reader: {type: 'json'}
             }
         });
-        storeMotifs.load();
+        var win = null;
+        /*
+         * 20/11 : le motif « journalier » du sens choisi est propose d'office (« Reappro rayon journalier » vers le
+         * rayon, « Reappro reserve journalier » vers la reserve) : on cree sans toucher a la liste. Il reste
+         * modifiable. Sans motif « journalier » actif pour ce sens, rien n'est pose : le motif reste a choisir.
+         */
+        storeMotifs.on('load', function () {
+            var cboMotif = win && win.down('#cboMotifRech');
+            if (!cboMotif || cboMotif.getValue()) {
+                return;
+            }
+            var idx = storeMotifs.findBy(function (r) {
+                return /journalier/i.test(r.get('libelle') || '')
+                        && String(r.get('categorie') || '').toUpperCase() === categorie;
+            });
+            if (idx >= 0) {
+                cboMotif.setValue(storeMotifs.getAt(idx).get('id'));
+            }
+        });
 
-        var win = Ext.create('Ext.window.Window', {
+        win = Ext.create('Ext.window.Window', {
             title: titre,
             width: 520, modal: true, bodyPadding: 10, layout: 'anchor',
             defaults: {anchor: '100%', labelWidth: 90},
@@ -565,6 +583,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             ]
         });
         win.show();
+        // Charge une fois la fenetre creee : le motif par defaut se pose des la reponse.
+        storeMotifs.load();
         return win;
     },
 
