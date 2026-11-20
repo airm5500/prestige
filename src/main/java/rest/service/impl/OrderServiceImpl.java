@@ -72,19 +72,6 @@ public class OrderServiceImpl implements OrderService {
         return em;
     }
 
-    private TFamilleStock getTProductItemStock(String produitId, String emp) {
-        try {
-            TypedQuery<TFamilleStock> q = getEmg().createQuery(
-                    "SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgFAMILLEID.strSTATUT='enable'  AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND t.strSTATUT ='enable' ",
-                    TFamilleStock.class).setParameter(1, produitId).setParameter(2, emp);
-            q.setMaxResults(1);
-            return q.getSingleResult();
-        } catch (Exception e) {
-            return null;
-        }
-
-    }
-
     private TFamilleStock getTProductItemStock(String produitId) {
         try {
             TypedQuery<TFamilleStock> q = getEmg().createQuery(
@@ -96,6 +83,24 @@ public class OrderServiceImpl implements OrderService {
             return null;
         }
 
+    }
+
+    /** Stock actif de l'emplacement de chaque produit actif des lignes, en requetes de 500 produits au plus. */
+    private Map<String, TFamilleStock> stocksDesProduits(List<TOrderDetail> lignes, String emp) {
+        List<String> produits = lignes.stream().map(d -> d.getLgFAMILLEID().getLgFAMILLEID()).distinct()
+                .collect(Collectors.toList());
+        Map<String, TFamilleStock> stocks = new java.util.HashMap<>();
+        for (int i = 0; i < produits.size(); i += 500) {
+            List<TFamilleStock> lus = getEmg().createQuery(
+                    "SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID IN :produits AND t.lgFAMILLEID.strSTATUT='enable'  AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = :emp AND t.strSTATUT ='enable' ",
+                    TFamilleStock.class)
+                    .setParameter("produits", produits.subList(i, Math.min(i + 500, produits.size())))
+                    .setParameter("emp", emp).getResultList();
+            for (TFamilleStock t : lus) {
+                stocks.putIfAbsent(t.getLgFAMILLEID().getLgFAMILLEID(), t);
+            }
+        }
+        return stocks;
     }
 
     @Override
@@ -148,9 +153,17 @@ public class OrderServiceImpl implements OrderService {
         /* retours du 08/10 (11) : bon de livraison valorise PharmaML choisi -> quantites recues pre-remplies */
         String blvId = StringUtils.trimToNull(params.getRefTwo());
         Map<String, Integer> livrees = BlvPharmaMl.quantitesLivrees(getEmg(), blvId);
+        /*
+         * Journal de Pontmain (13/11, creerbl bloque 32 s) : lire le stock ligne par ligne faisait reverifier par
+         * Hibernate, a chaque lecture, tout ce que la boucle avait deja cree, d'ou un temps qui croit comme le carre du
+         * nombre de lignes. Les stocks de la commande sont lus une fois, avant la boucle, avec la meme regle (produit
+         * actif, stock actif de l'emplacement) ; la boucle ne cree ni ne modifie aucun stock, et les entites lues sont
+         * celles que la lecture ligne par ligne rendait.
+         */
+        Map<String, TFamilleStock> stocks = stocksDesProduits(listTOrderDetail, emp);
         for (TOrderDetail d : listTOrderDetail) {
             TFamille famille = d.getLgFAMILLEID();
-            TFamilleStock stock = getTProductItemStock(famille.getLgFAMILLEID(), emp);
+            TFamilleStock stock = stocks.get(famille.getLgFAMILLEID());
             if (stock != null) {
                 createBLDetail(oBonLivraison, grossiste, famille, d, famille.getLgZONEGEOID(),
                         stock.getIntNUMBERAVAILABLE(), livrees.get(famille.getLgFAMILLEID()));
