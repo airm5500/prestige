@@ -218,7 +218,10 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                                     flex: 0.5,
 
                                     listeners: {
-                                        checkChange: this.onCheckChange
+                                        // portee de la fenetre : sans elle, « this » est la colonne et
+                                        // this.majCompteCoches() echoue a chaque case cochee (leana, 19/11)
+                                        checkChange: this.onCheckChange,
+                                        scope: this
                                     }
                                 }
                             ],
