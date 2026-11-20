@@ -62,15 +62,20 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
             fields: ['lgTIERSPAYANTID', 'strFULLNAME'], pageSize: 9999, autoLoad: false,
             proxy: {type: 'ajax', url: '../api/v1/client/tiers-payants', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
         });
+        var groupes = new Ext.data.Store({
+            fields: ['lg_GROUPE_ID', 'str_LIBELLE'], pageSize: 50, autoLoad: false,
+            proxy: {type: 'ajax', url: '../api/v1/groupe-tierspayant/list', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
         me.store = new Ext.data.Store({
             fields: ['id', 'bon', 'vente', 'refVente', 'dateVente', 'dateOrdonnance', 'assure', 'matricule', 'ayantDroit',
                 {name: 'taux', useNull: true}, {name: 'part', type: 'int'}, 'controles', 'alertesBon', 'alerte', 'resumeAlerte',
-                'etat', 'resultat', 'blocAnomalie', 'motif', 'modifieDepuis', 'pointeLe', 'pointePar'],
+                'etat', 'resultat', 'blocAnomalie', 'motif', 'modifieDepuis', 'pointeLe', 'pointePar', 'organismeId', 'organisme'],
             autoLoad: false,
             proxy: {type: 'ajax', url: api + 'liste', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
             listeners: {
                 beforeload: function (st) {
-                    var p = me.parametres();
+                    /* plan du 19/11, point 11 : un organisme, ou un groupe d'organismes */
+                    var p = me.parametresListe();
                     if (!p) {
                         return false;
                     }
@@ -99,16 +104,32 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                     {xtype: 'combobox', itemId: 'ptOrganisme', store: organismes, valueField: 'lgTIERSPAYANTID', displayField: 'strFULLNAME',
                         queryMode: 'remote', minChars: 1, width: 280, emptyText: 'Organisme…', forceSelection: true, pageSize: 9999,
                         listeners: {select: function () {
+                                me.modeGroupe(false);
                                 me.chargerDelais();
+                                me.recharger();
+                            }}},
+                    /* plan du 19/11, point 11 : ou un groupe : les bons de chaque organisme du groupe, l'un apres l'autre */
+                    {xtype: 'combobox', itemId: 'ptGroupeFiltre', store: groupes, valueField: 'lg_GROUPE_ID', displayField: 'str_LIBELLE',
+                        queryMode: 'remote', queryParam: 'query', minChars: 1, width: 200, emptyText: 'ou un groupe…', forceSelection: true,
+                        listeners: {select: function () {
+                                me.modeGroupe(true);
                                 me.recharger();
                             }}},
                     {xtype: 'datefield', itemId: 'ptDebut', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y', submitFormat: 'Y-m-d', value: debutMois,
                         listeners: {select: function () {
                                 me.recharger();
+                            }, specialkey: function (f, e) {
+                                if (e.getKey() === e.ENTER) {
+                                    me.recharger();
+                                }
                             }}},
                     {xtype: 'datefield', itemId: 'ptFin', fieldLabel: 'au', labelWidth: 18, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: new Date(),
                         listeners: {select: function () {
                                 me.recharger();
+                            }, specialkey: function (f, e) {
+                                if (e.getKey() === e.ENTER) {
+                                    me.recharger();
+                                }
                             }}},
                     {xtype: 'button', itemId: 'ptActualiser', text: 'Actualiser', handler: function () {
                             me.recharger();
@@ -187,8 +208,11 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                             }}
                     ]
                 };
+        me.groupement = Ext.create('Ext.grid.feature.Grouping', {
+            groupHeaderTpl: '{name} · {rows.length} bon(s)', enableGroupingMenu: false, hideGroupedHeader: false
+        });
         me.grille = Ext.create('Ext.grid.Panel', {
-            itemId: 'ptGrille', store: me.store, columnLines: true,
+            itemId: 'ptGrille', store: me.store, columnLines: true, features: [me.groupement],
             columns: [
                 {text: 'N° bon', dataIndex: 'bon', width: 110},
                 {text: 'Date vente', dataIndex: 'dateVente', width: 120, renderer: function (v) {
@@ -219,6 +243,11 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
             ],
             listeners: {
                 itemclick: function (v, rec) {
+                    /* plan du 19/11, point 11 : en groupe, le pointage reste par organisme : on passe sur le sien */
+                    if (me.enGroupe) {
+                        me.basculerOrganisme(rec);
+                        return;
+                    }
                     me.ouvrir(rec);
                 }
             }
@@ -452,14 +481,78 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
         return {tiersPayantId: tp, dtStart: Ext.Date.format(d, 'Y-m-d'), dtEnd: Ext.Date.format(f, 'Y-m-d')};
     },
 
+    /* plan du 19/11, point 11 : parametres de la liste : organisme, sinon groupe ; null si rien n'est choisi */
+    parametresListe: function () {
+        var me = this, p = me.parametres(), g = me.down('#ptGroupeFiltre').getValue(), d = me.down('#ptDebut').getValue(), f = me.down('#ptFin').getValue();
+        if (p) {
+            return p;
+        }
+        if (me.enGroupe && g && d && f) {
+            return {groupeId: g, dtStart: Ext.Date.format(d, 'Y-m-d'), dtEnd: Ext.Date.format(f, 'Y-m-d')};
+        }
+        return null;
+    },
+
     reloadGrid: function () {
         this.recharger();
     },
 
+    /* plan du 19/11, point 11 : avant, sans organisme, « Actualiser » ne faisait rien et ne disait rien */
     recharger: function () {
-        if (this.parametres()) {
-            this.store.load();
+        var me = this, org = me.down('#ptOrganisme'), d = me.down('#ptDebut').getValue(), f = me.down('#ptFin').getValue();
+        var dire = function (t) {
+            me.message(t, false);
+            me.down('#ptCompteurs').update('<b style="color:#b42318">' + t + '</b>');
+        };
+        if (!d || !f) {
+            dire('Saisissez une période valide (jj/mm/aaaa).');
+            return;
         }
+        if (f < d) {
+            dire('Période : la date de fin précède la date de début.');
+            return;
+        }
+        if (!me.parametresListe()) {
+            org.markInvalid('Choisissez un organisme ou un groupe');
+            dire('Choisissez un organisme ou un groupe.');
+            return;
+        }
+        org.clearInvalid();
+        me.message('', true);
+        me.store.load();
+    },
+
+    /* plan du 19/11, point 11 : liste d'un groupe : bandeau par organisme ; actions propres a un organisme grisees */
+    modeGroupe: function (actif) {
+        var me = this;
+        me.enGroupe = !!actif;
+        if (actif) {
+            me.down('#ptOrganisme').clearValue();
+            me.store.group('organisme');
+            me.groupement.enable();
+        } else {
+            me.down('#ptGroupeFiltre').clearValue();
+            me.store.clearGrouping();
+            me.groupement.disable();
+        }
+        Ext.each(['#ptAnnonces', '#ptAnnoncesOk', '#ptReleve', '#ptDelai', '#ptDelaiOk', '#ptExcel', '#ptPdf', '#ptScan'], function (id) {
+            var c = me.down(id);
+            if (c) {
+                c.setDisabled(!!actif);
+            }
+        });
+        if (actif) {
+            me.down('#ptDelaiGroupe').setDisabled(true);
+            me.down('#ptGroupe').setText('');
+        }
+    },
+
+    /* clic sur un bon de la liste d'un groupe : son organisme est choisi, sa fiche s'ouvre */
+    basculerOrganisme: function (rec) {
+        var me = this, d = me.down('#ptDebut').getValue(), f = me.down('#ptFin').getValue();
+        me.modeGroupe(false);
+        me.reprendre({tiersPayantId: rec.get('organismeId'), organisme: rec.get('organisme'), dtStart: Ext.Date.format(d, 'Y-m-d'),
+            dtEnd: Ext.Date.format(f, 'Y-m-d'), bonId: rec.get('id'), bon: rec.get('bon'), vente: rec.get('vente')});
     },
 
     compteurs: function (c) {

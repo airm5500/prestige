@@ -263,6 +263,62 @@ public class PointageBonService {
                 compteurs(user, tp, debut, fin, tous));
     }
 
+    /**
+     * Plan du 19/11, point 11 : liste d'un groupe d'organismes. Les bons de chaque organisme du groupe (ceux qui en ont
+     * sur la periode, par ordre de nom), l'un apres l'autre, chacun avec les controles de son organisme ; chaque bon
+     * porte son organisme (identifiant et nom). Compteurs = somme des compteurs des organismes ; les bons annonces
+     * restent propres a un organisme (absents ici). Lecture seule.
+     */
+    public JSONObject listeGroupe(TUser user, String groupeId, LocalDate debut, LocalDate fin, String filtre,
+            String recherche) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> organismes = em.createNativeQuery("SELECT tp.lg_TIERS_PAYANT_ID, tp.str_FULLNAME"
+                + " FROM t_tiers_payant tp WHERE tp.lg_GROUPE_ID = ?1 AND EXISTS (SELECT 1"
+                + "   FROM t_preenregistrement_compte_client_tiers_payent cp"
+                + "   JOIN t_compte_client_tiers_payant cl ON cl.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
+                + "   JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = cp.lg_PREENREGISTREMENT_ID"
+                + "   WHERE cl.lg_TIERS_PAYANT_ID = tp.lg_TIERS_PAYANT_ID AND p.dt_UPDATED >= ?2 AND p.dt_UPDATED <= ?3"
+                + "   AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0)"
+                + " ORDER BY tp.str_FULLNAME, tp.lg_TIERS_PAYANT_ID").setParameter(1, groupeId)
+                .setParameter(2, Timestamp.valueOf(debut.atStartOfDay()))
+                .setParameter(3, Timestamp.valueOf(fin.atTime(23, 59, 59))).getResultList();
+        JSONArray data = new JSONArray();
+        JSONArray parOrganisme = new JSONArray();
+        List<JSONObject> compteurs = new ArrayList<>();
+        for (Object[] o : organismes) {
+            String tp = String.valueOf(o[0]);
+            String nom = txt(o[1]);
+            JSONObject l = liste(user, tp, debut, fin, filtre, recherche);
+            JSONArray d = l.getJSONArray("data");
+            for (int i = 0; i < d.length(); i++) {
+                data.put(d.getJSONObject(i).put("organismeId", tp).put("organisme", nom));
+            }
+            JSONObject c = l.getJSONObject("compteurs");
+            compteurs.add(c);
+            parOrganisme
+                    .put(new JSONObject().put("id", tp).put("nom", nom).put("bons", d.length()).put("compteurs", c));
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data)
+                .put("compteurs", sommeCompteurs(compteurs)).put("organismes", parOrganisme);
+    }
+
+    /** Plan du 19/11, point 11 : compteurs d'un groupe = somme des compteurs de ses organismes (annonces : aucune). */
+    public static JSONObject sommeCompteurs(List<JSONObject> compteurs) {
+        String[] cles = { "enBase", "pointes", "conformes", "anomalies", "alertes", "aPointer" };
+        JSONObject s = new JSONObject();
+        long montant = 0;
+        for (String k : cles) {
+            s.put(k, 0);
+        }
+        for (JSONObject c : compteurs) {
+            for (String k : cles) {
+                s.put(k, s.getInt(k) + c.optInt(k, 0));
+            }
+            montant += c.optLong("montant", 0);
+        }
+        return s.put("montant", montant).put("annonces", JSONObject.NULL).put("ecart", JSONObject.NULL);
+    }
+
     public JSONObject compteurs(TUser user, String tp, LocalDate debut, LocalDate fin, List<Bon> tous) {
         int pointes = 0, conformes = 0, anomalies = 0, alertes = 0;
         long montant = 0;
