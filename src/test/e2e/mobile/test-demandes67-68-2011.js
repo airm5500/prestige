@@ -10,6 +10,8 @@
  *  - rapprochement avec la base : nombre de lignes et montant de la liste = calcul SQL independant.
  * 68 — GET v1/tableau-bord/tva : memes montants que api/v3/tvas (TOUT, 1er du mois -> jour), taux par taux ;
  *    second appel servi par le cache (meme corps, bien plus rapide) ; frais=1 recalcule.
+ * Retour de l'application (20/11) : luLe et duree glissante (1), tiersPayantsRetenus (2), lecture partagee de deux
+ * premieres pages simultanees (3), routes annoncees par tableau-bord/version (6).
  * Lecture seule : rien n'est ecrit (empreinte des tables lues identique avant et apres).
  */
 const { chromium } = require('playwright-core');
@@ -96,6 +98,56 @@ const EMPREINTE = () => q("CHECKSUM TABLE t_preenregistrement, t_preenregistreme
       f && (f.total + ' / ' + f.montant + ' contre ' + attendu.length));
     const parId = (await json(api + '&limit=1000&tiersPayant=' + encodeURIComponent(liste.find((o) => o.tiersPayantLibelle === tpChoisi).tiersPayantId))).json;
     ok('67 : tiersPayant par identifiant = par libellé', parId && parId.total === trie.filter((o) => o.tiersPayantLibelle === tpChoisi).length, parId && parId.total);
+
+    /* ---- Retour de l'application (20/11), remarque 2 : tiersPayantsRetenus = libelles distincts des lignes retenues */
+    const distincts = (l) => new Set(l.map((o) => o.tiersPayantLibelle).filter((v) => v != null)).size;
+    let retenusOk = p1.tiersPayantsRetenus === tps.length && f.tiersPayantsRetenus === distincts(attendu);
+    const detailRetenus = ['sans filtre ' + p1.tiersPayantsRetenus + '/' + tps.length, 'filtre ' + f.tiersPayantsRetenus + '/' + distincts(attendu)];
+    for (const m of ['a', 'e', 'fac', motif]) {
+      const att = trie.filter((o) => has(o.clientName, m) || has(o.ayantDroitName, m) || has(o.numFacturation, m) || has(o.tiersPayantLibelle, m));
+      const rr = (await json(api + '&start=0&limit=0&query=' + encodeURIComponent(m))).json;
+      retenusOk = retenusOk && !!rr && rr.tiersPayantsRetenus === distincts(att) && rr.total === att.length;
+      detailRetenus.push('« ' + m + ' » ' + (rr && rr.tiersPayantsRetenus) + '/' + distincts(att));
+    }
+    ok('Retour 2 : tiersPayantsRetenus = tiers payants distincts des lignes retenues (sans filtre, recherches variées, tiers payant)', retenusOk, detailRetenus.join(' ; '));
+
+    /* ---- Retour, remarque 1 : repere luLe et duree glissante */
+    const r0 = await json(api + '&start=0&limit=50');
+    const rA = await json(api + '&start=50&limit=50');
+    ok('Retour 1 : luLe (nombre) présent, identique entre la page 0 et la page suivante', !!r0.json && typeof r0.json.luLe === 'number' && !!rA.json && r0.json.luLe === rA.json.luLe,
+      r0.json && (r0.json.luLe + ' / ' + (rA.json && rA.json.luLe)));
+    await p.waitForTimeout(40000);
+    const g1 = await json(api + '&start=100&limit=50');
+    await p.waitForTimeout(40000);
+    const g2 = await json(api + '&start=150&limit=50');
+    ok('Retour 1 : durée glissante — pages à +40 s puis +80 s servies par la même lecture (même luLe, rapides)',
+      !!g1.json && !!g2.json && g1.json.luLe !== undefined && g1.json.luLe === r0.json.luLe && g2.json.luLe === r0.json.luLe && g2.ms < Math.max(500, r0.ms / 4),
+      (g1.json && g1.json.luLe) + ' / ' + (g2.json && g2.json.luLe) + ' ; ' + g1.ms + ' ms, ' + g2.ms + ' ms (page 0 : ' + r0.ms + ' ms)');
+    const rf = await json(api + '&start=0&limit=50');
+    ok('Retour 1 : tirer pour rafraîchir (start=0 sans filtre) relit la période : nouveau luLe', !!rf.json && rf.json.luLe > r0.json.luLe, rf.json && rf.json.luLe);
+
+    /* ---- Retour, remarque 3 : deux premieres pages en meme temps -> une seule lecture.
+       Deux telephones = deux sessions (deux contextes) : dans un meme navigateur, Chromium met en file deux GET
+       identiques (verrou de son cache), ce qui ne dit rien du serveur. La seconde part 1,5 s apres la premiere,
+       pendant sa lecture : deux lectures auraient deux reperes distincts. */
+    const tel2 = await (await b.newContext()).newPage();
+    await connexion(tel2, ENV_E2E.LOGIN, 'e2etest');
+    const json2 = async (url) => { const r = await tel2.evaluate(async (u) => { const t0 = performance.now(); const x = await fetch(u, { credentials: 'same-origin' });
+      const texte = await x.text(); return { statut: x.status, texte, ms: Math.round(performance.now() - t0) }; }, url);
+      try { return { ...r, json: JSON.parse(r.texte) }; } catch (e) { return { ...r, json: null }; } };
+    const premiereLecture = json(api + '&start=0&limit=50');
+    await p.waitForTimeout(1500);
+    const seconde = json2(api + '&start=0&limit=50');
+    const [c1, c2] = await Promise.all([premiereLecture, seconde]);
+    ok('Retour 3 : deux premières pages en même temps → une seule lecture partagée (même luLe, mêmes lignes)',
+      !!c1.json && !!c2.json && c1.json.luLe !== undefined && c1.json.luLe === c2.json.luLe && c1.json.luLe > rf.json.luLe && c1.texte === c2.texte,
+      (c1.json && c1.json.luLe) + ' / ' + (c2.json && c2.json.luLe) + ' ; ' + c1.ms + ' ms, ' + c2.ms + ' ms');
+
+    /* ---- Retour, remarque 6 : tableau-bord/version annonce les routes */
+    const ver = (await json('../api/v1/tableau-bord/version')).json;
+    ok('Retour 6 : tableau-bord/version annonce les routes « tva » et « ca-credit » (pagination), version inchangée',
+      !!ver && ver.success === true && Array.isArray(ver.routes) && ver.routes.includes('tva') && ver.routes.includes('ca-credit') && /^(ANCIEN|NOUVEAU)$/.test(ver.version),
+      JSON.stringify(ver));
 
     /* ---- 68 : tableau-bord/tva = api/v3/tvas TOUT, en cache */
     const jour = q('SELECT CURDATE()'), debut = q("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-01')");

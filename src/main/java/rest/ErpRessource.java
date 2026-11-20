@@ -155,33 +155,26 @@ public class ErpRessource {
                     .build();
         }
         /*
-         * Pages suivantes et recherches : la periode lue est gardee 60 s, sinon chaque page de 50 relirait toute la
-         * periode. start=0 sans recherche (premiere page, ou tirer pour rafraichir) relit toujours la base.
+         * Pages suivantes et recherches : la periode lue est gardee 60 s apres la derniere page servie, sinon chaque
+         * page de 50 relirait toute la periode. start=0 sans recherche (premiere page, ou tirer pour rafraichir) relit
+         * la base, sauf si une lecture de la meme periode est deja en cours : elle est alors partagee.
          */
         boolean premiere = (start == null || start <= 0) && org.apache.commons.lang3.StringUtils.isBlank(query)
                 && org.apache.commons.lang3.StringUtils.isBlank(tiersPayant);
-        return Response.ok().entity(rest.service.impl.PageCaCredit.page(periodeCaCredit(dtStart, dtEnd, premiere),
-                start, limit, query, tiersPayant)).build();
+        rest.service.impl.PeriodesCaCredit.Lecture<commonTasks.dto.ErpTiersPayantDTO> lu = PERIODES_CA_CREDIT
+                .lire(dtStart + "|" + dtEnd, premiere, () -> erpService.rrpTiersPayant(dtStart, dtEnd));
+        java.util.Map<String, Object> page = rest.service.impl.PageCaCredit.page(lu.lignes, start, limit, query,
+                tiersPayant);
+        page.put("luLe", lu.luLe); // retour du 20/11 : repere de la lecture, change a chaque relecture
+        return Response.ok().entity(page).build();
     }
 
-    private static final long DUREE_PERIODE_CA_CREDIT = 60_000L;
-    private static final java.util.Map<String, Object[]> PERIODES_CA_CREDIT = new java.util.concurrent.ConcurrentHashMap<>();
-
-    @SuppressWarnings("unchecked")
-    private java.util.List<commonTasks.dto.ErpTiersPayantDTO> periodeCaCredit(String dtStart, String dtEnd,
-            boolean relire) {
-        long maintenant = System.currentTimeMillis();
-        String cle = dtStart + "|" + dtEnd;
-        Object[] e = PERIODES_CA_CREDIT.get(cle);
-        if (!relire && e != null && (long) e[0] > maintenant) {
-            return (java.util.List<commonTasks.dto.ErpTiersPayantDTO>) e[1];
-        }
-        java.util.List<commonTasks.dto.ErpTiersPayantDTO> lignes = java.util.Collections
-                .unmodifiableList(erpService.rrpTiersPayant(dtStart, dtEnd));
-        PERIODES_CA_CREDIT.values().removeIf(v -> (long) v[0] <= maintenant);
-        PERIODES_CA_CREDIT.put(cle, new Object[] { maintenant + DUREE_PERIODE_CA_CREDIT, lignes });
-        return lignes;
-    }
+    /*
+     * Retour du 20/11 : periode gardee 60 s apres la derniere page servie (duree glissante), repere luLe, lecture
+     * partagee entre deux demandes simultanees (voir PeriodesCaCredit).
+     */
+    private static final rest.service.impl.PeriodesCaCredit<commonTasks.dto.ErpTiersPayantDTO> PERIODES_CA_CREDIT = new rest.service.impl.PeriodesCaCredit<>(
+            System::currentTimeMillis);
 
     @GET
     @Path("reglements")

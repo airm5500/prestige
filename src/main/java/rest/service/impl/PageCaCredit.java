@@ -21,7 +21,8 @@ import java.util.stream.Collectors;
  * <li>{@code tiersPayant} : libelle (sans tenir compte de la casse) ou identifiant du tiers payant ;</li>
  * <li>avec {@code limit} : une page triee par date decroissante puis numero de facture, et les totaux de toutes les
  * lignes retenues ({@code total}, {@code montant}, {@code clients}), plus les tiers payants de la periode avant filtre
- * ({@code tiersPayants}). {@code limit} a 0 : les totaux seuls.</li>
+ * ({@code tiersPayants}) et le nombre de tiers payants des lignes retenues ({@code tiersPayantsRetenus}). {@code limit}
+ * a 0 : les totaux seuls.</li>
  * </ul>
  */
 public final class PageCaCredit {
@@ -74,6 +75,9 @@ public final class PageCaCredit {
                 retenues.stream()
                         .map(o -> o.getClientId() != null ? "id:" + o.getClientId() : "nom:" + o.getClientName())
                         .distinct().count());
+        // retour du 20/11 : tiers payants distincts des lignes retenues (chiffre cle avec une recherche active)
+        r.put("tiersPayantsRetenus", retenues.stream().map(ErpTiersPayantDTO::getTiersPayantLibelle)
+                .filter(Objects::nonNull).distinct().count());
         r.put("tiersPayants", new ArrayList<>(lignes.stream().map(ErpTiersPayantDTO::getTiersPayantLibelle)
                 .filter(Objects::nonNull).collect(Collectors.toCollection(TreeSet::new))));
         r.put("data", new ArrayList<>(data));
