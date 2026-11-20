@@ -60,6 +60,17 @@ public class EtatControlBonResource {
                 .build();
     }
 
+    /** Plan du 19/11, point 12 : onglet « Modifications des BL ». */
+    @GET
+    @Path("modifications")
+    public Response modifications(@QueryParam(value = "search") String search,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd) {
+        if (servletRequest.getSession().getAttribute(util.Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(etatControlBonService.modificationsBl(search, dtStart, dtEnd).toString()).build();
+    }
+
     @GET
     @Path("list")
     public Response list(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
@@ -206,7 +217,12 @@ public class EtatControlBonResource {
     @POST
     @Path("edit")
     public Response editBon(EtatControlBonEditDto bonEditDto) {
-        return Response.ok().entity(etatControlBonService.updateBon(bonEditDto).toString()).build();
+        dal.TUser user = (dal.TUser) servletRequest.getSession().getAttribute(util.Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
+        }
+        /* plan du 19/11, point 12 : la modification est tracee au journal */
+        return Response.ok().entity(etatControlBonService.updateBon(bonEditDto, user).toString()).build();
 
     }
 
@@ -284,7 +300,8 @@ public class EtatControlBonResource {
     @Path("reglement")
     public Response reglerBons(String body) throws org.json.JSONException {
         javax.servlet.http.HttpSession hs = servletRequest.getSession();
-        if (hs.getAttribute(util.Constant.AIRTIME_USER) == null) {
+        dal.TUser user = (dal.TUser) hs.getAttribute(util.Constant.AIRTIME_USER);
+        if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
         }
         org.json.JSONObject entree = new org.json.JSONObject(body == null ? "{}" : body);
@@ -297,8 +314,10 @@ public class EtatControlBonResource {
             }
         }
         Integer montant = entree.has("montantRegle") ? entree.optInt("montantRegle") : null;
-        return Response.ok().entity(etatControlBonService
-                .reglerBons(bons, entree.optString("statut", ""), entree.optString("date", ""), montant).toString())
+        return Response.ok()
+                .entity(etatControlBonService
+                        .reglerBons(bons, entree.optString("statut", ""), entree.optString("date", ""), montant, user)
+                        .toString())
                 .build();
     }
 

@@ -51,6 +51,9 @@ public interface EtatControlBonService {
 
     JSONObject updateBon(EtatControlBonEditDto bonEdit);
 
+    /** Plan du 19/11, point 12 : modification tracee au journal (un champ par information changee, avant / apres). */
+    JSONObject updateBon(EtatControlBonEditDto bonEdit, dal.TUser user);
+
     /**
      * Identifiants des produits portes par les bons de livraison donnes, sans doublon.
      *
@@ -86,6 +89,16 @@ public interface EtatControlBonService {
      *            montant deja verse ; n'a de sens que pour un reglement partiel
      */
     JSONObject reglerBons(List<String> bonIds, String statut, String dateReglement, Integer montantRegle);
+
+    /** Plan du 19/11, point 12 : reglement trace au journal. */
+    JSONObject reglerBons(List<String> bonIds, String statut, String dateReglement, Integer montantRegle,
+            dal.TUser user);
+
+    /**
+     * Plan du 19/11, point 12 : onglet « Modifications des BL » : modifications et reglements de BL de la periode (date
+     * de l'operation), une ligne par champ change, relus du journal.
+     */
+    JSONObject modificationsBl(String search, String dtStart, String dtEnd);
 
     byte[] generate(String search, String dtStart, String dtEnd, String grossisteId, String dateType)
             throws IOException;

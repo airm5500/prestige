@@ -49,7 +49,9 @@ public enum TypeLog {
     // cas 3 du 03/11/2026 : produit coche / decoche « ordonnancier » ou « sensible » (ajoute a la fin : rang)
     ORDONNANCIER_PRODUIT("Produit ordonnancier ou sensible", true),
     // plan du 09/11, point 13 : envoi d'un message (ticket Z par SMS ou WhatsApp) ; ajoute a la fin : rang
-    ENVOI_MESSAGE("Envoi de message", true);
+    ENVOI_MESSAGE("Envoi de message", true),
+    // plan du 19/11, point 12 : modification des informations d'un BL et reglement d'un BL ; ajoutes a la fin : rang
+    MODIFICATION_BL("Modification d'un BL", true), REGLEMENT_BL("Règlement d'un BL", true);
 
     private final String value;
     private final boolean checked;

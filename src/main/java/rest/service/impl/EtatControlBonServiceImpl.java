@@ -55,6 +55,8 @@ import rest.service.dto.GenericExcelDTO;
 import rest.service.dto.ResumeLignes;
 import rest.service.dto.builder.EtatControlBonBuilder;
 import util.Constant;
+import dal.enumeration.TypeLog;
+import rest.service.impl.achats.ModificationBl;
 import util.FunctionUtils;
 
 /**
@@ -819,6 +821,12 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
 
     @Override
     public JSONObject reglerBons(List<String> bonIds, String statut, String dateReglement, Integer montantRegle) {
+        return reglerBons(bonIds, statut, dateReglement, montantRegle, null);
+    }
+
+    @Override
+    public JSONObject reglerBons(List<String> bonIds, String statut, String dateReglement, Integer montantRegle,
+            dal.TUser user) {
         JSONObject json = new JSONObject();
         if (bonIds == null || bonIds.isEmpty()) {
             return json.put("success", false).put("msg", "Veuillez sélectionner au moins un bon de livraison.");
@@ -847,6 +855,10 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                  * saisir a la main, c'est accepter qu'il ne corresponde pas au bon.
                  */
                 int ttc = bon.getIntHTTC() != null ? bon.getIntHTTC() : 0;
+                String statutAvant = bon.getSTATUS();
+                Integer regleAvant = bon.getIntMONTANTREGLE();
+                Integer resteAvant = bon.getIntMONTANTRESTANT();
+                Date dateAvant = bon.getDtREGLEMENTDATE();
                 bon.setSTATUS(etat);
                 bon.setDtREGLEMENTDATE(date);
                 if (NON_REGLE.equals(etat)) {
@@ -861,6 +873,18 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                     bon.setIntMONTANTRESTANT(0);
                 }
                 em.merge(bon);
+                /* plan du 19/11, point 12 : le reglement est trace au journal, avant / apres */
+                List<ModificationBl.Champ> champs = new ArrayList<>();
+                ModificationBl.ajouter(champs, ModificationBl.STATUT, ModificationBl.texte(statutAvant),
+                        ModificationBl.texte(bon.getSTATUS()));
+                ModificationBl.ajouter(champs, ModificationBl.MONTANT_REGLE,
+                        ModificationBl.montant(regleAvant == null ? 0 : regleAvant),
+                        ModificationBl.montant(bon.getIntMONTANTREGLE()));
+                ModificationBl.ajouter(champs, ModificationBl.RESTANT, ModificationBl.montant(resteAvant),
+                        ModificationBl.montant(bon.getIntMONTANTRESTANT()));
+                ModificationBl.ajouter(champs, ModificationBl.REGLE_LE, ModificationBl.date(jourDe(dateAvant)),
+                        ModificationBl.date(jourDe(bon.getDtREGLEMENTDATE())));
+                tracer(user, bon, TypeLog.REGLEMENT_BL, "Règlement du BL", champs);
                 marques++;
             }
         } catch (Exception e) {
@@ -875,13 +899,23 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
 
     @Override
     public JSONObject updateBon(EtatControlBonEditDto bonEdit) {
+        return updateBon(bonEdit, null);
+    }
+
+    @Override
+    public JSONObject updateBon(EtatControlBonEditDto bonEdit, dal.TUser user) {
         JSONObject json = new JSONObject();
 
         TBonLivraison bonLivraison = getById(bonEdit.getBonId());
         TGrossiste grossiste = getByNameOrId(bonEdit.getGrossisteId());
         MvtTransaction mt = getByPkey(bonLivraison.getLgBONLIVRAISONID());
         TOrder order = bonLivraison.getLgORDERID();
-        order.setLgGROSSISTEID(grossiste);
+        /* plan du 19/11, point 12 : etat avant, pour le journal */
+        TGrossiste grossisteAvant = order.getLgGROSSISTEID();
+        ModificationBl.Etat avant = new ModificationBl.Etat(bonLivraison.getStrREFLIVRAISON(),
+                jourDe(bonLivraison.getDtDATELIVRAISON()), bonLivraison.getIntMHT(), bonLivraison.getIntTVA(),
+                grossisteAvant == null ? null : grossisteAvant.getStrLIBELLE());
+        Integer resteAvant = bonLivraison.getIntMONTANTRESTANT();
 
         long amount = getDetailsAmount(new ArrayList<>(bonLivraison.getTBonLivraisonDetailCollection()));
         if (bonEdit.getMontantHt() != amount) {
@@ -890,6 +924,7 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                             + amount);
             return json;
         }
+        order.setLgGROSSISTEID(grossiste);
         bonLivraison.setDtDATELIVRAISON(java.sql.Date.valueOf(bonEdit.getDateLivraison()));
         bonLivraison.setIntMHT(bonEdit.getMontantHt());
         bonLivraison.setIntTVA(bonEdit.getTva());
@@ -901,15 +936,108 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         mt.setMontant(bonLivraison.getIntHTTC());
         mt.setMontantNet(bonLivraison.getIntMHT());
         mt.setMontantTva(bonLivraison.getIntTVA());
-        mt.setMontantRestant(bonLivraison.getIntHTTC());
+        /*
+         * plan du 19/11, point 12 : le reste a payer etait remis au TTC, meme pour un BL deja regle. Le montant regle
+         * est garde ; reste a payer et statut en decoulent (BL et mouvement).
+         */
+        Object[] reglement = ModificationBl.reglement(bonLivraison.getIntHTTC(), bonLivraison.getIntMONTANTREGLE(),
+                bonLivraison.getSTATUS(), bonLivraison.getIntMONTANTRESTANT());
+        bonLivraison.setIntMONTANTRESTANT((Integer) reglement[0]);
+        bonLivraison.setSTATUS((String) reglement[1]);
+        int regle = bonLivraison.getIntMONTANTREGLE() == null ? 0 : bonLivraison.getIntMONTANTREGLE();
+        mt.setMontantRestant(regle > 0 && reglement[0] != null ? (Integer) reglement[0] : bonLivraison.getIntHTTC());
         mt.setMontantAcc(bonLivraison.getIntMHT());
         mt.setMvtDate(LocalDate.parse(bonEdit.getDateLivraison()));
         mt.setCreatedAt(mt.getMvtDate().atStartOfDay());
         em.merge(bonLivraison);
         em.merge(order);
         em.merge(mt);
+        ModificationBl.Etat apres = new ModificationBl.Etat(bonLivraison.getStrREFLIVRAISON(),
+                jourDe(bonLivraison.getDtDATELIVRAISON()), bonLivraison.getIntMHT(), bonLivraison.getIntTVA(),
+                grossiste == null ? null : grossiste.getStrLIBELLE());
+        List<ModificationBl.Champ> champs = ModificationBl.differences(avant, apres);
+        ModificationBl.ajouter(champs, ModificationBl.RESTANT, ModificationBl.montant(resteAvant),
+                ModificationBl.montant(bonLivraison.getIntMONTANTRESTANT()));
+        tracer(user, bonLivraison, TypeLog.MODIFICATION_BL, "Modification du BL", champs);
 
         return json.put("status", 1).put("message", "Le BL mis à jour avec succès");
+    }
+
+    private static LocalDate jourDe(Date d) {
+        if (d == null) {
+            return null;
+        }
+        return d instanceof java.sql.Date ? ((java.sql.Date) d).toLocalDate()
+                : d.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+    }
+
+    /**
+     * Plan du 19/11, point 12 : une ligne de journal par operation sur un BL, si quelque chose a change. Reference
+     * (str_TYPE_LOG) = identifiant du BL ; detail = un champ par ligne (relu par l'onglet « Modifications des BL »).
+     */
+    private void tracer(dal.TUser user, TBonLivraison bon, TypeLog type, String quoi,
+            List<ModificationBl.Champ> champs) {
+        if (user == null || champs.isEmpty()) {
+            return;
+        }
+        TOrder order = bon.getLgORDERID();
+        String grossiste = order != null && order.getLgGROSSISTEID() != null ? order.getLgGROSSISTEID().getStrLIBELLE()
+                : "";
+        StringBuilder libelles = new StringBuilder();
+        for (ModificationBl.Champ c : champs) {
+            libelles.append(libelles.length() == 0 ? "" : ", ").append(c.libelle.toLowerCase(java.util.Locale.FRENCH));
+        }
+        dal.TEventLog log = new dal.TEventLog(java.util.UUID.randomUUID().toString());
+        log.setLgUSERID(em.find(dal.TUser.class, user.getLgUSERID()));
+        log.setDtCREATED(new Date());
+        log.setDtUPDATED(log.getDtCREATED());
+        log.setStrCREATEDBY(user.getStrLOGIN());
+        log.setStrSTATUT(Constant.STATUT_ENABLE);
+        log.setStrTABLECONCERN("t_bon_livraison");
+        log.setTypeLog(type);
+        log.setStrDESCRIPTION(StringUtils.left(quoi + " n° " + bon.getStrREFLIVRAISON() + " (" + grossiste + ") par "
+                + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME() + " : " + libelles, 255));
+        log.setStrTYPELOG(bon.getLgBONLIVRAISONID());
+        log.setStrDETAIL(ModificationBl.detail(champs));
+        em.persist(log);
+    }
+
+    @Override
+    public JSONObject modificationsBl(String search, String dtStart, String dtEnd) {
+        LocalDate debut = jour(dtStart);
+        LocalDate fin = jour(dtEnd);
+        String r = StringUtils.trimToEmpty(search);
+        @SuppressWarnings("unchecked")
+        List<Object[]> lignes = em.createNativeQuery("SELECT e.lg_EVENT_LOG_ID, e.dt_CREATED, e.typeLog, e.str_DETAIL,"
+                + " CONCAT(u.str_FIRST_NAME, ' ', u.str_LAST_NAME), b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON,"
+                + " g.str_LIBELLE, b.int_HTTC FROM t_event_log e JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = e.str_TYPE_LOG"
+                + " LEFT JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID LEFT JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID"
+                + " WHERE e.typeLog IN (?1, ?2) AND e.dt_CREATED >= ?3 AND e.dt_CREATED < ?4"
+                + " AND (?5 = '' OR b.str_REF_LIVRAISON LIKE ?6 OR g.str_LIBELLE LIKE ?6 OR e.str_DETAIL LIKE ?6)"
+                + " ORDER BY e.dt_CREATED DESC, e.lg_EVENT_LOG_ID").setParameter(1, TypeLog.MODIFICATION_BL.ordinal())
+                .setParameter(2, TypeLog.REGLEMENT_BL.ordinal())
+                .setParameter(3, java.sql.Timestamp.valueOf(debut.atStartOfDay()))
+                .setParameter(4, java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay())).setParameter(5, r)
+                .setParameter(6, "%" + r + "%").getResultList();
+        org.json.JSONArray data = new org.json.JSONArray();
+        java.time.format.DateTimeFormatter f = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        int operations = 0;
+        for (Object[] l : lignes) {
+            operations++;
+            boolean modification = ((Number) l[2]).intValue() == TypeLog.MODIFICATION_BL.ordinal();
+            java.time.LocalDateTime quand = ((java.sql.Timestamp) l[1]).toLocalDateTime();
+            for (ModificationBl.Champ c : ModificationBl.lire((String) l[3])) {
+                data.put(new JSONObject().put("logId", l[0]).put("groupe", quand + "|" + l[0])
+                        .put("date", quand.format(f)).put("tri", quand.toString())
+                        .put("operation", modification ? "Modification" : "Règlement")
+                        .put("utilisateur", l[4] == null ? "" : l[4]).put("bonId", l[5])
+                        .put("numero", l[6] == null ? "" : l[6]).put("grossiste", l[7] == null ? "" : l[7])
+                        .put("champ", c.libelle).put("avant", c.avant).put("apres", c.apres));
+            }
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("operations", operations)
+                .put("data", data);
     }
 
     private TBonLivraison getById(String bonId) {
