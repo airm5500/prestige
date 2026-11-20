@@ -140,10 +140,47 @@ public class ErpRessource {
         return Response.ok().entity(erpService.caAll(dtStart, dtEnd)).build();
     }
 
+    /*
+     * Demande 67 (20/11) : start, limit, query et tiersPayant sont facultatifs. Sans eux, la reponse reste la liste
+     * d'aujourd'hui. Avec limit : { total, montant, clients, tiersPayants, data } (voir PageCaCredit).
+     */
     @GET
     @Path("ca-credit")
-    public Response caCredis(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd) {
-        return Response.ok().entity(erpService.rrpTiersPayant(dtStart, dtEnd)).build();
+    public Response caCredis(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "start") Integer start, @QueryParam(value = "limit") Integer limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "tiersPayant") String tiersPayant) {
+        if (limit == null) {
+            return Response.ok().entity(
+                    rest.service.impl.PageCaCredit.liste(erpService.rrpTiersPayant(dtStart, dtEnd), query, tiersPayant))
+                    .build();
+        }
+        /*
+         * Pages suivantes et recherches : la periode lue est gardee 60 s, sinon chaque page de 50 relirait toute la
+         * periode. start=0 sans recherche (premiere page, ou tirer pour rafraichir) relit toujours la base.
+         */
+        boolean premiere = (start == null || start <= 0) && org.apache.commons.lang3.StringUtils.isBlank(query)
+                && org.apache.commons.lang3.StringUtils.isBlank(tiersPayant);
+        return Response.ok().entity(rest.service.impl.PageCaCredit.page(periodeCaCredit(dtStart, dtEnd, premiere),
+                start, limit, query, tiersPayant)).build();
+    }
+
+    private static final long DUREE_PERIODE_CA_CREDIT = 60_000L;
+    private static final java.util.Map<String, Object[]> PERIODES_CA_CREDIT = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @SuppressWarnings("unchecked")
+    private java.util.List<commonTasks.dto.ErpTiersPayantDTO> periodeCaCredit(String dtStart, String dtEnd,
+            boolean relire) {
+        long maintenant = System.currentTimeMillis();
+        String cle = dtStart + "|" + dtEnd;
+        Object[] e = PERIODES_CA_CREDIT.get(cle);
+        if (!relire && e != null && (long) e[0] > maintenant) {
+            return (java.util.List<commonTasks.dto.ErpTiersPayantDTO>) e[1];
+        }
+        java.util.List<commonTasks.dto.ErpTiersPayantDTO> lignes = java.util.Collections
+                .unmodifiableList(erpService.rrpTiersPayant(dtStart, dtEnd));
+        PERIODES_CA_CREDIT.values().removeIf(v -> (long) v[0] <= maintenant);
+        PERIODES_CA_CREDIT.put(cle, new Object[] { maintenant + DUREE_PERIODE_CA_CREDIT, lignes });
+        return lignes;
     }
 
     @GET
