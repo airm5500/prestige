@@ -1421,6 +1421,21 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                 success: function (response, options) {
                     progress.hide();
                     const result = Ext.JSON.decode(response.responseText, true);
+                    /* plan du 19/11, point 7 : rien n'a change -> rien n'est enregistre ; on le dit et on revient a la
+                       liste (comme la modification de vente) ; la liste n'a pas a etre relue (l'ecran appelant reste tel quel) */
+                    if (result && result.codeError === 'SANS_CHANGEMENT') {
+                        const sansRappel = !Ext.isFunction(wind.onSaved);
+                        wind.destroy();
+                        if (sansRappel) {
+                            /* appel sans rappel : retour a la liste des ventes, comme apres un enregistrement */
+                            testextjs.app.getController('App').onRedirectTo('ventemanager', {});
+                        }
+                        if (window.PrestigeToast) {
+                            PrestigeToast.afficher(result.msg || 'Aucun changement détecté : la vente n\'a pas été modifiée.',
+                                    {niveau: 'info', titre: 'Vente non modifiée'});
+                        }
+                        return;
+                    }
                     if (result.success) {
                         Ext.MessageBox.show({
                             title: 'Impression du ticket',

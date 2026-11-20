@@ -128,10 +128,25 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
         me.getSalesItem().destroy();
     },
     onUpdateClientOrTp: function (view, rowIndex, colIndex, item, e, rec, row) {
+        const me = this;
         if (rec.get('intPRICE') > 0 && !rec.get('cancel') && rec.get('modificationClientTp')) {
-            Ext.create('testextjs.view.vente.user.UpdateVenteClientTpForm', {venteId: rec.get('lgPREENREGISTREMENTID')}).show();
+            /* plan du 19/11, point 7 : apres l'enregistrement, retour a la recherche telle qu'elle etait (periode,
+               criteres, page) : la liste est relue sur place, sans naviguer (avant : la vue etait rouverte a zero) */
+            Ext.create('testextjs.view.vente.user.UpdateVenteClientTpForm', {venteId: rec.get('lgPREENREGISTREMENTID'),
+                onSaved: function () {
+                    me.rechargerRecherche();
+                }}).show();
         }
 
+    },
+    /* plan du 19/11, point 7 : relit la liste avec les criteres affiches, sur la meme page */
+    rechargerRecherche: function () {
+        const me = this, grille = me.getVentemanagerGrid();
+        if (!grille || grille.isDestroyed || grille.destroyed) {
+            return;
+        }
+        const store = grille.getStore();
+        store.loadPage(store.currentPage || 1, {params: me.criteres()});
     },
     onUpdateVenteDate: function (view, rowIndex, colIndex, item, e, rec, row) {
         if (rec.get('intPRICE') > 0 && !rec.get('cancel') && rec.get('modificationVenteDate') && rec.get('strTYPEVENTE') === "VO") {
@@ -166,7 +181,10 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
     ouvrirModification: function (rec, cible) {
         /* demande du 28/10 (point 7) : la liste est rouverte avec ces criteres si la modification est refusee */
         this.filtresRetour = this.etatFiltres();
-        this.modifierVente(rec.get('lgPREENREGISTREMENTID'), cible, {record: rec.data});
+        /* plan du 19/11, point 7 : apres la vente modifiee (cloturee), retour a « Ventes terminées » avec ces criteres
+           (avant : l'ecran de vente restait ouvert, vide) */
+        this.modifierVente(rec.get('lgPREENREGISTREMENTID'), cible, {record: rec.data,
+            retour: {xtype: 'ventemanager', data: {retourModification: true}}});
     },
     /* Demande du 15/11 : la meme modification, lancee aussi depuis le pointage des bons (pas une nouvelle
        fonctionnalite). options : record (donnees de la vente), retour {xtype, data} (ecran rouvert apres la
