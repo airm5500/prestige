@@ -217,6 +217,16 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             }
         }
         manquants(bons);
+        /* plan du 19/11, point 16 : reste a payer, meme regle que l'onglet « Reglements fournisseurs » */
+        LocalDate depart = rest.service.impl.achats.ReglementFournisseurServiceImpl.depart(em);
+        Map<String, TBonLivraison> parId = new java.util.HashMap<>();
+        trouves.forEach(t -> parId.put(t.getLgBONLIVRAISONID(), t));
+        for (EtatControlBon b : bons) {
+            TBonLivraison t = parId.get(b.getLgBONLIVRAISONID());
+            b.setResteAPayer(rest.service.impl.achats.ReglementFournisseurServiceImpl.restantAffiche(t, depart));
+            b.setAvantSuivi(t != null && t.getDtDATELIVRAISON() != null && b.getResteAPayer() != null
+                    && jourDe(t.getDtDATELIVRAISON()).isBefore(depart));
+        }
         return bons;
     }
 

@@ -51,7 +51,12 @@ public enum TypeLog {
     // plan du 09/11, point 13 : envoi d'un message (ticket Z par SMS ou WhatsApp) ; ajoute a la fin : rang
     ENVOI_MESSAGE("Envoi de message", true),
     // plan du 19/11, point 12 : modification des informations d'un BL et reglement d'un BL ; ajoutes a la fin : rang
-    MODIFICATION_BL("Modification d'un BL", true), REGLEMENT_BL("Règlement d'un BL", true);
+    MODIFICATION_BL("Modification d'un BL", true), REGLEMENT_BL("Règlement d'un BL", true),
+    // plan du 19/11, point 16 : reglement fournisseur, son annulation, date de depart du suivi ; ajoutes a la fin :
+    // rang
+    REGLEMENT_FOURNISSEUR("Règlement fournisseur", true),
+    ANNULATION_REGLEMENT_FOURNISSEUR("Annulation de règlement fournisseur", true),
+    DATE_DEPART_REGLEMENTS_FRS("Date de départ des règlements fournisseurs", true);
 
     private final String value;
     private final boolean checked;

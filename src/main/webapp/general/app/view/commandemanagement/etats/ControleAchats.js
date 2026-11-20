@@ -10,7 +10,8 @@
 Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
     extend: 'Ext.panel.Panel',
     xtype: 'controleachats',
-    requires: ['testextjs.view.commandemanagement.etats.EtatControleManager'],
+    requires: ['testextjs.view.commandemanagement.etats.EtatControleManager',
+        'testextjs.view.commandemanagement.etats.ReglementsFournisseurs'],
     layout: 'card',
     border: false,
     header: false,
@@ -22,8 +23,9 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
 
     /* retour du 31/10 : onglet « BL annulés » (retours complets de BL) */
     /* plan du 19/11, point 12 : onglet « Modifications des BL » (journal des modifications et reglements de BL) */
+    /* plan du 19/11, point 16 : onglet « Règlements fournisseurs » (à régler, saisie, historique, date de départ) */
     ONGLETS: [{cle: 'liste', texte: 'Liste des BL'}, {cle: 'tableau', texte: 'Tableau de bord'}, {cle: 'annules', texte: 'BL annulés'},
-        {cle: 'modifications', texte: 'Modifications des BL'}],
+        {cle: 'modifications', texte: 'Modifications des BL'}, {cle: 'reglements', texte: 'Règlements fournisseurs'}],
 
     initComponent: function () {
         var me = this;
@@ -34,8 +36,9 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
         me.tableau = me.creerTableau();
         me.annules = me.creerAnnules();
         me.modifications = me.creerModifications();
+        me.reglements = Ext.create('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {itemId: 'reglementsFrs'});
         Ext.apply(me, {
-            items: [me.liste, me.tableau, me.annules, me.modifications],
+            items: [me.liste, me.tableau, me.annules, me.modifications, me.reglements],
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsCa', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
@@ -80,6 +83,11 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
             me.reprendreCriteresAnnules();
             me.annules.getStore().load();
             return me.annules;
+        }
+        if (cle === 'reglements') {
+            me.getLayout().setActiveItem(me.reglements);
+            me.reglements.charger();
+            return me.reglements;
         }
         if (cle === 'modifications') {
             me.getLayout().setActiveItem(me.modifications);

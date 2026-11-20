@@ -84,5 +84,11 @@ public class EtatControlBon {
      */
     private boolean avecEcart;
     private int nombreLignes;
+    /**
+     * Plan du 19/11, point 16 : reste a payer, comme l'onglet « Reglements fournisseurs » (TTC − regle ; 0 pour un BL
+     * date d'avant le debut du suivi, considere comme regle) ; null pour un BL annule.
+     */
+    private Integer resteAPayer;
+    private boolean avantSuivi;
 
 }
