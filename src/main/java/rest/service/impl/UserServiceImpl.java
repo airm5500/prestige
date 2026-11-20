@@ -251,8 +251,15 @@ public class UserServiceImpl implements UserService {
     @Override
     public boolean deConnexion(HttpServletRequest request, TUser user) {
         try {
+            /*
+             * Journal de capitale (15/11 -> 19/11) : interblocage sur user/logout. merge() recopiait en base toute la
+             * fiche gardee en session depuis la connexion (mot de passe, courriel, compteurs...) : verrou sur la ligne
+             * entiere, et une modification faite entre-temps par un administrateur etait annulee. Seul l'indicateur de
+             * connexion change a la deconnexion.
+             */
             user.setBIsConnected(false);
-            getEm().merge(user);
+            getEm().createQuery("UPDATE TUser t SET t.bIsConnected = false WHERE t.lgUSERID = :id")
+                    .setParameter("id", user.getLgUSERID()).executeUpdate();
             HttpSession hs = request.getSession();
             try {
                 rhService.fermerSession(hs.getId(), "DECONNEXION");
