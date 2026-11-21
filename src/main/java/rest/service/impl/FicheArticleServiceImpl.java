@@ -152,9 +152,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         Root<TLot> root = cq.from(TLot.class);
         Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
         Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-        Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-        Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-        Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
+        Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                javax.persistence.criteria.JoinType.LEFT);
 
         List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query, nbreMois,
                 dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
@@ -179,16 +182,21 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             Root<TLot> root = cq.from(TLot.class);
             Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
             Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
+            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                    javax.persistence.criteria.JoinType.LEFT);
 
             List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
                     nbreMois, dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
             cq.select(cb.construct(commonTasks.dto.LotDTO.class, root.get(TLot_.lgLOTID), joinLot.get(TFamille_.intCIP),
-                    joinFa.get(TFamillearticle_.strLIBELLE), joinFaz.get(TZoneGeographique_.strLIBELLEE),
+                    // plan du 21/11, point 17 : produit sans famille, rayon ou grossiste, liste quand meme
+                    cb.coalesce(joinFa.get(TFamillearticle_.strLIBELLE), "(sans famille)"),
+                    cb.coalesce(joinFaz.get(TZoneGeographique_.strLIBELLEE), "(sans rayon)"),
                     joinLot.get(TFamille_.strNAME), root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION),
-                    joinFaG.get(TGrossiste_.strLIBELLE), root.get(TLot_.intNUMBER),
+                    cb.coalesce(joinFaG.get(TGrossiste_.strLIBELLE), "(sans grossiste)"), root.get(TLot_.intNUMBER),
                     cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
                     cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE)), root.get(TLot_.currentStock)))
 
@@ -286,9 +294,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             Root<TLot> root = cq.from(TLot.class);
             Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
             Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
+            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                    javax.persistence.criteria.JoinType.LEFT);
             List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
                     nbreMois, dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, emp);
             cq.select(joinLot.get(TFamille_.lgFAMILLEID)).distinct(true)
@@ -2014,9 +2025,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             Root<TLot> root = cq.from(TLot.class);
             Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
             Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
+            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                    javax.persistence.criteria.JoinType.LEFT);
 
             cq.select(cb.count(root));
             List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
