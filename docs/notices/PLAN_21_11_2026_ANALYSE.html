@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compréhension et propositions</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 34px; }
+  h3 { color: #1E5FA8; font-size: 15px; margin: 18px 0 6px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  td.c { width: 26%; }
+  .q { background: #fff6e0; border-left: 4px solid #e6a100; padding: 8px 12px; margin: 10px 0; }
+  .q b { color: #8a5a00; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .risque { background: #fdecec; border-left: 4px solid #c0392b; padding: 8px 12px; margin: 10px 0; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; color: #fff; margin-left: 6px; vertical-align: middle; }
+  .t-def { background: #c0392b; } .t-evo { background: #1E5FA8; } .t-perf { background: #8e44ad; } .t-new { background: #2e9d57; }
+  .maquette { border: 1px solid #c7d3e0; border-radius: 6px; padding: 12px; background: #fafcff; margin: 10px 0; }
+  .barre { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 6px; background: #eef3f9; border-radius: 4px; margin: 4px 0; font-size: 12.5px; }
+  .barre span { background: #fff; border: 1px solid #c7d3e0; border-radius: 3px; padding: 3px 8px; }
+  .barre span.b { background: #1E5FA8; color: #fff; border-color: #1E5FA8; }
+  .mat td, .mat th { text-align: right; padding: 3px 6px; font-size: 12px; }
+  .mat th:first-child, .mat td:first-child { text-align: left; }
+  .hausse { background: #d6ecdc; } .baisse { background: #f8dcdc; }
+  .bulle { display: inline-block; background: #1E5FA8; color: #fff; border-radius: 5px; padding: 8px 12px; font-size: 12.5px; max-width: 460px; }
+  ol.lots li { margin-bottom: 6px; }
+  .icones { display: flex; gap: 18px; flex-wrap: wrap; }
+  .icones div { text-align: center; font-size: 12px; width: 120px; }
+  .bouton { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 4px; border: 1px solid #1E5FA8; color: #1E5FA8; background: #fff; font-weight: 600; font-size: 12.5px; }
+  .bouton.p { background: #1E5FA8; color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>Plan du 21/11/2026 : ce que j'ai compris et ce que je propose</h1>
+<p class="sous">
+  Branche <code>plan/21112026</code>. Worktree <code>D:\projet\p3\prestige-plan21112026</code>, tiré de l'intégration <code>406bc0995</code>.
+  Rien n'est encore modifié dans le code. Ce document sert à valider la compréhension avant de commencer.
+</p>
+
+<div class="ok">
+  <b>Méthode, pour chaque point.</b>
+  <ol>
+    <li>Écrire un test qui reproduit le défaut et qui échoue.</li>
+    <li>Corriger dans le worktree.</li>
+    <li>Ajouter les tests obligatoires : rapprochement, cohérence et bilan avant/après quand une donnée est écrite.</li>
+    <li>Commit et push sur <code>plan/21112026</code>.</li>
+  </ol>
+  Vous déployez la branche et vous testez. Rien ne sera fusionné dans l'intégration sans votre accord.
+  Les causes ci-dessous viennent de la lecture du code. Elles restent <b>suspectées</b> tant qu'un test ne les a pas prouvées.
+</div>
+
+<p>
+  Légende :
+  <span class="tag t-def">défaut</span> ce qui ne marche pas
+  <span class="tag t-evo">évolution</span> changement d'écran
+  <span class="tag t-perf">lenteur</span>
+  <span class="tag t-new">nouveau</span> nouvelle fonction
+</p>
+
+<!-- ===================================================== 1 -->
+<h2>1. État de contrôle des achats, onglet Règlements fournisseurs</h2>
+
+<h3>1.1 Historique : le détail disparaît au retour sur le sous-onglet <span class="tag t-def">défaut</span></h3>
+<table>
+<tr><td class="c">Ce que j'ai compris</td><td>
+  Vous choisissez un grossiste, puis un règlement : sa répartition s'affiche en bas.
+  Vous changez de sous-onglet, puis vous revenez. Le bas indique « sélectionnez… » alors que le règlement paraît toujours choisi.
+  Un nouveau clic sur ce règlement n'affiche plus rien.
+</td></tr>
+<tr><td class="c">Cause trouvée</td><td>
+  Au retour sur l'onglet, la liste est rechargée et le bas est vidé.
+  La ligne reste pourtant marquée comme choisie, sans qu'aucun événement le signale.
+  Un nouveau clic sur une ligne déjà choisie ne déclenche donc rien.
+  Fichier <code>ReglementsFournisseurs.js</code>, lignes 50-59 et 403-406.
+  Le même mécanisme peut toucher les cases cochées de « Saisir ».
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  Après un rechargement, le grossiste et le règlement choisis sont conservés et leur détail est réaffiché.
+  Si le règlement n'existe plus, la sélection est vidée proprement.
+  Un clic sur une ligne recharge toujours son détail.
+</td></tr>
+</table>
+
+<h3>1.2 Modification d'un BL : fenêtre non modale, « Enregistrer » qui ne répond plus <span class="tag t-def">défaut</span></h3>
+<table>
+<tr><td class="c">Cause trouvée</td><td>
+  La fenêtre <code>cmde_passees/action/edit.js</code> a trois défauts :
+  <ul>
+    <li>elle crée une deuxième fenêtre cachée à l'intérieur de la première ;</li>
+    <li>cette fenêtre n'est pas modale ;</li>
+    <li>ses champs ont des identifiants fixes, et le BL est gardé dans des variables globales.</li>
+  </ul>
+  Conséquence : un clic sur un autre BL ouvre une deuxième fenêtre qui porte les mêmes identifiants.
+  L'« Enregistrer » de la première ne trouve plus ses champs, ou risque d'enregistrer sur le mauvais BL.
+  Elle reste alors figée en bas de l'écran.
+  Les données affichées sous les champs sont probablement l'autocomplétion du navigateur.
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  <ul>
+    <li>Une seule fenêtre, modale, sans identifiants fixes ni variables globales.</li>
+    <li>Pas de suggestions du navigateur dans les champs.</li>
+    <li>« Enregistrer » ferme la fenêtre et rafraîchit la liste.</li>
+    <li>Le bouton passe au nouveau style.</li>
+  </ul>
+  Un test de bilan vérifie que seul le BL visé est modifié en base, et qu'il est modifié une seule fois.
+</td></tr>
+</table>
+
+<h3>1.3 et 3. Barre de boutons qui défile sur les petits écrans <span class="tag t-evo">évolution</span></h3>
+<table>
+<tr><td class="c">Cause trouvée</td><td>
+  Le mécanisme commun de <code>correctifs-affichage.js</code> (fonction <code>ajusterBarre</code>) ajoute une barre de défilement en dernier recours, quand les champs ne tiennent pas sur la ligne.
+  Écrans concernés :
+  <ul>
+    <li>État de contrôle des achats : barre d'environ 10 éléments ;</li>
+    <li>Règlements fournisseurs : environ 1 400 px de champs fixes ;</li>
+    <li>Liste des bons par organisme : <code>FactureSubrogatoireBisManager.js</code>.</li>
+  </ul>
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  Sur ces écrans, couper la barre en <b>deux lignes</b> : les filtres en haut, les actions en dessous.
+  C'est déjà le cas de l'état du stock.
+  Pas de défilement, et rien n'est caché derrière un menu.
+  Je ne change pas le mécanisme commun, pour ne rien modifier sur les autres écrans.
+</td></tr>
+</table>
+<div class="q"><b>Question 1.</b> Je n'ai pas accès à la vidéo citée. Je fais les essais en 1366×768 et en 1280×720. Est-ce la bonne taille d'écran ?</div>
+
+<!-- ===================================================== 2 -->
+<h2>2. Tableau de bord</h2>
+<table>
+<tr><th>Demande</th><th>Constat</th><th>Proposition</th></tr>
+<tr><td>Carte BFR lente : la retirer <span class="tag t-evo">évolution</span></td>
+  <td>La carte enchaîne six lectures lourdes : valorisation complète du stock, toutes les factures, toutes les parts non facturées sans limite de date, etc. Le menu BFR existe déjà.</td>
+  <td>Retirer la carte du tableau de bord. Le menu BFR reste tel quel.</td></tr>
+<tr><td>Fréquentation : 0-6 h et 22-24 h absentes en tranches de 2 h <span class="tag t-def">défaut</span></td>
+  <td>Le serveur renvoie bien les 24 heures. C'est l'écran qui retire les tranches sans vente (<code>TableauBord.js</code>, lignes 1112-1118).</td>
+  <td>Toujours afficher toute la journée, tranches vides comprises. Un test vérifie, pour chaque pas (1, 2, 3, 4 et 6 h), que les tranches couvrent bien 0 h à 24 h et que leur total est égal au total du jour.</td></tr>
+<tr><td>Voir la veille ou une date choisie <span class="tag t-evo">évolution</span></td>
+  <td>Le serveur accepte déjà une date, mais l'écran n'a pas de sélecteur.</td>
+  <td>Ajouter sur la carte : <span class="bouton">◀ Veille</span> <span class="bouton">📅 date</span> <span class="bouton">Aujourd'hui</span>. La comparaison avec la semaine précédente suit la date choisie.</td></tr>
+<tr><td>Alertes, stock négatif : bouton Imprimer <span class="tag t-evo">évolution</span></td>
+  <td>La fenêtre n'a que deux boutons : « Ouvrir l'état du stock » et « Fermer ».</td>
+  <td>Ajouter « Imprimer » : un PDF de la liste, avec CIP, désignation, emplacement et stock. Un test de rapprochement compare la liste à l'écran, le PDF et la base.</td></tr>
+<tr><td>« Ouvrir l'état du stock » doit filtrer les négatifs <span class="tag t-def">défaut</span></td>
+  <td>Aucun filtre n'est transmis. Pourtant, l'état du stock sait déjà filtrer « Inférieur à 0 ».</td>
+  <td>Ouvrir l'état du stock avec « Inférieur à 0 » déjà posé et la recherche lancée. Un test vérifie que les deux listes donnent le même nombre de produits et les mêmes produits.</td></tr>
+</table>
+
+<!-- ===================================================== 4 -->
+<h2>4. Suggestion de réappro</h2>
+
+<h3>4.1 Question à l'ouverture : « nettoyer la suggestion ? » <span class="tag t-evo">évolution</span></h3>
+<table>
+<tr><td class="c">Constat</td><td>
+  Le bouton « Nettoyer la suggestion » existe déjà.
+  Il retire les produits revenus au-dessus du seuil, en comptant le stock du rayon et celui de la réserve.
+  Un nettoyage automatique à l'ouverture existe aussi : paramètre <code>KEY_NETTOYER_SUGGESTION_OUVERTURE</code>, à 0 par défaut.
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  Le règlement interdit les fenêtres surgissantes pour une modification.
+  Je propose donc un <b>bandeau en haut de la suggestion ouverte</b>, affiché avant le chargement :<br>
+  <div class="maquette">
+    « Des produits sont peut-être repassés au-dessus du seuil après des entrées. Voulez-vous nettoyer la suggestion ? »
+    &nbsp; <span class="bouton p">Oui, nettoyer</span> <span class="bouton">Non, ouvrir</span>
+  </div>
+  « Oui » lance le même nettoyage que le bouton. Les produits retirés restent visibles dans « Produits retirés ».
+  « Non » ouvre la suggestion sans la toucher.
+  Si le paramètre de nettoyage automatique est à 1, le bandeau ne s'affiche pas.
+  Un test de bilan vérifie que les lignes retirées sont exactement celles au-dessus du seuil, et qu'elles sont toutes journalisées.
+</td></tr>
+</table>
+<div class="q"><b>Question 2.</b> Un bandeau dans l'écran vous convient-il, ou voulez-vous vraiment une fenêtre de question ?</div>
+
+<h3>4.2 Suggestion ouverte : déplacer « Actualiser » et le filtre de disponibilité <span class="tag t-evo">évolution</span></h3>
+<p>
+  Ces deux éléments passent dans la barre de pagination, juste après son propre bouton actualiser.
+  La barre du haut garde la recherche et laisse toute la place aux informations du produit (stock, ventes, commandes).
+</p>
+
+<h3>4.3 Bouton « Prévision » lent sur un produit très vendu <span class="tag t-perf">lenteur</span></h3>
+<table>
+<tr><td class="c">Cause trouvée</td><td>
+  <ol>
+    <li>La recherche de la « dernière vente » lit <b>toutes les ventes du produit depuis toujours</b>, puis les regroupe et les trie. Pour un produit très vendu, cela fait des dizaines de milliers de lignes.</li>
+    <li>À chaque ouverture, les commandes en cours sont recalculées pour <b>tout le catalogue</b>. Si elles ont changé, il y a une mise à jour par produit.</li>
+  </ol>
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  <ul>
+    <li>Dernière vente : lire seulement la plus récente, par un index sur la date. La valeur affichée doit rester la même : un test de rapprochement le vérifie sur des produits variés.</li>
+    <li>En cours : calculer pour le produit ouvert seulement.</li>
+  </ul>
+  Mesure avant et après sur la base peuplée, notée dans <code>RAPPORT_LENTEUR_CONNEXION.md</code>.
+</td></tr>
+</table>
+
+<h3>4.4 Écran de prévision : explications compréhensibles <span class="tag t-evo">évolution</span></h3>
+<table>
+<tr><th>Élément</th><th>Aujourd'hui</th><th>Texte proposé (affichage et info-bulle bleue)</th></tr>
+<tr><td>Stock de sécurité</td><td>« 1,65 × écart-type … ÷ √30 × √délai »</td>
+  <td>« Petite réserve en plus pour ne pas manquer si l'on vend plus que prévu ou si la livraison tarde. Elle est plus grande pour un produit dont les ventes varient beaucoup d'un mois à l'autre. » La formule reste disponible dans un lien « détail du calcul ».</td></tr>
+<tr><td>Couverture voulue</td><td>« paramètre (couverture voulue) »</td>
+  <td>« Nombre de jours de vente que la commande doit couvrir après sa livraison : 15 jours, réglé dans Prévisions › Paramètres. »</td></tr>
+<tr><td>Quantité à commander</td><td>pas d'explication</td>
+  <td>Au survol : « Ventes prévues pendant le délai de livraison (3 j) et la couverture (15 j) = 42, plus la sécurité 6, soit 48 ; moins le stock rayon et réserve 20, moins ce qui est déjà commandé 10, moins les équivalents en stock 0 ; à commander : 18. » Les chiffres affichés sont ceux du produit.</td></tr>
+</table>
+<div class="q"><b>Question 3. Le mois en cours.</b>
+  La prévision porte sur le mois suivant. Les ventes déjà faites ce mois-ci n'interviennent que par le stock actuel ; elles ne servent pas à corriger la prévision.
+  Je propose d'afficher d'abord « déjà vendu ce mois : X (au jour J) », pour information, sans changer le calcul.
+  Voulez-vous en plus que la prévision du mois en cours soit ajustée sur le rythme réel des ventes ? Cela change les quantités proposées.
+</div>
+
+<h3>4.5 Vérification de disponibilité, et classe ABC après le nom <span class="tag t-evo">évolution</span></h3>
+<table>
+<tr><td class="c">Constat</td><td>
+  Les boutons existent dans la suggestion, pour toute la commande et par produit (⟳ dans la colonne Dispo).
+  Ils sont <b>cachés quand PharmaML n'est pas actif pour le grossiste</b> de la suggestion. C'est la cause probable de leur absence.
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  Toujours montrer les boutons.
+  Si PharmaML n'est pas actif, ils sont grisés, et l'info-bulle dit pourquoi et comment l'activer.
+  La classe ABC s'affiche après le nom, par exemple <b>DOLIPRANE 500 (A)</b>, dans la suggestion et la commande en cours.
+  Elle vient de la classe déjà calculée sur la fiche. Un produit sans classe n'affiche rien.
+</td></tr>
+</table>
+<div class="q"><b>Question 4.</b> Sur le poste où vous ne voyiez pas le bouton, le grossiste de la suggestion a-t-il PharmaML activé ?</div>
+
+<!-- ===================================================== 5 -->
+<h2>5. Écran de connexion : voir le mot de passe <span class="tag t-evo">évolution</span></h2>
+<p>
+  Ajouter un œil à droite du champ mot de passe : un clic l'affiche, un second clic le masque.
+  Il se remasque à chaque tentative de connexion.
+  Le même œil est ajouté au code PIN du badge, si vous le souhaitez.
+  Un test d'écran vérifie la bascule et que la connexion par Entrée marche toujours.
+</p>
+
+<!-- ===================================================== 6 -->
+<h2>6. Gestion des clients</h2>
+<table>
+<tr><td class="c">Colonne Adresse <span class="tag t-evo">évolution</span></td><td>La colonne existe mais elle est masquée. Je l'affiche après Téléphone.</td></tr>
+<tr><td class="c">Modification d'un client standard : « Veuillez renseigner les champs obligatoires » <span class="tag t-def">défaut</span></td><td>
+  <b>Cause :</b> le formulaire de modification est le même pour tous les types de client.
+  Pour un client standard, les champs cachés « Type client » et « Pourcentage » restent vides et obligatoires.
+  Or ExtJS vérifie aussi les champs cachés.<br>
+  <b>Correction :</b> désactiver ces champs pour un client sans tiers payant.<br>
+  Le formulaire ne transmet pas non plus le téléphone au serveur : on ne peut pas modifier le téléphone depuis cet écran. Je corrige aussi ce point.
+  Un test d'écran vérifie la modification d'un client standard, d'un client assuré et d'un carnet, et relit la base.
+</td></tr>
+</table>
+
+<!-- ===================================================== 7 -->
+<h2>7. Vente à crédit, « Modifier infos client »</h2>
+<table>
+<tr><td class="c">Mise en page <span class="tag t-def">défaut</span></td><td>
+  Le champ Ville déborde : il partage la ligne avec le Genre.
+  La grille des tiers payants complémentaires mesure 200 px de haut et ses colonnes sont trop serrées.<br>
+  <b>Proposition :</b> une nouvelle grille de champs sans débordement.
+  <ul>
+    <li>Le code postal est remplacé par <b>Adresse</b>.</li>
+    <li>L'ancienne place de l'adresse reçoit le nouveau champ <b>Téléphone</b>.</li>
+    <li>La grille des complémentaires est agrandie, avec des colonnes lisibles.</li>
+  </ul>
+</td></tr>
+<tr><td class="c">Navigation par Entrée</td><td>
+  Nouvel ordre : Nom → Prénom → Matricule → <b>Téléphone</b> → Adresse → Assurance → Pourcentage → bouton Enregistrer.
+  Le téléphone vient donc avant l'adresse, comme demandé.
+  Il est contrôlé à la saisie : numéro ivoirien, comme pour le client standard.
+</td></tr>
+<tr><td class="c">Recopie des anciens numéros saisis dans l'Adresse</td><td>
+  Je propose un <b>script manuel</b> hors Flyway, pour ne pas alourdir les mises à jour, en deux temps :
+  <ol>
+    <li>un aperçu qui compte les fiches concernées, sans rien écrire ;</li>
+    <li>la recopie, uniquement si le contenu de l'Adresse est un numéro conforme et que le Téléphone est vide.</li>
+  </ol>
+  L'adresse d'origine n'est pas effacée. Le script ne journalise aucun numéro, seulement des nombres de fiches.
+  Il est testé sur la copie de travail avec des cas variés : numéro conforme, numéro avec espaces, texte, téléphone déjà rempli.
+</td></tr>
+</table>
+<div class="risque">
+  <b>Défaut repéré en passant (suspecté) :</b> l'envoi de SMS contrôle le champ Adresse, alors que le numéro utilisé vient du Téléphone (<code>SmsImpl.java:293</code>).
+  Un client qui n'a son numéro que dans Téléphone serait refusé avec « numéro invalide ».
+  Je le prouverai par un test avant de le corriger. C'est directement lié à ce point et au point 8.
+</div>
+
+<h3>7.1 Icônes et boutons au nouveau style : propositions <span class="tag t-evo">évolution</span></h3>
+<p>
+  Le « nouveau style » est la classe <code>ordo-btn</code>, celle de l'entrée en stock d'un BL.
+  Je n'ai pas les images que vous citez. Voici une proposition d'icônes dessinées au même trait que le thème (bleu #1E5FA8) :
+</p>
+<div class="maquette icones">
+  <div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1E5FA8" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6"/><path d="M15 20l6-6-3-3-6 6v3z"/></svg><br>Modifier le client</div>
+  <div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1E5FA8" stroke-width="2"><path d="M3 20h18"/><path d="M6 16V10M11 16V5M16 16v-7"/><path d="M19 7l2-2"/></svg><br>Suivi conso</div>
+  <div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1E5FA8" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6"/><path d="M18 11v8M14 15h8"/></svg><br>Ajouter ayant droit</div>
+  <div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2e9d57" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6"/></svg><br>Terminer la vente</div>
+  <div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e67e22" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M10 8v8M14 8v8"/></svg><br>Mettre en attente</div>
+  <div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1E5FA8" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><br>Ventes en attente</div>
+  <div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1E5FA8" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 18h4"/><path d="M9 8h6M9 11h4"/></svg><br>Point mobile money</div>
+</div>
+<p>
+  Rendu des boutons :
+  <span class="bouton p">✔ TERMINER LA VENTE</span>
+  <span class="bouton">⏸ METTRE EN ATTENTE</span>
+  <span class="bouton">🕒 Ventes en attente</span>
+  <span class="bouton">📱 Point mobile money</span>
+</p>
+<div class="q"><b>Question 5.</b> Ces icônes vous conviennent-elles ? Sinon, envoyez-moi les images citées et je proposerai d'autres icônes.</div>
+
+<h3>7.2 Un seul sélecteur de période (date de début et de fin) <span class="tag t-new">nouveau</span></h3>
+<p>
+  Ce composant n'existe pas encore. Aujourd'hui, il y a deux champs de date et un menu « Période ▾ » sur certains écrans.
+  Je propose un champ unique « 01/11/2026 → 21/11/2026 ».
+  Il ouvre un calendrier : le premier clic donne la date de début, le second la date de fin.
+  Des raccourcis sont proposés : aujourd'hui, hier, ce mois, mois précédent.
+  Le composant est créé une fois, puis posé écran par écran au moment de leur refonte, comme pour les boutons.
+</p>
+<div class="q"><b>Question 6.</b> Sur quel écran voulez-vous l'essayer en premier ? Je propose le tableau de bord, puis Liste des bons par organisme.</div>
+
+<!-- ===================================================== 8 -->
+<h2>8. Campagnes SMS et WhatsApp</h2>
+
+<h3>8.1 Journal de tous les envois SMS et WhatsApp <span class="tag t-new">nouveau</span></h3>
+<table>
+<tr><td class="c">Constat</td><td>
+  Les traces sont dispersées :
+  <ul>
+    <li>les SMS sont dans <code>notification_client</code> : statut, accusé de remise, erreur ;</li>
+    <li>les WhatsApp sont dans <code>whatsapp_message</code> : origine, statut envoyé, délivré, lu ou échec.</li>
+  </ul>
+  Certains envois ne laissent aucune trace exploitable : le ticket Z par SMS, la clôture de caisse et le point d'activité envoyés par SMS au numéro d'administration.
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  Un nouveau menu <b>« Journal des messages »</b>, déclaré dans <code>correctifs-affichage.js</code> et lié à un droit, avec :
+  <ul>
+    <li>des filtres : période, canal (SMS, WhatsApp, tous), origine (avis, avoir, campagne, rappel, ticket Z, facture…), statut (en attente, envoyé, délivré, lu, échec), recherche par nom ou numéro ;</li>
+    <li>des colonnes : date, canal, origine, destinataire, numéro, statut, motif d'échec, utilisateur ;</li>
+    <li>des compteurs (envoyés, délivrés, lus, échecs) et un export CSV.</li>
+  </ul>
+  Les envois aujourd'hui sans trace seront journalisés : statut seulement, <b>jamais le texte du message</b>.
+  Un test de rapprochement compare, pour chaque envoi, l'écran, le CSV et la base.
+</td></tr>
+</table>
+
+<h3>8.2 Écran Campagnes : recherche simple et filtres sur une ligne <span class="tag t-evo">évolution</span></h3>
+<div class="maquette">
+  <div class="barre"><span style="min-width:340px">🔍 Nom ou téléphone… <i>(curseur placé ici, Entrée = rechercher)</i></span><span class="b">Voir les destinataires</span></div>
+  <div class="barre"><span>Sexe ▾</span><span>Âge de … à …</span><span>Liste ▾</span><span>Achats ▾</span><span>Canal ▾</span><span>Accord ▾</span></div>
+</div>
+<ul>
+  <li>Entrée dans la recherche lance la recherche.</li>
+  <li>Les listes déroulantes s'élargissent à leur contenu : un élément tient toujours sur une seule ligne, y compris « Achat dans les 12 derniers mois ».</li>
+  <li>La même règle d'une ligne est appliquée aux listes déroulantes de toute l'application. Le défaut vient d'une règle de style commune : j'ajoute un test de non-régression sur quelques écrans.</li>
+</ul>
+
+<h3>8.3 Modifier le numéro d'un client depuis chaque onglet <span class="tag t-evo">évolution</span></h3>
+<p>
+  Ajouter un crayon ✎ dans la colonne Téléphone de chaque onglet.
+  Il s'affiche en rouge quand le numéro est absent ou invalide.
+  Il ouvre la petite fenêtre déjà utilisée à la vente (contrôle du numéro ivoirien et de l'unicité).
+  Après enregistrement, la ligne est relue et redevient « joignable ».
+  Aujourd'hui, cette fenêtre ne sert qu'aux clients standards : je l'étends aux clients assurés.
+</p>
+<div class="q"><b>Question 7.</b> Quel droit faut-il pour modifier le numéro ? Je propose le droit existant <code>P_CLIENT_STANDARD_MAJ</code> pour tous les types de client.</div>
+
+<!-- ===================================================== 9 -->
+<h2>9. Facturation : savoir si un client ou un bon est déjà facturé <span class="tag t-new">nouveau</span></h2>
+<table>
+<tr><td class="c">Constat</td><td>
+  Il existe un petit champ « Rech » limité :
+  <ul>
+    <li>il cherche seulement le début du texte ;</li>
+    <li>le nom et le prénom sont cherchés séparément ;</li>
+    <li>il ne cherche pas le <b>numéro de bon</b> ;</li>
+    <li>il se limite à la période affichée.</li>
+  </ul>
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  Un bouton <span class="bouton">🔍 Déjà facturé ?</span> dans la barre des factures. Il ouvre un champ : nom du client, matricule ou numéro de bon.
+  La recherche porte sur toutes les factures, sans limite de période. Résultat :
+  <ul>
+    <li>numéro de bon, client, date de la vente, montant ;</li>
+    <li>la <b>facture</b> qui le contient (numéro, organisme, date, état) ;</li>
+    <li>ou « non facturé ».</li>
+  </ul>
+  Un clic ouvre la facture. Un test de rapprochement vérifie chaque bon trouvé dans la facture et en base, y compris un bon non facturé et un bon de facture annulée.
+</td></tr>
+</table>
+
+<!-- ===================================================== 10-11 -->
+<h2>10. Avis client : PDF du QR code <span class="tag t-evo">évolution</span></h2>
+<p>Retirer l'adresse imprimée sous le QR code (<code>AvisPdf.java</code>, lignes 104-107). Le QR code lui-même ne change pas.</p>
+
+<h2>11. Liste des ventes avoir</h2>
+<table>
+<tr><td class="c">Savoir si le message est envoyé, reçu ou lu</td><td>
+  Le statut est enregistré, mais la liste ne l'affiche pas.
+  Je propose une colonne « Message » (en attente, envoyé, délivré, lu, échec), avec le canal et la date.
+  Le statut « lu » n'existe qu'en WhatsApp : un SMS s'arrête à « délivré ».
+</td></tr>
+<tr><td class="c">Canal SMS ou WhatsApp</td><td>
+  Aujourd'hui, l'avoir part toujours par SMS.
+  Je propose un paramètre <b>« Canal des messages d'avoir »</b> avec trois valeurs : SMS, WhatsApp, ou WhatsApp puis SMS en cas d'échec.
+</td></tr>
+</table>
+<div class="risque">
+  <b>À savoir :</b> WhatsApp n'autorise l'envoi d'un premier message à un client qu'avec un <b>modèle de message validé</b> par Meta. Il faudra faire valider un modèle « avoir disponible » sur votre compte WhatsApp. Tant qu'il ne l'est pas, le repli sur SMS s'applique.
+</div>
+
+<!-- ===================================================== 12 -->
+<h2>12. Inventaire rayon : stock réserve sur le PDF des écarts <span class="tag t-evo">évolution</span></h2>
+<p>
+  Aujourd'hui, l'inventaire ne garde pas le stock réserve, et le PDF des écarts passe par une ancienne JSP avec des modèles hors du dépôt.
+  Je propose :
+</p>
+<ul>
+  <li>à l'impression, une option « Afficher le stock réserve », à côté de l'option « Afficher le stock » qui existe déjà ;</li>
+  <li>un nouveau PDF des écarts servi par l'API REST, puisqu'il n'y aura plus de nouvelle JSP ;</li>
+  <li>une colonne réserve dans ce PDF.</li>
+</ul>
+<div class="q"><b>Question 8.</b> Faut-il le stock réserve <b>au moment de l'inventaire</b> ou <b>au moment de l'impression</b> ? Le premier oblige à le mémoriser à la création de l'inventaire : nouvelle colonne, avec un test qui la relit.</div>
+
+<!-- ===================================================== 13 -->
+<h2>13. Suggestion de réserve</h2>
+<table>
+<tr><td class="c">Motif par défaut selon le sens</td><td>
+  Les deux boutons « Suggestion sur … » proposent déjà le motif depuis le 20/11 : « Reappro rayon journalier » ou « Reappro reserve journalier ».
+  Les trois autres façons de créer une suggestion le laissent à choisir : flèches par ligne, réappro, « Voir les suggestions ».
+  Je l'applique partout.
+</td></tr>
+<tr><td class="c">Icône d'annulation</td><td>
+  L'icône actuelle ⏪ est un retour arrière de lecteur multimédia.
+  Proposition :
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.2" style="vertical-align:middle"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg>
+  « annuler le mouvement », une flèche de retour rouge.
+  Une confirmation s'affiche dans le bouton lui-même, comme ailleurs.
+</td></tr>
+<tr><td class="c">Pas de défilement horizontal</td><td>
+  La liste SUGGESTIONS fait environ 1 520 px, et la grille principale environ 1 310 px.
+  Je propose des colonnes souples et des libellés plus courts.
+  Les cinq colonnes d'icônes sont regroupées dans une seule colonne « Actions ».
+  Vérifié par un test d'écran en 1366 px.
+</td></tr>
+<tr><td class="c">Info-bulles bleues</td><td>Au survol des données de la suggestion, l'info-bulle bleue du thème est déjà utilisée ailleurs.</td></tr>
+<tr><td class="c">Onglet lié à un privilège</td><td>
+  L'onglet <b>SUGGESTIONS</b> est déjà lié au droit <code>P_RESERVE_SUGGESTION</code>.
+</td></tr>
+</table>
+<div class="q"><b>Question 9.</b> « Onglet liste suggestion » désigne-t-il l'onglet <b>LISTE RÉSERVE</b>, qui n'a aujourd'hui aucun droit ? Si oui, je crée un nouveau droit « Voir la liste réserve ». Si c'est l'onglet SUGGESTIONS, il est peut-être visible sur votre poste parce que la version installée est plus ancienne.</div>
+
+<!-- ===================================================== 14 -->
+<h2>14. Analyse tiers payants <span class="tag t-perf">lenteur</span></h2>
+<table>
+<tr><th>Demande</th><th>Cause trouvée</th><th>Proposition</th></tr>
+<tr><td>PDF lent, et Firefox demande une autorisation</td>
+  <td>Le PDF est ouvert par <code>window.open</code> <b>après</b> une requête. Ce n'est plus un clic de l'utilisateur, donc Firefox bloque la fenêtre. De plus, l'impression refait toute l'analyse, voire deux fois.</td>
+  <td>Ouvrir l'onglet au moment du clic, puis y charger le PDF : plus de demande d'autorisation. Calculer l'analyse une seule fois.</td></tr>
+<tr><td>Recherche d'un seul tiers payant lente</td>
+  <td>Le filtre sur le nom s'applique après la jointure de toutes les ventes de la période.</td>
+  <td>Trouver d'abord le ou les tiers payants par leur nom, puis ne lire que leurs ventes.</td></tr>
+<tr><td>Détail lent</td>
+  <td>Chaque page du détail relance toute l'analyse, puis découpe le résultat en mémoire.</td>
+  <td>Lire le détail du seul tiers payant cliqué, page par page en base.</td></tr>
+<tr><td>Export CSV et Excel lent</td>
+  <td>Même requête complète. Excel la fait deux fois.</td>
+  <td>Une seule passe.</td></tr>
+</table>
+<p>
+  Mesures avant et après sur la base peuplée.
+  Un test de rapprochement compare l'écran, le PDF, le CSV et l'Excel ligne par ligne, avant et après le changement : les montants doivent rester strictement identiques.
+</p>
+
+<!-- ===================================================== 15 -->
+<h2>15. Menu Prévisions, onglet « Analyse de la demande »</h2>
+<p>
+  Ajouter <span class="bouton">🖨 Imprimer</span> <span class="bouton">⬇ Excel</span>, comme sur les deux autres onglets.
+</p>
+<h3>Visuel à valider : tableau de prévision sans défilement</h3>
+<p>
+  Ce que j'ai compris :
+  <ul>
+    <li><b>en haut</b>, les ventes mensuelles sur 24 mois, en graphe ;</li>
+    <li><b>en bas</b>, les unités vendues par mois et l'indice saisonnier, en tableau ;</li>
+    <li>le tout tient dans la fenêtre, sans barre de défilement.</li>
+  </ul>
+</p>
+<div class="maquette">
+  <b>DOLIPRANE 500 MG CPR (A)</b> — prévision de décembre 2026 : <b>412</b> &nbsp;|&nbsp; à commander : <b>180</b>
+  <svg viewBox="0 0 760 170" width="100%" style="margin-top:8px">
+    <g fill="#5b8fd1">
+      <rect x="10" y="80" width="22" height="70"/><rect x="40" y="70" width="22" height="80"/><rect x="70" y="60" width="22" height="90"/><rect x="100" y="75" width="22" height="75"/>
+      <rect x="130" y="90" width="22" height="60"/><rect x="160" y="95" width="22" height="55"/><rect x="190" y="85" width="22" height="65"/><rect x="220" y="80" width="22" height="70"/>
+      <rect x="250" y="70" width="22" height="80"/><rect x="280" y="55" width="22" height="95"/><rect x="310" y="45" width="22" height="105"/><rect x="340" y="40" width="22" height="110"/>
+      <rect x="370" y="72" width="22" height="78"/><rect x="400" y="65" width="22" height="85"/><rect x="430" y="55" width="22" height="95"/><rect x="460" y="70" width="22" height="80"/>
+      <rect x="490" y="85" width="22" height="65"/><rect x="520" y="92" width="22" height="58"/><rect x="550" y="80" width="22" height="70"/><rect x="580" y="75" width="22" height="75"/>
+      <rect x="610" y="62" width="22" height="88"/><rect x="640" y="50" width="22" height="100"/><rect x="670" y="42" width="22" height="108"/><rect x="700" y="38" width="22" height="112"/>
+    </g>
+    <rect x="730" y="30" width="22" height="120" fill="#fff" stroke="#e67e22" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="741" y="24" font-size="10" text-anchor="middle" fill="#e67e22">412</text>
+    <line x1="5" y1="150" x2="755" y2="150" stroke="#999"/>
+    <text x="10" y="165" font-size="10" fill="#666">déc. 24</text><text x="370" y="165" font-size="10" fill="#666">déc. 25</text><text x="700" y="165" font-size="10" fill="#666">nov. 26</text><text x="728" y="165" font-size="10" fill="#e67e22">prévu</text>
+  </svg>
+  <table class="mat">
+    <tr><th>Unités vendues</th><th>janv.</th><th>févr.</th><th>mars</th><th>avr.</th><th>mai</th><th>juin</th><th>juil.</th><th>août</th><th>sept.</th><th>oct.</th><th>nov.</th><th>déc.</th><th>Total</th></tr>
+    <tr><td>2025</td><td>320</td><td>350</td><td>300</td><td>240</td><td>220</td><td>260</td><td>280</td><td>320</td><td>380</td><td>420</td><td>440</td><td>312</td><td>3 862</td></tr>
+    <tr><td>2026</td><td>340</td><td>380</td><td>320</td><td>260</td><td>232</td><td>280</td><td>300</td><td>352</td><td>400</td><td>432</td><td>448</td><td>—</td><td>3 744</td></tr>
+    <tr><td><b>Indice</b></td><td>1,00</td><td class="hausse">1,10</td><td>0,95</td><td class="baisse">0,76</td><td class="baisse">0,69</td><td class="baisse">0,82</td><td>0,88</td><td>1,02</td><td class="hausse">1,18</td><td class="hausse">1,29</td><td class="hausse">1,34</td><td>0,95</td><td></td></tr>
+  </table>
+  <p style="font-size:12px;color:#5a6b7d;margin:4px 0 0">Chiffres d'exemple. L'indice 1,34 signifie qu'on vend 34 % de plus en novembre qu'un mois moyen. Vert : mois forts ; rouge : mois faibles.</p>
+  <p style="margin:10px 0 4px">Au survol de la barre orange :</p>
+  <div class="bulle">
+    <b>Prévu en décembre 2026 : 412 unités</b><br>
+    Moyenne des 12 derniers mois : 312 par mois<br>
+    × tendance (les ventes montent de 4 % sur un an) : 324<br>
+    × indice de décembre (on vend en décembre 0,95 fois un mois moyen) … = <b>412</b><br>
+    <i>Les chiffres réels du produit et la méthode utilisée s'afficheront ici.</i>
+  </div>
+</div>
+<div class="q"><b>Question 10.</b> Validez-vous cette disposition : graphe 24 mois en haut, tableau unités et indice en bas, bulle d'explication sur la barre orange ? Le calcul de la bulle sera celui que fait réellement le serveur. Le détail ci-dessus n'est qu'un exemple.</div>
+
+<!-- ===================================================== 16 -->
+<h2>16. Commande en cours, commande ouverte</h2>
+<table>
+<tr><td class="c">Icônes des boutons du bas</td><td>
+  « CRÉER BON DE LIVRAISON » et « RETOUR » ont l'icône d'un groupement de lignes, sans rapport avec leur action.
+  Je propose de passer tous les boutons au nouveau style, avec ces icônes : 📦 Créer bon de livraison, ↩ Retour, ✔ Vérifier la disponibilité, ⟳ Revérifier les indisponibles, 🖨 Imprimer la disponibilité, ⬇ Exporter CSV.
+</td></tr>
+<tr><td class="c">« Vérifier la disponibilité » : toute la commande ?</td><td>
+  <b>Oui.</b> Le bouton vérifie tous les produits de la commande auprès du grossiste, par PharmaML.
+  Le ⟳ de la colonne Dispo vérifie un seul produit.
+  Je l'écrirai dans l'info-bulle du bouton.
+</td></tr>
+</table>
+
+<h3>16.1 Nouveau : saisie du lot et de la date de péremption en commande en cours <span class="tag t-new">nouveau</span></h3>
+<p>Elle est soumise au paramètre <b>« SAISIE DATE DE PEREMPTION COMMANDE EN COURS »</b>, à 0 par défaut : rien ne change tant qu'il n'est pas activé.</p>
+<div class="maquette">
+  <b>Déroulé au clavier :</b> produit → Entrée → quantité → Entrée → petite fenêtre :
+  <div style="border:1px solid #1E5FA8;border-radius:6px;width:420px;margin:8px 0;background:#fff">
+    <div style="background:#1E5FA8;color:#fff;padding:5px 10px;font-weight:600">DOLIPRANE 500 MG CPR — qté 20</div>
+    <div style="padding:10px">
+      N° de lot : <span style="border:1px solid #999;padding:2px 60px 2px 4px">A2341▏</span><br><br>
+      Péremption : <span style="border:1px solid #999;padding:2px 50px 2px 4px">01/27</span> → <b>01/01/2027</b><br><br>
+      <span style="font-size:12px;color:#5a6b7d">Entrée : champ suivant · Entrée sur champs vides : valider sans lot · Échap : annuler</span>
+    </div>
+  </div>
+  <ul>
+    <li>Lot, puis Entrée, puis date, puis Entrée : la ligne est validée, et le curseur revient à la recherche de produit.</li>
+    <li>Entrée sans rien saisir passe au champ suivant. Sur la date vide, Entrée valide le produit sans lot.</li>
+    <li>Un deuxième lot du même produit sur le même BL : on ressaisit le produit, la quantité, puis l'autre lot.</li>
+    <li>Le même numéro de lot saisi deux fois : les quantités s'additionnent, il n'y a jamais deux lignes pour un même lot.</li>
+    <li>Les colonnes LOTS et DATE DE PÉREMPTION se remplissent comme après un import Tedis. Les lots sont rangés au même endroit, et repris tels quels à la création du BL.</li>
+    <li>Un double-clic sur LOTS / PÉREMPTION ouvre la petite vue des lots du produit, une ligne par lot, modifiable.</li>
+    <li>Un clic dans LOTS puis un scan du DataMatrix (lecteur 1D/2D) récupère seulement le lot et la péremption.</li>
+  </ul>
+</div>
+<table>
+<tr><th>Saisie</th><th>Lecture</th><th>Règle</th></tr>
+<tr><td>01/27</td><td>01/01/2027</td><td>MM/AA</td></tr>
+<tr><td>012027</td><td>01/01/2027</td><td>6 chiffres finissant par 20AA : MMAAAA</td></tr>
+<tr><td>010127</td><td>01/01/2027</td><td>autres 6 chiffres : JJMMAA</td></tr>
+<tr><td>01012027</td><td>01/01/2027</td><td>8 chiffres : JJMMAAAA</td></tr>
+<tr><td>01-01-27, 01/01/27</td><td>01/01/2027</td><td>JJ-MM-AA</td></tr>
+<tr><td>01-01-2027</td><td>01/01/2027</td><td>JJ-MM-AAAA</td></tr>
+<tr><td>13/27, 32/01/27, date passée</td><td>refusée</td><td>message sous le champ, la ligne n'est pas validée</td></tr>
+</table>
+<p>
+  Les deux formes sur 6 chiffres ne peuvent pas se confondre : en JJMMAA, les 3e et 4e chiffres sont un mois (01 à 12), jamais « 20 ».
+  Un test de cohérence vérifie des milliers de dates tirées au hasard dans tous les formats.
+</p>
+<div class="q"><b>Question 11. Date.</b> Vous écrivez « 0101027 = 01/01/2027 » : 7 chiffres. Je suppose une faute de frappe pour <b>010127</b>. Est-ce bien cela ?</div>
+<div class="q"><b>Question 12. Jour du mois.</b> Pour « 01/27 », vous demandez le <b>1er</b> janvier 2027.
+  Or les boîtes et le DataMatrix indiquent en général « fin du mois », et la lecture actuelle du DataMatrix prend déjà le dernier jour quand le jour vaut 00.
+  Je garde le 1er comme vous l'écrivez, ce qui est le plus prudent pour les alertes de péremption. Confirmez-vous ?</div>
+<div class="q"><b>Question 13. Contrôle des quantités.</b> Faut-il interdire que la somme des quantités des lots dépasse la quantité de la ligne ? Je propose un blocage avec un message.</div>
+<div class="risque">
+  <b>Deux points techniques à vérifier sur le lecteur.</b>
+  <ol>
+    <li>La lecture actuelle du DataMatrix s'arrête au premier code qu'elle ne connaît pas, par exemple le numéro de série (21). Sur certaines boîtes, le lot ou la date serait donc perdu. Je corrige cette lecture, avec des tests sur des codes réels de boîtes.</li>
+    <li>En mode clavier, certains lecteurs n'envoient pas le séparateur invisible entre les champs du DataMatrix. Il faudra faire un essai avec votre lecteur. La lecture sera alors faite comme sur l'application mobile.</li>
+  </ol>
+</div>
+<p>
+  <b>Pour plus tard</b>, comme vous l'indiquez : scan d'une étiquette QR ou DataMatrix qui donne directement le produit, le lot et la péremption, en « 1 boîte par scan » ou « scan puis quantité ».
+  Ces deux modes existent déjà pour les étiquettes étendues. Je ne les traite pas dans ce plan.
+</p>
+
+<!-- ===================================================== 17 -->
+<h2>17. Recherche de produits périmés : lenteur <span class="tag t-perf">lenteur</span></h2>
+<table>
+<tr><td class="c">Cause trouvée</td><td>
+  Avec des filtres vides, la recherche prend <b>tous les lots périmés depuis l'origine</b>.
+  Elle les lit trois fois : liste, total, comptage.
+  Elle les trie ensuite par libellé de rayon, sans index, avant de garder 20 lignes.
+  Le badge de l'en-tête lance aussi la liste complète.
+</td></tr>
+<tr><td class="c">Proposition</td><td>
+  <ul>
+    <li>Lire en une seule passe.</li>
+    <li>Trier par un ordre indexé.</li>
+    <li>Pour le badge, lancer un simple comptage.</li>
+  </ul>
+  Les résultats doivent rester identiques : un test de rapprochement compare l'ancienne et la nouvelle liste sur la base peuplée.
+</td></tr>
+</table>
+<div class="risque">
+  <b>Défaut suspecté :</b> un produit sans grossiste ou sans rayon <b>disparaît</b> de la liste des périmés, à cause d'une jointure trop stricte. Je le prouverai par un test. Faut-il les afficher, avec « (sans rayon) » ? Je propose oui.
+</div>
+
+<!-- ===================================================== 18 -->
+<h2>18. Rappel traitement, onglet « Ciblage libre » <span class="tag t-evo">évolution</span></h2>
+<ul>
+  <li>Le champ de recherche est agrandi, et le curseur y est placé.</li>
+  <li>La liste des produits s'élargit à son contenu : une ligne par produit, sans retour à la ligne (même correction qu'au point 8.2).</li>
+  <li>Entrée lance la recherche.</li>
+  <li>Les libellés tiennent sur une ligne : « Acheté du … au … » et « Au moins … achats ».</li>
+  <li>Le crayon ✎ pour ajouter ou modifier le numéro du client est le même qu'au point 8.3.</li>
+</ul>
+<p>
+  Les deux lignes ne servent à rien : c'est un manque de largeur, pas un choix.
+</p>
+
+<!-- ===================================================== ordre -->
+<h2>Ordre de traitement proposé</h2>
+<p>
+  Chaque lot fait l'objet d'un commit sur <code>plan/21112026</code>, avec ses tests.
+  Vous pouvez déployer et tester après chaque lot.
+</p>
+<ol class="lots">
+  <li><b>Défauts</b> :
+    <ul>
+      <li>1.1 historique ;</li>
+      <li>1.2 fenêtre de modification de BL ;</li>
+      <li>2 fréquentation, et ouverture de l'état du stock filtré ;</li>
+      <li>6 modification d'un client standard ;</li>
+      <li>SMS refusé pour un numéro rangé dans Téléphone ;</li>
+      <li>17 périmés sans rayon.</li>
+    </ul>
+  </li>
+  <li><b>Lenteurs</b>, avec mesures avant et après : 4.3 prévision, 14 tiers payants, 17 périmés.</li>
+  <li><b>Évolutions d'écran sans question en attente</b> :
+    <ul>
+      <li>barres sur deux lignes (1.3, 3) ;</li>
+      <li>carte BFR retirée ;</li>
+      <li>date de la fréquentation ;</li>
+      <li>impression des négatifs ;</li>
+      <li>4.2 Actualiser et Disponibilité déplacés ;</li>
+      <li>classe ABC après le nom ;</li>
+      <li>5 voir le mot de passe ;</li>
+      <li>colonne Adresse ;</li>
+      <li>7 mise en page et Téléphone ;</li>
+      <li>8.2 et 18 recherche ;</li>
+      <li>9 « Déjà facturé ? » ;</li>
+      <li>10 PDF de l'avis sans l'adresse ;</li>
+      <li>13 motif, colonnes et info-bulles ;</li>
+      <li>16 icônes et info-bulles ;</li>
+      <li>15 boutons Imprimer et Excel.</li>
+    </ul>
+  </li>
+  <li><b>Après vos réponses</b> :
+    <ul>
+      <li>4.1 bandeau de nettoyage ;</li>
+      <li>4.4 textes et mois en cours ;</li>
+      <li>7.1 icônes ;</li>
+      <li>7.2 sélecteur de période ;</li>
+      <li>12 stock réserve ;</li>
+      <li>13 droit de l'onglet ;</li>
+      <li>15 visuel ;</li>
+      <li>8.3 droit.</li>
+    </ul>
+  </li>
+  <li><b>Nouvelles fonctions</b> :
+    <ul>
+      <li>8.1 journal des messages ;</li>
+      <li>11 canal et statut des avoirs ;</li>
+      <li>7 script de recopie des numéros, à lancer à la main ;</li>
+      <li>16.1 lots et péremption en commande en cours, avec la lecture DataMatrix corrigée.</li>
+    </ul>
+  </li>
+</ol>
+
+<div class="ok">
+  <b>Avant de dire « fini »</b>, chaque lot aura un compte rendu qui liste :
+  <ul>
+    <li>les endroits où la donnée apparaît, et le test de rapprochement qui les compare ;</li>
+    <li>les règles de calcul, et le test de cohérence qui les vérifie ;</li>
+    <li>les traces attendues, et le test de bilan ;</li>
+    <li>les cas variés couverts ;</li>
+    <li>la preuve que chaque nouveau test échoue d'abord sur le code actuel.</li>
+  </ul>
+  Les tests d'écran tourneront sur domain4 (port 11090, base <code>laborex_audit</code>), un par un.
+  Domain1 et domain2 ne seront pas touchés sans votre accord.
+</div>
+
+</body>
+</html>
