@@ -37,8 +37,13 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                 {name: 'regle', type: 'int'}, {name: 'restant', type: 'int'}, 'statut', {name: 'part', type: 'int'}],
             proxy: {type: 'ajax', url: me.URL + 'bls', reader: {type: 'json', root: 'data'}},
             listeners: {beforeload: function (s) {
-                    s.getProxy().extraParams = {grossisteId: me.down('#rfGrossiste').getValue() || ''};
+                    var g = me.down('#rfGrossiste').getValue() || '';
+                    /* plan du 21/11, point 1 : les BL coches sont gardes au rechargement (meme grossiste) */
+                    me.blsCoches = g === me.grossisteBls ? me.idsChoisis(me.down('#rfSaisir')) : [];
+                    me.grossisteBls = g;
+                    s.getProxy().extraParams = {grossisteId: g};
                 }, load: function () {
+                    me.rechoisir(me.down('#rfSaisir'), me.blsCoches, true);
                     me.repartir();
                 }}
         });
@@ -48,14 +53,17 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                 'grossisteId', 'grossiste', 'auteur', {name: 'nombreBl', type: 'int'}, 'bls', 'parts'],
             proxy: {type: 'ajax', url: me.URL + 'historique', reader: {type: 'json', root: 'data'}},
             listeners: {beforeload: function (s) {
+                    me.reglementChoisi = me.idsChoisis(me.down('#rfReglements'));
                     s.getProxy().extraParams = me.criteresHistorique();
                 }, load: function (s, r, ok) {
                     var raw = s.getProxy().getReader().rawData || {};
                     me.down('#rfHistoTotal').setText(ok === false ? 'Chargement impossible'
                             : (raw.actifs || 0) + ' règlement(s) · ' + me.montant(raw.montant) + (raw.total > raw.actifs
                             ? ' · ' + (raw.total - raw.actifs) + ' annulé(s)' : ''));
-                    me.storeParts.removeAll();
-                    me.majBoutonAnnuler();
+                    /* plan du 21/11, point 1 : le reglement choisi le reste, avec sa repartition (avant : la ligne
+                       paraissait choisie, le bas etait vide et un nouveau clic sur elle ne faisait plus rien) */
+                    me.rechoisir(me.down('#rfReglements'), me.reglementChoisi, false);
+                    me.chargerParts();
                 }}
         });
         me.storeParts = Ext.create('Ext.data.Store', {
@@ -101,6 +109,41 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                 rappel(false, {msg: 'Le serveur ne répond pas (code ' + r.status + ').'});
             }
         });
+    },
+
+    /** Identifiants des lignes choisies d'une grille. */
+    idsChoisis: function (grille) {
+        return grille ? Ext.Array.map(grille.getSelectionModel().getSelection(), function (r) {
+            return r.get('id');
+        }) : [];
+    },
+
+    /**
+     * Apres un rechargement, choisit a nouveau les lignes dont l'identifiant est donne (les autres sont oubliees). Sans
+     * cela, ExtJS garde l'ancienne selection sans le signaler : la ligne parait choisie mais ses donnees ne suivent pas.
+     */
+    rechoisir: function (grille, ids, silencieux) {
+        if (!grille) {
+            return;
+        }
+        var sm = grille.getSelectionModel(), store = grille.getStore(), a = [];
+        Ext.each(ids || [], function (id) {
+            var r = store.getById(id);
+            if (r) {
+                a.push(r);
+            }
+        });
+        sm.deselectAll(true);
+        if (a.length) {
+            sm.select(a, false, silencieux === true);
+        }
+    },
+
+    /** Repartition du reglement choisi dans la grille du bas. */
+    chargerParts: function () {
+        var me = this, r = me.down('#rfReglements').getSelectionModel().getSelection()[0];
+        me.storeParts.loadData(r ? (r.get('parts') || []) : []);
+        me.majBoutonAnnuler();
     },
 
     message: function (cmp, ok, texte) {
@@ -400,9 +443,10 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
             viewConfig: {emptyText: 'Aucun règlement sur la période.', deferEmptyText: false, getRowClass: function (r) {
                     return r.get('annule') ? 'rf-annule' : '';
                 }},
-            listeners: {selectionchange: function (sm, sel) {
-                    me.storeParts.loadData(sel.length ? (sel[0].get('parts') || []) : []);
-                    me.majBoutonAnnuler();
+            listeners: {selectionchange: function () {
+                    me.chargerParts();
+                }, itemclick: function () {
+                    me.chargerParts();
                 }},
             columns: [
                 {text: 'Date', dataIndex: 'date', width: 90},
@@ -434,6 +478,9 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                             displayField: 'str_LIBELLE', queryMode: 'remote', minChars: 1, typeAhead: true, emptyText: 'Tous les grossistes',
                             listeners: Ext.apply({select: function () {
                                     me.storeReglements.load();
+                                }, change: function () {
+                                    /* plan du 21/11, point 1 : « Choisissez le grossiste du relevé » ne reste pas affiche */
+                                    me.message('#rfHistoMessage', true, '');
                                 }}, entree)},
                         {text: 'Rechercher', itemId: 'rfRechercher', iconCls: 'searchicon', handler: function () {
                                 me.storeReglements.load();
