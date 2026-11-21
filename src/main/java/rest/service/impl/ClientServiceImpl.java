@@ -96,6 +96,13 @@ public class ClientServiceImpl implements ClientService {
     @javax.annotation.Resource
     private javax.ejb.SessionContext sessionContext;
 
+    /** Code interne d'un nouveau client, jamais déjà porté (21/11 : l'ancien, tiré de l'heure, se répétait). */
+    private String codeInterneLibre() {
+        return util.CodeInterneClient.libre(code -> !em
+                .createQuery("SELECT t.lgCLIENTID FROM TClient t WHERE t.strCODEINTERNE = :code", String.class)
+                .setParameter("code", code).setMaxResults(1).getResultList().isEmpty());
+    }
+
     public EntityManager getEmg() {
         return em;
 
@@ -116,7 +123,7 @@ public class ClientServiceImpl implements ClientService {
             tc.setDtCREATED(tc.getDtUPDATED());
             tc.setEmail(clientLambda.getEmail());
             tc.setBoolCONSENTSMS(clientLambda.consentSmsValeur());
-            tc.setStrCODEINTERNE(DateConverter.getShortId(6));
+            tc.setStrCODEINTERNE(codeInterneLibre());
             getEmg().persist(tc);
             createCompteClient(tc);
             tp.setClient(tc);
@@ -177,7 +184,7 @@ public class ClientServiceImpl implements ClientService {
             tc.setStrSTATUT(Constant.STATUT_ENABLE);
             tc.setDtUPDATED(new Date());
             tc.setDtCREATED(tc.getDtUPDATED());
-            tc.setStrCODEINTERNE(DateConverter.getShortId(6));
+            tc.setStrCODEINTERNE(codeInterneLibre());
             tc.setEmail(clientLambda.getEmail());
             tc.setBoolCONSENTSMS(clientLambda.consentSmsValeur());
             /* Date de naissance facultative (30/09) : retenue seulement si elle est possible. */
@@ -780,7 +787,7 @@ public class ClientServiceImpl implements ClientService {
         client.setStrADRESSE(clientDTO.getStrADRESSE());
         client.setLgTYPECLIENTID(findTypeClientById(clientDTO.getLgTYPECLIENTID()));
         client.setLgVILLEID(findVilleById(clientDTO.getLgVILLEID()));
-        client.setStrCODEINTERNE(DateConverter.getShortId(6));
+        client.setStrCODEINTERNE(codeInterneLibre());
         client.setRemise(findRemiseById(clientDTO.getRemiseId()));
 
         try {

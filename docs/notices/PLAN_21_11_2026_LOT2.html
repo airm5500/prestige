@@ -76,8 +76,28 @@ Avant, leur ordre dépendait du plan de lecture, et une ligne pouvait passer d'u
 <ul>
 <li>« En cours » du produit ouvert dans la prévision : mesuré à 37 ms sur appaul, non modifié.</li>
 <li>Défauts antérieurs relevés au lot 1, toujours hors de ce lot : CIP coupé à 10 caractères dans le PDF des périmés ; <code>test-style-lots-0510</code> 229/232 (débordement sur trois écrans, identique sur l'ancien WAR).</li>
-<li>Défaut ancien suspecté, hors lot : le code interne d’un nouveau client est tiré de l’heure (minute, seconde, millième, coupé à 6 chiffres) ; sur une base qui a beaucoup de clients, il peut tomber sur un code existant et la création est refusée (« Le code interne existe déjà »). Vu une fois sur <code>test-modification-client-standard-2111</code> (2/4), qui repasse ensuite 24/24. À traiter à part si vous le souhaitez.</li>
-<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (lots 1 et 2). Mesures détaillées : <code>docs/notices/RAPPORT_LENTEUR_CONNEXION.md</code>.</li>
+<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (lots 1 et 2, et la correction ci-dessous). Mesures détaillées : <code>docs/notices/RAPPORT_LENTEUR_CONNEXION.md</code>.</li>
 </ul>
+
+<h2>Correction ajoutée : code interne d'un nouveau client</h2>
+<div class="risque"><b>Défaut confirmé (ancien, hors lot) :</b> le code interne d'un nouveau client était tiré de l'heure (minute, seconde,
+millième, coupé à six chiffres). Sur une base de plusieurs dizaines de milliers de clients, il retombait souvent sur un code déjà pris :
+« Créer client standard » et « Créer » refusaient la création (« Le code interne existe déjà ») ; la création depuis la vente, elle,
+enregistrait un second client portant le même code. La copie de test compte déjà 26 817 clients pour 25 790 codes différents,
+soit environ un millier de codes en double, créés par ce chemin.</div>
+<table>
+<tr><th>Correction</th><th>Test</th><th>Avant → après</th></tr>
+<tr><td>Code tiré au hasard entre 100000 et 999999 et redemandé tant qu'il est pris (<code>util.CodeInterneClient</code>).
+Appliqué aux créations de client de la gestion des clients (standard, « Créer ») et de la vente. Un code saisi à la main et déjà pris reste refusé.</td>
+<td><code>client/test-code-interne-client-2111</code> : tous les codes que l'ancien calcul peut donner pendant cinq minutes sont occupés,
+puis deux clients standards, un « Créer » assuré, un client créé depuis la vente, un code saisi déjà pris.
+Contrôles : création acceptée, code de six chiffres porté par ce seul client, codes différents, un compte client par client,
+code de la liste = code en base, bilan (quatre clients et quatre comptes de plus, aucune vente laissée), tout retiré.</td>
+<td>14/21 sur l'ancien code (créations refusées, code en double depuis la vente) → 21/21</td></tr>
+<tr><td>Cohérence</td><td><code>CodeInterneClientCoherenceTest</code> : 2 000 bases tirées au hasard (graine fixe), de vide à 300 000 codes pris,
+plusieurs créations de suite : jamais un code pris, toujours six chiffres ; 20 000 codes à la suite tous différents ; base saturée refusée sans boucler.</td>
+<td>4/4</td></tr>
+</table>
+<p>Les doublons déjà présents en base ne sont pas modifiés (ils n'empêchent rien). Les ayants droit gardent leur propre calcul, qui cherchait déjà un code libre.</p>
 </body>
 </html>

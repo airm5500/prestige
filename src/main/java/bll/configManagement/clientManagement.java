@@ -119,7 +119,7 @@ public class clientManagement extends bllBase {
             TTypeClient OTTypeClient = this.getOdataManager().getEm().find(TTypeClient.class, lg_TYPE_CLIENT_ID);
             new logger().OCategory.info("Type client " + OTTypeClient.getStrNAME());
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
-            OTClient.setStrCODEINTERNE(this.getKey().getShortId(6));
+            OTClient.setStrCODEINTERNE(util.CodeInterneClient.libre(this::doesCodeInternClientExist));
             OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
             OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setLgTYPECLIENTID(OTTypeClient);
@@ -817,7 +817,8 @@ public class clientManagement extends bllBase {
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
 
             if ("".equals(str_CODE_INTERNE) || str_CODE_INTERNE == null) {
-                str_CODE_INTERNE = this.getKey().getShortId(6);
+                // 21/11 : l'ancien code, tire de l'heure, retombait sur des codes pris
+                str_CODE_INTERNE = util.CodeInterneClient.libre(this::doesCodeInternClientExist);
             }
             OTClient.setStrCODEINTERNE(str_CODE_INTERNE);
             OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
@@ -1028,7 +1029,7 @@ public class clientManagement extends bllBase {
             TTypeClient OTTypeClient = this.getOdataManager().getEm().find(TTypeClient.class, lg_TYPE_CLIENT_ID);
             new logger().OCategory.info("Type client " + OTTypeClient.getStrNAME());
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
-            OTClient.setStrCODEINTERNE(this.getKey().getShortId(6));
+            OTClient.setStrCODEINTERNE(util.CodeInterneClient.libre(this::doesCodeInternClientExist));
             OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
             OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setLgTYPECLIENTID(OTTypeClient);
