@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TemporalType;
 import rest.service.ProduitExtraInfoCles;
@@ -153,8 +155,7 @@ public class ProduitExtraInfoServiceImpl implements ProduitExtraInfoService {
         for (int i = 0; i < liste.size(); i += TRANCHE) {
             List<String> tranche = liste.subList(i, Math.min(i + TRANCHE, liste.size()));
             lignes(REQ_FAMILLES, tranche).forEach(r -> familles.put((String) r[0], r));
-            lignes(REQ_VENTES, tranche)
-                    .forEach(r -> ventes.put(ProduitExtraInfoCles.cle((String) r[0], (String) r[1]), r));
+            lireVentes(tranche, cles, ventes);
             lignes(REQ_ACHATS, tranche).forEach(r -> achats.put((String) r[0], r));
             lignes(REQ_INVENTAIRES, tranche)
                     .forEach(r -> inventaires.put(ProduitExtraInfoCles.cle((String) r[0], (String) r[1]), r));
@@ -201,9 +202,58 @@ public class ProduitExtraInfoServiceImpl implements ProduitExtraInfoService {
         return resultat;
     }
 
+    /** Fenetre des ventes recentes, en jours, a partir de minuit (demande 71). */
+    static final int JOURS_RECENTS = 7;
+
+    /**
+     * Demande 71 (21/11) : derniere vente et quantite du jour, sans relire tout l'historique d'un produit vendu
+     * recemment.
+     * <p>
+     * La tranche est d'abord lue sur les ventes cloturees depuis minuit, il y a {@link #JOURS_RECENTS} jours (plage lue
+     * par l'index (str_STATUT, dt_UPDATED)). La fenetre commence a minuit : le dernier jour vendu y est entier, sa date
+     * et sa quantite sont celles de la lecture complete. Seuls les produits dont un emplacement demande n'a aucune
+     * vente dans la fenetre sont relus sur tout leur historique, comme avant. Mesures chez appaul : paracetamol (81 235
+     * lignes) 6 s avant ; lecture des ventes de tout le catalogue 134 s avant, 65 s apres.
+     */
+    private void lireVentes(List<String> tranche, Collection<String[]> cles, Map<String, Object[]> ventes) {
+        lignes(REQ_VENTES_RECENTES, tranche)
+                .forEach(r -> ventes.put(ProduitExtraInfoCles.cle((String) r[0], (String) r[1]), r));
+        List<String> complets = aLireEnEntier(tranche, cles, ventes.keySet());
+        if (!complets.isEmpty()) {
+            lignes(REQ_VENTES, complets)
+                    .forEach(r -> ventes.putIfAbsent(ProduitExtraInfoCles.cle((String) r[0], (String) r[1]), r));
+        }
+    }
+
+    /**
+     * Produits de la tranche a relire sur tout leur historique : ceux dont un emplacement demande (non nul) n'a pas de
+     * vente dans la fenetre recente. Une demande sans emplacement ne trouve jamais de vente (la requete ecarte les
+     * vendeurs sans emplacement) : elle ne force pas la relecture. Ordre de la tranche, sans doublon.
+     */
+    static List<String> aLireEnEntier(List<String> tranche, Collection<String[]> cles, Set<String> clesTrouvees) {
+        Set<String> manquants = new HashSet<>();
+        for (String[] c : cles) {
+            if (c[1] != null && !clesTrouvees.contains(ProduitExtraInfoCles.cle(c[0], c[1]))) {
+                manquants.add(c[0]);
+            }
+        }
+        List<String> l = new ArrayList<>();
+        for (String id : new LinkedHashSet<>(tranche)) {
+            if (manquants.contains(id)) {
+                l.add(id);
+            }
+        }
+        return l;
+    }
+
+    /**
+     * Lecture seule : aucune ecriture en attente a envoyer avant la requete (FlushModeType.COMMIT). Demande 71 :
+     * v1/checkproduit charge d'abord ~11 650 TFamilleStock dans la meme transaction ; en mode AUTO, chaque requete
+     * native les passait toutes en revue avant de partir (87 s pour tout le catalogue sur le banc).
+     */
     @SuppressWarnings("unchecked")
     private List<Object[]> lignes(String sql, List<String> ids) {
-        return em.createNativeQuery(sql).setParameter("ids", ids).getResultList();
+        return em.createNativeQuery(sql).setParameter("ids", ids).setFlushMode(FlushModeType.COMMIT).getResultList();
     }
 
     private static Date date(Object o) {
@@ -241,6 +291,13 @@ public class ProduitExtraInfoServiceImpl implements ProduitExtraInfoService {
             + "JOIN t_user u ON u.lg_USER_ID = v.lg_USER_ID "
             + "WHERE v.str_STATUT = 'is_Closed' AND d.lg_FAMILLE_ID IN (:ids) AND u.lg_EMPLACEMENT_ID IS NOT NULL) j "
             + "GROUP BY j.f, j.e, DATE(j.dt)) x WHERE x.rn = 1";
+
+    /**
+     * {@link #REQ_VENTES} sur les seules ventes cloturees depuis minuit il y a {@link #JOURS_RECENTS} jours : la plage
+     * de dates est lue par l'index (str_STATUT, dt_UPDATED) de t_preenregistrement.
+     */
+    private static final String REQ_VENTES_RECENTES = REQ_VENTES.replace("AND u.lg_EMPLACEMENT_ID IS NOT NULL",
+            "AND u.lg_EMPLACEMENT_ID IS NOT NULL AND v.dt_UPDATED >= CURDATE() - INTERVAL " + JOURS_RECENTS + " DAY");
 
     /** Dernier bon de livraison par produit, et quantite totale recue ce jour-la. */
     private static final String REQ_ACHATS = "SELECT m.f, m.dmax, (SELECT COALESCE(SUM(d.int_QTE_RECUE), 0) "
