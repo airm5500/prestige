@@ -155,6 +155,8 @@ public final class RenduTicket {
     private ReglagesTicket.Position position;
     /** Plan du 06/11 point 1 : taille propre de la date du pied (reglage du bloc « Date du ticket »). */
     private int tailleDate;
+    /** Demande 70 : decalage du second dessin des textes non gras (0 : un seul dessin). */
+    private double doublage;
 
     private RenduTicket(Graphics2D g, double largeur, int base, String police) {
         this.g = g;
@@ -172,9 +174,19 @@ public final class RenduTicket {
     /** Dessine le ticket a partir de la hauteur {@code depart} ; rend la hauteur atteinte et les zones des blocs. */
     public static Resultat dessiner(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm, int ajoutPolice,
             int depart) {
+        return dessiner(g, doc, r, papierMm, ajoutPolice, depart, 0);
+    }
+
+    /**
+     * Demande 70 : {@code doublage} &gt; 0 redessine chaque texte non gras decale de {@code doublage} vers la droite
+     * (un point d'imprimante, en unites du dessin). La mise en page ne change pas.
+     */
+    private static Resultat dessiner(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm, int ajoutPolice,
+            int depart, double doublage) {
         double marge = marge(r, papierMm);
         RenduTicket rendu = new RenduTicket(g, largeurImprimable(papierMm) - 2 * marge,
                 tailleBase(papierMm, ajoutPolice), choisirPolice(r.police(), POLICE_REPLI));
+        rendu.doublage = doublage;
         g.setColor(Color.BLACK);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.translate(marge, 0);
@@ -272,12 +284,20 @@ public final class RenduTicket {
         return pointsLargeur(papierMm, dpi) / (largeurImprimable(papierMm) + 2 * BORD_IMAGE);
     }
 
-    /** Dessin de l'image : largeur imprimable plus les bords ramenee aux points de l'imprimante. */
+    /**
+     * Dessin de l'image : largeur imprimable plus les bords ramenee aux points de l'imprimante.
+     * <p>
+     * Demande 70 (SUNMI V3) : en 58 mm, les textes non gras (8 points, police etroite) n'avaient souvent qu'un point
+     * d'imprimante d'epaisseur apres passage en noir et blanc, et sortaient pales. Ils sont redessines decales d'un
+     * point d'imprimante vers la droite : traits d'au moins deux points, meme mise en page, meme largeur de texte a un
+     * point pres (le bord de l'image en garde plus). Le code-barres, le QR et les textes gras ne changent pas ; le 80
+     * mm, l'apercu du web et l'impression du poste non plus.
+     */
     static void dessinerImage(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm, int dpi) {
         double e = echelleImage(papierMm, dpi);
         g.scale(e, e);
         g.translate(BORD_IMAGE, 0);
-        dessiner(g, doc, r, papierMm, 0, HAUT_IMAGE);
+        dessiner(g, doc, r, papierMm, 0, HAUT_IMAGE, papierMm <= 58 ? 1 / e : 0);
     }
 
     /** Apercu en image (fond blanc), a l'echelle donnee ; {@code sortie} recoit le resultat du dessin. */
@@ -303,6 +323,14 @@ public final class RenduTicket {
             sortie[0] = res;
         }
         return img;
+    }
+
+    /** Texte, redessine decale de {@link #doublage} s'il n'est pas gras (demande 70). */
+    private void ecrire(String s, float x, float y) {
+        g.drawString(s, x, y);
+        if (doublage > 0 && !g.getFont().isBold()) {
+            g.drawString(s, (float) (x + doublage), y);
+        }
     }
 
     private Font police(Style s, int ecart) {
@@ -447,7 +475,7 @@ public final class RenduTicket {
     /** Dessine un texte a partir de x, ses parties marquees en gras ; la police courante est rendue telle quelle. */
     private void dessinerTexte(String t, double x, int base) {
         if (t.indexOf(TicketDocument.GRAS_DEBUT) < 0) {
-            g.drawString(sansMarques(t), (float) x, base);
+            ecrire(sansMarques(t), (float) x, base);
             return;
         }
         Font normale = g.getFont();
@@ -459,7 +487,7 @@ public final class RenduTicket {
             if (ch == TicketDocument.GRAS_DEBUT || ch == TicketDocument.GRAS_FIN) {
                 if (morceau.length() > 0) {
                     g.setFont(enGras ? grasse : normale);
-                    g.drawString(morceau.toString(), (float) xx, base);
+                    ecrire(morceau.toString(), (float) xx, base);
                     xx += g.getFontMetrics().stringWidth(morceau.toString());
                     morceau.setLength(0);
                 }
@@ -485,7 +513,7 @@ public final class RenduTicket {
         Font gras = police(Style.GRAS, ecart);
         int wm = g.getFontMetrics(gras).stringWidth(e.d);
         y += fm.getAscent();
-        g.drawString(e.b, 0, y);
+        ecrire(e.b, 0, y);
         int wq = fm.stringWidth(e.b);
         boolean lotALaLigne = false;
         if (!e.c.isEmpty()) {
@@ -494,13 +522,13 @@ public final class RenduTicket {
             double libre = largeur - wq - wm - 12;
             if (wl <= libre) {
                 g.setFont(petit);
-                g.drawString(e.c, (float) (wq + 6 + (libre - wl) / 2), y);
+                ecrire(e.c, (float) (wq + 6 + (libre - wl) / 2), y);
             } else {
                 lotALaLigne = true;
             }
         }
         g.setFont(gras);
-        g.drawString(e.d, (float) (largeur - wm), y);
+        ecrire(e.d, (float) (largeur - wm), y);
         y += fm.getDescent() + 1;
         if (lotALaLigne) {
             g.setFont(police(Style.PETIT, ecart));
@@ -562,7 +590,7 @@ public final class RenduTicket {
             int x1 = (int) ((i + 1) * pas - 4);
             g.drawLine(x0, y, x1, y);
             String l = e.libelles.get(i);
-            g.drawString(l, (float) (x0 + (x1 - x0 - fm.stringWidth(l)) / 2.0), y + fm.getAscent() + 1);
+            ecrire(l, (float) (x0 + (x1 - x0 - fm.stringWidth(l)) / 2.0), y + fm.getAscent() + 1);
         }
         y += fm.getHeight() + 3;
     }
@@ -595,7 +623,7 @@ public final class RenduTicket {
         FontMetrics fm = g.getFontMetrics();
         for (String l : couper(e.b, libre)) {
             yt += fm.getAscent();
-            g.drawString(l, (float) x, yt);
+            ecrire(l, (float) x, yt);
             yt += fm.getDescent() + 1;
         }
         g.setFont(petit);
@@ -607,7 +635,7 @@ public final class RenduTicket {
         if (!dessous) {
             for (String l : date) {
                 yt += fm.getAscent();
-                g.drawString(l, (float) x, yt);
+                ecrire(l, (float) x, yt);
                 yt += fm.getDescent() + 1;
             }
         }
@@ -615,7 +643,7 @@ public final class RenduTicket {
         if (dessous) {
             for (String l : couper(e.c, largeur)) {
                 y += fm.getAscent();
-                g.drawString(l, 0, y);
+                ecrire(l, 0, y);
                 y += fm.getDescent() + 1;
             }
         }
@@ -626,9 +654,9 @@ public final class RenduTicket {
         FontMetrics fm = g.getFontMetrics();
         double col = Math.min(62, largeur / 4.2);
         y += fm.getAscent();
-        g.drawString(couper(e.a, largeur - 2 * col - 4).get(0), 0, y);
-        g.drawString(e.b, (float) (largeur - col - fm.stringWidth(e.b) - 4), y);
-        g.drawString(e.c, (float) (largeur - fm.stringWidth(e.c)), y);
+        ecrire(couper(e.a, largeur - 2 * col - 4).get(0), 0, y);
+        ecrire(e.b, (float) (largeur - col - fm.stringWidth(e.b) - 4), y);
+        ecrire(e.c, (float) (largeur - fm.stringWidth(e.c)), y);
         y += fm.getDescent() + 1;
     }
 
