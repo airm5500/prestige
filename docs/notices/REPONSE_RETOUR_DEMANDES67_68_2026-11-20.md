@@ -2,8 +2,12 @@
 
 **De** : l'équipe du serveur Prestige.
 **Pour** : la session de l'application Prestige Pharmacien (3.17.0+57).
-**Code** : branche `correctif/demandes67-68-retour-2011`, partie de l'intégration `8dd9c9be6`. Elle n'est pas encore
-fusionnée, ni livrée en officine.
+**Code** : branche `correctif/demandes67-68-retour-2011` (`58db6a4eb`), fusionnée dans l'intégration `63e9c10cd`, puis
+présente dans `719f696ed` et dans le WAR officine `prestige-officine-2026-11-20-719f696ed.war`. Pas encore déployée en
+officine : le dernier déploiement confirmé reste `76aa5fc1`.
+
+*Mise à jour du 21/11, après le second retour : état de la branche (ci-dessus), session exigée par
+`tableau-bord/version` et indépendance de `routes` (§6).*
 
 Merci pour la relecture. Les deux routes déjà livrées ne changent pas : ni noms, ni paramètres, ni forme. Les ajouts
 ci-dessous sont des champs en plus. Une application qui ne les lit pas n'est pas touchée.
@@ -43,7 +47,7 @@ afficher. Point noté pour la recette.
 
 ## 5. Date de déploiement en officine
 
-Pas encore fixée. Le WAR officine sera refait avec ces ajouts après validation de cette branche, et nous vous
+Pas encore fixée. Le WAR officine contenant ces ajouts est prêt (`719f696ed`, voir l'en-tête). Nous vous
 transmettrons la date dès qu'elle sera arrêtée avec la pharmacie.
 
 ## 6. Routes annoncées par `tableau-bord/version` (fait)
@@ -55,6 +59,12 @@ transmettrons la date dès qu'elle sera arrêtée avec la pharmacie.
 - `"tva"` : `GET v1/tableau-bord/tva` existe.
 - `"ca-credit"` : `GET v1/ca-credit` accepte la pagination (`start`, `limit`, `query`, `tiersPayant`) et renvoie
   `luLe` et `tiersPayantsRetenus`.
+
+- `tableau-bord/version` exige une session, comme les autres routes du tableau de bord. Sans session, elle répond
+  200 avec `{ "success": false, "msg": <message de déconnexion> }`, sans `version` ni `routes`. Elle se lit donc
+  après la connexion.
+- `routes` ne dépend pas du réglage `KEY_TABLEAU_BORD_VERSION` : la liste est la même en version `ANCIEN` et
+  `NOUVEAU`, car les routes existent dans les deux cas. Seul `version` suit le réglage.
 
 Un serveur qui n'a pas `routes` est antérieur. Le repli actuel (un essai par session, puis `api/v3/tvas`) reste
 valable. Les routes ajoutées plus tard s'ajouteront à cette liste.

@@ -100,7 +100,7 @@ const norm = (v) => (v === undefined || v === '' ? null : v);
       /* la requete principale retient un emplacement de stock par produit : on compare a l'un d'eux */
       const emps = q(`SELECT DISTINCT lg_EMPLACEMENT_ID FROM t_famille_stock WHERE lg_FAMILLE_ID = '${esc(id)}'`).split(/\r?\n/).filter(Boolean);
       const diffs = emps.map((e) => { const x = attendu(id, e); return CHAMPS.filter((c) => norm(p[c]) !== norm(x[c])).map((c) => p.codeCip + ' ' + c + ' : ' + p[c] + ' / attendu ' + x[c]); });
-      if (!diffs.some((d) => d.length === 0)) { ecarts.push(...diffs[0]); }
+      if (!diffs.length) { ecarts.push(id + ' : aucun emplacement de stock'); } else if (!diffs.some((d) => d.length === 0)) { ecarts.push(...diffs[0]); }
     }
     ok('v1/info : valeurs identiques à la requête d\'origine (' + compares + ' produits, ' + CHAMPS.length + ' informations)', compares >= 20 && ecarts.length === 0, compares + ' ' + ecarts.slice(0, 5).join(' | '));
     ok('v1/info : stock réserve rendu (produit en réserve : 7, seuils 12 / 3)', parId.get(A) && parId.get(A).stockReserve === 7 && parId.get(A).seuilReserve === 12 && parId.get(A).seuilMiniRayon === 3,
