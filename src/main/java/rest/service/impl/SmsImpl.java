@@ -290,12 +290,12 @@ public class SmsImpl implements SmsService {
                 // Rapport du 26/10, M4 : un numero qui n'est pas un mobile ivoirien partait tel quel et le fournisseur
                 // le refusait (« No valid addresses »). Il est refuse ici, sans appel ni evenement du support, et
                 // n'est pas compte : il ne bloque pas la notification des autres destinataires.
-                SmsSendResult refus = refusAvantEnvoi(tc.getStrADRESSE());
+                SmsSendResult refus = refusAvantEnvoi(tc);
                 if (refus != null) {
                     applyResultToClient(toClient, refus, provider.getCode());
                     LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, numero={2} ecarte : {3}",
-                            new Object[] { notification.getId(), toClient.getId(),
-                                    util.TelephoneCi.masquer(tc.getStrADRESSE()), refus.getErrorMessage() });
+                            new Object[] { notification.getId(), toClient.getId(), util.TelephoneCi.masquer(brut),
+                                    refus.getErrorMessage() });
                     continue;
                 }
                 total++;
@@ -348,6 +348,17 @@ public class SmsImpl implements SmsService {
 
     /** Reporte le résultat du fournisseur sur le destinataire (statut, id de suivi, erreur). */
     /** Refus local d'un numero qui n'est pas un mobile ivoirien (aucun appel HTTP), ou null s'il peut partir. */
+    /**
+     * Controle avant envoi du numero d'un client, selon la regle de TelephoneClient : str_TELEPHONE d'abord, l'ancien
+     * champ adresse a defaut (plan du 21/11 : seul l'adresse etait lue, et un client dont le numero est dans «
+     * Téléphone » etait refuse).
+     */
+    static SmsSendResult refusAvantEnvoi(dal.TClient client) {
+        util.TelephoneCi.Resultat controle = util.TelephoneClient.controler(client);
+        return controle.isValide() ? null
+                : SmsSendResult.rejected(0, "NUMERO_INVALIDE", "Numéro non mobile ivoirien : " + controle.getMotif());
+    }
+
     static SmsSendResult refusAvantEnvoi(String adresse) {
         util.TelephoneCi.Resultat controle = util.TelephoneCi.controler(adresse);
         return controle.isValide() ? null
