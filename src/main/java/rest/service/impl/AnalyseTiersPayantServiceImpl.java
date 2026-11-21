@@ -30,6 +30,10 @@ import rest.service.dto.AnalyseTiersPayantDTO;
  * reellement coute et rapporte, et ecarter des ventes reelles parce que le produit a ete desactive depuis en fausserait
  * le montant. Sur la base de reference, 95 lignes de vente tiers payant sur 5685 sont dans ce cas.
  *
+ * Plan du 21/11, point 14 (lenteurs) : les tables, les jointures internes et les conditions sont inchangees ; seul
+ * l'ordre de lecture est impose (voir {@link Lecture}). Sans cela, le moteur partait des utilisateurs et relisait
+ * toutes les ventes depuis l'origine avant de filtrer la periode.
+ *
  * @author koben
  */
 @Stateless
@@ -40,17 +44,29 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /**
-     * Ventes retenues, communes aux deux niveaux d'analyse. Reprend mot pour mot les filtres des procedures
-     * analyse_20_80_par_* : ?1 debut, ?2 fin (incluse), ?3 emplacement.
+     * Ventes retenues, communes aux deux niveaux d'analyse, dans l'ordre d'origine : gardees comme lecture de secours.
      */
-    private static final String VENTES_TIERS_PAYANT = " FROM t_preenregistrement p"
+    private static final String VENTES_ANCIENNES = " FROM t_preenregistrement p"
             + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
             + " JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = pd.lg_FAMILLE_ID"
             + " JOIN t_preenregistrement_compte_client_tiers_payent tpv"
             + "   ON tpv.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID" + " JOIN t_compte_client_tiers_payant c"
             + "   ON c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
-            + " JOIN t_tiers_payant tp ON tp.lg_TIERS_PAYANT_ID = c.lg_TIERS_PAYANT_ID" + " WHERE p.dt_UPDATED >= ?1"
+            + " JOIN t_tiers_payant tp ON tp.lg_TIERS_PAYANT_ID = c.lg_TIERS_PAYANT_ID";
+
+    /** Ventes retenues pour la part des tiers payants, dans l'ordre d'origine (secours). */
+    private static final String PARTS_ANCIENNES = " FROM t_preenregistrement_compte_client_tiers_payent tpv"
+            + " JOIN t_compte_client_tiers_payant c"
+            + "   ON c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tpv.lg_PREENREGISTREMENT_ID"
+            + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID";
+
+    /**
+     * Conditions des ventes retenues. Reprend mot pour mot les filtres des procedures analyse_20_80_par_* : ?1 debut,
+     * ?2 fin (incluse), ?3 emplacement.
+     */
+    private static final String CONDITIONS_VENTES = " WHERE p.dt_UPDATED >= ?1"
             + " AND p.dt_UPDATED < DATE_ADD(?2, INTERVAL 1 DAY)" + " AND p.str_STATUT = 'is_Closed'"
             + " AND p.b_IS_CANCEL = 0" + " AND p.int_PRICE > 0" + " AND p.lg_TYPE_VENTE_ID <> '5'"
             + " AND u.lg_EMPLACEMENT_ID = ?3";
@@ -103,32 +119,53 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
             String groupeId) {
         String[] periode = periodeOuMoisEnCours(dtStart, dtEnd);
         String motif = motifRecherche(recherche);
+        List<String> vises = tiersPayantsVises("", recherche, groupeId);
+        if (vises != null && vises.isEmpty()) {
+            // Aucun tiers payant ne repond au nom ou au groupe : la requete d'analyse ne rendrait rien non plus.
+            return new ArrayList<>();
+        }
+        Lecture lecture = lecture(vises, periode);
         try {
-            String sql = "SELECT tp.lg_TIERS_PAYANT_ID, tp.str_NAME,"
-                    + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nb_ventes," + AGREGATS + VENTES_TIERS_PAYANT
-                    + " AND (?4 = '' OR tp.str_NAME LIKE ?5)" + FILTRE_GROUPE
-                    + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME" + ordreDeTri(tri);
-            Query query = em.createNativeQuery(sql);
-            parametresCommuns(query, periode);
-            query.setParameter(4, StringUtils.trimToEmpty(recherche));
-            query.setParameter(5, motif);
-            query.setParameter(6, StringUtils.trimToEmpty(groupeId));
-
-            List<AnalyseTiersPayantDTO> lignes = new ArrayList<>();
-            for (Object[] row : (List<Object[]>) query.getResultList()) {
-                AnalyseTiersPayantDTO dto = new AnalyseTiersPayantDTO();
-                dto.setTiersPayantId(texte(row[0]));
-                dto.setTiersPayant(texte(row[1]));
-                dto.setNbVentes(entier(row[2]));
-                remplirAgregats(dto, row, 3);
-                lignes.add(dto);
-            }
-            remplirPartTiersPayant(lignes, periode);
-            return lignes;
+            return lireParTiersPayant(lecture, periode, recherche, motif, tri, groupeId);
         } catch (Exception e) {
+            if (lecture != Lecture.ANCIENNE) {
+                LOG.log(Level.WARNING, "parTiersPayant : lecture ordonnee impossible, lecture d'origine", e);
+                try {
+                    return lireParTiersPayant(Lecture.ANCIENNE, periode, recherche, motif, tri, groupeId);
+                } catch (Exception e2) {
+                    LOG.log(Level.SEVERE, "parTiersPayant", e2);
+                    return Collections.emptyList();
+                }
+            }
             LOG.log(Level.SEVERE, "parTiersPayant", e);
             return Collections.emptyList();
         }
+    }
+
+    private List<AnalyseTiersPayantDTO> lireParTiersPayant(Lecture lecture, String[] periode, String recherche,
+            String motif, String tri, String groupeId) {
+        String sql = "SELECT tp.lg_TIERS_PAYANT_ID, tp.str_NAME,"
+                + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nb_ventes," + AGREGATS + lecture.source
+                + CONDITIONS_VENTES + " AND (?4 = '' OR tp.str_NAME LIKE ?5)" + FILTRE_GROUPE + lecture.restriction(7)
+                + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME" + ordreDeTri(tri);
+        Query query = em.createNativeQuery(sql);
+        parametresCommuns(query, periode);
+        query.setParameter(4, StringUtils.trimToEmpty(recherche));
+        query.setParameter(5, motif);
+        query.setParameter(6, StringUtils.trimToEmpty(groupeId));
+        lecture.parametres(query, 7);
+
+        List<AnalyseTiersPayantDTO> lignes = new ArrayList<>();
+        for (Object[] row : (List<Object[]>) query.getResultList()) {
+            AnalyseTiersPayantDTO dto = new AnalyseTiersPayantDTO();
+            dto.setTiersPayantId(texte(row[0]));
+            dto.setTiersPayant(texte(row[1]));
+            dto.setNbVentes(entier(row[2]));
+            remplirAgregats(dto, row, 3);
+            lignes.add(dto);
+        }
+        remplirPartTiersPayant(lignes, periode, lecture);
+        return lignes;
     }
 
     @Override
@@ -137,31 +174,64 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
         String[] periode = periodeOuMoisEnCours(dtStart, dtEnd);
         String motif = motifRecherche(recherche);
         String tp = StringUtils.trimToEmpty(tiersPayantId);
+        List<String> vises = tiersPayantsVises(tp, "", groupeId);
+        if (vises != null && vises.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Lecture lecture = lecture(vises, periode);
         try {
-            String sql = "SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION," + AGREGATS + VENTES_TIERS_PAYANT
-                    + " AND (?4 = '' OR c.lg_TIERS_PAYANT_ID = ?4)"
-                    + " AND (?5 = '' OR f.str_DESCRIPTION LIKE ?6 OR f.int_CIP LIKE ?6)" + FILTRE_GROUPE_7
-                    + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION" + ordreDeTri(tri);
-            Query query = em.createNativeQuery(sql);
-            parametresCommuns(query, periode);
-            query.setParameter(4, tp);
-            query.setParameter(5, StringUtils.trimToEmpty(recherche));
-            query.setParameter(6, motif);
-            query.setParameter(7, StringUtils.trimToEmpty(groupeId));
-
-            List<AnalyseTiersPayantDTO> lignes = new ArrayList<>();
-            for (Object[] row : (List<Object[]>) query.getResultList()) {
-                AnalyseTiersPayantDTO dto = new AnalyseTiersPayantDTO();
-                dto.setProduitId(texte(row[0]));
-                dto.setCip(texte(row[1]));
-                dto.setDesignation(texte(row[2]));
-                remplirAgregats(dto, row, 3);
-                lignes.add(dto);
-            }
-            return lignes;
+            return lireParProduit(lecture, periode, tp, recherche, motif, tri, groupeId);
         } catch (Exception e) {
+            if (lecture != Lecture.ANCIENNE) {
+                LOG.log(Level.WARNING, "parProduit : lecture ordonnee impossible, lecture d'origine", e);
+                try {
+                    return lireParProduit(Lecture.ANCIENNE, periode, tp, recherche, motif, tri, groupeId);
+                } catch (Exception e2) {
+                    LOG.log(Level.SEVERE, "parProduit", e2);
+                    return Collections.emptyList();
+                }
+            }
             LOG.log(Level.SEVERE, "parProduit", e);
             return Collections.emptyList();
+        }
+    }
+
+    private List<AnalyseTiersPayantDTO> lireParProduit(Lecture lecture, String[] periode, String tp, String recherche,
+            String motif, String tri, String groupeId) {
+        String sql = "SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION," + AGREGATS + lecture.source
+                + CONDITIONS_VENTES + " AND (?4 = '' OR c.lg_TIERS_PAYANT_ID = ?4)"
+                + " AND (?5 = '' OR f.str_DESCRIPTION LIKE ?6 OR f.int_CIP LIKE ?6)" + FILTRE_GROUPE_7
+                + lecture.restriction(8) + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION" + ordreDeTri(tri);
+        Query query = em.createNativeQuery(sql);
+        parametresCommuns(query, periode);
+        query.setParameter(4, tp);
+        query.setParameter(5, StringUtils.trimToEmpty(recherche));
+        query.setParameter(6, motif);
+        query.setParameter(7, StringUtils.trimToEmpty(groupeId));
+        lecture.parametres(query, 8);
+
+        List<AnalyseTiersPayantDTO> lignes = new ArrayList<>();
+        for (Object[] row : (List<Object[]>) query.getResultList()) {
+            AnalyseTiersPayantDTO dto = new AnalyseTiersPayantDTO();
+            dto.setProduitId(texte(row[0]));
+            dto.setCip(texte(row[1]));
+            dto.setDesignation(texte(row[2]));
+            remplirAgregats(dto, row, 3);
+            lignes.add(dto);
+        }
+        return lignes;
+    }
+
+    @Override
+    public String libelleTiersPayant(String tiersPayantId) {
+        if (StringUtils.isBlank(tiersPayantId)) {
+            return "";
+        }
+        try {
+            dal.TTiersPayant tp = em.find(dal.TTiersPayant.class, tiersPayantId);
+            return tp == null || StringUtils.isBlank(tp.getStrNAME()) ? tiersPayantId : tp.getStrNAME();
+        } catch (Exception e) {
+            return tiersPayantId;
         }
     }
 
@@ -188,33 +258,174 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
      * Elle se lit sur la ligne qui rattache la vente au tiers payant, une seule fois par vente : elle ne peut pas etre
      * calculee dans la requete precedente, ou la jointure sur les lignes de vente la repeterait autant de fois qu'il y
      * a de produits dans la vente.
+     *
+     * Plan du 21/11 : meme chemin que la liste. Lue par tiers payant, elle est limitee aux tiers payants de la liste.
      */
-    private void remplirPartTiersPayant(List<AnalyseTiersPayantDTO> lignes, String[] periode) {
+    private void remplirPartTiersPayant(List<AnalyseTiersPayantDTO> lignes, String[] periode, Lecture lecture) {
         if (lignes.isEmpty()) {
             return;
         }
         try {
-            String sql = "SELECT c.lg_TIERS_PAYANT_ID, SUM(tpv.int_PRICE)"
-                    + " FROM t_preenregistrement_compte_client_tiers_payent tpv"
-                    + " JOIN t_compte_client_tiers_payant c"
-                    + "   ON c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
-                    + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tpv.lg_PREENREGISTREMENT_ID"
-                    + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID" + " WHERE p.dt_UPDATED >= ?1"
-                    + " AND p.dt_UPDATED < DATE_ADD(?2, INTERVAL 1 DAY)" + " AND p.str_STATUT = 'is_Closed'"
-                    + " AND p.b_IS_CANCEL = 0" + " AND p.int_PRICE > 0" + " AND p.lg_TYPE_VENTE_ID <> '5'"
-                    + " AND u.lg_EMPLACEMENT_ID = ?3" + " GROUP BY c.lg_TIERS_PAYANT_ID";
+            Lecture parts = lecture;
+            if (lecture.ids != null) {
+                List<String> ids = new ArrayList<>();
+                lignes.forEach(l -> ids.add(l.getTiersPayantId()));
+                parts = Lecture.parTiersPayant(ids);
+            }
+            String sql = "SELECT c.lg_TIERS_PAYANT_ID, SUM(tpv.int_PRICE)" + parts.sourceParts + CONDITIONS_VENTES
+                    + parts.restriction(4) + " GROUP BY c.lg_TIERS_PAYANT_ID";
             Query query = em.createNativeQuery(sql);
             parametresCommuns(query, periode);
-            java.util.Map<String, Long> parts = new java.util.HashMap<>();
+            parts.parametres(query, 4);
+            java.util.Map<String, Long> montants = new java.util.HashMap<>();
             for (Object[] row : (List<Object[]>) query.getResultList()) {
-                parts.put(texte(row[0]), entier(row[1]));
+                montants.put(texte(row[0]), entier(row[1]));
             }
             for (AnalyseTiersPayantDTO ligne : lignes) {
-                ligne.setPartTiersPayant(parts.getOrDefault(ligne.getTiersPayantId(), 0L));
+                ligne.setPartTiersPayant(montants.getOrDefault(ligne.getTiersPayantId(), 0L));
             }
         } catch (Exception e) {
+            if (lecture != Lecture.ANCIENNE) {
+                LOG.log(Level.WARNING, "remplirPartTiersPayant : lecture ordonnee impossible, lecture d'origine", e);
+                remplirPartTiersPayant(lignes, periode, Lecture.ANCIENNE);
+                return;
+            }
             // La part est une information complementaire : son absence ne doit pas priver l'ecran de l'analyse.
             LOG.log(Level.WARNING, "remplirPartTiersPayant", e);
+        }
+    }
+
+    /**
+     * Tiers payants vises par la demande, lus sur leur fiche avec les MEMES filtres que la requete d'analyse
+     * (identifiant, nom, groupe). Rend null quand rien ne restreint les tiers payants.
+     */
+    private List<String> tiersPayantsVises(String tiersPayantId, String rechercheNom, String groupeId) {
+        String id = StringUtils.trimToEmpty(tiersPayantId);
+        String nom = StringUtils.trimToEmpty(rechercheNom);
+        String groupe = StringUtils.trimToEmpty(groupeId);
+        if (id.isEmpty() && nom.isEmpty() && groupe.isEmpty()) {
+            return null;
+        }
+        try {
+            Query query = em.createNativeQuery("SELECT tp.lg_TIERS_PAYANT_ID FROM t_tiers_payant tp"
+                    + " WHERE (?1 = '' OR tp.lg_TIERS_PAYANT_ID = ?1) AND (?2 = '' OR tp.str_NAME LIKE ?3)"
+                    + " AND (?4 = '' OR tp.lg_GROUPE_ID = ?4)");
+            query.setParameter(1, id);
+            query.setParameter(2, nom);
+            query.setParameter(3, motifRecherche(nom));
+            query.setParameter(4, groupe);
+            List<String> ids = new ArrayList<>();
+            for (Object o : (List<Object>) query.getResultList()) {
+                ids.add(texte(o));
+            }
+            return ids;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "tiersPayantsVises", e);
+            return null;
+        }
+    }
+
+    /**
+     * Chemin de lecture : par la date de la vente, sauf quand peu de tiers payants sont vises et qu'ils comptent,
+     * depuis toujours, moins de ventes que la periode : on part alors de leurs ventes. Les deux comptes ne lisent que
+     * des index.
+     */
+    private Lecture lecture(List<String> vises, String[] periode) {
+        if (vises == null || vises.size() > Lecture.MAX_TIERS_PAYANTS) {
+            return Lecture.PAR_DATE;
+        }
+        try {
+            Query ventes = em.createNativeQuery("SELECT COUNT(*) FROM t_preenregistrement p"
+                    + " FORCE INDEX (idx_preenr_statut_date) WHERE p.str_STATUT = 'is_Closed'"
+                    + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < DATE_ADD(?2, INTERVAL 1 DAY)");
+            ventes.setParameter(1, periode[0]);
+            ventes.setParameter(2, periode[1]);
+            Lecture parTp = Lecture.parTiersPayant(vises);
+            Query lignesTp = em.createNativeQuery("SELECT COUNT(*) FROM t_compte_client_tiers_payant c"
+                    + " FORCE INDEX (lg_TIERS_PAYANT_ID)"
+                    + " STRAIGHT_JOIN t_preenregistrement_compte_client_tiers_payent tpv"
+                    + "   ON tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID WHERE 1 = 1"
+                    + parTp.restriction(1));
+            parTp.parametres(lignesTp, 1);
+            long nbVentes = entier(ventes.getSingleResult());
+            long nbLignesTp = entier(lignesTp.getSingleResult());
+            return nbLignesTp < nbVentes ? parTp : Lecture.PAR_DATE;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "choix du chemin de lecture", e);
+            return Lecture.PAR_DATE;
+        }
+    }
+
+    /**
+     * Ordre de lecture des ventes. Memes tables, memes jointures internes, memes conditions : le resultat ne change
+     * pas, seul l'ordre dans lequel le moteur parcourt les tables est impose (STRAIGHT_JOIN).
+     */
+    static final class Lecture {
+
+        /** Au-dela, la liste des tiers payants vises n'est plus un raccourci : lecture par la date. */
+        static final int MAX_TIERS_PAYANTS = 50;
+
+        private static final String SUITE = " STRAIGHT_JOIN t_tiers_payant tp"
+                + "   ON tp.lg_TIERS_PAYANT_ID = c.lg_TIERS_PAYANT_ID"
+                + " STRAIGHT_JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
+                + " STRAIGHT_JOIN t_preenregistrement_detail pd"
+                + "   ON pd.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                + " STRAIGHT_JOIN t_famille f ON f.lg_FAMILLE_ID = pd.lg_FAMILLE_ID";
+        private static final String UTILISATEUR = " STRAIGHT_JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID";
+        private static final String PAR_DATE_DEBUT = " FROM t_preenregistrement p"
+                + " FORCE INDEX (idx_preenr_statut_date)"
+                + " STRAIGHT_JOIN t_preenregistrement_compte_client_tiers_payent tpv"
+                + "   ON tpv.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                + " STRAIGHT_JOIN t_compte_client_tiers_payant c"
+                + "   ON c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID";
+        private static final String PAR_TP_DEBUT = " FROM t_compte_client_tiers_payant c"
+                + " FORCE INDEX (lg_TIERS_PAYANT_ID)"
+                + " STRAIGHT_JOIN t_preenregistrement_compte_client_tiers_payent tpv"
+                + "   ON tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
+                + " STRAIGHT_JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tpv.lg_PREENREGISTREMENT_ID";
+
+        /** Lecture d'origine, en secours si un index venait a manquer. */
+        static final Lecture ANCIENNE = new Lecture(VENTES_ANCIENNES, PARTS_ANCIENNES, null);
+        /** Par la date de la vente : tous les tiers payants. */
+        static final Lecture PAR_DATE = new Lecture(PAR_DATE_DEBUT + SUITE, PAR_DATE_DEBUT + UTILISATEUR, null);
+
+        /** Par les ventes de ces tiers payants. */
+        static Lecture parTiersPayant(List<String> ids) {
+            return new Lecture(PAR_TP_DEBUT + SUITE, PAR_TP_DEBUT + UTILISATEUR, ids);
+        }
+
+        final String source;
+        final String sourceParts;
+        /** Tiers payants dont on part ; null pour les autres lectures. */
+        final List<String> ids;
+
+        private Lecture(String source, String sourceParts, List<String> ids) {
+            this.source = source;
+            this.sourceParts = sourceParts;
+            this.ids = ids;
+        }
+
+        /** Restriction aux tiers payants vises, parametres numerotes a partir de premier, sans trou. */
+        String restriction(int premier) {
+            if (ids == null) {
+                return "";
+            }
+            if (ids.isEmpty()) {
+                return " AND 1 = 0";
+            }
+            StringBuilder sb = new StringBuilder(" AND c.lg_TIERS_PAYANT_ID IN (");
+            for (int i = 0; i < ids.size(); i++) {
+                sb.append(i == 0 ? "?" : ", ?").append(premier + i);
+            }
+            return sb.append(')').toString();
+        }
+
+        void parametres(Query query, int premier) {
+            if (ids != null) {
+                for (int i = 0; i < ids.size(); i++) {
+                    query.setParameter(premier + i, ids.get(i));
+                }
+            }
         }
     }
 

@@ -40,4 +40,10 @@ public interface AnalyseTiersPayantService {
      * commande a laquelle il sera rattache. Rend null si le produit est introuvable.
      */
     dal.TFamille produit(String produitId);
+
+    /**
+     * Nom d'un tiers payant, lu sur sa fiche (l'identifiant s'il est introuvable, vide sans identifiant). Plan du 21/11
+     * : remplace la relecture de toute l'analyse de la periode, qui ne servait qu'a trouver ce nom.
+     */
+    String libelleTiersPayant(String tiersPayantId);
 }
