@@ -285,3 +285,18 @@ Codex confirme les corrections des points 2 à 4. Il relève cinq cas restants :
 **Tests** : unitaires SEMOIS 14/14 ; `test-semois-panne-lecture.js` 52/52 (cas K ajouté ; sur `4afc98b85`, 49/52 : seul le
 contrôle du journal du cas K échoue, une panne totale du calendrier n'y modifiait déjà rien, la panne d'un seul mois ne
 se provoque pas à la demande) ; `test-semois-seuils-moaye.js` 39/39.
+
+## Troisième contre-vérification de Codex (21/11)
+
+Codex confirme les trois corrections précédentes (tri, calendrier illisible, liste des vendus illisible). Il relève :
+
+| Point | Suite |
+|---|---|
+| ABC et par produit, liste des vendus illisible : un produit vendu seulement dans un mois écarté est recalculé à 0 | **Corrigé** : sur ce repli, un calcul sans vente dans sa fenêtre n'est pas écrit (`aEcrire`) ; une erreur de lecture ne produit jamais un zéro. |
+| Mois absent du calendrier (sans erreur) : fenêtre plus courte | Définition même des mois retenus (moins de 20 jours d'activité : mois écarté). Laissé. |
+| Standard : une boîte peut être calculée sur des pages de ventes incomplètes | Comportement de l'intégration, inchangé : calcul ordinaire, pas une remise à zéro. Laissé. |
+| Paramètres Q3, classes ABC ou Q de fiche illisibles : valeurs par défaut, fenêtre ou coefficients différents | Comportement de l'intégration (lectures déjà « silencieuses » avant ce correctif). Cas très rare, laissé ; à reprendre si on veut un calcul qui s'arrête sur toute erreur de configuration. |
+
+**Tests** : unitaires SEMOIS 15/15 (`repliSansZero`, 20 000 tirages, graine 2116 ; ne compile pas sur l'ancien code) ;
+`test-semois-panne-lecture.js` 52/52 ; `test-semois-seuils-moaye.js` 39/39. Le repli lui-même n'a pas de test d'écran :
+il faudrait que la liste des vendus échoue pendant que la consommation, lue sur les mêmes tables, réussit.

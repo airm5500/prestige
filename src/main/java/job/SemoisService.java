@@ -288,6 +288,15 @@ public class SemoisService {
         return new ArrayList<>(ids);
     }
 
+    /**
+     * ABC et par produit : un calcul est ecrit si la liste des vendus a ete lue, ou, sur le repli (liste illisible),
+     * s'il repose sur des ventes de sa fenetre. Sur ce repli, un produit sans vente dans sa fenetre garde ses valeurs :
+     * une erreur de lecture ne produit jamais un zero (troisieme contre-verification Codex).
+     */
+    static boolean aEcrire(boolean vendusLus, double consoTotale) {
+        return vendusLus || consoTotale > 0;
+    }
+
     /** Mois du premier au dernier, bornes comprises (fenetre continue du SEMOIS standard). */
     static List<LocalDate> moisContinus(LocalDate premier, LocalDate dernier) {
         List<LocalDate> l = new ArrayList<>();
@@ -893,6 +902,9 @@ public class SemoisService {
 
                         // Fenetre propre a la classe : les q3w derniers mois retenus
                         Calcul c = calculProduit(perMonth, moisAsc, q1, q2, q3w, jour, moisReels);
+                        if (!aEcrire(vendus != null, c.consoTotale)) {
+                            continue; // liste des vendus illisible : jamais de zero sur ce chemin de repli
+                        }
                         updateProduitSeuilAndQtyReappro(produitId, c.seuil, c.qte);
 
                         org.json.JSONObject o = new org.json.JSONObject();
@@ -987,6 +999,9 @@ public class SemoisService {
                         int q2 = (cfg != null && cfg[1] > 0) ? cfg[1] : gq2;
 
                         Calcul c = calculProduit(perMonth, moisAsc, q1, q2, gq3, false, moisReels);
+                        if (!aEcrire(vendus != null, c.consoTotale)) {
+                            continue; // liste des vendus illisible : jamais de zero sur ce chemin de repli
+                        }
                         updateProduitSeuilAndQtyReappro(produitId, c.seuil, c.qte);
 
                         org.json.JSONObject o = new org.json.JSONObject();

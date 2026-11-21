@@ -137,6 +137,21 @@ class SemoisNonVendusCoherenceTest {
                 Arrays.asList("B", "C"), new HashSet<>(Collections.singletonList("B"))));
     }
 
+    /**
+     * Repli ABC et par produit (liste des vendus illisible) : jamais d'ecriture d'un calcul sans vente dans sa fenetre.
+     */
+    @Test
+    void repliSansZero() {
+        Random r = new Random(2116);
+        for (int i = 0; i < 20000; i++) {
+            double conso = r.nextInt(4) == 0 ? 0d : r.nextInt(500) / (1d + r.nextInt(7));
+            assertTrue(SemoisService.aEcrire(true, conso), "liste lue : calcul ordinaire, ecrit comme avant");
+            assertEquals(conso > 0, SemoisService.aEcrire(false, conso),
+                    "repli : ecrit seulement avec des ventes " + conso);
+        }
+        assertFalse(SemoisService.aEcrire(false, 0d), "repli, aucune vente dans la fenetre : valeurs gardees");
+    }
+
     @Test
     void moisContinusDuStandard() {
         java.time.LocalDate d = java.time.LocalDate.of(2026, 8, 1);
