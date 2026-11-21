@@ -164,8 +164,7 @@ Résultats :
 
 ## Limites et points à connaître
 
-- **Mode SEMOIS standard** : les produits non vendus ne sont toujours pas remis à 0. La correction 2 ne visait que
-  les modes ABC et par produit. À trancher si on veut l'étendre.
+- **Mode SEMOIS standard** : tranché le 21/11 (« oui aussi en standard ») ; voir le complément ci-dessous.
 - **Dates de modification** : un produit dont le seuil change voit son `dt_UPDATED` mis à l'heure du calcul, par le
   déclencheur, comme avant. À Moaye, le premier recalcul touchera donc environ 6 000 fiches. Le catalogue mobile,
   synchronisé sur `dt_UPDATED`, les renverra une fois.
@@ -178,3 +177,39 @@ Résultats :
 - **Banc** : les essais ont laissé `dt_UPDATED` à l'heure du test sur les fiches actives de `laborex_audit`, comme
   les autres tests (le déclencheur l'impose). Les lignes d'historique ajoutées par les essais ont été retirées.
 - **Copie de Moaye** : le calcul n'a pas été rejoué sur `moaye`. Les effets sont déduits des chiffres de l'analyse.
+
+## Complément du 21/11 : non vendus à 0 en SEMOIS standard (branche `correctif/semois-standard-2111`)
+
+Décision de l'utilisateur, transmise le 21/11 : « oui aussi en standard ».
+
+### Ce qui change
+
+- **SEMOIS standard** : après le calcul des produits vendus (simples, boîtes, boîtes dont un détail est vendu), chaque
+  produit actif hors détail déconditionné qui n'a aucune vente dans la fenêtre passe à seuil 0 et quantité 0. Un produit
+  dont le calcul du seuil est désactivé sur sa fiche (`bool_CALCUL_SEUIL = 0`) reste intact. Le journal
+  `semois_normal_<date>.json` note ces produits avec le type « non vendu ».
+- **Sécurité des trois modes** : si la lecture des ventes échoue (erreur SQL), aucun produit n'est remis à 0. Avant
+  ce complément, en ABC et par produit, une erreur de lecture rendait une liste vide : tous les produits actifs
+  seraient passés à 0. En standard, une page de ventes illisible ou un comptage en échec bloque aussi la remise à 0.
+- **Explication** : la migration `V7.6.41.2112` ajoute aux rappels de `SEMOIS_DIVISEUR_MOIS_REELS` : « Dans les trois
+  modes, un produit actif sans vente sur les mois retenus passe à seuil 0 et quantité 0, sauf si le calcul du seuil est
+  désactivé sur sa fiche. » Le paramètre `SEMOIS` n'a pas d'explication ; le texte validé (« regle ») ne change pas.
+
+### Tests
+
+- **Cohérence** : `SemoisNonVendusCoherenceTest` (4 tests). Sur 20 000 tirages (graine 2113), les produits remis à 0
+  sont exactement les actifs non vendus, dans l'ordre, sans doublon, jamais un vendu ; vendus actifs + remis à 0 = actifs.
+  Lecture en échec : aucun produit remis à 0 (standard) ni traité (ABC, par produit). Texte et garde de la migration.
+- **Écran** : `test-semois-seuils-moaye.js`, cas B étendu (le contrôle « non vendus intacts » devient « non vendus à 0 ») :
+  - B : chaque produit actif sans vente dans la fenêtre à 0/0/0 ; calcul interdit intact ; aucun produit vendu à 0 ;
+  - B : rapprochement journal `semois_normal` = base, chaque non vendu noté « non vendu » à 0 ;
+  - B2 : second recalcul sans aucune réécriture (ni valeur ni ligne d'historique) ;
+  - B : bilan, inactifs intacts et détails déconditionnés non touchés ;
+  - F : avec l'ancienne formule aussi, non vendus à 0 ;
+  - écran des paramètres : le rappel figure une seule fois dans l'explication.
+- **Sur l'ancien code** (`8b68a979e`) : 34/39, les contrôles des non vendus en standard, du journal, du cas F et du
+  rappel échouent (un cinquième échec venait du test lui-même, corrigé : il comparait les détails à leur valeur
+  d'origine au lieu de celle de la reprise).
+- **Sur le nouveau code** : 39/39 sur `domain4` (mode SEMOIS isolé, base `laborex_audit`) ; `test-parametres-explications-36.js`
+  7/7 ; tests unitaires SEMOIS 12/12. `domain4` est remis en l'état (pool `appaul_perf`, sans option `user.home`, arrêté).
+- **Banc** : la migration `V7.6.41.2112` est appliquée sur `laborex_audit`.

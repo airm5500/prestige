@@ -250,8 +250,27 @@ public class SemoisService {
      * valeurs (Moaye, 21/11). Ordre stable, sans doublon.
      */
     static List<String> produitsATraiter(java.util.Collection<String> vendus, java.util.Collection<String> actifs) {
+        if (vendus == null) {
+            // lecture des ventes en echec : on ne touche a rien (sinon tout le catalogue passerait a zero)
+            return new ArrayList<>();
+        }
         java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(vendus);
         ids.addAll(actifs);
+        return new ArrayList<>(ids);
+    }
+
+    /**
+     * SEMOIS standard : produits actifs a remettre a seuil 0 et quantite 0, c'est-a-dire non vendus dans la fenetre
+     * (decision du 21/11 : « oui aussi en standard »). Ordre des actifs, sans doublon. Lecture des ventes incomplete :
+     * aucun, pour ne pas vider le catalogue sur une erreur.
+     */
+    static List<String> aRemettreAZero(java.util.Collection<String> actifs, Set<String> vendus,
+            boolean lectureComplete) {
+        if (!lectureComplete) {
+            return new ArrayList<>();
+        }
+        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(actifs);
+        ids.removeAll(vendus);
         return new ArrayList<>(ids);
     }
 
@@ -322,7 +341,7 @@ public class SemoisService {
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return new ArrayList<>();
+            return null; // lecture en echec : distinguee d'une page vide
 
         }
     }
@@ -337,7 +356,7 @@ public class SemoisService {
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return 0;
+            return -1; // lecture en echec : distinguee d'une fenetre sans vente
 
         }
     }
@@ -387,12 +406,28 @@ public class SemoisService {
                 q3 = moisCouverts(nombreMois); // journal : « q3Mois » = mois reellement couverts par les ventes lues
             }
             int total = loadSemoisArticleCount(firstMouth, lastMouth);
+            // produits vendus dans la fenetre (simples, boites, parents des details vendus) : les autres actifs passent
+            // a zero ; une lecture en echec n'en remet aucun a zero
+            Set<String> vendus = new java.util.HashSet<>();
+            boolean lectureComplete = total >= 0;
+            if (total < 0) {
+                total = 0; // comme avant : une page lue quand meme
+            }
 
             Map<String, Tuple> mapBoite = new HashMap<>();
             Map<String, Tuple> items = new HashMap<>();
 
             for (int i = start; i <= total; i += limit) {
                 List<Tuple> list = loadSemoisArticle(firstMouth, lastMouth, i, limit);
+                if (list == null) {
+                    lectureComplete = false;
+                    continue;
+                }
+                for (Tuple tuple : list) {
+                    // detail deconditionne : sa vente compte pour sa boite (comme dans traiterReapproDetail)
+                    boolean detail = "1".equals(String.valueOf(tuple.get("detail")));
+                    vendus.add(tuple.get(detail ? "parentId" : "produitId", String.class));
+                }
                 try {
                     userTransaction.begin();
                     for (Tuple tuple : list) {
@@ -435,8 +470,32 @@ public class SemoisService {
             }
 
             traiterReapproBoite(q1, q2, q3, mapBoite, items, normalLog);
+            remettreAZeroNonVendus(aRemettreAZero(loadProduitsActifs(), vendus, lectureComplete), q1, q2, q3,
+                    normalLog);
             ReapproLogWriter.write(em, "semois_normal", normalLog);
 
+        }
+    }
+
+    /**
+     * SEMOIS standard : produits actifs sans vente dans la fenetre a seuil 0 et quantite 0 (bool_CALCUL_SEUIL
+     * respecte).
+     */
+    private void remettreAZeroNonVendus(List<String> produitIds, int q1, int q2, int q3, org.json.JSONArray log) {
+        int chunk = 1000;
+        for (int i = 0; i < produitIds.size(); i += chunk) {
+            List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
+            try {
+                userTransaction.begin();
+                for (String produitId : sub) {
+                    updateProduitSeuilAndQtyReappro(produitId, 0, 0);
+                    log.put(semoisNormalEntry(produitId, "non vendu", q1, q2, q3, 0, 0, 0));
+                }
+                userTransaction.commit();
+            } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
+                    | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+                annulerTransaction();
+            }
         }
     }
 
@@ -598,6 +657,7 @@ public class SemoisService {
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
+            return null; // lecture en echec : aucun produit traite (et donc aucun remis a zero)
         }
         return map;
     }
@@ -690,7 +750,7 @@ public class SemoisService {
             final boolean moisReels = isDiviseurMoisReels();
 
             // 4) Calcul + mise a jour par lots : produits vendus, puis produits actifs sans vente (seuil et qte a 0)
-            List<String> produitIds = produitsATraiter(conso.keySet(), loadProduitsActifs());
+            List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs());
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
                 List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
@@ -785,7 +845,7 @@ public class SemoisService {
             final boolean moisReels = isDiviseurMoisReels();
 
             // produits vendus, puis produits actifs sans vente (seuil et qte a 0)
-            List<String> produitIds = produitsATraiter(conso.keySet(), loadProduitsActifs());
+            List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs());
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
                 List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));

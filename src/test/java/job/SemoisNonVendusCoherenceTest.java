@@ -1,0 +1,102 @@
+package job;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+/**
+ * Produits actifs sans vente (decision du 21/11 : « oui aussi en standard »). En SEMOIS standard, les produits actifs
+ * qui ne sont pas vendus dans la fenetre passent a seuil 0 et quantite 0, comme en ABC et par produit. Si la lecture
+ * des ventes echoue, aucun produit n'est remis a zero : une liste de ventes vide par erreur ne doit pas vider tout le
+ * catalogue (les trois modes).
+ */
+class SemoisNonVendusCoherenceTest {
+
+    private static List<String> tirage(Random r, int n, String prefixe) {
+        List<String> l = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            l.add(prefixe + r.nextInt(3 * n + 1));
+        }
+        return l;
+    }
+
+    @Test
+    void standardNonVendusADesListesAuHasard() {
+        Random r = new Random(2113);
+        int remis = 0;
+        for (int i = 0; i < 20000; i++) {
+            List<String> actifs = tirage(r, r.nextInt(60), "P");
+            Set<String> vendus = new HashSet<>(tirage(r, r.nextInt(60), "P"));
+            if (r.nextInt(10) == 0) {
+                vendus.addAll(tirage(r, 5, "D")); // details et parents hors liste des actifs
+            }
+            List<String> zero = SemoisService.aRemettreAZero(actifs, vendus, true);
+            String cas = "actifs=" + actifs + " vendus=" + vendus;
+            /* exactement les actifs non vendus, dans l'ordre des actifs, sans doublon */
+            List<String> attendu = new ArrayList<>(new LinkedHashSet<>(actifs));
+            attendu.removeAll(vendus);
+            assertEquals(attendu, zero, cas);
+            assertEquals(new LinkedHashSet<>(zero).size(), zero.size(), "sans doublon " + cas);
+            assertTrue(zero.stream().noneMatch(vendus::contains), "jamais un produit vendu " + cas);
+            /* partition : vendus actifs + remis a zero = actifs */
+            Set<String> union = new HashSet<>(zero);
+            actifs.stream().filter(vendus::contains).forEach(union::add);
+            assertEquals(new HashSet<>(actifs), union, cas);
+            remis += zero.size();
+            /* lecture des ventes en echec : personne n'est remis a zero */
+            assertTrue(SemoisService.aRemettreAZero(actifs, vendus, false).isEmpty(), cas);
+        }
+        assertTrue(remis > 10000, "assez de produits remis a zero : " + remis);
+    }
+
+    @Test
+    void casLimites() {
+        assertEquals(Arrays.asList("A", "C"), SemoisService.aRemettreAZero(Arrays.asList("A", "B", "C", "A"),
+                new HashSet<>(Collections.singletonList("B")), true));
+        assertTrue(SemoisService.aRemettreAZero(Collections.emptyList(), new HashSet<>(), true).isEmpty());
+        assertEquals(Arrays.asList("A"), SemoisService.aRemettreAZero(Arrays.asList("A"), new HashSet<>(), true),
+                "aucune vente lue sans erreur : tous les actifs a zero");
+        assertTrue(SemoisService.aRemettreAZero(Arrays.asList("A", "B"), new HashSet<>(), false).isEmpty(),
+                "aucune vente parce que la lecture a echoue : personne a zero");
+    }
+
+    @Test
+    void explicationRappelleLesNonVendus() throws Exception {
+        String sql = new String(
+                java.nio.file.Files.readAllBytes(java.nio.file.Paths
+                        .get("src/main/resources/db/migration/V7.6.41.2112__semois_standard_non_vendus.sql")),
+                java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(sql.contains("JSON_ARRAY_APPEND(explication, '$.rappels',"), "ajout aux rappels, regle intacte");
+        assertTrue(
+                sql.contains("'Dans les trois modes, un produit actif sans vente sur les mois retenus passe à seuil 0"
+                        + " et quantité 0, sauf si le calcul du seuil est désactivé sur sa fiche.'"),
+                "texte du rappel");
+        assertTrue(sql.contains("WHERE str_KEY = 'SEMOIS_DIVISEUR_MOIS_REELS'"));
+        assertTrue(sql.contains("NOT LIKE '%sans vente sur les mois retenus%'"), "rejouable sans doublon");
+    }
+
+    @Test
+    void abcEtParProduitLectureEnEchec() {
+        Random r = new Random(2114);
+        for (int i = 0; i < 2000; i++) {
+            List<String> actifs = tirage(r, 1 + r.nextInt(40), "P");
+            assertTrue(SemoisService.produitsATraiter(null, actifs).isEmpty(),
+                    "ventes illisibles : aucun produit traite, donc aucun remis a zero");
+            List<String> vendus = tirage(r, r.nextInt(40), "P");
+            List<String> tous = SemoisService.produitsATraiter(vendus, actifs);
+            assertFalse(tous.isEmpty());
+            assertEquals(new LinkedHashSet<>(tous).size(), tous.size());
+        }
+    }
+}
