@@ -43,6 +43,11 @@ class SemoisNonVendusCoherenceTest {
             }
             List<String> zero = SemoisService.aRemettreAZero(actifs, vendus, true);
             String cas = "actifs=" + actifs + " vendus=" + vendus;
+            if (vendus.isEmpty()) {
+                /* aucune vente lue sur des mois actifs : anormal, personne n'est remis a zero */
+                assertTrue(zero.isEmpty(), cas);
+                continue;
+            }
             /* exactement les actifs non vendus, dans l'ordre des actifs, sans doublon */
             List<String> attendu = new ArrayList<>(new LinkedHashSet<>(actifs));
             attendu.removeAll(vendus);
@@ -65,8 +70,10 @@ class SemoisNonVendusCoherenceTest {
         assertEquals(Arrays.asList("A", "C"), SemoisService.aRemettreAZero(Arrays.asList("A", "B", "C", "A"),
                 new HashSet<>(Collections.singletonList("B")), true));
         assertTrue(SemoisService.aRemettreAZero(Collections.emptyList(), new HashSet<>(), true).isEmpty());
-        assertEquals(Arrays.asList("A"), SemoisService.aRemettreAZero(Arrays.asList("A"), new HashSet<>(), true),
-                "aucune vente lue sans erreur : tous les actifs a zero");
+        assertTrue(SemoisService.aRemettreAZero(Arrays.asList("A", "B"), new HashSet<>(), true).isEmpty(),
+                "aucune vente lue, sans erreur, sur des mois actifs : situation anormale, personne a zero");
+        assertEquals(Arrays.asList("B"), SemoisService.aRemettreAZero(Arrays.asList("A", "B"),
+                new HashSet<>(Collections.singletonList("A")), true), "une seule vente suffit");
         assertTrue(SemoisService.aRemettreAZero(Arrays.asList("A", "B"), new HashSet<>(), false).isEmpty(),
                 "aucune vente parce que la lecture a echoue : personne a zero");
     }
@@ -93,7 +100,9 @@ class SemoisNonVendusCoherenceTest {
             List<String> actifs = tirage(r, 1 + r.nextInt(40), "P");
             assertTrue(SemoisService.produitsATraiter(null, actifs).isEmpty(),
                     "ventes illisibles : aucun produit traite, donc aucun remis a zero");
-            List<String> vendus = tirage(r, r.nextInt(40), "P");
+            assertTrue(SemoisService.produitsATraiter(new ArrayList<>(), actifs).isEmpty(),
+                    "aucune vente sur des mois actifs : aucun produit traite");
+            List<String> vendus = tirage(r, 1 + r.nextInt(40), "P");
             List<String> tous = SemoisService.produitsATraiter(vendus, actifs);
             assertFalse(tous.isEmpty());
             assertEquals(new LinkedHashSet<>(tous).size(), tous.size());

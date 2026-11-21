@@ -213,3 +213,36 @@ Décision de l'utilisateur, transmise le 21/11 : « oui aussi en standard ».
 - **Sur le nouveau code** : 39/39 sur `domain4` (mode SEMOIS isolé, base `laborex_audit`) ; `test-parametres-explications-36.js`
   7/7 ; tests unitaires SEMOIS 12/12. `domain4` est remis en l'état (pool `appaul_perf`, sans option `user.home`, arrêté).
 - **Banc** : la migration `V7.6.41.2112` est appliquée sur `laborex_audit`.
+
+## Garde-fous du 21/11 : jamais de remise à zéro sur une panne de lecture
+
+**Défaut confirmé** sur `8b68a979e` (intégration du matin, jamais livrée en officine) : en ABC et par produit, une erreur
+SQL à la lecture des ventes rendait une liste vide ; tous les produits actifs, vus « sans vente », passaient à 0.
+Prouvé par `test-semois-panne-lecture.js` sur l'ancien code : 11 244 fiches sur 11 650 mises à 0, en ABC comme par
+produit, pendant une panne de lecture (17/27).
+
+**Cause** : la remise à zéro des non vendus (correction du matin) s'est ajoutée à une lecture qui confond depuis
+toujours « erreur » et « aucune vente ». Avant elle, ce mélange était sans effet (rien à traiter) ; après, il devenait
+dangereux. Les tests ne couvraient que la lecture réussie.
+
+**Deux garde-fous indépendants**, dans les trois modes :
+1. une lecture en échec est distinguée d'une liste vide (`null`, comptage à -1) : aucun produit modifié ;
+2. aucune vente lue sur les mois retenus, qui ont tous au moins 20 jours d'activité au calendrier : situation anormale,
+   aucun produit modifié (`ventesLisibles`). Il couvre aussi une erreur que le code n'aurait pas repérée.
+Dans les deux cas, le serveur note au journal « ventes illisibles ou absentes sur les mois retenus ».
+
+**Tests** :
+- cohérence : `SemoisNonVendusCoherenceTest` et `SemoisCalculCoherenceTest` adaptés (aucune vente : rien à traiter) ;
+  unitaires SEMOIS 12/12 ;
+- écran `test-semois-panne-lecture.js`, dans les trois modes, recalcul lancé par le bouton de la Fiche article :
+  - G : table des lignes de vente renommée pendant le recalcul (vraie erreur SQL) ;
+  - H : table remplacée par une copie vide (lecture sans erreur, zéro vente) ;
+  - à chaque fois : aucune fiche modifiée, aucune ligne d'historique, anomalie au journal du serveur ;
+  - témoin : table remise, le même parcours modifie bien les fiches ;
+  - bilan : table remise sous son nom avec les mêmes lignes (empreinte), seuils, paramètres et historique remis ;
+  - ancien code 17/27 ; nouveau code 27/27 ;
+- `test-semois-seuils-moaye.js` 39/39 sur le nouveau code (aucune régression).
+
+**Reste à savoir** : en cas de panne, l'écran affiche quand même « Recalcul des seuils terminé. Les seuils et
+quantités de réappro ont été mis à jour. » Le message ne dit pas que rien n'a été modifié ; seul le journal du serveur
+le note.

@@ -248,10 +248,13 @@ public class SemoisService {
      * Produits a traiter dans les modes ABC et par produit : les produits vendus dans la fenetre (cles de la
      * consommation, comme avant) puis les produits actifs sans vente, qui etaient oublies et gardaient d'anciennes
      * valeurs (Moaye, 21/11). Ordre stable, sans doublon.
+     * <p>
+     * Garde-fous : lecture des ventes en echec (null) ou aucune vente sur des mois retenus, donc actifs (au moins 20
+     * jours d'activite au calendrier) : situation anormale, aucun produit traite. Sinon une erreur de lecture mettrait
+     * tout le catalogue a zero.
      */
     static List<String> produitsATraiter(java.util.Collection<String> vendus, java.util.Collection<String> actifs) {
-        if (vendus == null) {
-            // lecture des ventes en echec : on ne touche a rien (sinon tout le catalogue passerait a zero)
+        if (!ventesLisibles(vendus)) {
             return new ArrayList<>();
         }
         java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(vendus);
@@ -262,16 +265,24 @@ public class SemoisService {
     /**
      * SEMOIS standard : produits actifs a remettre a seuil 0 et quantite 0, c'est-a-dire non vendus dans la fenetre
      * (decision du 21/11 : « oui aussi en standard »). Ordre des actifs, sans doublon. Lecture des ventes incomplete :
-     * aucun, pour ne pas vider le catalogue sur une erreur.
+     * aucun, pour ne pas vider le catalogue sur une erreur ; aucune vente lue sur des mois actifs : aucun non plus.
      */
     static List<String> aRemettreAZero(java.util.Collection<String> actifs, Set<String> vendus,
             boolean lectureComplete) {
-        if (!lectureComplete) {
+        if (!lectureComplete || !ventesLisibles(vendus)) {
             return new ArrayList<>();
         }
         java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(actifs);
         ids.removeAll(vendus);
         return new ArrayList<>(ids);
+    }
+
+    /**
+     * Les ventes lues peuvent servir a remettre des produits a zero : lecture reussie (non null) et au moins un produit
+     * vendu. Les mois retenus ont tous au moins 20 jours d'activite au calendrier : aucune vente y est anormal.
+     */
+    static boolean ventesLisibles(java.util.Collection<String> vendus) {
+        return vendus != null && !vendus.isEmpty();
     }
 
     /** Produits actifs hors details deconditionnes (ceux-ci sont comptes dans leur boite). */
@@ -470,6 +481,10 @@ public class SemoisService {
             }
 
             traiterReapproBoite(q1, q2, q3, mapBoite, items, normalLog);
+            if (!lectureComplete || !ventesLisibles(vendus)) {
+                LOG.log(Level.WARNING,
+                        "semois standard : ventes illisibles ou absentes sur les mois retenus, aucun produit remis a zero");
+            }
             remettreAZeroNonVendus(aRemettreAZero(loadProduitsActifs(), vendus, lectureComplete), q1, q2, q3,
                     normalLog);
             ReapproLogWriter.write(em, "semois_normal", normalLog);
@@ -751,6 +766,10 @@ public class SemoisService {
 
             // 4) Calcul + mise a jour par lots : produits vendus, puis produits actifs sans vente (seuil et qte a 0)
             List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs());
+            if (!ventesLisibles(conso == null ? null : conso.keySet())) {
+                LOG.log(Level.WARNING,
+                        "semois : ventes illisibles ou absentes sur les mois retenus, aucun seuil modifie");
+            }
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
                 List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
@@ -846,6 +865,10 @@ public class SemoisService {
 
             // produits vendus, puis produits actifs sans vente (seuil et qte a 0)
             List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs());
+            if (!ventesLisibles(conso == null ? null : conso.keySet())) {
+                LOG.log(Level.WARNING,
+                        "semois : ventes illisibles ou absentes sur les mois retenus, aucun seuil modifie");
+            }
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
                 List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
