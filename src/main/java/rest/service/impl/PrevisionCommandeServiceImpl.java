@@ -715,14 +715,65 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         }
         o.put("couvertureOrigine", "paramètre (couverture voulue)");
         /* derniere vente : meme perimetre que le calcul (ventes cloturees, non annulees, vendeurs de l'emplacement) */
-        List<Object[]> v = lignes("SELECT DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), SUM(d.int_QUANTITY)"
-                + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
-                + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
-                + " WHERE d.lg_FAMILLE_ID = ?1 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-                + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.dt_UPDATED ORDER BY p.dt_UPDATED DESC LIMIT 1", familleId,
-                emplacementId);
+        List<Object[]> v = derniereVente(familleId, emplacementId);
         if (!v.isEmpty() && v.get(0)[0] != null) {
             o.put("derniereVente", texte(v.get(0)[0])).put("derniereVenteQte", entier(v.get(0)[1]));
+        }
+    }
+
+    /** Vente retenue : cloturee, non annulee, payante, d'un vendeur de l'emplacement. */
+    private static final String VENTE_RETENUE = " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0";
+
+    /** Au-dela, la derniere vente est cherchee a partir des lignes du produit plutot que des ventes recentes. */
+    private static final int JOURS_RECENTS = 31;
+
+    /**
+     * Derniere vente du produit (date de cloture, quantite). Plan du 21/11, point 4.3 : l'ancienne requete lisait
+     * toutes les ventes du produit depuis toujours avant d'en garder une (5,6 s a chaud, 15,9 s a froid sur la copie
+     * d'appaul, produit le plus vendu, 81 235 lignes). Meme resultat, en deux lectures courtes :
+     * <ol>
+     * <li>T1 : date de cloture de la vente retenue dont la ligne du produit est la plus recente (index produit + date
+     * de ligne, lu a rebours jusqu'a la premiere vente retenue) ;</li>
+     * <li>la derniere vente est la plus recemment cloturee parmi celles cloturees a partir de T1 : une vente cloturee
+     * avant T1 ne peut pas l'etre plus tard que la vente de T1. Ces ventes sont lues par date de cloture si T1 est
+     * recent, sinon par les lignes du produit (un produit peu vendu en a peu).</li>
+     * </ol>
+     * En cas d'erreur (index absent, par exemple), l'ancienne requete est rejouee.
+     */
+    List<Object[]> derniereVente(String familleId, String emplacementId) {
+        try {
+            List<Object[]> t = lignes(
+                    "SELECT p.dt_UPDATED, 0 FROM t_preenregistrement_detail d FORCE INDEX (idx_tpd_famille_date)"
+                            + " STRAIGHT_JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                            + " STRAIGHT_JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
+                            + " WHERE d.lg_FAMILLE_ID = ?1" + VENTE_RETENUE + " ORDER BY d.dt_CREATED DESC LIMIT 1",
+                    familleId, emplacementId);
+            if (t.isEmpty() || t.get(0)[0] == null) {
+                return new ArrayList<>();
+            }
+            Object t1 = t.get(0)[0];
+            boolean recent = t1 instanceof java.util.Date && ((java.util.Date) t1).toInstant()
+                    .isAfter(java.time.Instant.now().minus(java.time.Duration.ofDays(JOURS_RECENTS)));
+            String depuis = recent
+                    ? " FROM t_preenregistrement p FORCE INDEX (idx_preenr_statut_date)"
+                            + " STRAIGHT_JOIN t_preenregistrement_detail d ON d.lg_FAMILLE_ID = ?1"
+                            + "   AND d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                    : " FROM t_preenregistrement_detail d FORCE INDEX (idx_tpd_famille_date)"
+                            + " STRAIGHT_JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID";
+            return lignes(
+                    "SELECT DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), SUM(d.int_QUANTITY)" + depuis
+                            + " STRAIGHT_JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
+                            + " WHERE d.lg_FAMILLE_ID = ?1 AND p.dt_UPDATED >= ?3" + VENTE_RETENUE
+                            + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.dt_UPDATED ORDER BY p.dt_UPDATED DESC LIMIT 1",
+                    familleId, emplacementId, t1);
+        } catch (RuntimeException e) {
+            LOG.log(java.util.logging.Level.WARNING, "derniereVente : retour a la requete complete", e);
+            return lignes("SELECT DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), SUM(d.int_QUANTITY)"
+                    + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                    + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
+                    + " WHERE d.lg_FAMILLE_ID = ?1" + VENTE_RETENUE
+                    + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.dt_UPDATED ORDER BY p.dt_UPDATED DESC LIMIT 1", familleId,
+                    emplacementId);
         }
     }
 
