@@ -330,29 +330,43 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
     }
 
     /**
-     * Chemin de lecture : par la date de la vente, sauf quand peu de tiers payants sont vises et qu'ils comptent,
-     * depuis toujours, moins de ventes que la periode : on part alors de leurs ventes. Les deux comptes ne lisent que
-     * des index.
+     * Chemin de lecture : on part des rattachements des ventes aux tiers payants quand ils sont, depuis toujours, moins
+     * nombreux que les ventes de la periode ; sinon de la date de la vente. Selon l'officine, l'un ou l'autre gagne
+     * (laborex_audit sur un an : 0,85 s par les tiers payants contre 1,65 s par la date ; copie d'appaul : 2,3 s par la
+     * date contre 4,7 s pour l'ancienne requete). Les comptes ne lisent que des index, et celui des ventes s'arrete des
+     * qu'il depasse l'autre.
      */
     private Lecture lecture(List<String> vises, String[] periode) {
-        if (vises == null || vises.size() > Lecture.MAX_TIERS_PAYANTS) {
-            return Lecture.PAR_DATE;
-        }
         try {
-            Query ventes = em.createNativeQuery("SELECT COUNT(*) FROM t_preenregistrement p"
+            boolean tous = vises == null || vises.size() > Lecture.MAX_TIERS_PAYANTS;
+            Lecture parTp = tous ? Lecture.TOUS_PAR_TIERS_PAYANT : Lecture.parTiersPayant(vises);
+            long nbLignesTp;
+            if (tous) {
+                // estimation tenue par le moteur : un ordre de grandeur suffit a choisir
+                nbLignesTp = entier(em
+                        .createNativeQuery(
+                                "SELECT TABLE_ROWS FROM information_schema.TABLES" + " WHERE TABLE_SCHEMA = DATABASE()"
+                                        + " AND TABLE_NAME = 't_preenregistrement_compte_client_tiers_payent'")
+                        .getSingleResult());
+            } else {
+                Query lignesTp = em.createNativeQuery("SELECT COUNT(*) FROM t_compte_client_tiers_payant c"
+                        + " FORCE INDEX (lg_TIERS_PAYANT_ID)"
+                        + " STRAIGHT_JOIN t_preenregistrement_compte_client_tiers_payent tpv"
+                        + "   ON tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID WHERE 1 = 1"
+                        + parTp.restriction(1));
+                parTp.parametres(lignesTp, 1);
+                nbLignesTp = entier(lignesTp.getSingleResult());
+            }
+            if (nbLignesTp <= 0) {
+                return tous ? Lecture.PAR_DATE : parTp;
+            }
+            Query ventes = em.createNativeQuery("SELECT COUNT(*) FROM (SELECT 1 FROM t_preenregistrement p"
                     + " FORCE INDEX (idx_preenr_statut_date) WHERE p.str_STATUT = 'is_Closed'"
-                    + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < DATE_ADD(?2, INTERVAL 1 DAY)");
+                    + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < DATE_ADD(?2, INTERVAL 1 DAY) LIMIT ?3) x");
             ventes.setParameter(1, periode[0]);
             ventes.setParameter(2, periode[1]);
-            Lecture parTp = Lecture.parTiersPayant(vises);
-            Query lignesTp = em.createNativeQuery("SELECT COUNT(*) FROM t_compte_client_tiers_payant c"
-                    + " FORCE INDEX (lg_TIERS_PAYANT_ID)"
-                    + " STRAIGHT_JOIN t_preenregistrement_compte_client_tiers_payent tpv"
-                    + "   ON tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID WHERE 1 = 1"
-                    + parTp.restriction(1));
-            parTp.parametres(lignesTp, 1);
+            ventes.setParameter(3, nbLignesTp + 1);
             long nbVentes = entier(ventes.getSingleResult());
-            long nbLignesTp = entier(lignesTp.getSingleResult());
             return nbLignesTp < nbVentes ? parTp : Lecture.PAR_DATE;
         } catch (Exception e) {
             LOG.log(Level.WARNING, "choix du chemin de lecture", e);
@@ -392,6 +406,14 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
         static final Lecture ANCIENNE = new Lecture(VENTES_ANCIENNES, PARTS_ANCIENNES, null);
         /** Par la date de la vente : tous les tiers payants. */
         static final Lecture PAR_DATE = new Lecture(PAR_DATE_DEBUT + SUITE, PAR_DATE_DEBUT + UTILISATEUR, null);
+
+        private static final String TOUS_PAR_TP_DEBUT = " FROM t_preenregistrement_compte_client_tiers_payent tpv"
+                + " STRAIGHT_JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tpv.lg_PREENREGISTREMENT_ID"
+                + " STRAIGHT_JOIN t_compte_client_tiers_payant c"
+                + "   ON c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID";
+        /** Par tous les rattachements aux tiers payants, quand ils sont moins nombreux que les ventes de la periode. */
+        static final Lecture TOUS_PAR_TIERS_PAYANT = new Lecture(TOUS_PAR_TP_DEBUT + SUITE,
+                TOUS_PAR_TP_DEBUT + UTILISATEUR, null);
 
         /** Par les ventes de ces tiers payants. */
         static Lecture parTiersPayant(List<String> ids) {

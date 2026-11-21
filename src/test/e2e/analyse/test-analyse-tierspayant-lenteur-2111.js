@@ -75,12 +75,13 @@ function compare(api, base, cle, tri) {
 }
 /* chemin que le serveur doit prendre : memes comptes que le service */
 function chemin({ d, f, ids }) {
-  if (!ids || ids.length > 50) { return 'date'; }
   [d, f] = bornes(d, f);
-  if (!ids.length) { return 'vide'; }
+  if (ids && !ids.length) { return 'vide'; }
+  const tous = !ids || ids.length > 50;
   const ventes = +q(`SELECT COUNT(*) FROM t_preenregistrement p WHERE p.str_STATUT = 'is_Closed' AND p.dt_UPDATED >= '${d}' AND p.dt_UPDATED < DATE_ADD('${f}', INTERVAL 1 DAY)`);
-  const tpv = +q(`SELECT COUNT(*) FROM t_compte_client_tiers_payant c JOIN t_preenregistrement_compte_client_tiers_payent tpv ON tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID WHERE c.lg_TIERS_PAYANT_ID IN (${ids.map(sql).join(',')})`);
-  return tpv < ventes ? 'tiers payant' : 'date';
+  const tpv = tous ? +q("SELECT TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_preenregistrement_compte_client_tiers_payent'")
+    : +q(`SELECT COUNT(*) FROM t_compte_client_tiers_payant c JOIN t_preenregistrement_compte_client_tiers_payent tpv ON tpv.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID WHERE c.lg_TIERS_PAYANT_ID IN (${ids.map(sql).join(',')})`);
+  return tpv > 0 && tpv < ventes ? (tous ? 'tous par tiers payant' : 'tiers payant') : 'date';
 }
 const idsTp = ({ id = '', recherche = '', groupe = '' }) => (!id && !recherche.trim() && !groupe ? null
   : lignes(`SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant tp WHERE (${sql(id)} = '' OR tp.lg_TIERS_PAYANT_ID = ${sql(id)})
@@ -155,7 +156,7 @@ const MOIS = ['2026-10-01', '2026-10-31'], AN = ['2025-11-01', '2026-10-31'], SE
     }
     ok('Détail par produit = ancienne requête (10 cas : gros, moyen, petit, sans vente, tous, recherche, groupe, bornes inversées), totaux = somme', ecartsP.length === 0, ecartsP.slice(0, 3).join(' / '));
     ok('Détail par pages : nombre total et totaux de toute la liste sur la page 2 ; pages 1 + 2 = début de la liste, même ordre', pagesOk);
-    ok('Les deux chemins de lecture sont exercés (par la date, par le tiers payant)', chemins.has('date') && chemins.has('tiers payant'), [...chemins].join(', '));
+    ok('Les trois chemins de lecture sont exercés (par la date, par les tiers payants visés, par tous les rattachements)', chemins.has('date') && chemins.has('tiers payant') && chemins.has('tous par tiers payant'), [...chemins].join(', '));
 
     /* 3. ecran : periode de l'annee, liste, puis detail du gros tiers payant */
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Analyse tiers payants');
