@@ -106,7 +106,12 @@ ont le même diviseur.
 - État du code sur ce point : le repli existe déjà pour les produits sans classe vendus dans la fenêtre
   (`cls == null`). Il manque pour les produits sans classe non vendus, qui sont oubliés comme les autres (3 744 à
   Moaye). La correction 2 les couvre : consommation nulle, donc seuil et quantité à zéro.
-- Le point 3 (compter ou non le mois en cours) reste ouvert. Sans décision, le mois en cours n'est pas compté.
+- Point 3 tranché : le mois en cours n'est pas compté.
+- Un paramètre choisit la méthode de division, pour tous les modes SEMOIS (standard, ABC, par produit) :
+  - par défaut, la nouvelle règle : division par le nombre de mois réellement retenus dans la fenêtre, fois 4 ;
+  - sur réglage, l'ancienne formule : division par q3 × 4 (12 semaines pour q3 = 3).
+  Nom proposé : `SEMOIS_DIVISEUR_MOIS_REELS` (1 par défaut, 0 pour l'ancienne formule), créé par migration avec son
+  explication.
 - Transmis à la session principale pour réalisation.
 
 ## Limites
