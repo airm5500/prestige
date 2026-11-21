@@ -146,7 +146,7 @@ Chaque point est couvert par un test de bout en bout (`src/test/e2e/…`), pass�
 | 5 | Posos : droit | **Fait** | `P_SM_POSOS` ou `P_ORDONNANCE_CLIENT` ; `GET v1/posos/droits` → `{analyser}` |
 | 6 | Annulation de vente : POST, sans doublon | **Fait** | `POST v1/vente/{id}/annuler` avec `X-Client-Ref` ; vente déjà annulée ou non clôturée → `code:"ETAT"` |
 | 7 | Gardes et inventaires des menus « mouchards » | **Fait** | écritures des gardes sous `P_SM_GESTION_GARDES` (les lectures restent ouvertes : d'autres écrans s'en servent) ; création d'inventaire depuis CA zone géo, ventes supprimées / modifiées : droit du menu |
-| 8 | Saisie d'inventaire | **Fait** | `PUT ws/inventaires/details` : 404 `LIGNE_INCONNUE`, 409 `INVENTAIRE_CLOTURE`, 400 `QUANTITE_INVALIDE` ; auteur enregistré |
+| 8 | Saisie d'inventaire | **Fait** | `PUT ws/inventaires/details` : 404 `LIGNE_INCONNUE`, 409 `INVENTAIRE_CLOTURE`, 400 `QUANTITE_INVALIDE` ; auteur enregistré. Depuis la demande 72 (21/11), une saisie enregistrée répond 200 `{success:1, id, quantite}` en JSON (avant : 200 sans corps) |
 | 9 | Route « mes droits » | **Fait** | `GET v1/user/droits` → `{profil, role:{code, libelle}, droits:[noms des privilèges]}` ; 401 sans session. Tous les privilèges y figurent, y compris les nouveaux |
 | 10 | Rôle à la connexion, création d'inventaire | **Fait** | `user/auth` renvoie `role {code, libelle}` et `droits.creerInventaire` ; `P_CREER_INVENTAIRE` (migration 7.1.0) vérifié sur `POST v1/inventaire/creation` (403 « Droit manquant : Créer un inventaire ») |
 | 11 | Licence sans poste | **Option A** | rien à changer côté serveur. L'application affiche « Activez la licence après connexion d'un administrateur » ; `GET v1/licence/save/{clé}` reste sous session |

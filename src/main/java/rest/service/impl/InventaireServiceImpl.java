@@ -1120,7 +1120,7 @@ public class InventaireServiceImpl implements InventaireService {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "updateDetailQuantity : auteur non identifie", e);
         }
-        return r.put("status", 200);
+        return r.put("status", 200).put("quantite", inventaireFamille.getIntNUMBER());
     }
 
     /** Motif du refus de saisir sur cette ligne (null : l'inventaire est ouvert). */
