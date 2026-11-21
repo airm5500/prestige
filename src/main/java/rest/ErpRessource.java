@@ -384,9 +384,22 @@ public class ErpRessource {
         org.json.JSONObject r = inventaireService.updateDetailQuantity(updateInventaire);
         int status = r.optInt("status", 200);
         if (status == 200) {
-            return Response.ok().build(); // reponse d'origine (vide) : les terminaux n'en attendent pas d'autre
+            return Response.ok().type("application/json").entity(confirmationSaisie(updateInventaire.getId(), r))
+                    .build();
         }
         return Response.status(status).type("application/json").entity(new org.json.JSONObject().put("success", 0)
                 .put("code", r.optString("code")).put("message", r.optString("message")).toString()).build();
+    }
+
+    /**
+     * Demande 72 (Prestige Inventaire 5.0.3) : corps de la reponse a une saisie enregistree. Avant : 200 sans corps,
+     * que le terminal ne distinguait pas d'un intermediaire (portail captif, relais) repondant 200 sans corps. Les
+     * anciens terminaux ne lisent que le code HTTP.
+     *
+     * @return {"success":1,"id":id de la ligne recu,"quantite":quantite enregistree}
+     */
+    static String confirmationSaisie(Long id, org.json.JSONObject enregistre) {
+        return new org.json.JSONObject().put("success", 1).put("id", id).put("quantite", enregistre.getInt("quantite"))
+                .toString();
     }
 }
