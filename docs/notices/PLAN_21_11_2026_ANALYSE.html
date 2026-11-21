@@ -55,6 +55,29 @@
   Les causes ci-dessous viennent de la lecture du code. Elles restent <b>suspectées</b> tant qu'un test ne les a pas prouvées.
 </div>
 
+<div class="ok">
+  <b>Vos captures et votre vidéo du 21/11, ajoutées après la première version.</b> Elles confirment l'analyse et apportent quatre précisions.
+  <ul>
+    <li><b>Historique des règlements (1.1)</b> : la ligne reste en couleur, et le bas indique « Sélectionnez un règlement ». C'est la cause trouvée dans le code.
+      La capture montre aussi le message rouge « Choisissez le grossiste du relevé » alors que LABOREX-CI ZONE 3 est affiché.
+      Ce message n'apparaît que si le grossiste choisi est vide pour l'écran (<code>ReglementsFournisseurs.js:485-487</code>).
+      La liste des grossistes affiche donc encore le nom, mais elle a perdu sa valeur au retour sur l'onglet. C'est un second défaut, corrigé avec le premier.</li>
+    <li><b>Barre qui défile (1.3)</b> : dans la vidéo, la barre de « Liste des BL » a un ascenseur horizontal, même sur un écran d'environ 1 870 px.
+      Les titres des colonnes sont aussi coupés : « MONTAN », « DATE LI ».
+      Ce n'est donc pas seulement un problème de petit écran : cette barre a trop d'éléments pour une ligne. Les deux lignes proposées règlent les deux cas.</li>
+    <li><b>Modification d'un client standard (6)</b> : la fenêtre de la capture vient bien de Gestion des clients (<code>ClientManager.js:718</code>). C'est le formulaire commun dont les champs cachés restent obligatoires.
+      Sur votre capture, la date de naissance est celle du jour (21/11/2026). Je vérifierai qu'elle n'est pas remplie toute seule.</li>
+    <li><b>Infos client à la vente (7)</b> : la capture confirme les points suivants :
+      <ul>
+        <li>le numéro de téléphone est rangé dans le champ <b>Adresse</b> (0544…), d'où l'intérêt de la recopie ;</li>
+        <li>la Ville déborde à droite ;</li>
+        <li>les icônes des infos assuré et ayant droit sont de trois styles différents.</li>
+      </ul></li>
+    <li><b>Analyse tiers payants (14)</b> : le bandeau Firefox « a empêché ce site d'ouvrir une fenêtre popup » confirme la cause, l'ouverture du PDF après la requête.</li>
+    <li><b>Fenêtre de prévision (4.4 et 15)</b> : votre capture montre la fenêtre que je dois compléter. Le visuel du point 15 est refait à partir d'elle.</li>
+  </ul>
+</div>
+
 <p>
   Légende :
   <span class="tag t-def">défaut</span> ce qui ne marche pas
@@ -130,7 +153,7 @@
   Je ne change pas le mécanisme commun, pour ne rien modifier sur les autres écrans.
 </td></tr>
 </table>
-<div class="q"><b>Question 1.</b> Je n'ai pas accès à la vidéo citée. Je fais les essais en 1366×768 et en 1280×720. Est-ce la bonne taille d'écran ?</div>
+<div class="q"><b>Question 1.</b> Sauf autre consigne de votre part, je vérifie l'absence d'ascenseur en 1366×768, en 1280×720 et en plein écran large. Ce sont les tailles des postes en officine ?</div>
 
 <!-- ===================================================== 2 -->
 <h2>2. Tableau de bord</h2>
@@ -480,14 +503,17 @@
 <p>
   Ajouter <span class="bouton">🖨 Imprimer</span> <span class="bouton">⬇ Excel</span>, comme sur les deux autres onglets.
 </p>
-<h3>Visuel à valider : tableau de prévision sans défilement</h3>
+<h3>Visuel à valider : fenêtre de prévision sans défilement</h3>
 <p>
-  Ce que j'ai compris :
+  Ce que j'ai compris, d'après votre capture : la fenêtre de prévision d'un produit, celle qui s'ouvre depuis la suggestion, la commande et l'analyse.
   <ul>
-    <li><b>en haut</b>, les ventes mensuelles sur 24 mois, en graphe ;</li>
-    <li><b>en bas</b>, les unités vendues par mois et l'indice saisonnier, en tableau ;</li>
-    <li>le tout tient dans la fenêtre, sans barre de défilement.</li>
+    <li><b>En haut</b>, le graphe des ventes mensuelles sur 24 mois, qui existe déjà.</li>
+    <li><b>Juste en dessous</b>, le tableau des unités vendues par mois et de l'indice saisonnier, à ajouter. Il existe aujourd'hui seulement dans l'onglet Analyse de la demande.</li>
+    <li><b>En bas</b>, les deux blocs existants, « Méthodes essayées » et « Quantité recommandée ». Ils sont resserrés pour que tout tienne sans défilement en 1366×768.</li>
   </ul>
+  « Méthodes essayées » et « Fiabilité » sont expliqués simplement au survol, par exemple :
+  « erreur 86,9 % : en moyenne, cette méthode se trompait de 87 % sur les derniers mois connus.
+  La fiabilité de 13 % est faible : produit peu vendu, prévision à prendre avec prudence. »
 </p>
 <div class="maquette">
   <b>DOLIPRANE 500 MG CPR (A)</b> — prévision de décembre 2026 : <b>412</b> &nbsp;|&nbsp; à commander : <b>180</b>
@@ -512,6 +538,18 @@
     <tr><td><b>Indice</b></td><td>1,00</td><td class="hausse">1,10</td><td>0,95</td><td class="baisse">0,76</td><td class="baisse">0,69</td><td class="baisse">0,82</td><td>0,88</td><td>1,02</td><td class="hausse">1,18</td><td class="hausse">1,29</td><td class="hausse">1,34</td><td>0,95</td><td></td></tr>
   </table>
   <p style="font-size:12px;color:#5a6b7d;margin:4px 0 0">Chiffres d'exemple. L'indice 1,34 signifie qu'on vend 34 % de plus en novembre qu'un mois moyen. Vert : mois forts ; rouge : mois faibles.</p>
+  <div style="display:flex;gap:12px;margin-top:10px;font-size:12px">
+    <div style="flex:1;border:1px solid #d5dde6;border-radius:4px;padding:6px">
+      <b>Méthodes essayées</b> <i>(serré, explication au survol)</i><br>
+      Moyenne 3 mois 87,5 % · Saisonnière 116,8 % · <b>Tendance ✓ 86,9 %</b> · Tendance + saison 183,2 %<br>
+      Fiabilité retenue : 13 % <i>(faible : prudence)</i>
+    </div>
+    <div style="flex:1;border:1px solid #d5dde6;border-radius:4px;padding:6px">
+      <b>Quantité recommandée : 0</b> <i>(inchangé, calcul ligne par ligne)</i><br>
+      ventes/jour 0,07 × (délai 1 j + couverture 15 j) = 1,2 · + sécurité 0,4 · − stock 2 · − en cours 0 · − équivalents 0 = <b>0</b><br>
+      Dernière vente : 18/11/2026 — 1 unité
+    </div>
+  </div>
   <p style="margin:10px 0 4px">Au survol de la barre orange :</p>
   <div class="bulle">
     <b>Prévu en décembre 2026 : 412 unités</b><br>
