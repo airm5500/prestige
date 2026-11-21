@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 2 (lenteurs)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  td.n { text-align: right; white-space: nowrap; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .risque { background: #fdecec; border-left: 4px solid #c0392b; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 2 (lenteurs)</h1>
+<p class="sous">Branche <code>plan/21112026</code> (worktree <code>prestige-plan21112026</code>), rien de fusionné.
+Mesures en lecture seule sur la copie d'appaul (requêtes SQL), et sur domain4 avec la base de test <code>laborex_audit</code>
+(appels de l'écran). Tests d'écran lancés un par un.</p>
+
+<div class="ok">Les trois lenteurs sont traitées sans changer les résultats : mêmes lignes, mêmes montants, mêmes totaux,
+vérifiés contre l'ancienne requête rejouée en base et en comparant les réponses avant / après. Sur la copie d'appaul :
+dernière vente 15,9 s → 2 ms, liste des tiers payants sur un an 4,7 s → 2,3 s, détail d'un gros tiers payant 3,1 s → 0,13 s,
+recherche des périmés 2,4 s → 0,04 s. Le PDF de l'analyse ne déclenche plus l'alerte de Firefox.
+<br>Tests repassés un par un sur domain4 après le lot 2 : 29 tests d’écran (prévision, analyse des tiers payants, périmés, clients, BL, règlements, tableau de bord), tous au vert. Suite unitaire : 2 555 tests, aucun échec.</div>
+
+<h2>Résultats</h2>
+<table>
+<tr><th>Point</th><th>Cause</th><th>Correction</th><th>Mesure (avant → après)</th><th>Test</th><th>Commit</th></tr>
+<tr><td>4.3 Prévision, bouton « Prévision » d'un produit très vendu</td>
+<td>La « dernière vente » lisait toutes les ventes du produit depuis l'origine.</td>
+<td>Lecture en deux temps par index : dernière ligne de vente du produit, puis ventes clôturées depuis. Ancienne lecture en secours.</td>
+<td>appaul : 15,9 s à froid, 5,6 s à chaud → 2,3 ms<br>laborex_audit : ~165 ms → ~142 ms</td>
+<td><code>test-prevision-derniere-vente-2111</code> 10/10</td><td>90bd426a3</td></tr>
+<tr><td>14 Analyse des tiers payants : liste, recherche, détail, CSV, Excel, PDF</td>
+<td>MariaDB partait des utilisateurs et relisait toutes les ventes depuis l'origine ; le nom du tiers payant de l'état recalculait toute l'analyse ; l'onglet du PDF s'ouvrait après la réponse.</td>
+<td>Ordre de lecture imposé, choisi selon les volumes : par la date, par les tiers payants visés, ou par tous les rattachements. Nom lu sur la fiche. Onglet ouvert dans le clic. Ex aequo départagés par le nom. Ancienne lecture en secours.</td>
+<td>appaul : liste mois 2,95 s → 0,21 s ; an 4,7 s → 2,3 s ; détail gros TP mois 3,1 s → 0,13 s, an 3,7 s → 0,6 s<br>laborex_audit : liste an 1,44 s → 1,23 s ; PDF détail an 1,85 s → 0,38 s ; Excel mois 0,71 s → 0,26 s</td>
+<td><code>test-analyse-tierspayant-lenteur-2111</code> 13/16 sur l'ancien code (onglet ouvert après la réponse) → 16/16</td><td>834718390, 542203c07, 695e4ee0b</td></tr>
+<tr><td>17 Recherche des périmés</td>
+<td>Base dont la plupart des lots n'ont pas de date : MariaDB partait des fiches de stock et relisait tous les lots, trois fois par appel.</td>
+<td>Lots lus en premier (inspecteur Hibernate existant, requêtes des périmés seulement) ; nombre et totaux en une requête ; badge = simple compte.</td>
+<td>appaul : 806 + 773 + 872 ms → 23 + 20 ms<br>laborex_audit : page 57 ms → 14 ms</td>
+<td><code>test-perimes-lecture-2111</code> 4/4</td><td>96d3129de</td></tr>
+</table>
+
+<h2>Rapprochement : où la donnée apparaît, et le test qui compare</h2>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Dernière vente d'un produit (date, quantité)</td><td>ancienne requête en base, API de la fenêtre, fenêtre « Prévision » à l'écran ; 25 produits (très vendus, moyens, peu vendus, jamais vendus), vente clôturée plus tard, vente annulée</td><td><code>test-prevision-derniere-vente-2111</code></td></tr>
+<tr><td>Analyse par tiers payant (ventes, quantité, CA TTC, CA HT, achat, marge, part du tiers payant)</td><td>ancienne requête en base (13 cas : mois, an, semaine, période vide, bornes inversées, recherches, groupes, trois tris), grille de l'écran, CSV, Excel, PDF</td><td><code>test-analyse-tierspayant-lenteur-2111</code></td></tr>
+<tr><td>Détail par produit d'un tiers payant</td><td>ancienne requête (10 cas : gros, moyen, petit, sans vente, tous, recherche, groupe, bornes inversées), totaux, pages 1 et 2, grille, CSV, critère de l'Excel, sous-titre et nombre de lignes du PDF</td><td><code>test-analyse-tierspayant-lenteur-2111</code></td></tr>
+<tr><td>Lots périmés</td><td>ancienne requête en base (13 cas : sans filtre, pages, 1 et 6 mois, période, recherche CIP et nom, rayon, deux rayons, grossiste, famille, sans résultat), nombre, totaux, badge, nombre de produits, CSV ; plus, du lot 1 : écran, PDF</td><td><code>test-perimes-lecture-2111</code>, <code>test-perimes-sans-rayon-2111</code></td></tr>
+<tr><td>Toutes les réponses mesurées</td><td>31 appels de l'écran enregistrés avant puis après, comparés ligne à ligne</td><td><code>perf/mesure-plan2111-lot2.js</code></td></tr>
+</table>
+
+<h2>Cohérence et bilan</h2>
+<ul>
+<li>Totaux : pour chaque cas du détail, total CA TTC, marge et quantité de l'API = sommes des lignes de l'ancienne requête ; totaux des périmés (stock, valeur d'achat, valeur de vente) = sommes de la base.</li>
+<li>Ordre : chaque liste est triée sur la clé demandée (marge, CA, quantité) ; pages 1 et 2 = début de la liste entière, dans le même ordre.</li>
+<li>Bilan : tout est en lecture seule, sauf le test de la prévision qui modifie deux ventes de la base de test (date de clôture, annulation) et les remet à l'identique, vérifié en base.</li>
+<li>Les trois chemins de lecture des tiers payants sont exercés par le test, et le chemin d'origine reste en secours si un index manquait.</li>
+</ul>
+
+<h2>À savoir</h2>
+<div class="note"><b>Ordre des ex aequo :</b> deux lignes de même marge (ou CA, ou quantité) sont désormais classées par nom.
+Avant, leur ordre dépendait du plan de lecture, et une ligne pouvait passer d'une page à l'autre. Les lignes et les montants ne changent pas.</div>
+<div class="note"><b>Première version écartée :</b> lire toujours par la date rendait la liste d'un an plus lente sur <code>laborex_audit</code>
+(1,4 s → 2,7 s), où les ventes tiers payant sont nombreuses. Le choix du chemin a été étendu à ce cas ; la mesure finale ne montre plus aucun appel plus lent.</div>
+<ul>
+<li>« En cours » du produit ouvert dans la prévision : mesuré à 37 ms sur appaul, non modifié.</li>
+<li>Défauts antérieurs relevés au lot 1, toujours hors de ce lot : CIP coupé à 10 caractères dans le PDF des périmés ; <code>test-style-lots-0510</code> 229/232 (débordement sur trois écrans, identique sur l'ancien WAR).</li>
+<li>Défaut ancien suspecté, hors lot : le code interne d’un nouveau client est tiré de l’heure (minute, seconde, millième, coupé à 6 chiffres) ; sur une base qui a beaucoup de clients, il peut tomber sur un code existant et la création est refusée (« Le code interne existe déjà »). Vu une fois sur <code>test-modification-client-standard-2111</code> (2/4), qui repasse ensuite 24/24. À traiter à part si vous le souhaitez.</li>
+<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (lots 1 et 2). Mesures détaillées : <code>docs/notices/RAPPORT_LENTEUR_CONNEXION.md</code>.</li>
+</ul>
+</body>
+</html>
