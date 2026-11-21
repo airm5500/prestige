@@ -126,6 +126,8 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     const lu = decoder(path.join(TMP, 'affiche.png'));
     const txtAffiche = execFileSync('pdftotext', ['-enc', 'UTF-8', path.join(TMP, 'affiche.pdf'), '-'], { encoding: 'utf8' });
     ok('Affiche A4 : PDF, le QR imprimé redonne exactement le lien', aff.t === 'application/pdf' && lu === lien, lu);
+    /* plan du 21/11, point 10 : l'adresse du lien n'est plus imprimee sous le QR code */
+    ok('Affiche : aucune adresse web imprimée sous le QR code', !/https?:\/\//.test(txtAffiche) && txtAffiche.indexOf(lien.replace(/\?t=.*/, '')) < 0, txtAffiche.replace(/\s+/g, ' ').slice(-200));
     ok('Affiche : nom de la pharmacie et invitation', /Votre avis nous intéresse/.test(txtAffiche) && txtAffiche.indexOf(q('SELECT str_NOM_COMPLET FROM t_officine LIMIT 1').toUpperCase()) >= 0, txtAffiche.slice(0, 200));
     fs.copyFileSync(path.join(TMP, 'affiche.png'), process.env.CAPTURE_AFFICHE || path.join(TMP, 'affiche-copie.png'));
     const dispo = await p.evaluate(async () => (await fetch('../api/v1/avis-clients/affiche?format=A4')).headers.get('content-disposition'));
