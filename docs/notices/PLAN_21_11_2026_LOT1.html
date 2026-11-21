@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 1 (défauts)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .risque { background: #fdecec; border-left: 4px solid #c0392b; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 1 (défauts)</h1>
+<p class="sous">Branche <code>plan/21112026</code> (worktree <code>prestige-plan21112026</code>), rien de fusionné.
+Essais sur domain4 (port 11090), base de test <code>laborex_audit</code>, WAR complet de la branche, tests d'écran lancés un par un.</p>
+
+<div class="ok">Six défauts confirmés par un test qui échouait sur l'ancien code, corrigés, et repassés tous ensemble sur le WAR complet.
+Suite unitaire complète : 2553 tests, 0 échec. Aucune régression trouvée sur les tests existants des écrans touchés.</div>
+
+<h2>Résultats</h2>
+<table>
+<tr><th>Point</th><th>Cause</th><th>Correction</th><th>Test (ancien code → nouveau)</th><th>Non-régression</th><th>Commit</th></tr>
+<tr><td>1.1 Historique des règlements</td><td>Après un rechargement, la sélection gardait d'anciennes lignes, les parts ne se rechargeaient pas, le message restait affiché ; l'aperçu « Saisir » se vidait au retour d'onglet.</td>
+<td>Sélection reprise par identifiant après chaque chargement, parts rechargées, message effacé au changement de grossiste.</td>
+<td><code>test-reglements-historique-2111</code> : 16/23 → 23/23</td><td><code>test-reglements-fournisseurs-1911</code> 52/52</td><td>de7ce812b</td></tr>
+<tr><td>1.2 Fenêtre de modification du BL</td><td>Fenêtre non modale : ouverte plusieurs fois, avec les valeurs d'un autre BL ; « Enregistrer » parfois inaccessible.</td>
+<td>Une seule fenêtre modale, valeurs du BL choisi, sans variables globales, saisie automatique du navigateur coupée.</td>
+<td><code>test-modification-bl-fenetre-2111</code> : 4/7 (arrêt) → 16/16</td><td><code>test-modification-bl-journal-1911</code> 20/20</td><td>836e73f78</td></tr>
+<tr><td>2 Fréquentation et stock négatif</td><td>Tranches horaires sans vente omises (ex. 4 h-6 h) ; « Ouvrir l'état du stock » n'appliquait pas le filtre des négatifs.</td>
+<td>Les 12 tranches toujours tracées ; l'état du stock s'ouvre filtré sur stock &lt; 0.</td>
+<td><code>test-tableau-bord-tranches-negatifs-2111</code> : 14/21 → 21/21</td><td><code>test-tableau-bord</code> 61/61 (adapté aux 12 tranches)</td><td>16bb2fddf</td></tr>
+<tr><td>6 Modification d'un client standard</td><td>Deux défauts à la suite : le champ masqué « Type Client », obligatoire et vide, bloquait « Enregistrer » ; puis le serveur échouait faute de tiers payant et la fiche n'était jamais enregistrée.</td>
+<td>Champ désactivé en modification (il n'est pas envoyé) ; sans tiers payant, seule la fiche est enregistrée.</td>
+<td><code>test-modification-client-standard-2111</code> : 16/24 → 24/24</td><td>création assuré 9/9, retrait tiers payant 19/19, standard naissance 10/10, barre 8/8, doublon 8/8, recherche sans TP 5/5</td><td>1a09a8b5c</td></tr>
+<tr><td>SMS, numéro dans « Téléphone »</td><td>Le contrôle avant envoi ne lisait que l'ancien champ Adresse.</td>
+<td>Même règle que partout : Téléphone d'abord, Adresse à défaut. L'écran des notifications montre le numéro qui part.</td>
+<td><code>SmsTelephoneClientTest</code> : 4 échecs sur 6 → 6/6</td><td>tests SMS, TelephoneCi, TelephoneClient, notifications</td><td>44fdca163</td></tr>
+<tr><td>17 Périmés sans rayon</td><td>Jointures strictes : un produit sans rayon, grossiste ou famille disparaissait.</td>
+<td>Jointures externes dans les quatre requêtes ; « (sans rayon) », « (sans grossiste) », « (sans famille) » affichés.</td>
+<td><code>test-perimes-sans-rayon-2111</code> : 7/23 → 23/23</td><td>quantités 9/9, cloche 18/18, lots 18/18, points du 29/10 18/18, style des lots 229/232 (comme l'ancien code)</td><td>42ef89180</td></tr>
+</table>
+
+<h2>Rapprochement : où la donnée apparaît, et le test qui compare</h2>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Fiche du client standard (adresse, code postal, nom, téléphone, type, tiers payants)</td><td>fenêtre « Modification Client », réponse du serveur, base (relue après chaque enregistrement et après chaque refus)</td><td><code>test-modification-client-standard-2111</code></td></tr>
+<tr><td>Numéro du client pour le SMS</td><td>numéro contrôlé, numéro envoyé au fournisseur, numéro affiché dans l'écran des notifications</td><td><code>SmsTelephoneClientTest</code></td></tr>
+<tr><td>Lots périmés</td><td>base, nombre et totaux de l'écran, lignes de l'écran, API, badge, nombre de produits de l'inventaire, CSV, PDF, filtres par rayon et par grossiste</td><td><code>test-perimes-sans-rayon-2111</code></td></tr>
+<tr><td>Fréquentation et stocks négatifs</td><td>carte du tableau de bord, base, écran de l'état du stock filtré</td><td><code>test-tableau-bord-tranches-negatifs-2111</code></td></tr>
+<tr><td>BL modifié</td><td>fenêtre, liste des BL, base, journal</td><td><code>test-modification-bl-fenetre-2111</code>, <code>test-modification-bl-journal-1911</code></td></tr>
+<tr><td>Règlements fournisseurs</td><td>sélection, parts, aperçu, base</td><td><code>test-reglements-historique-2111</code>, <code>test-reglements-fournisseurs-1911</code></td></tr>
+</table>
+
+<h2>Cohérence et bilan</h2>
+<ul>
+<li>Règle du numéro (cohérence) : sur 20 000 fiches tirées au hasard (graine fixe), le SMS est refusé si et seulement si aucun numéro mobile n'est retenu ; le numéro retenu a 10 chiffres ; le motif ne recopie jamais le numéro.</li>
+<li>Périmés : totaux du bas (stock, valeur d'achat, valeur de vente) = sommes de la base, lot par lot.</li>
+<li>Bilan avant / après : la modification d'un client ne touche que la fiche visée (l'autre client reste identique, les tiers payants et le taux de l'assuré sont gardés) ; un refus ne change rien en base ; les produits modifiés pour l'essai des périmés sont remis à l'identique, vérifié en base ; les clients d'essai sont supprimés par l'écran.</li>
+<li>Cas variés : deux clients standards aux valeurs différentes, un assuré à 80 %, nom effacé (refus) ; produit sans rayon, sans grossiste, sans famille ; filtre qui exclut, filtre qui inclut ; numéros au format local, international, avec espaces, fixes, étrangers, vides, adresses postales.</li>
+</ul>
+
+<h2>À savoir</h2>
+<div class="risque"><b>Défaut distinct relevé, non corrigé :</b> dans le PDF « Recherche périmés », la colonne CIP coupe les codes à 10 caractères
+(ex. 3990000017665 s'imprime 3990000017). Il existait avant ce lot. À traiter avec les impressions (le jrxml du poste prime sur celui du WAR).</div>
+<ul>
+<li>Le SMS n'a pas de test d'écran avec envoi : il partirait chez le fournisseur. Le contrôle et le numéro envoyé sont vérifiés par les tests unitaires.</li>
+<li><code>test-style-lots-0510</code> signale un débordement sur trois écrans (contrôle des BL, retours fournisseurs, ajustements), à l'identique sur l'ancien WAR : défaut antérieur, hors de ce lot.</li>
+<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (domain4 a été remis dans son état d'avant les essais et arrêté).</li>
+</ul>
+</body>
+</html>
