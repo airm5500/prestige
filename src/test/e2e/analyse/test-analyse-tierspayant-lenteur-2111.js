@@ -146,11 +146,15 @@ const MOIS = ['2026-10-01', '2026-10-31'], AN = ['2025-11-01', '2026-10-31'], SE
       if (r.totaux && (r.totaux.caTtc !== somme('caTtc') || r.totaux.marge !== somme('marge') || r.totaux.quantite !== somme('quantite'))) { ecartsP.push(JSON.stringify(c) + ' : totaux ' + JSON.stringify(r.totaux)); }
       if (attendu.length > 25) {
         const p2 = await api('produits?' + prm({ dtStart: c.d, dtEnd: c.f, tiersPayantId: c.tp || '', query: c.recherche || '', tri: c.tri || 'MARGE', groupeId: c.groupe || '', start: 25, limit: 25 }));
-        pagesOk = pagesOk && p2.total === attendu.length && (p2.data || []).length === Math.min(25, attendu.length - 25) && p2.totaux.caTtc === somme('caTtc');
+        const p1 = await api('produits?' + prm({ dtStart: c.d, dtEnd: c.f, tiersPayantId: c.tp || '', query: c.recherche || '', tri: c.tri || 'MARGE', groupeId: c.groupe || '', start: 0, limit: 25 }));
+        /* pages 1 et 2 = les 50 premieres lignes de la liste entiere, dans le meme ordre (ex aequo compris) */
+        const suite = (p1.data || []).concat(p2.data || []).map((x) => x.produitId).join(',');
+        pagesOk = pagesOk && p2.total === attendu.length && (p2.data || []).length === Math.min(25, attendu.length - 25) && p2.totaux.caTtc === somme('caTtc')
+          && suite === (r.data || []).slice(0, 50).map((x) => x.produitId).join(',');
       }
     }
     ok('Détail par produit = ancienne requête (10 cas : gros, moyen, petit, sans vente, tous, recherche, groupe, bornes inversées), totaux = somme', ecartsP.length === 0, ecartsP.slice(0, 3).join(' / '));
-    ok('Détail par pages : nombre total et totaux de toute la liste sur la page 2', pagesOk);
+    ok('Détail par pages : nombre total et totaux de toute la liste sur la page 2 ; pages 1 + 2 = début de la liste, même ordre', pagesOk);
     ok('Les deux chemins de lecture sont exercés (par la date, par le tiers payant)', chemins.has('date') && chemins.has('tiers payant'), [...chemins].join(', '));
 
     /* 3. ecran : periode de l'annee, liste, puis detail du gros tiers payant */

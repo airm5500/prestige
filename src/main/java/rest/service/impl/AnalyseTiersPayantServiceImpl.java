@@ -147,7 +147,10 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
         String sql = "SELECT tp.lg_TIERS_PAYANT_ID, tp.str_NAME,"
                 + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nb_ventes," + AGREGATS + lecture.source
                 + CONDITIONS_VENTES + " AND (?4 = '' OR tp.str_NAME LIKE ?5)" + FILTRE_GROUPE + lecture.restriction(7)
-                + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME" + ordreDeTri(tri);
+                + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME" + ordreDeTri(tri)
+                // Plan du 21/11 : ex aequo departages par le nom, l'ordre ne depend plus du chemin de lecture et reste
+                // le meme d'une page a l'autre, a l'ecran comme sur les exports.
+                + ", tp.str_NAME, tp.lg_TIERS_PAYANT_ID";
         Query query = em.createNativeQuery(sql);
         parametresCommuns(query, periode);
         query.setParameter(4, StringUtils.trimToEmpty(recherche));
@@ -201,7 +204,8 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
         String sql = "SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION," + AGREGATS + lecture.source
                 + CONDITIONS_VENTES + " AND (?4 = '' OR c.lg_TIERS_PAYANT_ID = ?4)"
                 + " AND (?5 = '' OR f.str_DESCRIPTION LIKE ?6 OR f.int_CIP LIKE ?6)" + FILTRE_GROUPE_7
-                + lecture.restriction(8) + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION" + ordreDeTri(tri);
+                + lecture.restriction(8) + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION" + ordreDeTri(tri)
+                + ", f.str_DESCRIPTION, f.lg_FAMILLE_ID";
         Query query = em.createNativeQuery(sql);
         parametresCommuns(query, periode);
         query.setParameter(4, tp);
