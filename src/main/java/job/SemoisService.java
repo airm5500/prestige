@@ -55,7 +55,7 @@ public class SemoisService {
 
     private static final String COUNT_QUERY = "SELECT COUNT(DISTINCT f.lg_FAMILLE_ID) AS  totalProduitsVendus FROM  t_preenregistrement p JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID=d.lg_FAMILLE_ID WHERE p.str_STATUT='is_Closed' AND p.int_PRICE> 0 AND DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 AND f.str_STATUT='enable'  AND p.lg_TYPE_VENTE_ID <> '5'";
     private static final String QUERY = "SELECT f.int_NUMBERDETAIL AS itemQuantity,SUM(d.int_QUANTITY) AS  totalQuantiteVendue,f.bool_DECONDITIONNE AS detail, f.bool_DECONDITIONNE_EXIST AS hasDetail,f.lg_FAMILLE_ID AS produitId,f.lg_FAMILLE_PARENT_ID AS parentId FROM  t_preenregistrement p JOIN t_preenregistrement_detail d ON "
-            + " p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID=d.lg_FAMILLE_ID WHERE p.str_STATUT='is_Closed' AND p.int_PRICE> 0 AND DATE(p.dt_UPDATED) BETWEEN ?1 AND  ?2 AND f.str_STATUT='enable'  AND p.lg_TYPE_VENTE_ID <> '5' GROUP BY f.lg_FAMILLE_ID ORDER BY f.str_NAME ASC";
+            + " p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID=d.lg_FAMILLE_ID WHERE p.str_STATUT='is_Closed' AND p.int_PRICE> 0 AND DATE(p.dt_UPDATED) BETWEEN ?1 AND  ?2 AND f.str_STATUT='enable'  AND p.lg_TYPE_VENTE_ID <> '5' GROUP BY f.lg_FAMILLE_ID ORDER BY f.str_NAME ASC, f.lg_FAMILLE_ID ASC";
 
     private TParameters findParameters(String key) {
         try {
@@ -254,12 +254,35 @@ public class SemoisService {
      * tout le catalogue a zero.
      */
     static List<String> produitsATraiter(java.util.Collection<String> vendus, java.util.Collection<String> actifs) {
-        if (!ventesLisibles(vendus)) {
+        return produitsATraiter(vendus, actifs, vendus == null ? null : new java.util.HashSet<>(vendus));
+    }
+
+    /**
+     * Meme liste, avec les produits vendus lus a part (lireProduitsVendus) : un produit actif n'est ajoute (donc remis
+     * a zero) que s'il n'y figure pas. Un produit vendu absent de la consommation (vendu seulement par un detail
+     * desactive) n'est pas traite et garde ses valeurs, comme avant.
+     */
+    static List<String> produitsATraiter(java.util.Collection<String> calcules, java.util.Collection<String> actifs,
+            Set<String> vendus) {
+        if (calcules == null || !ventesLisibles(vendus)) {
             return new ArrayList<>();
         }
-        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(vendus);
-        ids.addAll(actifs);
+        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(calcules);
+        for (String id : actifs) {
+            if (!vendus.contains(id)) {
+                ids.add(id);
+            }
+        }
         return new ArrayList<>(ids);
+    }
+
+    /** Mois du premier au dernier, bornes comprises (fenetre continue du SEMOIS standard). */
+    static List<LocalDate> moisContinus(LocalDate premier, LocalDate dernier) {
+        List<LocalDate> l = new ArrayList<>();
+        for (LocalDate m = premier.withDayOfMonth(1); !m.isAfter(dernier.withDayOfMonth(1)); m = m.plusMonths(1)) {
+            l.add(m);
+        }
+        return l;
     }
 
     /**
@@ -283,6 +306,49 @@ public class SemoisService {
      */
     static boolean ventesLisibles(java.util.Collection<String> vendus) {
         return vendus != null && !vendus.isEmpty();
+    }
+
+    /**
+     * Produits vendus sur les mois donnes, lus en une seule requete, sans pagination : la boite pour un detail
+     * deconditionne, et quel que soit le statut du produit de la ligne (un detail desactive protege sa boite). Memes
+     * ventes que le calcul (cloturees, montant positif, hors type 5). null si la lecture echoue. Seul ce resultat
+     * decide qu'un produit n'est pas vendu, donc remis a zero.
+     */
+    private Set<String> lireProduitsVendus(List<LocalDate> mois) {
+        if (mois == null || mois.isEmpty()) {
+            return null;
+        }
+        try {
+            StringBuilder in = new StringBuilder();
+            for (int i = 0; i < mois.size(); i++) {
+                in.append(i == 0 ? "" : ",").append('?').append(i + 3);
+            }
+            Query q = em.createNativeQuery(
+                    "SELECT DISTINCT CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL"
+                            + " AND f.lg_FAMILLE_PARENT_ID<>'' THEN f.lg_FAMILLE_PARENT_ID ELSE f.lg_FAMILLE_ID END"
+                            + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID"
+                            + " JOIN t_famille f ON f.lg_FAMILLE_ID=d.lg_FAMILLE_ID"
+                            + " WHERE p.str_STATUT='is_Closed' AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5'"
+                            + " AND DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 AND DATE_FORMAT(p.dt_UPDATED,'%Y-%m') IN ("
+                            + in + ")")
+                    .setFlushMode(javax.persistence.FlushModeType.COMMIT);
+            LocalDate premier = mois.get(0), dernier = mois.get(mois.size() - 1);
+            q.setParameter(1, premier.withDayOfMonth(1));
+            q.setParameter(2, dernier.withDayOfMonth(dernier.lengthOfMonth()));
+            for (int i = 0; i < mois.size(); i++) {
+                q.setParameter(i + 3, ymKey(mois.get(i)));
+            }
+            Set<String> r = new java.util.HashSet<>();
+            for (Object o : q.getResultList()) {
+                if (o != null) {
+                    r.add(o.toString());
+                }
+            }
+            return r;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return null;
+        }
     }
 
     /** Produits actifs hors details deconditionnes (ceux-ci sont comptes dans leur boite). */
@@ -417,10 +483,14 @@ public class SemoisService {
                 q3 = moisCouverts(nombreMois); // journal : « q3Mois » = mois reellement couverts par les ventes lues
             }
             int total = loadSemoisArticleCount(firstMouth, lastMouth);
-            // produits vendus dans la fenetre (simples, boites, parents des details vendus) : les autres actifs passent
-            // a zero ; une lecture en echec n'en remet aucun a zero
+            // produits vendus dans la fenetre (simples, boites, parents des details vendus), lus en une fois sans
+            // pagination : les autres actifs passent a zero ; une lecture en echec n'en remet aucun a zero
+            Set<String> vendusLus = lireProduitsVendus(moisContinus(firstMouth, last));
             Set<String> vendus = new java.util.HashSet<>();
-            boolean lectureComplete = total >= 0;
+            if (vendusLus != null) {
+                vendus.addAll(vendusLus);
+            }
+            boolean lectureComplete = total >= 0 && ventesLisibles(vendusLus);
             if (total < 0) {
                 total = 0; // comme avant : une page lue quand meme
             }
@@ -765,8 +835,10 @@ public class SemoisService {
             final boolean moisReels = isDiviseurMoisReels();
 
             // 4) Calcul + mise a jour par lots : produits vendus, puis produits actifs sans vente (seuil et qte a 0)
-            List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs());
-            if (!ventesLisibles(conso == null ? null : conso.keySet())) {
+            Set<String> vendus = lireProduitsVendus(moisAsc); // seulement les mois retenus
+            List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs(),
+                    vendus);
+            if (conso == null || !ventesLisibles(vendus)) {
                 LOG.log(Level.WARNING,
                         "semois : ventes illisibles ou absentes sur les mois retenus, aucun seuil modifie");
             }
@@ -864,8 +936,10 @@ public class SemoisService {
             final boolean moisReels = isDiviseurMoisReels();
 
             // produits vendus, puis produits actifs sans vente (seuil et qte a 0)
-            List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs());
-            if (!ventesLisibles(conso == null ? null : conso.keySet())) {
+            Set<String> vendus = lireProduitsVendus(moisAsc); // seulement les mois retenus
+            List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs(),
+                    vendus);
+            if (conso == null || !ventesLisibles(vendus)) {
                 LOG.log(Level.WARNING,
                         "semois : ventes illisibles ou absentes sur les mois retenus, aucun seuil modifie");
             }

@@ -246,3 +246,26 @@ Dans les deux cas, le serveur note au journal « ventes illisibles ou absentes s
 **Reste à savoir** : en cas de panne, l'écran affiche quand même « Recalcul des seuils terminé. Les seuils et
 quantités de réappro ont été mis à jour. » Le message ne dit pas que rien n'a été modifié ; seul le journal du serveur
 le note.
+
+## Contre-vérification de Codex (21/11) et corrections
+
+Codex a relu la branche (`e106e0a98`), en lecture seule. Quatre points confirmés :
+
+| Point de Codex | Suite |
+|---|---|
+| Standard : si le comptage ou une page échoue, les pages lues sont quand même écrites | Comportement inchangé depuis l'intégration ; les valeurs écrites sont justes, aucune remise à zéro n'en découle. Laissé en l'état. |
+| Standard : une page omise (libellés ex æquo, comptage changé entre deux lectures) ferait passer des produits vendus à 0 | Corrigé : les produits vendus sont lus à part, en une seule requête sans pagination ; seule cette liste décide qu'un produit n'est pas vendu. Le tri de la pagination est rendu stable (libellé puis identifiant). |
+| Boîte vendue seulement par un détail aujourd'hui désactivé : remise à 0 (aussi en ABC et par produit depuis le matin) | Corrigé : la lecture des vendus ne filtre pas sur le statut du produit de la ligne ; la boîte est vendue et garde ses valeurs. Reproduit sur `e106e0a98` (cas I, 5 boîtes à 0 dans les trois modes). |
+| ABC et par produit : ventes seulement dans un mois écarté (moins de 20 jours au calendrier) : le garde-fou laissait passer et tout passait à 0 | Corrigé : la lecture des vendus ne porte que sur les mois retenus. Reproduit sur `e106e0a98` (cas J, 11 244 fiches à 0). |
+
+**Tests** :
+- cohérence : `SemoisNonVendusCoherenceTest` 6 tests (dont 20 000 tirages, graine 2115 : un produit vendu n'est jamais
+  ajouté comme non vendu ; boîte vendue par un détail désactivé non traitée ; mois continus du standard) ; ne compile
+  pas sur l'ancien code ; unitaires SEMOIS 14/14 ;
+- écran `test-semois-panne-lecture.js` : cas I et J ajoutés dans les trois modes, avec leurs témoins (les autres non
+  vendus passent bien à 0 ; en standard, la fenêtre continue lit le mois du milieu comme avant) ;
+  `e106e0a98` 38/43, nouveau code 43/43 ;
+- `test-semois-seuils-moaye.js` 39/39 sur le nouveau code.
+
+La pagination omise n'a pas de test d'écran : elle n'est pas reproductible à la demande. La remise à zéro ne dépend plus
+de la pagination.

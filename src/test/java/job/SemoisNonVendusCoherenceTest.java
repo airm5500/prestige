@@ -93,6 +93,60 @@ class SemoisNonVendusCoherenceTest {
         assertTrue(sql.contains("NOT LIKE '%sans vente sur les mois retenus%'"), "rejouable sans doublon");
     }
 
+    /**
+     * ABC et par produit (contre-verification du 21/11) : seule la liste des vendus, lue a part sur les mois retenus,
+     * decide qu'un produit est remis a zero. Un produit vendu absent de la consommation (vendu seulement par un detail
+     * desactive) n'est pas traite ; aucune vente sur les mois retenus (meme avec des ventes dans un mois ecarte, donc
+     * une consommation non vide) : rien n'est traite.
+     */
+    @Test
+    void abcEtParProduitSeulsLesNonVendusSontAjoutes() {
+        Random r = new Random(2115);
+        for (int i = 0; i < 20000; i++) {
+            List<String> actifs = tirage(r, 1 + r.nextInt(50), "P");
+            List<String> calcules = tirage(r, r.nextInt(30), "P");
+            Set<String> vendus = new HashSet<>(tirage(r, r.nextInt(40), "P"));
+            if (r.nextInt(3) > 0) {
+                vendus.addAll(calcules); // en general la consommation est vendue ; parfois non (mois ecarte)
+            }
+            List<String> ids = SemoisService.produitsATraiter(calcules, actifs, vendus);
+            String cas = "calcules=" + calcules + " vendus=" + vendus + " actifs=" + actifs;
+            if (vendus.isEmpty()) {
+                assertTrue(ids.isEmpty(), "aucune vente sur les mois retenus : rien " + cas);
+                continue;
+            }
+            List<String> attendu = new ArrayList<>(new LinkedHashSet<>(calcules));
+            for (String a : new LinkedHashSet<>(actifs)) {
+                if (!vendus.contains(a) && !attendu.contains(a)) {
+                    attendu.add(a);
+                }
+            }
+            assertEquals(attendu, ids, cas);
+            /* un produit vendu ne vient jamais de la liste des actifs : il n'est traite que par sa consommation */
+            for (String id : ids) {
+                assertTrue(calcules.contains(id) || !vendus.contains(id),
+                        "vendu ajoute comme non vendu " + id + " " + cas);
+            }
+            assertTrue(SemoisService.produitsATraiter(null, actifs, vendus).isEmpty(), "consommation illisible " + cas);
+            assertTrue(SemoisService.produitsATraiter(calcules, actifs, null).isEmpty(), "vendus illisibles " + cas);
+        }
+        /* boite vendue seulement par un detail desactive : vendue, absente de la consommation, non traitee */
+        assertEquals(Arrays.asList("C"), SemoisService.produitsATraiter(Collections.emptyList(),
+                Arrays.asList("B", "C"), new HashSet<>(Collections.singletonList("B"))));
+    }
+
+    @Test
+    void moisContinusDuStandard() {
+        java.time.LocalDate d = java.time.LocalDate.of(2026, 8, 1);
+        assertEquals(Arrays.asList(d, d.plusMonths(1), d.plusMonths(2)),
+                SemoisService.moisContinus(d, java.time.LocalDate.of(2026, 10, 1)),
+                "aout a octobre, septembre compris");
+        assertEquals(Collections.singletonList(d), SemoisService.moisContinus(d, d));
+        assertEquals(Arrays.asList(java.time.LocalDate.of(2025, 12, 1), java.time.LocalDate.of(2026, 1, 1)),
+                SemoisService.moisContinus(java.time.LocalDate.of(2025, 12, 1), java.time.LocalDate.of(2026, 1, 1)),
+                "passage d'annee");
+    }
+
     @Test
     void abcEtParProduitLectureEnEchec() {
         Random r = new Random(2114);

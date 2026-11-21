@@ -14,6 +14,11 @@
  *     modifiee, aucune ligne d'historique, l'anomalie est notee au journal du serveur ;
  *  H. fenetre sans vente : la table est remplacee par une copie vide (lecture sans erreur, zero vente) ; meme resultat ;
  *  temoin : la table remise, un recalcul normal modifie bien les fiches (le parcours fonctionne) ;
+ *  I. boite vendue seulement par son detail deconditionne, detail desactive depuis : la boite garde ses valeurs (elle
+ *     est vendue), les autres non vendus passent bien a 0 (contre-verification Codex du 21/11) ;
+ *  J. mois du milieu ecarte au calendrier (moins de 20 jours) et ventes seulement dans ce mois : en ABC et par produit,
+ *     aucune vente sur les mois retenus, aucune fiche modifiee ; en standard, la fenetre continue lit ce mois, calcul
+ *     normal (inchange) ;
  *  bilan : table des lignes de vente remise (nom, nombre de lignes, empreinte), seuils, parametres et historique remis.
  * Lancement seul : node src/test/e2e/reappro/test-semois-panne-lecture.js
  */
@@ -36,7 +41,7 @@ const JOURNAUX = 'D:/prestige/reappro_logs';
 const LOG_SERVEUR = path.join('D:/payara5/payara5/glassfish/domains', process.env.PAYARA_DOMAINE || 'domain4', 'logs/server.log');
 const COLS_FAMILLE = q("SELECT GROUP_CONCAT(CONCAT('IFNULL(`', COLUMN_NAME, '`, ''~'')') ORDER BY ORDINAL_POSITION SEPARATOR ',') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_famille' AND COLUMN_NAME <> 'dt_UPDATED'");
 const EMPREINTE = () => q(`SELECT CONCAT(COUNT(*), ':', SUM(CRC32(CONCAT_WS('|', ${COLS_FAMILLE})))) FROM t_famille`) + ','
-  + q('CHECKSUM TABLE t_parameters, t_famille_history').split('\n').map((l) => l.split('\t')[1]).join(',');
+  + q('CHECKSUM TABLE t_parameters, t_calendrier, t_famille_history').split('\n').map((l) => l.split('\t')[1]).join(',');
 const EMPREINTE_DETAIL = () => q(`SELECT COUNT(*) FROM ${DETAIL}`) + ':' + q(`CHECKSUM TABLE ${DETAIL}`).split('\t')[1];
 const PARAMETRES = () => new Map(lignes("SELECT str_KEY, CONCAT_WS('|', str_VALUE, dt_UPDATED, str_STATUT) FROM t_parameters"));
 const existe = (t) => q(`SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${t}'`) === '1';
@@ -45,7 +50,9 @@ function sauvegarder() {
   if (existe(SAUV)) { restaurer(); }
   q(`CREATE TABLE ${SAUV} AS SELECT lg_FAMILLE_ID, int_SEUIL_MIN, int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT FROM t_famille;
     ALTER TABLE ${SAUV} ADD PRIMARY KEY (lg_FAMILLE_ID);
-    CREATE TABLE ${SAUV}_p AS SELECT * FROM t_parameters WHERE str_KEY IN (${PARAMS.map((x) => `'${x}'`).join(',')});`);
+    CREATE TABLE ${SAUV}_p AS SELECT * FROM t_parameters WHERE str_KEY IN (${PARAMS.map((x) => `'${x}'`).join(',')});
+    CREATE TABLE ${SAUV}_c AS SELECT * FROM t_calendrier;
+    CREATE TABLE ${SAUV}_s AS SELECT lg_FAMILLE_ID, str_STATUT FROM t_famille WHERE bool_DECONDITIONNE = 1;`);
 }
 function remettreTable() {
   /* la vraie table est toujours remise sous son nom, meme si le test s'arrete en route */
@@ -59,7 +66,9 @@ function restaurer() {
   q(`UPDATE t_famille f JOIN ${SAUV} s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID SET f.int_SEUIL_MIN = s.int_SEUIL_MIN,
       f.int_STOCK_REAPROVISONEMENT = s.int_STOCK_REAPROVISONEMENT, f.int_QTE_REAPPROVISIONNEMENT = s.int_QTE_REAPPROVISIONNEMENT;
     DELETE FROM t_parameters WHERE str_KEY IN (${PARAMS.map((x) => `'${x}'`).join(',')}); INSERT INTO t_parameters SELECT * FROM ${SAUV}_p;
-    DROP TABLE ${SAUV}; DROP TABLE ${SAUV}_p;`);
+    DELETE FROM t_calendrier; INSERT INTO t_calendrier SELECT * FROM ${SAUV}_c;
+    UPDATE t_famille f JOIN ${SAUV}_s s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID SET f.str_STATUT = s.str_STATUT WHERE NOT (f.str_STATUT <=> s.str_STATUT);
+    DROP TABLE ${SAUV}; DROP TABLE ${SAUV}_p; DROP TABLE ${SAUV}_c; DROP TABLE ${SAUV}_s;`);
 }
 const param = (k, v) => q(`UPDATE t_parameters SET str_VALUE = '${v}' WHERE str_KEY = '${k}'`);
 const reprise = () => q(`UPDATE t_famille SET int_SEUIL_MIN = 100, int_STOCK_REAPROVISONEMENT = 100, int_QTE_REAPPROVISIONNEMENT = 1 WHERE str_STATUT = 'enable'`);
@@ -80,6 +89,22 @@ async function recalculer(p, nom) {
   ok(nom + ' : recalcul lancé par le bouton, message de fin affiché', !!msg, msg);
 }
 
+/* mois de la fenetre : les trois mois pleins precedant le mois en cours */
+const moisAvant = (n) => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - n); return d.toISOString().slice(0, 7); };
+const FENETRE = [moisAvant(3), moisAvant(2), moisAvant(1)];
+const MILIEU = FENETRE[1];
+const ventesDe = (alias) => `${alias}.str_STATUT = 'is_Closed' AND ${alias}.int_PRICE > 0 AND ${alias}.lg_TYPE_VENTE_ID <> '5'`;
+/* boites actives vendues seulement par un detail (dans la fenetre), sans vente directe */
+const boitesParDetail = () => lignes(`SELECT b.lg_FAMILLE_ID, GROUP_CONCAT(DISTINCT dt.lg_FAMILLE_ID) FROM t_famille b
+    JOIN t_famille dt ON dt.lg_FAMILLE_PARENT_ID = b.lg_FAMILLE_ID AND dt.bool_DECONDITIONNE = 1 AND dt.str_STATUT = 'enable'
+    WHERE b.str_STATUT = 'enable' AND IFNULL(b.bool_DECONDITIONNE, 0) = 0 AND IFNULL(b.bool_CALCUL_SEUIL, 1) = 1
+      AND EXISTS (SELECT 1 FROM ${DETAIL} d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID
+        WHERE d.lg_FAMILLE_ID = dt.lg_FAMILLE_ID AND ${ventesDe('p')} AND p.dt_UPDATED >= '${FENETRE[2]}-01' AND p.dt_UPDATED < DATE_ADD('${FENETRE[2]}-01', INTERVAL 1 MONTH))
+      AND NOT EXISTS (SELECT 1 FROM ${DETAIL} d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID
+        WHERE d.lg_FAMILLE_ID = b.lg_FAMILLE_ID AND p.dt_UPDATED >= '${FENETRE[0]}-01' AND p.dt_UPDATED < DATE_ADD('${FENETRE[2]}-01', INTERVAL 1 MONTH))
+    GROUP BY b.lg_FAMILLE_ID LIMIT 5`);
+const valeurs = (ids) => lignes(`SELECT lg_FAMILLE_ID, CONCAT_WS('/', int_SEUIL_MIN, int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT) FROM t_famille WHERE lg_FAMILLE_ID IN (${ids.map((x) => `'${x}'`).join(',')})`);
+
 const MODES = [['standard', 0, 0], ['ABC', 1, 0], ['par produit', 0, 1]];
 
 (async () => {
@@ -92,6 +117,11 @@ const MODES = [['standard', 0, 0], ['ABC', 1, 0], ['par produit', 0, 1]];
   const vendus = +q(`SELECT COUNT(DISTINCT d.lg_FAMILLE_ID) FROM t_preenregistrement p JOIN ${DETAIL} d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID
     WHERE p.str_STATUT = 'is_Closed' AND p.dt_UPDATED >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 3 MONTH)`);
   ok('Jeu d\'essai : produits actifs et ventes sur les trois derniers mois', actifs > 1000 && vendus > 100, actifs + ' actifs, ' + vendus + ' produits vendus');
+  const boites = boitesParDetail();
+  const calOk = q(`SELECT COUNT(DISTINCT DATE_FORMAT(dt_day, '%Y-%m')) FROM t_calendrier WHERE int_NUMBER_JOUR >= 20 AND DATE_FORMAT(dt_day, '%Y-%m') IN ('${FENETRE.join("','")}')`);
+  const ventesMilieu = q(`SELECT COUNT(*) FROM ${DETAIL} d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE ${ventesDe('p')} AND DATE_FORMAT(p.dt_UPDATED, '%Y-%m') = '${MILIEU}'`);
+  ok('Jeu d\'essai : boîtes vendues seulement par leur détail, trois mois retenus au calendrier, ventes en ' + MILIEU, boites.length >= 3 && calOk === '3' && +ventesMilieu > 1000,
+    boites.length + ' boîtes, ' + calOk + ' mois retenus, ' + ventesMilieu + ' lignes vendues en ' + MILIEU);
 
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
@@ -131,6 +161,36 @@ const MODES = [['standard', 0, 0], ['ABC', 1, 0], ['par produit', 0, 1]];
       await recalculer(p, 'Témoin ' + mode);
       changes = +nonReprise();
       ok('Témoin ' + mode + ' : table remise, le recalcul modifie bien les fiches', changes > 100, changes + ' fiches modifiées');
+
+      /* I. boites vendues seulement par un detail, desactive depuis : vendues, elles gardent leurs valeurs */
+      reprise();
+      const idsBoites = boites.map((x) => x[0]), idsDetails = boites.map((x) => x[1]).join(',').split(',');
+      q(`UPDATE t_famille SET str_STATUT = 'disable' WHERE lg_FAMILLE_ID IN (${idsDetails.map((x) => `'${x}'`).join(',')})`);
+      try { await recalculer(p, 'I. ' + mode + ', détail désactivé'); } finally {
+        q(`UPDATE t_famille f JOIN ${SAUV}_s s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID SET f.str_STATUT = s.str_STATUT WHERE f.lg_FAMILLE_ID IN (${idsDetails.map((x) => `'${x}'`).join(',')})`);
+      }
+      const vb = valeurs(idsBoites), aZero = vb.filter(([, v]) => v === '0/0/0');
+      ok('I. ' + mode + ' : ' + idsBoites.length + ' boîtes vendues seulement par un détail désactivé, jamais remises à 0', vb.length === idsBoites.length && aZero.length === 0,
+        vb.map(([id, v]) => id.slice(-6) + ' ' + v).join(' ; '));
+      const zeros = +q(`SELECT COUNT(*) FROM t_famille WHERE str_STATUT = 'enable' AND IFNULL(bool_DECONDITIONNE, 0) = 0 AND int_SEUIL_MIN = 0 AND int_QTE_REAPPROVISIONNEMENT = 0`);
+      ok('I. ' + mode + ' : les autres produits non vendus passent bien à 0', zeros > 100, zeros + ' produits à 0');
+
+      /* J. mois du milieu ecarte, ventes seulement dans ce mois */
+      reprise();
+      h = q('SELECT IFNULL(MAX(lg_ID), 0) FROM t_famille_history');
+      q(`UPDATE t_calendrier SET int_NUMBER_JOUR = 5 WHERE DATE_FORMAT(dt_day, '%Y-%m') = '${MILIEU}';
+         RENAME TABLE ${DETAIL} TO ${CACHEE}; CREATE TABLE ${DETAIL} LIKE ${CACHEE};
+         INSERT INTO ${DETAIL} SELECT d.* FROM ${CACHEE} d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE DATE_FORMAT(p.dt_UPDATED, '%Y-%m') = '${MILIEU}';`);
+      try { await recalculer(p, 'J. ' + mode + ', ventes seulement dans le mois écarté'); } finally {
+        remettreTable();
+        q(`UPDATE t_calendrier t JOIN ${SAUV}_c s ON s.lg_CALENDRIER_ID = t.lg_CALENDRIER_ID SET t.int_NUMBER_JOUR = s.int_NUMBER_JOUR`);
+      }
+      changes = +nonReprise(); histo = q('SELECT COUNT(*) FROM t_famille_history WHERE lg_ID > ' + h);
+      if (mode === 'standard') {
+        ok('J. standard : la fenêtre continue lit le mois du milieu, calcul normal (inchangé)', changes > 100, changes + ' fiches modifiées');
+      } else {
+        ok('J. ' + mode + ' : aucune vente sur les mois retenus, aucune fiche modifiée, aucune ligne d\'historique', changes === 0 && histo === '0', changes + ' fiches modifiées, ' + histo + ' lignes d\'historique');
+      }
     }
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);
