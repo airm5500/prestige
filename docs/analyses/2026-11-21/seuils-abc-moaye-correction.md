@@ -269,3 +269,19 @@ Codex a relu la branche (`e106e0a98`), en lecture seule. Quatre points confirmé
 
 La pagination omise n'a pas de test d'écran : elle n'est pas reproductible à la demande. La remise à zéro ne dépend plus
 de la pagination.
+
+## Seconde contre-vérification de Codex (21/11)
+
+Codex confirme les corrections des points 2 à 4. Il relève cinq cas restants :
+
+| Point | Suite |
+|---|---|
+| ABC : boîte vendue par un détail désactivé et, en plus, vendue en direct dans un mois écarté | Le zéro vient du calcul ordinaire (sa consommation ne compte pas le détail désactivé), comme dans l'intégration et avant elle. Cas très marginal, laissé. |
+| Page vide, consommation vide ; calendrier illisible pour un mois | Une page ou une consommation vide ne décide plus d'aucune remise à zéro (seule la liste des vendus décide). **Corrigé** pour le calendrier : une erreur de lecture (autre que « mois sous 20 jours ») arrête le calcul sans rien modifier, dans les trois modes (cas K). |
+| Vente enregistrée entre la lecture et l'écriture | Elle tombe dans le mois en cours, jamais dans la fenêtre. Sans effet. |
+| Le tri ajouté change le détail retenu quand deux détails homonymes ont la même boîte | **Corrigé** : tri remis comme dans l'intégration ; la remise à zéro ne dépend plus de la pagination. |
+| ABC et par produit : si la nouvelle lecture des vendus échoue, les produits vendus ne sont plus recalculés | **Corrigé** : la consommation lue est recalculée comme avant, aucun produit n'est ajouté à zéro ; le journal le note. |
+
+**Tests** : unitaires SEMOIS 14/14 ; `test-semois-panne-lecture.js` 52/52 (cas K ajouté ; sur `4afc98b85`, 49/52 : seul le
+contrôle du journal du cas K échoue, une panne totale du calendrier n'y modifiait déjà rien, la panne d'un seul mois ne
+se provoque pas à la demande) ; `test-semois-seuils-moaye.js` 39/39.

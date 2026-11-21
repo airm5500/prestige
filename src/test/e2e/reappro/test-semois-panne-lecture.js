@@ -19,6 +19,8 @@
  *  J. mois du milieu ecarte au calendrier (moins de 20 jours) et ventes seulement dans ce mois : en ABC et par produit,
  *     aucune vente sur les mois retenus, aucune fiche modifiee ; en standard, la fenetre continue lit ce mois, calcul
  *     normal (inchange) ;
+ *  K. calendrier illisible (table renommee pendant le recalcul) : aucune fiche modifiee, anomalie au journal du serveur
+ *     (seconde contre-verification Codex : un mois perdu a la lecture du calendrier faussait la fenetre) ;
  *  bilan : table des lignes de vente remise (nom, nombre de lignes, empreinte), seuils, parametres et historique remis.
  * Lancement seul : node src/test/e2e/reappro/test-semois-panne-lecture.js
  */
@@ -35,6 +37,8 @@ const lignes = (s) => { const t = q(s); return t ? t.split('\n').map((l) => l.sp
 const SAUV = 'e2e_semois_panne';
 const DETAIL = 't_preenregistrement_detail';
 const CACHEE = 'e2e_semois_detail_cache';
+const CAL = 't_calendrier';
+const CAL_CACHE = 'e2e_semois_calendrier_cache';
 const PARAMS = ['SEMOIS', 'SEMOIS_ABC', 'SEMOIS_PAR_PRODUIT', 'SEMOIS_DIVISEUR_MOIS_REELS', 'KEY_DAY_SEUIL_REAPPRO'];
 const AUJ = new Date().toISOString().slice(0, 10);
 const JOURNAUX = 'D:/prestige/reappro_logs';
@@ -55,7 +59,8 @@ function sauvegarder() {
     CREATE TABLE ${SAUV}_s AS SELECT lg_FAMILLE_ID, str_STATUT FROM t_famille WHERE bool_DECONDITIONNE = 1;`);
 }
 function remettreTable() {
-  /* la vraie table est toujours remise sous son nom, meme si le test s'arrete en route */
+  /* les vraies tables sont toujours remises sous leur nom, meme si le test s'arrete en route */
+  if (existe(CAL_CACHE)) { q(`RENAME TABLE ${CAL_CACHE} TO ${CAL}`); }
   if (existe(CACHEE)) {
     if (existe(DETAIL)) { q(`DROP TABLE ${DETAIL}`); } // copie vide du cas H
     q(`RENAME TABLE ${CACHEE} TO ${DETAIL}`);
@@ -186,6 +191,17 @@ const MODES = [['standard', 0, 0], ['ABC', 1, 0], ['par produit', 0, 1]];
         q(`UPDATE t_calendrier t JOIN ${SAUV}_c s ON s.lg_CALENDRIER_ID = t.lg_CALENDRIER_ID SET t.int_NUMBER_JOUR = s.int_NUMBER_JOUR`);
       }
       changes = +nonReprise(); histo = q('SELECT COUNT(*) FROM t_famille_history WHERE lg_ID > ' + h);
+      /* K. calendrier illisible pendant le recalcul */
+      reprise();
+      h = q('SELECT IFNULL(MAX(lg_ID), 0) FROM t_famille_history'); pos = tailleLog();
+      const changesJ = changes, histoJ = histo;
+      q(`RENAME TABLE ${CAL} TO ${CAL_CACHE}`);
+      try { await recalculer(p, 'K. ' + mode + ', calendrier illisible'); } finally { remettreTable(); }
+      const changesK = nonReprise(), histoK = q('SELECT COUNT(*) FROM t_famille_history WHERE lg_ID > ' + h);
+      ok('K. ' + mode + ', calendrier illisible : aucune fiche modifiée, aucune ligne d\'historique', changesK === '0' && histoK === '0', changesK + ' fiches modifiées, ' + histoK + ' lignes d\'historique');
+      log = logDepuis(pos);
+      ok('K. ' + mode + ' : l\'anomalie est notée au journal du serveur', /calendrier illisible, aucun seuil modifie/.test(log), (log.match(/semois[^\n]*calendrier[^\n]*/) || ['(aucune ligne)'])[0]);
+      changes = changesJ; histo = histoJ;
       if (mode === 'standard') {
         ok('J. standard : la fenêtre continue lit le mois du milieu, calcul normal (inchangé)', changes > 100, changes + ' fiches modifiées');
       } else {

@@ -128,7 +128,9 @@ class SemoisNonVendusCoherenceTest {
                         "vendu ajoute comme non vendu " + id + " " + cas);
             }
             assertTrue(SemoisService.produitsATraiter(null, actifs, vendus).isEmpty(), "consommation illisible " + cas);
-            assertTrue(SemoisService.produitsATraiter(calcules, actifs, null).isEmpty(), "vendus illisibles " + cas);
+            assertEquals(new ArrayList<>(new LinkedHashSet<>(calcules)),
+                    SemoisService.produitsATraiter(calcules, actifs, null),
+                    "liste des vendus illisible : consommation lue recalculee comme avant, aucun actif ajoute " + cas);
         }
         /* boite vendue seulement par un detail desactive : vendue, absente de la consommation, non traitee */
         assertEquals(Arrays.asList("C"), SemoisService.produitsATraiter(Collections.emptyList(),

@@ -55,7 +55,7 @@ public class SemoisService {
 
     private static final String COUNT_QUERY = "SELECT COUNT(DISTINCT f.lg_FAMILLE_ID) AS  totalProduitsVendus FROM  t_preenregistrement p JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID=d.lg_FAMILLE_ID WHERE p.str_STATUT='is_Closed' AND p.int_PRICE> 0 AND DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 AND f.str_STATUT='enable'  AND p.lg_TYPE_VENTE_ID <> '5'";
     private static final String QUERY = "SELECT f.int_NUMBERDETAIL AS itemQuantity,SUM(d.int_QUANTITY) AS  totalQuantiteVendue,f.bool_DECONDITIONNE AS detail, f.bool_DECONDITIONNE_EXIST AS hasDetail,f.lg_FAMILLE_ID AS produitId,f.lg_FAMILLE_PARENT_ID AS parentId FROM  t_preenregistrement p JOIN t_preenregistrement_detail d ON "
-            + " p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID=d.lg_FAMILLE_ID WHERE p.str_STATUT='is_Closed' AND p.int_PRICE> 0 AND DATE(p.dt_UPDATED) BETWEEN ?1 AND  ?2 AND f.str_STATUT='enable'  AND p.lg_TYPE_VENTE_ID <> '5' GROUP BY f.lg_FAMILLE_ID ORDER BY f.str_NAME ASC, f.lg_FAMILLE_ID ASC";
+            + " p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID=d.lg_FAMILLE_ID WHERE p.str_STATUT='is_Closed' AND p.int_PRICE> 0 AND DATE(p.dt_UPDATED) BETWEEN ?1 AND  ?2 AND f.str_STATUT='enable'  AND p.lg_TYPE_VENTE_ID <> '5' GROUP BY f.lg_FAMILLE_ID ORDER BY f.str_NAME ASC";
 
     private TParameters findParameters(String key) {
         try {
@@ -66,6 +66,9 @@ public class SemoisService {
         }
     }
 
+    /**
+     * Mois pleins retenus (au moins 20 jours d'activite) ; null si le calendrier est illisible : rien n'est calcule.
+     */
     private List<LocalDate> nombreMoisPleinsConsommation(int nombre) {
         LocalDate now = LocalDate.now();
         List<LocalDate> nombreMois = new ArrayList<>();
@@ -83,8 +86,12 @@ public class SemoisService {
                 if (calendrier != null) {
                     nombreMois.add(LocalDate.of(calendrier.getDtDay().getYear(), calendrier.getDtDay().getMonth(), 1));
                 }
+            } catch (javax.persistence.NoResultException e) {
+                // mois de moins de 20 jours d'activite : ecarte, cas normal
             } catch (Exception e) {
+                // calendrier illisible : la fenetre serait faussee (un mois perdu rendrait ses produits « non vendus »)
                 LOG.log(Level.SEVERE, null, e);
+                return null;
             }
 
         }
@@ -264,10 +271,15 @@ public class SemoisService {
      */
     static List<String> produitsATraiter(java.util.Collection<String> calcules, java.util.Collection<String> actifs,
             Set<String> vendus) {
-        if (calcules == null || !ventesLisibles(vendus)) {
+        if (calcules == null || (vendus != null && vendus.isEmpty())) {
+            // consommation illisible, ou aucune vente sur les mois retenus : rien
             return new ArrayList<>();
         }
         java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(calcules);
+        if (vendus == null) {
+            // liste des vendus illisible : la consommation lue est recalculee comme avant, aucun produit ajoute a zero
+            return new ArrayList<>(ids);
+        }
         for (String id : actifs) {
             if (!vendus.contains(id)) {
                 ids.add(id);
@@ -469,7 +481,12 @@ public class SemoisService {
         if (p3 != null) {
             q3 = Integer.parseInt(p3.getStrVALUE().trim());
         }
-        List<LocalDate> nombreMois = nombreMoisPleinsConsommation(q3).stream().sorted().collect(Collectors.toList());
+        List<LocalDate> moisLus = nombreMoisPleinsConsommation(q3);
+        if (moisLus == null) {
+            LOG.log(Level.WARNING, "semois standard : calendrier illisible, aucun seuil modifie");
+            return;
+        }
+        List<LocalDate> nombreMois = moisLus.stream().sorted().collect(Collectors.toList());
 
         if (!nombreMois.isEmpty()) {
             LocalDate firstMouth = nombreMois.get(0);
@@ -817,8 +834,12 @@ public class SemoisService {
             }
 
             // 2) Fenetre de mois pleins (ordonnee du plus ancien au plus recent)
-            List<LocalDate> moisAsc = nombreMoisPleinsConsommation(maxQ3).stream().sorted()
-                    .collect(Collectors.toList());
+            List<LocalDate> moisLus = nombreMoisPleinsConsommation(maxQ3);
+            if (moisLus == null) {
+                LOG.log(Level.WARNING, "semois : calendrier illisible, aucun seuil modifie");
+                return;
+            }
+            List<LocalDate> moisAsc = moisLus.stream().sorted().collect(Collectors.toList());
             if (moisAsc.isEmpty()) {
                 return;
             }
@@ -838,9 +859,12 @@ public class SemoisService {
             Set<String> vendus = lireProduitsVendus(moisAsc); // seulement les mois retenus
             List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs(),
                     vendus);
-            if (conso == null || !ventesLisibles(vendus)) {
+            if (conso == null || (vendus != null && vendus.isEmpty())) {
                 LOG.log(Level.WARNING,
                         "semois : ventes illisibles ou absentes sur les mois retenus, aucun seuil modifie");
+            } else if (vendus == null) {
+                LOG.log(Level.WARNING,
+                        "semois : liste des produits vendus illisible, produits vendus recalcules, aucun produit remis a zero");
             }
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
@@ -920,7 +944,12 @@ public class SemoisService {
                 gq3 = 3;
             }
 
-            List<LocalDate> moisAsc = nombreMoisPleinsConsommation(gq3).stream().sorted().collect(Collectors.toList());
+            List<LocalDate> moisLus = nombreMoisPleinsConsommation(gq3);
+            if (moisLus == null) {
+                LOG.log(Level.WARNING, "semois : calendrier illisible, aucun seuil modifie");
+                return;
+            }
+            List<LocalDate> moisAsc = moisLus.stream().sorted().collect(Collectors.toList());
             if (moisAsc.isEmpty()) {
                 return;
             }
@@ -939,9 +968,12 @@ public class SemoisService {
             Set<String> vendus = lireProduitsVendus(moisAsc); // seulement les mois retenus
             List<String> produitIds = produitsATraiter(conso == null ? null : conso.keySet(), loadProduitsActifs(),
                     vendus);
-            if (conso == null || !ventesLisibles(vendus)) {
+            if (conso == null || (vendus != null && vendus.isEmpty())) {
                 LOG.log(Level.WARNING,
                         "semois : ventes illisibles ou absentes sur les mois retenus, aucun seuil modifie");
+            } else if (vendus == null) {
+                LOG.log(Level.WARNING,
+                        "semois : liste des produits vendus illisible, produits vendus recalcules, aucun produit remis a zero");
             }
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
