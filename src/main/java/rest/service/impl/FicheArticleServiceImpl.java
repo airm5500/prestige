@@ -135,18 +135,96 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     @Override
     public JSONObject produitPerimes(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
             String codeRayon, String codeGrossiste, int start, int limit) throws JSONException {
-        Pair<commonTasks.dto.LotDTO, List<commonTasks.dto.LotDTO>> p = produitPerimes(query, nbreMois, dtStart, dtEnd,
-                codeFamile, codeRayon, codeGrossiste, start, limit, false);
-        List<commonTasks.dto.LotDTO> data = p.getRight();
-        return new JSONObject()
-                .put("total",
-                        produitPerimesCount(query, nbreMois, dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste,
-                                sessionHelperService.getCurrentUser().getLgEMPLACEMENTID()))
-                .put("data", new JSONArray(data)).put("metaData", new JSONObject(p.getLeft()));
+        /*
+         * Plan du 21/11, point 17 : nombre et totaux lus en une seule passe (ils etaient lus par deux requetes), puis
+         * la page, seulement s'il y a des lots. Memes conditions, memes valeurs.
+         */
+        TEmplacement emp = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+        long total = 0;
+        commonTasks.dto.LotDTO totaux = null;
+        try {
+            Object[] agregats = agregatsPerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamile, codeRayon,
+                    codeGrossiste);
+            total = agregats[0] == null ? 0L : ((Number) agregats[0]).longValue();
+            totaux = new commonTasks.dto.LotDTO(entierLong(agregats[1]), entierLong(agregats[2]),
+                    entierLong(agregats[3]));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitPerimes", e);
+        }
+        List<commonTasks.dto.LotDTO> data = Collections.emptyList();
+        if (total > 0) {
+            try {
+                data = listePerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamile, codeRayon, codeGrossiste, start,
+                        limit, false);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "produitPerimes", e);
+            }
+        }
+        commonTasks.dto.LotDTO metaData = data.isEmpty() || totaux == null ? new commonTasks.dto.LotDTO() : totaux;
+        return new JSONObject().put("total", total).put("data", new JSONArray(data)).put("metaData",
+                new JSONObject(metaData));
     }
 
-    private commonTasks.dto.LotDTO produitPerimes(String query, int nbreMois, String dtStart, String dtEnd,
-            TEmplacement emp, String codeFamille, String codeRayon, String codeGrossiste) throws Exception {
+    private static Long entierLong(Object valeur) {
+        return valeur == null ? null : ((Number) valeur).longValue();
+    }
+
+    /**
+     * Nombre de lots perimes et totaux (stock, valeur d'achat, valeur de vente) en une seule lecture : le compte, puis
+     * les trois sommes de l'ancienne requete des totaux.
+     */
+    private Object[] agregatsPerimes(String query, int nbreMois, String dtStart, String dtEnd, TEmplacement emp,
+            String codeFamille, String codeRayon, String codeGrossiste) {
+        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
+        Root<TLot> root = cq.from(TLot.class);
+        Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
+        Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
+        Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                javax.persistence.criteria.JoinType.LEFT);
+        List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query, nbreMois,
+                dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
+        cq.multiselect(cb.count(root), cb.sum(root.get(TLot_.currentStock)),
+                cb.sum(cb.prod(root.get(TLot_.currentStock), joinLot.get(TFamille_.intPAF))),
+                cb.sum(cb.prod(root.get(TLot_.currentStock), joinLot.get(TFamille_.intPRICE))));
+        cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+        OrdreLectureVentes.activerLots();
+        try {
+            return getEntityManager().createQuery(cq).getSingleResult();
+        } finally {
+            OrdreLectureVentes.desactiverLots();
+        }
+    }
+
+    @Override
+    public Pair<commonTasks.dto.LotDTO, List<commonTasks.dto.LotDTO>> produitPerimes(String query, int nbreMois,
+            String dtStart, String dtEnd, String codeFamille, String codeRayon, String codeGrossiste, int start,
+            int limit, boolean all) {
+        try {
+            TEmplacement emp = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+            List<commonTasks.dto.LotDTO> l = listePerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamille, codeRayon,
+                    codeGrossiste, start, limit, all);
+            if (l.isEmpty()) {
+                return Pair.of(new commonTasks.dto.LotDTO(), Collections.emptyList());
+            }
+            Object[] agregats = agregatsPerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamille, codeRayon,
+                    codeGrossiste);
+            return Pair.of(new commonTasks.dto.LotDTO(entierLong(agregats[1]), entierLong(agregats[2]),
+                    entierLong(agregats[3])), l);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitPerimes", e);
+            return Pair.of(new commonTasks.dto.LotDTO(), Collections.emptyList());
+        }
+    }
+
+    /** Lots perimes, tries par rayon puis par date de peremption ; une page, ou tous (all). */
+    private List<commonTasks.dto.LotDTO> listePerimes(String query, int nbreMois, String dtStart, String dtEnd,
+            TEmplacement emp, String codeFamille, String codeRayon, String codeGrossiste, int start, int limit,
+            boolean all) {
         CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
         CriteriaQuery<commonTasks.dto.LotDTO> cq = cb.createQuery(commonTasks.dto.LotDTO.class);
         Root<TLot> root = cq.from(TLot.class);
@@ -161,66 +239,29 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
         List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query, nbreMois,
                 dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
-        cq.select(cb.construct(commonTasks.dto.LotDTO.class, cb.sum(root.get(TLot_.currentStock)),
-                cb.sum(cb.prod(root.get(TLot_.currentStock), joinLot.get(TFamille_.intPAF))),
-                cb.sum(cb.prod(root.get(TLot_.currentStock), joinLot.get(TFamille_.intPRICE)))));
+        cq.select(cb.construct(commonTasks.dto.LotDTO.class, root.get(TLot_.lgLOTID), joinLot.get(TFamille_.intCIP),
+                // plan du 21/11, point 17 : produit sans famille, rayon ou grossiste, liste quand meme
+                cb.coalesce(joinFa.get(TFamillearticle_.strLIBELLE), "(sans famille)"),
+                cb.coalesce(joinFaz.get(TZoneGeographique_.strLIBELLEE), "(sans rayon)"),
+                joinLot.get(TFamille_.strNAME), root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION),
+                cb.coalesce(joinFaG.get(TGrossiste_.strLIBELLE), "(sans grossiste)"), root.get(TLot_.intNUMBER),
+                cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
+                cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE)), root.get(TLot_.currentStock)))
+
+                .orderBy(cb.asc(joinFaz.get(TZoneGeographique_.strLIBELLEE)), cb.asc(root.get(TLot_.dtPEREMPTION)));
+
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-        TypedQuery<commonTasks.dto.LotDTO> q = getEntityManager().createQuery(cq);
-        q.setMaxResults(1);
-        return q.getSingleResult();
-
-    }
-
-    @Override
-    public Pair<commonTasks.dto.LotDTO, List<commonTasks.dto.LotDTO>> produitPerimes(String query, int nbreMois,
-            String dtStart, String dtEnd, String codeFamille, String codeRayon, String codeGrossiste, int start,
-            int limit, boolean all) {
-        try {
-            TEmplacement emp = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<commonTasks.dto.LotDTO> cq = cb.createQuery(commonTasks.dto.LotDTO.class);
-            Root<TLot> root = cq.from(TLot.class);
-            Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
-            Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
-                    javax.persistence.criteria.JoinType.LEFT);
-            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
-                    javax.persistence.criteria.JoinType.LEFT);
-            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
-                    javax.persistence.criteria.JoinType.LEFT);
-
-            List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
-                    nbreMois, dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
-            cq.select(cb.construct(commonTasks.dto.LotDTO.class, root.get(TLot_.lgLOTID), joinLot.get(TFamille_.intCIP),
-                    // plan du 21/11, point 17 : produit sans famille, rayon ou grossiste, liste quand meme
-                    cb.coalesce(joinFa.get(TFamillearticle_.strLIBELLE), "(sans famille)"),
-                    cb.coalesce(joinFaz.get(TZoneGeographique_.strLIBELLEE), "(sans rayon)"),
-                    joinLot.get(TFamille_.strNAME), root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION),
-                    cb.coalesce(joinFaG.get(TGrossiste_.strLIBELLE), "(sans grossiste)"), root.get(TLot_.intNUMBER),
-                    cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
-                    cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE)), root.get(TLot_.currentStock)))
-
-                    .orderBy(cb.asc(joinFaz.get(TZoneGeographique_.strLIBELLEE)), cb.asc(root.get(TLot_.dtPEREMPTION)));
-
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            Query q = getEntityManager().createQuery(cq);
-            if (!all) {
-                q.setFirstResult(start);
-                q.setMaxResults(limit);
-            }
-            List<commonTasks.dto.LotDTO> l = q.getResultList();
-            if (l.isEmpty()) {
-                return Pair.of(new commonTasks.dto.LotDTO(), Collections.emptyList());
-            }
-            commonTasks.dto.LotDTO summary = produitPerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamille,
-                    codeRayon, codeGrossiste);
-
-            return Pair.of(summary, l);
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "produitPerimes", e);
-            return Pair.of(new commonTasks.dto.LotDTO(), Collections.emptyList());
+        Query q = getEntityManager().createQuery(cq);
+        if (!all) {
+            q.setFirstResult(start);
+            q.setMaxResults(limit);
         }
-
+        OrdreLectureVentes.activerLots();
+        try {
+            return q.getResultList();
+        } finally {
+            OrdreLectureVentes.desactiverLots();
+        }
     }
 
     /* ---- Visualisation des perimes (peremptionquery) : exports + inventaire ---- */
@@ -304,7 +345,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     nbreMois, dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, emp);
             cq.select(joinLot.get(TFamille_.lgFAMILLEID)).distinct(true)
                     .where(cb.and(predicates.toArray(Predicate[]::new)));
-            return new java.util.LinkedHashSet<>(getEntityManager().createQuery(cq).getResultList());
+            OrdreLectureVentes.activerLots();
+            try {
+                return new java.util.LinkedHashSet<>(getEntityManager().createQuery(cq).getResultList());
+            } finally {
+                OrdreLectureVentes.desactiverLots();
+            }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "perimesProduitIds", e);
             return java.util.Collections.emptySet();
@@ -2037,7 +2083,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     nbreMois, dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
-            return (Long) q.getSingleResult();
+            OrdreLectureVentes.activerLots();
+            try {
+                return (Long) q.getSingleResult();
+            } finally {
+                OrdreLectureVentes.desactiverLots();
+            }
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
