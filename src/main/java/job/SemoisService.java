@@ -113,6 +113,19 @@ public class SemoisService {
         }
     }
 
+    /**
+     * Methode de division des trois modes SEMOIS (decision du 21/11) : 1 ou parametre absent = mois reellement presents
+     * dans l'historique x 4 semaines ; 0 = ancienne formule, Q3 x 4 semaines.
+     */
+    private boolean isDiviseurMoisReels() {
+        try {
+            TParameters p = em.find(TParameters.class, "SEMOIS_DIVISEUR_MOIS_REELS");
+            return p == null || p.getStrVALUE() == null || Integer.parseInt(p.getStrVALUE().trim()) != 0;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     /** SEMOIS PAR PRODUIT actif : on calcule seuil/qte avec Q1/Q2 de la fiche article. */
     private boolean isSemoisParProduit() {
         try {
@@ -171,6 +184,88 @@ public class SemoisService {
         int qteReappro = (int) Math.ceil(q4 * q2);
         return Pair.of(seuilReappro, qteReappro);
 
+    }
+
+    /** Nombre de mois du premier au dernier mois retenu, bornes comprises (liste triee, non vide). */
+    static int moisCouverts(List<LocalDate> moisAsc) {
+        LocalDate premier = moisAsc.get(0).withDayOfMonth(1);
+        LocalDate dernier = moisAsc.get(moisAsc.size() - 1).withDayOfMonth(1);
+        return (int) java.time.temporal.ChronoUnit.MONTHS.between(premier, dernier) + 1;
+    }
+
+    /** Resultat du calcul d'un produit (modes ABC et par produit). */
+    static final class Calcul {
+        final double consoTotale;
+        final int mois;
+        final long jours;
+        final double conso;
+        final int seuil;
+        final int qte;
+
+        Calcul(double consoTotale, int mois, long jours, double conso, int q1, int q2) {
+            this.consoTotale = consoTotale;
+            this.mois = mois;
+            this.jours = jours;
+            this.conso = conso;
+            this.seuil = (int) Math.ceil(conso * q1);
+            this.qte = (int) Math.ceil(conso * q2);
+        }
+    }
+
+    /**
+     * Seuil et quantite d'un produit sur les q3 derniers mois retenus (au plus). La consommation par semaine (ou par
+     * jour) est divisee par les mois REELLEMENT retenus, pas par q3 : une officine qui n'a qu'un mois d'historique
+     * divise par 4 semaines, pas par 12. Produit sans vente (perMonth null ou vide) : seuil et quantite a zero.
+     */
+    static Calcul calculProduit(Map<String, Double> perMonth, List<LocalDate> moisAsc, int q1, int q2, int q3,
+            boolean jour) {
+        return calculProduit(perMonth, moisAsc, q1, q2, q3, jour, true);
+    }
+
+    /**
+     * Meme calcul ; moisReels = false (parametre SEMOIS_DIVISEUR_MOIS_REELS a 0) : ancienne formule, a la semaine la
+     * consommation est divisee par q3 x 4 quel que soit l'historique disponible. Au jour : inchange.
+     */
+    static Calcul calculProduit(Map<String, Double> perMonth, List<LocalDate> moisAsc, int q1, int q2, int q3,
+            boolean jour, boolean moisReels) {
+        int from = Math.max(0, moisAsc.size() - Math.max(q3, 1));
+        List<LocalDate> fenetre = moisAsc.subList(from, moisAsc.size());
+        double consoTotale = 0d;
+        long nbJours = 0;
+        for (LocalDate m : fenetre) {
+            Double v = perMonth == null ? null : perMonth.get(ymKey(m));
+            if (v != null) {
+                consoTotale += v;
+            }
+            nbJours += m.lengthOfMonth();
+        }
+        double semaines = (moisReels ? fenetre.size() : Math.max(q3, 1)) * 4d;
+        double conso = jour ? (nbJours > 0 ? consoTotale / nbJours : 0d) : (semaines > 0 ? consoTotale / semaines : 0d);
+        return new Calcul(consoTotale, fenetre.size(), nbJours, conso, q1, q2);
+    }
+
+    /**
+     * Produits a traiter dans les modes ABC et par produit : les produits vendus dans la fenetre (cles de la
+     * consommation, comme avant) puis les produits actifs sans vente, qui etaient oublies et gardaient d'anciennes
+     * valeurs (Moaye, 21/11). Ordre stable, sans doublon.
+     */
+    static List<String> produitsATraiter(java.util.Collection<String> vendus, java.util.Collection<String> actifs) {
+        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>(vendus);
+        ids.addAll(actifs);
+        return new ArrayList<>(ids);
+    }
+
+    /** Produits actifs hors details deconditionnes (ceux-ci sont comptes dans leur boite). */
+    private List<String> loadProduitsActifs() {
+        try {
+            List<?> r = em.createNativeQuery(
+                    "SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND (bool_DECONDITIONNE IS NULL OR bool_DECONDITIONNE=0)")
+                    .setFlushMode(javax.persistence.FlushModeType.COMMIT).getResultList();
+            return r.stream().filter(java.util.Objects::nonNull).map(Object::toString).collect(Collectors.toList());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return new ArrayList<>();
+        }
     }
 
     public void computeReapproSemois() {
@@ -284,6 +379,13 @@ public class SemoisService {
             LocalDate firstMouth = nombreMois.get(0);
             LocalDate last = nombreMois.get(nombreMois.size() - 1);
             LocalDate lastMouth = LocalDate.of(last.getYear(), last.getMonth(), last.lengthOfMonth());
+            /*
+             * Les ventes sont lues du premier au dernier mois retenu : on divise par ces mois-la, pas par Q3 (avant :
+             * un seul mois d'historique divise par Q3 x 4 semaines, seuils trois fois trop bas a l'ouverture).
+             */
+            if (isDiviseurMoisReels()) {
+                q3 = moisCouverts(nombreMois); // journal : « q3Mois » = mois reellement couverts par les ventes lues
+            }
             int total = loadSemoisArticleCount(firstMouth, lastMouth);
 
             Map<String, Tuple> mapBoite = new HashMap<>();
@@ -418,9 +520,17 @@ public class SemoisService {
             q.set(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuiCalule);
             q.set(root.get(TFamille_.intQTEREAPPROVISIONNEMENT), qteCalule);
             // bool_CALCUL_SEUIL = false -> on saute le produit (aucune ligne mise a jour, valeurs intactes)
+            // valeurs deja justes -> aucune ecriture : le declencheur de t_famille pose dt_UPDATED et ajoute une ligne
+            // d'historique a chaque UPDATE, il ne doit le faire que pour un vrai changement
             q.where(cb.and(cb.equal(root.get(TFamille_.lgFAMILLEID), produitId),
                     cb.or(cb.isNull(root.<Boolean> get("boolCALCULSEUIL")),
-                            cb.isTrue(root.<Boolean> get("boolCALCULSEUIL")))));
+                            cb.isTrue(root.<Boolean> get("boolCALCULSEUIL"))),
+                    cb.or(cb.isNull(root.get(TFamille_.intSEUILMIN)),
+                            cb.notEqual(root.get(TFamille_.intSEUILMIN), seuiCalule),
+                            cb.isNull(root.get(TFamille_.intSTOCKREAPROVISONEMENT)),
+                            cb.notEqual(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuiCalule),
+                            cb.isNull(root.get(TFamille_.intQTEREAPPROVISIONNEMENT)),
+                            cb.notEqual(root.get(TFamille_.intQTEREAPPROVISIONNEMENT), qteCalule))));
             em.createQuery(q).executeUpdate();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, e.getLocalizedMessage());
@@ -577,9 +687,10 @@ public class SemoisService {
 
             // Journal de calcul (toujours actif) -> ~/Documents/reappro_logs/semois_abc_<date>.json
             final org.json.JSONArray logArr = new org.json.JSONArray();
+            final boolean moisReels = isDiviseurMoisReels();
 
-            // 4) Calcul + mise a jour par lots
-            List<String> produitIds = new ArrayList<>(conso.keySet());
+            // 4) Calcul + mise a jour par lots : produits vendus, puis produits actifs sans vente (seuil et qte a 0)
+            List<String> produitIds = produitsATraiter(conso.keySet(), loadProduitsActifs());
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
                 List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
@@ -587,9 +698,7 @@ public class SemoisService {
                     userTransaction.begin();
                     for (String produitId : sub) {
                         Map<String, Double> perMonth = conso.get(produitId);
-                        if (perMonth == null) {
-                            continue;
-                        }
+                        // sans classe (vendu ou non) : SEMOIS standard (Q1, Q2, Q3 globaux)
                         TClasseAbc cls = classes.get(produitClasse.get(produitId));
 
                         int q1, q2, q3w;
@@ -607,30 +716,9 @@ public class SemoisService {
                             jour = false;
                         }
 
-                        // Fenetre propre a la classe : les q3w derniers mois
-                        int from = Math.max(0, moisAsc.size() - q3w);
-                        List<LocalDate> fenetre = moisAsc.subList(from, moisAsc.size());
-
-                        double consoTotale = 0d;
-                        long nbJours = 0;
-                        for (LocalDate m : fenetre) {
-                            Double v = perMonth.get(ymKey(m));
-                            if (v != null) {
-                                consoTotale += v;
-                            }
-                            nbJours += LocalDate.of(m.getYear(), m.getMonth(), 1).lengthOfMonth();
-                        }
-
-                        double q4;
-                        if (jour) {
-                            q4 = (nbJours > 0) ? (consoTotale / nbJours) : 0d;
-                        } else {
-                            double diviseur = q3w * 4d;
-                            q4 = (diviseur > 0) ? (consoTotale / diviseur) : 0d;
-                        }
-                        int seuil = (int) Math.ceil(q4 * q1);
-                        int qte = (int) Math.ceil(q4 * q2);
-                        updateProduitSeuilAndQtyReappro(produitId, seuil, qte);
+                        // Fenetre propre a la classe : les q3w derniers mois retenus
+                        Calcul c = calculProduit(perMonth, moisAsc, q1, q2, q3w, jour, moisReels);
+                        updateProduitSeuilAndQtyReappro(produitId, c.seuil, c.qte);
 
                         org.json.JSONObject o = new org.json.JSONObject();
                         o.put("produitId", produitId);
@@ -639,11 +727,15 @@ public class SemoisService {
                         o.put("q1", q1);
                         o.put("q2", q2);
                         o.put("q3Mois", q3w);
-                        o.put("consoTotale", consoTotale);
-                        o.put(jour ? "nombreJours" : "nombreSemaines", jour ? nbJours : (q3w * 4));
-                        o.put("conso", q4);
-                        o.put("seuilMini", seuil);
-                        o.put("quantiteReappro", qte);
+                        o.put("moisRetenus", c.mois);
+                        o.put("vendu", perMonth != null);
+                        o.put("consoTotale", c.consoTotale);
+                        o.put(jour ? "nombreJours" : "nombreSemaines",
+                                jour ? c.jours : ((moisReels ? c.mois : q3w) * 4));
+                        o.put("diviseurMoisReels", moisReels);
+                        o.put("conso", c.conso);
+                        o.put("seuilMini", c.seuil);
+                        o.put("quantiteReappro", c.qte);
                         logArr.put(o);
                     }
                     userTransaction.commit();
@@ -690,9 +782,10 @@ public class SemoisService {
 
             // Journal de calcul -> ~/Documents/reappro_logs/semois_par_produit_<date>.json
             final org.json.JSONArray logArr = new org.json.JSONArray();
-            final double diviseur = gq3 * 4d;
+            final boolean moisReels = isDiviseurMoisReels();
 
-            List<String> produitIds = new ArrayList<>(conso.keySet());
+            // produits vendus, puis produits actifs sans vente (seuil et qte a 0)
+            List<String> produitIds = produitsATraiter(conso.keySet(), loadProduitsActifs());
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
                 List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
@@ -700,35 +793,26 @@ public class SemoisService {
                     userTransaction.begin();
                     for (String produitId : sub) {
                         Map<String, Double> perMonth = conso.get(produitId);
-                        if (perMonth == null) {
-                            continue;
-                        }
                         int[] cfg = ppConfig.get(produitId);
                         int q1 = (cfg != null && cfg[0] > 0) ? cfg[0] : gq1;
                         int q2 = (cfg != null && cfg[1] > 0) ? cfg[1] : gq2;
 
-                        double consoTotale = 0d;
-                        for (LocalDate m : moisAsc) {
-                            Double v = perMonth.get(ymKey(m));
-                            if (v != null) {
-                                consoTotale += v;
-                            }
-                        }
-                        double q4 = (diviseur > 0) ? (consoTotale / diviseur) : 0d;
-                        int seuil = (int) Math.ceil(q4 * q1);
-                        int qte = (int) Math.ceil(q4 * q2);
-                        updateProduitSeuilAndQtyReappro(produitId, seuil, qte);
+                        Calcul c = calculProduit(perMonth, moisAsc, q1, q2, gq3, false, moisReels);
+                        updateProduitSeuilAndQtyReappro(produitId, c.seuil, c.qte);
 
                         org.json.JSONObject o = new org.json.JSONObject();
                         o.put("produitId", produitId);
                         o.put("q1", q1);
                         o.put("q2", q2);
                         o.put("q3Mois", gq3);
-                        o.put("consoTotale", consoTotale);
-                        o.put("nombreSemaines", gq3 * 4);
-                        o.put("conso", q4);
-                        o.put("seuilMini", seuil);
-                        o.put("quantiteReappro", qte);
+                        o.put("moisRetenus", c.mois);
+                        o.put("vendu", perMonth != null);
+                        o.put("consoTotale", c.consoTotale);
+                        o.put("nombreSemaines", (moisReels ? c.mois : gq3) * 4);
+                        o.put("diviseurMoisReels", moisReels);
+                        o.put("conso", c.conso);
+                        o.put("seuilMini", c.seuil);
+                        o.put("quantiteReappro", c.qte);
                         logArr.put(o);
                     }
                     userTransaction.commit();
