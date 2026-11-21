@@ -2864,14 +2864,23 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         me.toRecalculate = true;
         let record = grid.getStore().getAt(colIndex);
+        /* Journal d'appaul du 21/11 (N1) : la quantite tapee dans la ligne part a la validation de la cellule, au
+         * meme clic que « Supprimer le produit ». La ligne est notee retiree : sa modification n'est plus envoyee
+         * (voir updateventeOngrid). Si le retrait echoue, la ligne redevient modifiable. */
+        const idLigne = record.get('lgPREENREGISTREMENTDETAILID');
+        me.lignesRetirees = me.lignesRetirees || {};
+        me.lignesRetirees[idLigne] = true;
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/vente/remove/vno/item/' + record.get('lgPREENREGISTREMENTDETAILID'),
+            url: '../api/v1/vente/remove/vno/item/' + idLigne,
             success: function (response, options) {
                 progress.hide();
                 const result = Ext.JSON.decode(response.responseText, true);
+                if (!result || !result.success) {
+                    delete me.lignesRetirees[idLigne];
+                }
                 if (result.success) {
                     me.netAmountToPay = result.data;
                     me.getTotalField().setValue(me.getNetAmountToPay().montant);
@@ -2890,6 +2899,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             },
             failure: function (response, options) {
                 progress.hide();
+                delete me.lignesRetirees[idLigne];
                 Ext.Msg.alert('Retrait du produit',
                         'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
             }
@@ -3996,6 +4006,10 @@ Ext.define('testextjs.controller.VenteCtr', {
     updateventeOngrid: function (editor, e, url, params) {
         const me = this;
         let record = e.record;
+        if (params && me.lignesRetirees && me.lignesRetirees[params.itemId]) {
+            // ligne retiree au meme clic (N1, 21/11) : rien a modifier, le retrait relit la vente
+            return;
+        }
         let stock = parseInt(record.get('intNUMBERAVAILABLE'));
         let boolDECONDITIONNE = parseInt(record.get('boolDECONDITIONNE'));
         let lgFAMILLEID = record.get('lgFAMILLEPARENTID');
@@ -5190,10 +5204,16 @@ Ext.define('testextjs.controller.VenteCtr', {
 
 
     },
+    /** Journal d'appaul du 21/11 (N2) : apres une recherche du client en echec, la fenetre de choix n'est pas ouverte ;
+     * la detruire levait une erreur qui empechait le message « La recherche du client a échoué ». */
     onBtnCancelClient: function () {
-        const me = this;
-        me.getAssuranceClient().destroy();
-        me.getClientSearchTextField().setValue('');
+        const me = this, fenetre = me.getAssuranceClient(), champ = me.getClientSearchTextField();
+        if (fenetre) {
+            fenetre.destroy();
+        }
+        if (champ) {
+            champ.setValue('');
+        }
     },
     onGridRowSelect: function (g, record) {
         const me = this;
