@@ -178,8 +178,9 @@ const n = (v) => Number(v || 0);
     await p.evaluate(() => { document.querySelector('[data-carte="frequentation"]').scrollIntoView(); });
     await p.waitForFunction(() => document.querySelector('[data-corps="frequentation"] svg'), null, { timeout: 30000 });
     const barres = await p.evaluate(() => document.querySelectorAll('[data-corps="frequentation"] svg rect').length);
-    const tranches = fq.semaine.ventes.map((v, i) => v + fq.precedente.ventes[i]).filter((v) => v > 0).length;
-    ok('Fréquentation : deux barres par tranche (semaine précédente / en cours)', barres === 2 * tranches, barres + ' / ' + 2 * tranches);
+    /* plan du 21/11, point 2 : toutes les tranches de la journee, meme sans vente (12 tranches de 2 h) */
+    const tranches = fq.semaine.ventes.length;
+    ok('Fréquentation : deux barres par tranche (semaine précédente / en cours), toute la journée', barres === 2 * tranches && tranches === 12, barres + ' / ' + 2 * tranches);
     await cliquer('[data-seg="freq"] [data-v="total"]');
     await p.waitForTimeout(300);
     ok('Fréquentation : interrupteur moyenne par jour / total de la semaine', /Total de chaque semaine/.test(await texte('[data-corps="frequentation"] .tb-legende')));
@@ -192,7 +193,7 @@ const n = (v) => Number(v || 0);
       await choisirTranche(n);
       await p.waitForTimeout(300);
       const nbT = [];
-      for (let k = 0; k < Math.ceil(24 / n); k++) { let t = 0; for (let h = k * n; h < Math.min(24, k * n + n); h++) { t += fq.semaine.ventesH[h] + fq.precedente.ventesH[h]; } if (t > 0) { nbT.push(k); } }
+      for (let k = 0; k < Math.ceil(24 / n); k++) { nbT.push(k); } /* plan du 21/11, point 2 : toutes les tranches */
       const vue = await p.evaluate(() => ({ r: document.querySelectorAll('[data-corps="frequentation"] svg rect').length, l: Array.from(document.querySelectorAll('[data-corps="frequentation"] svg text')).map((t) => t.textContent).filter((t) => /h-/.test(t)) }));
       ok('Fréquentation : tranche de ' + n + ' h -> la vue change (barres et libellés)', vue.r === 2 * nbT.length && vue.l.length === nbT.length && vue.l[0] === (nbT[0] * n) + 'h-' + Math.min(24, nbT[0] * n + n) + 'h', JSON.stringify(vue.l));
     }

@@ -138,10 +138,15 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         return trouve;
     },
 
-    ouvrirMenu: function (xtype) {
+    /** Ouvre un menu de l'utilisateur ; « donnees » (facultatif) est passe a l'ecran ouvert (filtre deja pose). */
+    ouvrirMenu: function (xtype, donnees) {
         var titre = this.menu(xtype);
         if (!titre) {
             Ext.MessageBox.alert('Tableau de bord', 'Ce menu n\'est pas dans vos accès.');
+            return;
+        }
+        if (donnees) {
+            testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, titre, '', donnees);
             return;
         }
         testextjs.app.getController('App').onLoadNewComponent(xtype, titre, '');
@@ -1109,14 +1114,14 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var etiquette = function (i) {
             return (i * pas) + 'h-' + Math.min(24, i * pas + pas) + 'h';
         };
-        /* Tranches affichees : celles qui ont eu au moins une vente sur l'une des deux semaines. */
-        var tranches = [];
+        /* Plan du 21/11, point 2 : toute la journee est representee, de 0 h a 24 h, tranches sans vente comprises (avant :
+           seules les tranches avec au moins une vente etaient dessinees, 0-6 h et 22-24 h disparaissaient). */
+        var tranches = [], venteSurDeuxSemaines = false;
         for (var i = 0; i < p.ventes.length; i++) {
-            if ((p.ventes[i] || 0) + (s.ventes[i] || 0) > 0) {
-                tranches.push(i);
-            }
+            tranches.push(i);
+            venteSurDeuxSemaines = venteSurDeuxSemaines || (p.ventes[i] || 0) + (s.ventes[i] || 0) > 0;
         }
-        if (!tranches.length) {
+        if (!venteSurDeuxSemaines) {
             c.innerHTML = '<div class="tb-attente">Aucune vente sur les deux semaines.</div>';
             return;
         }
@@ -1374,7 +1379,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var me = this;
         var pied = menu && me.menu(menu.xtype) ? [{text: menu.texte, cls: 'fen-btn-principal', handler: function (b) {
                     b.up('window').close();
-                    me.ouvrirMenu(menu.xtype);
+                    me.ouvrirMenu(menu.xtype, menu.donnees);
                 }}] : [];
         pied.push({text: 'Fermer', cls: 'fen-btn', handler: function (b) {
                 b.up('window').close();
@@ -1459,7 +1464,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td class="tb-n tb-baisse">'
                             + me.fmt(x.quantite) + '</td><td class="tb-nom1">' + me.esc(x.emplacement) + '</td></tr>';
                 }).join('');
-                me.fenetre('Articles en stock négatif (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>', {xtype: 'etatstock', texte: 'Ouvrir l\'état du stock'});
+                me.fenetre('Articles en stock négatif (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>', {xtype: 'etatstock', texte: 'Ouvrir l\'état du stock', donnees: {stock: 'negatif'}}); /* plan du 21/11, point 2 : negatifs deja filtres */
             } else if (type === 'peremptions') {
                 t = '<tr><th style="width:46%">Produit</th><th>CIP</th><th>Lot</th><th>Péremption</th><th class="tb-n">Qté</th></tr>' + l.map(function (x) {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td>' + me.esc(x.lot) + '</td><td>'

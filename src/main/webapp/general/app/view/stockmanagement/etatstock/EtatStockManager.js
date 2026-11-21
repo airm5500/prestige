@@ -565,6 +565,14 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
         });
     },
     loadStore: function () {
+        /* plan du 21/11, point 2 : ouvert depuis l'alerte « stock négatif » du tableau de bord, le filtre « Inferieur a 0 »
+           est pose et la recherche lancee (avant : liste complete, filtre a refaire a la main) */
+        if (this.odatasource && this.odatasource.stock === 'negatif') {
+            Ext.getCmp('str_TYPE_TRANSACTION').setValue('LESS');
+            Ext.getCmp('int_NUMBER').setValue('0');
+            this.onRechClick();
+            return;
+        }
         this.getStore().load({
             callback: this.onStoreLoad
         });
