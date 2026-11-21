@@ -136,6 +136,10 @@ class SemoisCalculCoherenceTest {
                 actifs.add("P" + r.nextInt(80));
             }
             List<String> ids = SemoisService.produitsATraiter(vendus, actifs);
+            if (vendus.isEmpty()) {
+                assertTrue(ids.isEmpty(), "aucune vente lue sur des mois actifs : situation anormale, rien a traiter");
+                continue;
+            }
             assertEquals(new HashSet<>(ids).size(), ids.size(), "sans doublon");
             assertEquals(vendus, ids.subList(0, vendus.size()), "vendus d'abord, dans leur ordre");
             assertTrue(ids.containsAll(actifs), "tous les actifs");

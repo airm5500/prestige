@@ -18,9 +18,12 @@
  *  A. ABC, fenetre d'un mois : chaque produit actif (hors details) = calcul attendu, recalcule ici independamment
  *     (classe ou repli standard, vendu ou non, un mois = 4 semaines) ; bool_CALCUL_SEUIL = 0 laisse intact (vendu et
  *     non vendu) ; rapprochement base = journal semois_abc (seuil, quantite, mois retenus) = grille de la Fiche article ;
- *  B. standard, fenetre d'un mois : produits simples vendus = conso / 4 semaines x Q ; non vendus intacts (inchange) ;
+ *  B. standard, fenetre d'un mois : produits simples vendus = conso / 4 semaines x Q ; produits actifs sans vente a 0
+ *     (decision du 21/11 : « oui aussi en standard »), bool_CALCUL_SEUIL respecte ; rapprochement base = journal
+ *     semois_normal ; second recalcul sans aucune reecriture ;
  *  C. par produit, fenetre d'un mois : Q de la fiche ou Q globaux, non vendus a 0 ;
  *  D. ABC, historique complet (3 mois) : identique a l'ancien calcul (aucune regression) ;
+ *  E, F. parametre SEMOIS_DIVISEUR_MOIS_REELS a 0 : ancienne formule ; non vendus a 0 en ABC et en standard ;
  *  bilan : aucune autre colonne ni table modifiee ; tout est remis a l'identique (CHECKSUM).
  * Lancement seul : node src/test/e2e/reappro/test-semois-seuils-moaye.js
  */
@@ -183,6 +186,11 @@ async function recalculer(p, nom) {
     try { regleVue = JSON.parse(vu.explication).regle; } catch (e) { /* absente */ }
     ok('Écran des paramètres (service de la liste) : SEMOIS_DIVISEUR_MOIS_REELS, valeur, descriptif et explication = base', !!vu && vu.str_VALUE === pd[0]
       && vu.str_DESCRIPTION === DESCRIPTIF && regleVue === DESCRIPTIF, JSON.stringify(vu).slice(0, 200));
+    /* migration V7.6.41.2112 : l'explication rappelle la remise a zero des non vendus, dans les trois modes */
+    const RAPPEL = 'Dans les trois modes, un produit actif sans vente sur les mois retenus passe à seuil 0 et quantité 0, sauf si le calcul du seuil est désactivé sur sa fiche.';
+    let rappelsVus = [];
+    try { rappelsVus = JSON.parse(vu.explication).rappels || []; } catch (e) { /* absente */ }
+    ok('Écran des paramètres : l\'explication rappelle les non vendus à 0 dans les trois modes (une seule fois)', rappelsVus.filter((x) => x === RAPPEL).length === 1, rappelsVus.length + ' rappels');
 
     /* A. SEMOIS ABC, fenetre d'un mois (Moaye) */
     param('SEMOIS', 1); param('SEMOIS_ABC', 1); param('SEMOIS_PAR_PRODUIT', 0); param('SEMOIS_DIVISEUR_MOIS_REELS', 1);
@@ -260,8 +268,36 @@ async function recalculer(p, nom) {
     const qSimple = new Map(simples.map(([id, n]) => [id, +n]));
     let r = comparer(prods.filter((x) => qSimple.has(x[0])), base, (x) => (libre(x) ? [Math.ceil(qSimple.get(x[0]) / 4 * G.Q1), Math.ceil(qSimple.get(x[0]) / 4 * G.Q2)] : null));
     ok('B. standard : ' + r.n + ' produits simples vendus = conso / 4 semaines x Q (un mois retenu)', r.n > 100 && r.ecarts.length === 0, r.ecarts.length + ' écarts : ' + r.ecarts.slice(0, 5).join(' ; '));
-    const intacts = prods.filter((x) => !conso.has(x[0])).filter((x) => base.get(x[0]).join('/') !== '100/100/1');
-    ok('B. standard : produits non vendus non modifiés (comportement inchangé)', intacts.length === 0, intacts.length);
+    /* produits actifs sans vente dans la fenetre (un mois) : 0 / 0 / 0 ; calcul interdit : intacts */
+    const venduFenetre = (x) => !!conso.get(x[0]) && conso.get(x[0])[FENETRE[2]] !== undefined;
+    const nonVendusB = prods.filter((x) => libre(x) && !venduFenetre(x));
+    const pasAZero = nonVendusB.filter((x) => base.get(x[0]).join('/') !== '0/0/0');
+    ok('B. standard : ' + nonVendusB.length + ' produits actifs sans vente en ' + FENETRE[2] + ' à seuil 0 et quantité 0', nonVendusB.length > 100 && pasAZero.length === 0,
+      pasAZero.length + ' restés : ' + pasAZero.slice(0, 5).map((x) => x[5] + ' ' + base.get(x[0]).join('/')).join(' ; '));
+    ok('B. standard : calcul interdit (bool_CALCUL_SEUIL = 0), vendus et non vendus restent à 100 / 1', interdits.every((id) => base.get(id).join('/') === '100/100/1'), interdits.map((id) => base.get(id)).join(' ; '));
+    const vendusNonNuls = prods.filter((x) => libre(x) && venduFenetre(x) && conso.get(x[0])[FENETRE[2]] >= 1 && base.get(x[0]).join('/') === '0/0/0');
+    ok('B. standard : aucun produit vendu remis à zéro', vendusNonNuls.length === 0, vendusNonNuls.slice(0, 5).map((x) => x[5]).join(' ; '));
+    /* rapprochement : journal semois_normal = base ; chaque non vendu y figure en « non vendu » a 0 */
+    let ln = null;
+    try { ln = JSON.parse(fs.readFileSync(path.join(JOURNAUX, 'semois_normal_' + AUJ + '.json'), 'utf8')); } catch (e) { /* absent */ }
+    const parIdN = new Map((ln || []).map((y) => [y.produitId, y]));
+    const ecartsN = (ln || []).filter((y) => { const bb = base.get(y.produitId); const pr = prods.find((x) => x[0] === y.produitId);
+      return pr && libre(pr) && (!bb || bb[0] !== y.seuil || bb[2] !== y.quantiteReappro); });
+    const absents = nonVendusB.filter((x) => { const y = parIdN.get(x[0]); return !y || y.type !== 'non vendu' || y.seuil !== 0 || y.quantiteReappro !== 0 || y.conso !== 0; });
+    ok('B. rapprochement journal semois_normal = base (seuil, quantité) ; chaque non vendu noté « non vendu » à 0', !!ln && ecartsN.length === 0 && absents.length === 0,
+      (ln ? ln.length + ' entrées, ' : 'journal absent, ') + ecartsN.length + ' écarts, ' + absents.length + ' non vendus absents ' + absents.slice(0, 3).map((x) => x[5]).join(' ; '));
+    /* second recalcul : les zeros sont deja en place, aucune fiche reecrite */
+    const hB = q('SELECT IFNULL(MAX(lg_ID), 0) FROM t_famille_history');
+    await recalculer(p, 'B2. standard, même recalcul une seconde fois');
+    const baseB2 = etat();
+    const diffB = [...base.keys()].filter((k) => base.get(k).join('/') !== (baseB2.get(k) || []).join('/')).length;
+    const histoB = q('SELECT COUNT(*) FROM t_famille_history WHERE lg_ID > ' + hB);
+    ok('B2. même résultat, aucune ligne d\'historique', diffB === 0 && histoB === '0', diffB + ' valeurs différentes, ' + histoB + ' lignes d\'historique');
+    /* inactifs : valeurs d'origine ; details deconditionnes actifs : valeurs de la reprise (le calcul ne les touche pas) */
+    const autresB = q(`SELECT COUNT(*) FROM t_famille f JOIN ${SAUV} s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID WHERE f.str_STATUT <> 'enable'
+      AND NOT (f.int_SEUIL_MIN <=> s.int_SEUIL_MIN AND f.int_STOCK_REAPROVISONEMENT <=> s.int_STOCK_REAPROVISONEMENT AND f.int_QTE_REAPPROVISIONNEMENT <=> s.int_QTE_REAPPROVISIONNEMENT)`);
+    const details = q(`SELECT CONCAT(COUNT(*), '/', SUM(NOT (int_SEUIL_MIN <=> 100 AND int_STOCK_REAPROVISONEMENT <=> 100 AND int_QTE_REAPPROVISIONNEMENT <=> 1))) FROM t_famille WHERE str_STATUT = 'enable' AND IFNULL(bool_DECONDITIONNE, 0) = 1`).split('/');
+    ok('B. bilan : aucun produit inactif modifié ; ' + details[0] + ' détails déconditionnés non touchés', autresB === '0' && +details[0] > 0 && details[1] === '0', autresB + ' inactifs, ' + details[1] + ' détails modifiés');
 
     /* C. SEMOIS par produit, fenetre d'un mois : Q de la fiche, sinon Q globaux ; non vendus a 0 */
     param('SEMOIS_PAR_PRODUIT', 1); reprise();
@@ -301,6 +337,8 @@ async function recalculer(p, nom) {
     base = etat();
     r = comparer(prods.filter((x) => qSimple.has(x[0])), base, (x) => (libre(x) ? [Math.ceil(qSimple.get(x[0]) / (G.Q3 * 4) * G.Q1), Math.ceil(qSimple.get(x[0]) / (G.Q3 * 4) * G.Q2)] : null));
     ok('F. standard, ancienne formule : ' + r.n + ' produits simples vendus = conso / (Q3 x 4)', r.n > 100 && r.ecarts.length === 0, r.ecarts.length + ' écarts : ' + r.ecarts.slice(0, 5).join(' ; '));
+    const pasAZeroF = prods.filter((x) => libre(x) && !(conso.get(x[0]) && conso.get(x[0])[FENETRE[2]] !== undefined)).filter((x) => base.get(x[0]).join('/') !== '0/0/0');
+    ok('F. standard, ancienne formule : produits actifs sans vente à 0 aussi', pasAZeroF.length === 0, pasAZeroF.length);
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);
   } finally {

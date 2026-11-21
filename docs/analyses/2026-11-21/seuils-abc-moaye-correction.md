@@ -164,8 +164,7 @@ Résultats :
 
 ## Limites et points à connaître
 
-- **Mode SEMOIS standard** : les produits non vendus ne sont toujours pas remis à 0. La correction 2 ne visait que
-  les modes ABC et par produit. À trancher si on veut l'étendre.
+- **Mode SEMOIS standard** : tranché le 21/11 (« oui aussi en standard ») ; voir le complément ci-dessous.
 - **Dates de modification** : un produit dont le seuil change voit son `dt_UPDATED` mis à l'heure du calcul, par le
   déclencheur, comme avant. À Moaye, le premier recalcul touchera donc environ 6 000 fiches. Le catalogue mobile,
   synchronisé sur `dt_UPDATED`, les renverra une fois.
@@ -178,3 +177,126 @@ Résultats :
 - **Banc** : les essais ont laissé `dt_UPDATED` à l'heure du test sur les fiches actives de `laborex_audit`, comme
   les autres tests (le déclencheur l'impose). Les lignes d'historique ajoutées par les essais ont été retirées.
 - **Copie de Moaye** : le calcul n'a pas été rejoué sur `moaye`. Les effets sont déduits des chiffres de l'analyse.
+
+## Complément du 21/11 : non vendus à 0 en SEMOIS standard (branche `correctif/semois-standard-2111`)
+
+Décision de l'utilisateur, transmise le 21/11 : « oui aussi en standard ».
+
+### Ce qui change
+
+- **SEMOIS standard** : après le calcul des produits vendus (simples, boîtes, boîtes dont un détail est vendu), chaque
+  produit actif hors détail déconditionné qui n'a aucune vente dans la fenêtre passe à seuil 0 et quantité 0. Un produit
+  dont le calcul du seuil est désactivé sur sa fiche (`bool_CALCUL_SEUIL = 0`) reste intact. Le journal
+  `semois_normal_<date>.json` note ces produits avec le type « non vendu ».
+- **Sécurité des trois modes** : si la lecture des ventes échoue (erreur SQL), aucun produit n'est remis à 0. Avant
+  ce complément, en ABC et par produit, une erreur de lecture rendait une liste vide : tous les produits actifs
+  seraient passés à 0. En standard, une page de ventes illisible ou un comptage en échec bloque aussi la remise à 0.
+- **Explication** : la migration `V7.6.41.2112` ajoute aux rappels de `SEMOIS_DIVISEUR_MOIS_REELS` : « Dans les trois
+  modes, un produit actif sans vente sur les mois retenus passe à seuil 0 et quantité 0, sauf si le calcul du seuil est
+  désactivé sur sa fiche. » Le paramètre `SEMOIS` n'a pas d'explication ; le texte validé (« regle ») ne change pas.
+
+### Tests
+
+- **Cohérence** : `SemoisNonVendusCoherenceTest` (4 tests). Sur 20 000 tirages (graine 2113), les produits remis à 0
+  sont exactement les actifs non vendus, dans l'ordre, sans doublon, jamais un vendu ; vendus actifs + remis à 0 = actifs.
+  Lecture en échec : aucun produit remis à 0 (standard) ni traité (ABC, par produit). Texte et garde de la migration.
+- **Écran** : `test-semois-seuils-moaye.js`, cas B étendu (le contrôle « non vendus intacts » devient « non vendus à 0 ») :
+  - B : chaque produit actif sans vente dans la fenêtre à 0/0/0 ; calcul interdit intact ; aucun produit vendu à 0 ;
+  - B : rapprochement journal `semois_normal` = base, chaque non vendu noté « non vendu » à 0 ;
+  - B2 : second recalcul sans aucune réécriture (ni valeur ni ligne d'historique) ;
+  - B : bilan, inactifs intacts et détails déconditionnés non touchés ;
+  - F : avec l'ancienne formule aussi, non vendus à 0 ;
+  - écran des paramètres : le rappel figure une seule fois dans l'explication.
+- **Sur l'ancien code** (`8b68a979e`) : 34/39, les contrôles des non vendus en standard, du journal, du cas F et du
+  rappel échouent (un cinquième échec venait du test lui-même, corrigé : il comparait les détails à leur valeur
+  d'origine au lieu de celle de la reprise).
+- **Sur le nouveau code** : 39/39 sur `domain4` (mode SEMOIS isolé, base `laborex_audit`) ; `test-parametres-explications-36.js`
+  7/7 ; tests unitaires SEMOIS 12/12. `domain4` est remis en l'état (pool `appaul_perf`, sans option `user.home`, arrêté).
+- **Banc** : la migration `V7.6.41.2112` est appliquée sur `laborex_audit`.
+
+## Garde-fous du 21/11 : jamais de remise à zéro sur une panne de lecture
+
+**Défaut confirmé** sur `8b68a979e` (intégration du matin, jamais livrée en officine) : en ABC et par produit, une erreur
+SQL à la lecture des ventes rendait une liste vide ; tous les produits actifs, vus « sans vente », passaient à 0.
+Prouvé par `test-semois-panne-lecture.js` sur l'ancien code : 11 244 fiches sur 11 650 mises à 0, en ABC comme par
+produit, pendant une panne de lecture (17/27).
+
+**Cause** : la remise à zéro des non vendus (correction du matin) s'est ajoutée à une lecture qui confond depuis
+toujours « erreur » et « aucune vente ». Avant elle, ce mélange était sans effet (rien à traiter) ; après, il devenait
+dangereux. Les tests ne couvraient que la lecture réussie.
+
+**Deux garde-fous indépendants**, dans les trois modes :
+1. une lecture en échec est distinguée d'une liste vide (`null`, comptage à -1) : aucun produit modifié ;
+2. aucune vente lue sur les mois retenus, qui ont tous au moins 20 jours d'activité au calendrier : situation anormale,
+   aucun produit modifié (`ventesLisibles`). Il couvre aussi une erreur que le code n'aurait pas repérée.
+Dans les deux cas, le serveur note au journal « ventes illisibles ou absentes sur les mois retenus ».
+
+**Tests** :
+- cohérence : `SemoisNonVendusCoherenceTest` et `SemoisCalculCoherenceTest` adaptés (aucune vente : rien à traiter) ;
+  unitaires SEMOIS 12/12 ;
+- écran `test-semois-panne-lecture.js`, dans les trois modes, recalcul lancé par le bouton de la Fiche article :
+  - G : table des lignes de vente renommée pendant le recalcul (vraie erreur SQL) ;
+  - H : table remplacée par une copie vide (lecture sans erreur, zéro vente) ;
+  - à chaque fois : aucune fiche modifiée, aucune ligne d'historique, anomalie au journal du serveur ;
+  - témoin : table remise, le même parcours modifie bien les fiches ;
+  - bilan : table remise sous son nom avec les mêmes lignes (empreinte), seuils, paramètres et historique remis ;
+  - ancien code 17/27 ; nouveau code 27/27 ;
+- `test-semois-seuils-moaye.js` 39/39 sur le nouveau code (aucune régression).
+
+**Reste à savoir** : en cas de panne, l'écran affiche quand même « Recalcul des seuils terminé. Les seuils et
+quantités de réappro ont été mis à jour. » Le message ne dit pas que rien n'a été modifié ; seul le journal du serveur
+le note.
+
+## Contre-vérification de Codex (21/11) et corrections
+
+Codex a relu la branche (`e106e0a98`), en lecture seule. Quatre points confirmés :
+
+| Point de Codex | Suite |
+|---|---|
+| Standard : si le comptage ou une page échoue, les pages lues sont quand même écrites | Comportement inchangé depuis l'intégration ; les valeurs écrites sont justes, aucune remise à zéro n'en découle. Laissé en l'état. |
+| Standard : une page omise (libellés ex æquo, comptage changé entre deux lectures) ferait passer des produits vendus à 0 | Corrigé : les produits vendus sont lus à part, en une seule requête sans pagination ; seule cette liste décide qu'un produit n'est pas vendu. Le tri de la pagination est rendu stable (libellé puis identifiant). |
+| Boîte vendue seulement par un détail aujourd'hui désactivé : remise à 0 (aussi en ABC et par produit depuis le matin) | Corrigé : la lecture des vendus ne filtre pas sur le statut du produit de la ligne ; la boîte est vendue et garde ses valeurs. Reproduit sur `e106e0a98` (cas I, 5 boîtes à 0 dans les trois modes). |
+| ABC et par produit : ventes seulement dans un mois écarté (moins de 20 jours au calendrier) : le garde-fou laissait passer et tout passait à 0 | Corrigé : la lecture des vendus ne porte que sur les mois retenus. Reproduit sur `e106e0a98` (cas J, 11 244 fiches à 0). |
+
+**Tests** :
+- cohérence : `SemoisNonVendusCoherenceTest` 6 tests (dont 20 000 tirages, graine 2115 : un produit vendu n'est jamais
+  ajouté comme non vendu ; boîte vendue par un détail désactivé non traitée ; mois continus du standard) ; ne compile
+  pas sur l'ancien code ; unitaires SEMOIS 14/14 ;
+- écran `test-semois-panne-lecture.js` : cas I et J ajoutés dans les trois modes, avec leurs témoins (les autres non
+  vendus passent bien à 0 ; en standard, la fenêtre continue lit le mois du milieu comme avant) ;
+  `e106e0a98` 38/43, nouveau code 43/43 ;
+- `test-semois-seuils-moaye.js` 39/39 sur le nouveau code.
+
+La pagination omise n'a pas de test d'écran : elle n'est pas reproductible à la demande. La remise à zéro ne dépend plus
+de la pagination.
+
+## Seconde contre-vérification de Codex (21/11)
+
+Codex confirme les corrections des points 2 à 4. Il relève cinq cas restants :
+
+| Point | Suite |
+|---|---|
+| ABC : boîte vendue par un détail désactivé et, en plus, vendue en direct dans un mois écarté | Le zéro vient du calcul ordinaire (sa consommation ne compte pas le détail désactivé), comme dans l'intégration et avant elle. Cas très marginal, laissé. |
+| Page vide, consommation vide ; calendrier illisible pour un mois | Une page ou une consommation vide ne décide plus d'aucune remise à zéro (seule la liste des vendus décide). **Corrigé** pour le calendrier : une erreur de lecture (autre que « mois sous 20 jours ») arrête le calcul sans rien modifier, dans les trois modes (cas K). |
+| Vente enregistrée entre la lecture et l'écriture | Elle tombe dans le mois en cours, jamais dans la fenêtre. Sans effet. |
+| Le tri ajouté change le détail retenu quand deux détails homonymes ont la même boîte | **Corrigé** : tri remis comme dans l'intégration ; la remise à zéro ne dépend plus de la pagination. |
+| ABC et par produit : si la nouvelle lecture des vendus échoue, les produits vendus ne sont plus recalculés | **Corrigé** : la consommation lue est recalculée comme avant, aucun produit n'est ajouté à zéro ; le journal le note. |
+
+**Tests** : unitaires SEMOIS 14/14 ; `test-semois-panne-lecture.js` 52/52 (cas K ajouté ; sur `4afc98b85`, 49/52 : seul le
+contrôle du journal du cas K échoue, une panne totale du calendrier n'y modifiait déjà rien, la panne d'un seul mois ne
+se provoque pas à la demande) ; `test-semois-seuils-moaye.js` 39/39.
+
+## Troisième contre-vérification de Codex (21/11)
+
+Codex confirme les trois corrections précédentes (tri, calendrier illisible, liste des vendus illisible). Il relève :
+
+| Point | Suite |
+|---|---|
+| ABC et par produit, liste des vendus illisible : un produit vendu seulement dans un mois écarté est recalculé à 0 | **Corrigé** : sur ce repli, un calcul sans vente dans sa fenêtre n'est pas écrit (`aEcrire`) ; une erreur de lecture ne produit jamais un zéro. |
+| Mois absent du calendrier (sans erreur) : fenêtre plus courte | Définition même des mois retenus (moins de 20 jours d'activité : mois écarté). Laissé. |
+| Standard : une boîte peut être calculée sur des pages de ventes incomplètes | Comportement de l'intégration, inchangé : calcul ordinaire, pas une remise à zéro. Laissé. |
+| Paramètres Q3, classes ABC ou Q de fiche illisibles : valeurs par défaut, fenêtre ou coefficients différents | Comportement de l'intégration (lectures déjà « silencieuses » avant ce correctif). Cas très rare, laissé ; à reprendre si on veut un calcul qui s'arrête sur toute erreur de configuration. |
+
+**Tests** : unitaires SEMOIS 15/15 (`repliSansZero`, 20 000 tirages, graine 2116 ; ne compile pas sur l'ancien code) ;
+`test-semois-panne-lecture.js` 52/52 ; `test-semois-seuils-moaye.js` 39/39. Le repli lui-même n'a pas de test d'écran :
+il faudrait que la liste des vendus échoue pendant que la consommation, lue sur les mêmes tables, réussit.
