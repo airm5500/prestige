@@ -79,6 +79,12 @@
               <span class="pl-input__icon" aria-hidden="true">🔒</span>
               <input id="str_password" name="str_password" type="password" autocomplete="current-password"
                      placeholder="Votre mot de passe"/>
+              <!-- Plan du 21/11, point 5 : afficher / masquer le mot de passe -->
+              <button type="button" id="pl-oeil-mdp" class="pl-oeil" tabindex="-1" aria-pressed="false"
+                      aria-label="Afficher le mot de passe" title="Afficher le mot de passe">
+                <svg class="pl-oeil__ouvert" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="pl-oeil__barre" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7c2 0 3.8.7 5.2 1.6M22 12s-3.6 7-10 7c-2 0-3.8-.7-5.2-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>
+              </button>
             </div>
 
             <button type="button" id="login" name="login" class="pl-btn">
@@ -194,7 +200,42 @@
     .pl-bz[data-etat="pin"] .pl-bz__trait{display:none}
     .pl-bz__saisie{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none}
     .pl-bm__retour{display:inline-block;margin-top:14px;color:#2a3f8f;font:13px Inter,Arial,sans-serif}
+    /* plan du 21/11, point 5 : oeil du mot de passe */
+    .pl-input input#str_password{padding-right:56px}
+    .pl-oeil{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:transparent;color:#5a6b7d;cursor:pointer;padding:0}
+    .pl-oeil:hover{background:#eef4fb;color:#1E5FA8}
+    .pl-oeil .pl-oeil__barre{display:none}
+    .pl-oeil[aria-pressed="true"] .pl-oeil__ouvert{display:none}
+    .pl-oeil[aria-pressed="true"] .pl-oeil__barre{display:block}
   </style>
+  <script>
+  /* Plan du 21/11, point 5 : un clic affiche le mot de passe, un second le masque ; il se remasque a chaque tentative
+     de connexion (bouton ou Entree). Le focus reste dans le champ. */
+  (function () {
+    function pret() {
+      var champ = document.getElementById('str_password'), oeil = document.getElementById('pl-oeil-mdp');
+      if (!champ || !oeil) { return; }
+      function poser(visible) {
+        champ.type = visible ? 'text' : 'password';
+        oeil.setAttribute('aria-pressed', visible ? 'true' : 'false');
+        var libelle = visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe';
+        oeil.setAttribute('aria-label', libelle);
+        oeil.title = libelle;
+      }
+      oeil.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      oeil.addEventListener('click', function () {
+        var fin = champ.value.length;
+        poser(champ.type === 'password');
+        champ.focus();
+        try { champ.setSelectionRange(fin, fin); } catch (x) { /* type sans selection */ }
+      });
+      var bouton = document.getElementById('login');
+      if (bouton) { bouton.addEventListener('click', function () { setTimeout(function () { poser(false); }, 0); }); }
+      champ.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.keyCode === 13) { setTimeout(function () { poser(false); }, 0); } });
+    }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', pret); } else { pret(); }
+  })();
+  </script>
   <script src="../general/resources/js/qrcode-generator-1.4.4.js"></script>
   <script>
   /* Demande du 16/10 : bouton « Pointage » de la page de connexion. Le serveur ne rend le code qu'aux postes de
