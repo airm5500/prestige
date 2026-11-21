@@ -98,6 +98,17 @@ ont le même diviseur.
    quantité à zéro, comme le mode par défaut, en respectant `bool_CALCUL_SEUIL`.
 3. Décision métier à prendre : faut-il compter le mois en cours quand l'historique est inférieur à q3 mois ?
 
+## Décisions du 21/11
+
+- Les corrections 1 et 2 sont validées.
+- Demande ajoutée : en SEMOIS ABC, un produit sans classe reçoit le calcul SEMOIS standard (Q1, Q2 et Q3 globaux)
+  lors du recalcul.
+- État du code sur ce point : le repli existe déjà pour les produits sans classe vendus dans la fenêtre
+  (`cls == null`). Il manque pour les produits sans classe non vendus, qui sont oubliés comme les autres (3 744 à
+  Moaye). La correction 2 les couvre : consommation nulle, donc seuil et quantité à zéro.
+- Le point 3 (compter ou non le mois en cours) reste ouvert. Sans décision, le mois en cours n'est pas compté.
+- Transmis à la session principale pour réalisation.
+
 ## Limites
 
 - Les journaux de calcul (`~/Documents/reappro_logs/semois_abc_<date>.json`) sont sur le poste de l'officine, je ne
