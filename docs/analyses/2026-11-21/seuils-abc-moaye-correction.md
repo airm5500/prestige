@@ -21,7 +21,28 @@ Les trois corrections validées le 21/11 sont faites, toutes dans `job/SemoisSer
 3. **Produits sans classe.** En ABC, un produit sans classe reçoit le SEMOIS standard (Q1, Q2, Q3 globaux), qu'il soit
    vendu ou non. Non vendu, il passe donc à 0.
 
-**Point ouvert, sans décision** : le mois en cours n'est toujours pas compté quand l'historique est inférieur à Q3.
+**Mois en cours** (décision du 21/11) : il n'est pas compté, même quand l'historique est inférieur à Q3. Rien à
+changer : c'était déjà le cas.
+
+**Paramètre `SEMOIS_DIVISEUR_MOIS_REELS`** (décision du 21/11, nom et descriptif validés), pour les trois modes :
+- **1, valeur par défaut** : la nouvelle règle, division par les mois réellement présents × 4 semaines. Un paramètre
+  absent vaut aussi 1.
+- **0** : l'ancienne formule, division par Q3 × 4 semaines, quel que soit l'historique.
+- Le calcul au jour d'une classe ABC n'est pas concerné : il divise toujours par les jours des mois retenus.
+- Les corrections 2 et 3 s'appliquent quelle que soit la valeur.
+
+**Migration** `V7.6.41.2111__semois_diviseur_mois_reels.sql` :
+- elle crée le paramètre à 1, avec le descriptif validé, mot pour mot ;
+- elle ajoute son explication pour le bouton « i » de l'écran des paramètres :
+  - la règle reprend le même texte ;
+  - un tableau donne l'exemple chiffré de Moaye (seuil de 168 avec 1, de 56 avec 0) ;
+  - les rappels précisent que le mois en cours n'est pas compté et qu'un paramètre absent vaut 1 ;
+- elle élargit `t_parameters.str_DESCRIPTION` de 254 à 1 000 caractères :
+  - le descriptif validé en fait 317, et le mode strict de MariaDB aurait refusé l'insertion ;
+  - la colonne n'est pas indexée, et l'entité Java la déclare déjà en texte long ;
+- elle met à jour les explications de `SEMOIS_ABC` et `SEMOIS_PAR_PRODUIT` :
+  - leur formule renvoie au nouveau paramètre ;
+  - un cas ajouté dit qu'un produit actif sans vente passe à 0.
 
 **Ajout** : une fiche dont le seuil et la quantité sont déjà justes n'est plus réécrite.
 - Le déclencheur `t_famille_before_upd_tr` pose `dt_UPDATED = NOW()` et ajoute une ligne à `t_famille_history` à
@@ -30,9 +51,10 @@ Les trois corrections validées le 21/11 sont faites, toutes dans `job/SemoisSer
 - Un recalcul identique ne réécrit plus rien. Avant, il réécrivait chaque produit vendu.
 
 **Journaux de calcul** :
-- `semois_abc` et `semois_par_produit` ont deux nouveaux champs : `moisRetenus` et `vendu`. Leur `nombreSemaines` vaut
-  maintenant `moisRetenus × 4`.
-- Dans `semois_normal`, `q3Mois` donne maintenant les mois réellement couverts par les ventes.
+- `semois_abc` et `semois_par_produit` ont trois nouveaux champs : `moisRetenus`, `vendu` et `diviseurMoisReels`.
+  Leur `nombreSemaines` donne le diviseur réellement appliqué.
+- Dans `semois_normal`, `q3Mois` donne le nombre de mois du diviseur : les mois couverts avec le paramètre à 1, Q3
+  avec le paramètre à 0.
 
 ## Effet attendu à Moaye au prochain recalcul
 
@@ -71,11 +93,29 @@ Chaque nouveau test a d'abord échoué sur l'ancien code.
 - **Produits à traiter** : les produits vendus d'abord, dans leur ordre, puis tous les actifs, sans doublon
   (3 000 tirages).
 
+### Test de cohérence : `SemoisDiviseurParametreTest` (3 tests)
+
+- **Tirages** : 20 000 cas tirés au hasard (graine 2112) comparent les deux méthodes sur la même fenêtre et les mêmes
+  ventes.
+- **Paramètre à 0** : la consommation vaut toujours total / (Q3 × 4) ; au jour, elle reste total / jours.
+- **Comparaison des deux méthodes** :
+  - elles sont identiques dès que l'historique couvre Q3 mois, ou en calcul au jour ;
+  - avec un historique court, le seuil n'est jamais plus bas avec les mois réels ;
+  - plus de 1 000 cas diffèrent.
+- **Cas de Moaye** : un seuil de 56 avec le paramètre à 0, de 168 avec 1 ou par défaut.
+- **Rapprochement du descriptif** : il est lu dans la migration et vérifié dans les deux tables.
+  - Dans `t_parameters`, c'est le texte validé, mot pour mot.
+  - La règle de l'explication est le même texte.
+  - L'explication est lisible par l'écran (`ExplicationParametre.estValide`).
+
 ### Test d'écran : `src/test/e2e/reappro/test-semois-seuils-moaye.js`
 
-Résultats : 23/23 sur le code corrigé, 14/23 sur l'ancien code.
+Résultats :
+- 31/31 sur le code final ;
+- 26/31 sur le commit précédent sans paramètre (`0a5b2213d`) : scénarios E et F ;
+- 14/23 sur l'intégration `e68867362`, avant les scénarios E et F.
 
-**Parcours** : connexion, Fiche Article, « Recalculer seuils », Oui, puis le message de fin. Cinq recalculs sur le banc
+**Parcours** : connexion, Fiche Article, « Recalculer seuils », Oui, puis le message de fin. Sept recalculs sur le banc
 (11 244 produits actifs), chacun en 6 à 10 s.
 
 **Cas de Moaye reproduit** :
@@ -104,6 +144,11 @@ Résultats : 23/23 sur le code corrigé, 14/23 sur l'ancien code.
 | | Non vendus non modifiés (inchangé, hors demande) | OK | OK |
 | C. Par produit, un mois | 11 240 produits actifs = calcul attendu | 10 052 écarts | 0 |
 | D. ABC, trois mois | 6 309 produits vendus = ancien calcul | OK | OK |
+| Paramètre | Créé à 1, descriptif validé = `t_parameters` = explication = service de l'écran des paramètres | (pas de paramètre) | OK |
+| E. Paramètre à 0, ABC, un mois | 11 240 produits actifs = ventes / (Q3 × 4), non vendus à 0 | 3 022 écarts (sans paramètre) | 0 |
+| | CIP 3073979 | 195 (sans paramètre) | 65 |
+| | Journal : `diviseurMoisReels` false, 12 semaines | Absent | OK |
+| F. Paramètre à 0, standard, un mois | 4 223 produits simples vendus = conso / (Q3 × 4) | 2 952 écarts (sans paramètre) | 0 |
 | Bilan final | Empreinte de `t_famille` (hors `dt_UPDATED`), `t_parameters`, `t_calendrier`, `t_classe_abc`, `t_famille_history` | OK | OK |
 
 **Endroits où la donnée apparaît et sont comparés** :
@@ -124,6 +169,12 @@ Résultats : 23/23 sur le code corrigé, 14/23 sur l'ancien code.
 - **Dates de modification** : un produit dont le seuil change voit son `dt_UPDATED` mis à l'heure du calcul, par le
   déclencheur, comme avant. À Moaye, le premier recalcul touchera donc environ 6 000 fiches. Le catalogue mobile,
   synchronisé sur `dt_UPDATED`, les renverra une fois.
+- **Non-régression** : `test-parametres-explications-36.js` passe 7/7 sur la base migrée.
+  - Les explications de `SEMOIS_ABC` et `SEMOIS_PAR_PRODUIT` modifiées s'affichent comme en base.
+  - Le premier passage a échoué une fois, sur une lecture JSON que je n'ai pas reproduite, même en rejouant sa
+    requête.
+- **Migration sur le banc** : la migration `V7.6.41.2111` est appliquée sur `laborex_audit`. Le paramètre, les
+  explications et la colonne élargie y restent, comme après un déploiement.
 - **Banc** : les essais ont laissé `dt_UPDATED` à l'heure du test sur les fiches actives de `laborex_audit`, comme
   les autres tests (le déclencheur l'impose). Les lignes d'historique ajoutées par les essais ont été retirées.
 - **Copie de Moaye** : le calcul n'a pas été rejoué sur `moaye`. Les effets sont déduits des chiffres de l'analyse.

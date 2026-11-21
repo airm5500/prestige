@@ -35,7 +35,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 1 << 28 }).replace(/\r/g, '').trim();
 const lignes = (s) => { const t = q(s); return t ? t.split('\n').map((l) => l.split('\t')) : []; };
 const SAUV = 'e2e_semois_sauv';
-const PARAMS = ['SEMOIS', 'SEMOIS_ABC', 'SEMOIS_PAR_PRODUIT', 'Q1', 'Q2', 'Q3', 'KEY_DAY_SEUIL_REAPPRO'];
+const PARAMS = ['SEMOIS', 'SEMOIS_ABC', 'SEMOIS_PAR_PRODUIT', 'SEMOIS_DIVISEUR_MOIS_REELS', 'Q1', 'Q2', 'Q3', 'KEY_DAY_SEUIL_REAPPRO'];
 const AUJ = new Date().toISOString().slice(0, 10);
 const JOURNAUX = 'D:/prestige/reappro_logs';
 /* t_famille : son declencheur pose dt_UPDATED = NOW() a chaque UPDATE (aucune restauration possible, comme dans les autres
@@ -89,11 +89,12 @@ const actifs = () => lignes(`SELECT lg_FAMILLE_ID, IFNULL(lg_CLASSE_ABC_ID, ''),
   FROM t_famille WHERE str_STATUT='enable' AND IFNULL(bool_DECONDITIONNE, 0) = 0`);
 const etat = () => new Map(lignes(`SELECT lg_FAMILLE_ID, int_SEUIL_MIN, int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT FROM t_famille WHERE str_STATUT='enable'`).map((r) => [r[0], r.slice(1).map(Number)]));
 /* seuil et quantite attendus (meme arithmetique que le serveur : conso / semaines, puis x Q, arrondi superieur) */
-function attendu(parMois, nbMois, q1, q2) {
+/* diviseurMois : absent = mois reellement retenus (defaut) ; sinon Q3 (SEMOIS_DIVISEUR_MOIS_REELS = 0, ancienne formule) */
+function attendu(parMois, nbMois, q1, q2, diviseurMois) {
   const fen = FENETRE.slice(3 - nbMois);
   let total = 0;
   for (const m of fen) { if (parMois && parMois[m] !== undefined) { total += parMois[m]; } }
-  const c = total / (fen.length * 4);
+  const c = total / ((diviseurMois || fen.length) * 4);
   return [Math.ceil(c * q1), Math.ceil(c * q2)];
 }
 
@@ -159,6 +160,16 @@ async function recalculer(p, nom) {
     vendus.length > 100 && nonVendus.length > 100 && interdits.length === 4 && venduSansClasse.length === 10 && prods.some((x) => x[1] && !conso.has(x[0])) && prods.some((x) => !x[1] && conso.has(x[0])),
     prods.length + ' actifs, ' + vendus.length + ' vendus, ' + nonVendus.length + ' non vendus, interdits ' + interdits.length);
 
+  /* parametre de la methode de division (migration V7.6.41.2111) : valeur 1 par defaut, descriptif valide le 21/11 dans
+     t_parameters et dans l'explication de l'ecran des parametres */
+  const DESCRIPTIF = 'Méthode de division du calcul SEMOIS (standard, ABC, par produit). 1 = les ventes sont divisées par le nombre de mois réellement présents dans l\'historique × 4 semaines (valeur par défaut, adaptée à une officine qui démarre). 0 = ancienne formule : division par Q3 × 4 semaines, quel que soit l\'historique disponible.';
+  const pd = lignes("SELECT str_VALUE, str_DESCRIPTION FROM " + SAUV + "_p WHERE str_KEY = 'SEMOIS_DIVISEUR_MOIS_REELS'")[0];
+  let regle = null;
+  try { regle = JSON.parse(execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', '-sN', '--raw', ENV_E2E.BASE, '-e',
+    "SELECT explication FROM parametre_explication WHERE str_KEY = 'SEMOIS_DIVISEUR_MOIS_REELS'"], { encoding: 'utf8' }).trim()).regle; } catch (e) { /* absent */ }
+  ok('Paramètre SEMOIS_DIVISEUR_MOIS_REELS créé à 1, descriptif validé dans t_parameters et dans son explication', !!pd && pd[0] === '1' && pd[1] === DESCRIPTIF && regle === DESCRIPTIF,
+    JSON.stringify(pd || null).slice(0, 120) + ' / ' + String(regle).slice(0, 80));
+
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
   try {
@@ -166,9 +177,15 @@ async function recalculer(p, nom) {
     const parent = await p.evaluate(() => { let t = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { if (n.get('id') === 'famillemanager') { t = n.parentNode.get('text'); } }); return t; });
     await V.ouvrirEcran(p, (parent || '').replace(/<[^>]+>/g, '').trim(), 'Fiche Article', 'famillemanager');
     await p.waitForFunction(() => Ext.ComponentQuery.query('famillemanager button[text=Recalculer seuils]').some((c) => c.isVisible(true)), null, { timeout: 60000 });
+    /* rapprochement base / service de l'ecran des parametres : valeur, descriptif et explication du nouveau parametre */
+    const vu = await p.evaluate(async () => ((await (await fetch('../api/v1/app-params/liste?start=0&limit=0')).json()).results || []).find((x) => x.str_KEY === 'SEMOIS_DIVISEUR_MOIS_REELS') || null);
+    let regleVue = null;
+    try { regleVue = JSON.parse(vu.explication).regle; } catch (e) { /* absente */ }
+    ok('Écran des paramètres (service de la liste) : SEMOIS_DIVISEUR_MOIS_REELS, valeur, descriptif et explication = base', !!vu && vu.str_VALUE === pd[0]
+      && vu.str_DESCRIPTION === DESCRIPTIF && regleVue === DESCRIPTIF, JSON.stringify(vu).slice(0, 200));
 
     /* A. SEMOIS ABC, fenetre d'un mois (Moaye) */
-    param('SEMOIS', 1); param('SEMOIS_ABC', 1); param('SEMOIS_PAR_PRODUIT', 0);
+    param('SEMOIS', 1); param('SEMOIS_ABC', 1); param('SEMOIS_PAR_PRODUIT', 0); param('SEMOIS_DIVISEUR_MOIS_REELS', 1);
     calendrier(true); reprise();
     const hA = q('SELECT IFNULL(MAX(lg_ID), 0) FROM t_famille_history');
     await recalculer(p, 'A. ABC, un mois');
@@ -195,7 +212,7 @@ async function recalculer(p, nom) {
     ok('A. exemple : ' + exemple[5] + ' (' + conso.get(exemple[0])[FENETRE[2]] + ' vendus en ' + FENETRE[2] + ', classe ' + exemple[1] + ') seuil = conso / 4 x Q1',
       base.get(exemple[0])[0] === attendu(conso.get(exemple[0]), 1, +classes.get(exemple[1])[0], 0)[0], base.get(exemple[0]).join('/'));
     /* rapprochement : journal de calcul */
-    let lu = null;
+    let lu = null; // relu en E
     try { lu = JSON.parse(fs.readFileSync(journal, 'utf8')); } catch (e) { /* absent */ }
     const parId = new Map((lu || []).map((o) => [o.produitId, o]));
     const ecartsJ = prods.filter(libre).filter((x) => { const o = parId.get(x[0]); const bb = base.get(x[0]); return !o || o.seuilMini !== bb[0] || o.quantiteReappro !== bb[2] || o.moisRetenus !== 1; });
@@ -260,6 +277,30 @@ async function recalculer(p, nom) {
     base = etat();
     r = comparer(prods.filter((x) => conso.has(x[0])), base, calcAbc(3));
     ok('D. ABC, historique complet : ' + r.n + ' produits vendus = conso des 3 mois / 12 semaines x Q (inchangé)', r.n > 1000 && r.ecarts.length === 0, r.ecarts.length + ' écarts : ' + r.ecarts.slice(0, 5).join(' ; '));
+
+    /* E. SEMOIS_DIVISEUR_MOIS_REELS = 0, ABC, fenetre d'un mois : ancienne formule (Q3 x 4) ; non vendus toujours a 0 */
+    param('SEMOIS_DIVISEUR_MOIS_REELS', 0); calendrier(true); reprise();
+    await recalculer(p, 'E. ABC, un mois, ancienne formule');
+    base = etat();
+    r = comparer(prods, base, (x) => {
+      if (!libre(x)) { return null; }
+      const c = classes.get(x[1]);
+      const q3 = c ? (+c[2] > 0 ? +c[2] : G.Q3) : G.Q3;
+      return attendu(conso.get(x[0]), 1, c ? +c[0] : G.Q1, c ? +c[1] : G.Q2, q3);
+    });
+    ok('E. ancienne formule (paramètre à 0) : ' + r.n + ' produits actifs = ventes d\'un mois / (Q3 x 4), non vendus à 0', r.n > 1000 && r.ecarts.length === 0, r.ecarts.length + ' écarts : ' + r.ecarts.slice(0, 5).join(' ; '));
+    ok('E. exemple : ' + exemple[5] + ' seuil = ventes d\'octobre / 12 x Q1', base.get(exemple[0])[0] === attendu(conso.get(exemple[0]), 1, +classes.get(exemple[1])[0], 0, 3)[0], base.get(exemple[0]).join('/'));
+    lu = null;
+    try { lu = JSON.parse(fs.readFileSync(journal, 'utf8')); } catch (e) { /* absent */ }
+    const o = (lu || []).find((y) => y.produitId === exemple[0]);
+    ok('E. journal : méthode et diviseur notés (diviseurMoisReels false, 12 semaines)', o && o.diviseurMoisReels === false && o.nombreSemaines === 12 && o.moisRetenus === 1, JSON.stringify(o || null));
+
+    /* F. SEMOIS_DIVISEUR_MOIS_REELS = 0, standard, fenetre d'un mois : ancienne formule */
+    param('SEMOIS_ABC', 0); reprise();
+    await recalculer(p, 'F. standard, un mois, ancienne formule');
+    base = etat();
+    r = comparer(prods.filter((x) => qSimple.has(x[0])), base, (x) => (libre(x) ? [Math.ceil(qSimple.get(x[0]) / (G.Q3 * 4) * G.Q1), Math.ceil(qSimple.get(x[0]) / (G.Q3 * 4) * G.Q2)] : null));
+    ok('F. standard, ancienne formule : ' + r.n + ' produits simples vendus = conso / (Q3 x 4)', r.n > 100 && r.ecarts.length === 0, r.ecarts.length + ' écarts : ' + r.ecarts.slice(0, 5).join(' ; '));
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);
   } finally {

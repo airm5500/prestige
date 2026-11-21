@@ -113,6 +113,19 @@ public class SemoisService {
         }
     }
 
+    /**
+     * Methode de division des trois modes SEMOIS (decision du 21/11) : 1 ou parametre absent = mois reellement presents
+     * dans l'historique x 4 semaines ; 0 = ancienne formule, Q3 x 4 semaines.
+     */
+    private boolean isDiviseurMoisReels() {
+        try {
+            TParameters p = em.find(TParameters.class, "SEMOIS_DIVISEUR_MOIS_REELS");
+            return p == null || p.getStrVALUE() == null || Integer.parseInt(p.getStrVALUE().trim()) != 0;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     /** SEMOIS PAR PRODUIT actif : on calcule seuil/qte avec Q1/Q2 de la fiche article. */
     private boolean isSemoisParProduit() {
         try {
@@ -206,6 +219,15 @@ public class SemoisService {
      */
     static Calcul calculProduit(Map<String, Double> perMonth, List<LocalDate> moisAsc, int q1, int q2, int q3,
             boolean jour) {
+        return calculProduit(perMonth, moisAsc, q1, q2, q3, jour, true);
+    }
+
+    /**
+     * Meme calcul ; moisReels = false (parametre SEMOIS_DIVISEUR_MOIS_REELS a 0) : ancienne formule, a la semaine la
+     * consommation est divisee par q3 x 4 quel que soit l'historique disponible. Au jour : inchange.
+     */
+    static Calcul calculProduit(Map<String, Double> perMonth, List<LocalDate> moisAsc, int q1, int q2, int q3,
+            boolean jour, boolean moisReels) {
         int from = Math.max(0, moisAsc.size() - Math.max(q3, 1));
         List<LocalDate> fenetre = moisAsc.subList(from, moisAsc.size());
         double consoTotale = 0d;
@@ -217,7 +239,7 @@ public class SemoisService {
             }
             nbJours += m.lengthOfMonth();
         }
-        double semaines = fenetre.size() * 4d;
+        double semaines = (moisReels ? fenetre.size() : Math.max(q3, 1)) * 4d;
         double conso = jour ? (nbJours > 0 ? consoTotale / nbJours : 0d) : (semaines > 0 ? consoTotale / semaines : 0d);
         return new Calcul(consoTotale, fenetre.size(), nbJours, conso, q1, q2);
     }
@@ -361,7 +383,9 @@ public class SemoisService {
              * Les ventes sont lues du premier au dernier mois retenu : on divise par ces mois-la, pas par Q3 (avant :
              * un seul mois d'historique divise par Q3 x 4 semaines, seuils trois fois trop bas a l'ouverture).
              */
-            q3 = moisCouverts(nombreMois); // journal : « q3Mois » = mois reellement couverts par les ventes lues
+            if (isDiviseurMoisReels()) {
+                q3 = moisCouverts(nombreMois); // journal : « q3Mois » = mois reellement couverts par les ventes lues
+            }
             int total = loadSemoisArticleCount(firstMouth, lastMouth);
 
             Map<String, Tuple> mapBoite = new HashMap<>();
@@ -663,6 +687,7 @@ public class SemoisService {
 
             // Journal de calcul (toujours actif) -> ~/Documents/reappro_logs/semois_abc_<date>.json
             final org.json.JSONArray logArr = new org.json.JSONArray();
+            final boolean moisReels = isDiviseurMoisReels();
 
             // 4) Calcul + mise a jour par lots : produits vendus, puis produits actifs sans vente (seuil et qte a 0)
             List<String> produitIds = produitsATraiter(conso.keySet(), loadProduitsActifs());
@@ -692,7 +717,7 @@ public class SemoisService {
                         }
 
                         // Fenetre propre a la classe : les q3w derniers mois retenus
-                        Calcul c = calculProduit(perMonth, moisAsc, q1, q2, q3w, jour);
+                        Calcul c = calculProduit(perMonth, moisAsc, q1, q2, q3w, jour, moisReels);
                         updateProduitSeuilAndQtyReappro(produitId, c.seuil, c.qte);
 
                         org.json.JSONObject o = new org.json.JSONObject();
@@ -705,7 +730,9 @@ public class SemoisService {
                         o.put("moisRetenus", c.mois);
                         o.put("vendu", perMonth != null);
                         o.put("consoTotale", c.consoTotale);
-                        o.put(jour ? "nombreJours" : "nombreSemaines", jour ? c.jours : (c.mois * 4));
+                        o.put(jour ? "nombreJours" : "nombreSemaines",
+                                jour ? c.jours : ((moisReels ? c.mois : q3w) * 4));
+                        o.put("diviseurMoisReels", moisReels);
                         o.put("conso", c.conso);
                         o.put("seuilMini", c.seuil);
                         o.put("quantiteReappro", c.qte);
@@ -755,6 +782,7 @@ public class SemoisService {
 
             // Journal de calcul -> ~/Documents/reappro_logs/semois_par_produit_<date>.json
             final org.json.JSONArray logArr = new org.json.JSONArray();
+            final boolean moisReels = isDiviseurMoisReels();
 
             // produits vendus, puis produits actifs sans vente (seuil et qte a 0)
             List<String> produitIds = produitsATraiter(conso.keySet(), loadProduitsActifs());
@@ -769,7 +797,7 @@ public class SemoisService {
                         int q1 = (cfg != null && cfg[0] > 0) ? cfg[0] : gq1;
                         int q2 = (cfg != null && cfg[1] > 0) ? cfg[1] : gq2;
 
-                        Calcul c = calculProduit(perMonth, moisAsc, q1, q2, gq3, false);
+                        Calcul c = calculProduit(perMonth, moisAsc, q1, q2, gq3, false, moisReels);
                         updateProduitSeuilAndQtyReappro(produitId, c.seuil, c.qte);
 
                         org.json.JSONObject o = new org.json.JSONObject();
@@ -780,7 +808,8 @@ public class SemoisService {
                         o.put("moisRetenus", c.mois);
                         o.put("vendu", perMonth != null);
                         o.put("consoTotale", c.consoTotale);
-                        o.put("nombreSemaines", c.mois * 4);
+                        o.put("nombreSemaines", (moisReels ? c.mois : gq3) * 4);
+                        o.put("diviseurMoisReels", moisReels);
                         o.put("conso", c.conso);
                         o.put("seuilMini", c.seuil);
                         o.put("quantiteReappro", c.qte);
