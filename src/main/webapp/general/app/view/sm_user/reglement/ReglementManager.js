@@ -41,7 +41,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
     xtype: 'reglementmanager',
     id: 'reglementmanagerID',
     title: 'Liste Des R&eacute;glements',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
@@ -353,6 +353,8 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                 }, {
                     xtype: 'datefield',
                     id: 'datefin',
+                    /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                    plugins: [{ptype: 'champperiode', souple: true, debut: 'datedebut', declencher: 'btnRechercherReglements'}],
                     name: 'datefin',
                     emptyText: 'Date fin',
                     maxValue: new Date(),
@@ -418,6 +420,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     })
                 }, {
                     text: 'rechercher',
+                    itemId: 'btnRechercherReglements',
                     tooltip: 'rechercher',
                     iconCls: 'searchicon',
                     scope: this,

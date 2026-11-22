@@ -17,7 +17,12 @@
  *  - bornes : celles des champs d'origine (maxValue, minValue) ; une periode hors bornes est signalee en rouge mais
  *    appliquee et envoyee, comme les deux champs d'origine le faisaient.
  * Les ecrans le recoivent un par un, a leur refonte (comme les boutons) : Balance vente caisse 2, État de contrôle des
- * achats, Liste des bons par organisme (reponse du 22/11).
+ * achats, Liste des bons par organisme (reponse du 22/11), puis les ecrans du menu FACTURATION (retour du 22/11).
+ *
+ * Aide au choix (retour du 22/11 : les utilisateurs sont habitues a deux champs) : en tete du calendrier, deux cases
+ * « Du » et « Au » montrent les deux dates, comme les anciens champs. La case en cours de choix est en couleur ; un clic
+ * sur « Au » ne change que la date de fin (un seul clic dans le calendrier), un clic sur « Du » reprend au debut. Au
+ * survol, la periode qui serait choisie se colore. Un clic dans le champ ouvre aussi le calendrier.
  */
 Ext.define('testextjs.view.commun.ChampPeriode', {
     extend: 'Ext.AbstractPlugin',
@@ -30,6 +35,8 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
     libelle: null,
     /** Largeur du champ unique. */
     largeur: null,
+    /** Vrai : le champ unique reprend le flex des deux champs d'origine (barres chargees du menu FACTURATION). */
+    souple: false,
 
     statics: {
         SEPARATEUR: ' → ',
@@ -122,10 +129,13 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
         /* bornes d'origine des deux champs (pas celles qu'ils se donnent l'un a l'autre, debut <= fin) */
         me.max = fin.initialConfig.maxValue || debut.initialConfig.maxValue || null;
         me.min = debut.initialConfig.minValue || fin.initialConfig.minValue || null;
+        var souple = me.souple ? (debut.initialConfig.flex || 0) + (fin.initialConfig.flex || 0) : 0;
         me.champ = parent.insert(parent.items.indexOf(debut), {
             xtype: 'triggerfield', itemId: (fin.itemId || fin.id) + 'Periode', cls: 'champ-periode',
             fieldLabel: me.libelle || undefined, labelWidth: me.libelle ? Math.max(40, me.libelle.length * 7) : undefined,
-            width: me.largeur || (me.libelle ? 250 : 200), triggerCls: 'x-form-date-trigger', emptyText: 'jj/mm/aaaa → jj/mm/aaaa',
+            /* « souple » : le champ prend la place des deux champs d'origine (leur flex), sans descendre sous 190 px */
+            width: souple ? undefined : me.largeur || (me.libelle ? 250 : 200), flex: souple || undefined, minWidth: souple ? 190 : undefined,
+            triggerCls: 'x-form-date-trigger', emptyText: 'jj/mm/aaaa → jj/mm/aaaa',
             value: cls.texte(debut.getValue(), fin.getValue()), enableKeyEvents: true,
             /* la validation d'Ext (a chaque frappe) dit l'erreur : un marquage a la main serait efface aussitot */
             validator: function (v) {
@@ -136,9 +146,19 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
             listeners: {
                 afterrender: function (c) {
                     Ext.tip.QuickTipManager.register({target: c.inputEl, text: 'Période : tapez « 01/10/2026 → 31/10/2026 » ou ouvrez le calendrier'
-                                + ' (premier clic = début, second clic = fin). Entrée lance la recherche.'});
+                                + ' (premier clic = début, second clic = fin ; cases « Du » et « Au » pour ne changer qu\'une date). Entrée lance la recherche.'});
+                    /* habitude des deux champs de date : un clic dans le champ ouvre le calendrier */
+                    c.inputEl.on('click', function () {
+                        if (!me.panneau || !me.panneau.isVisible()) {
+                            me.ouvrir();
+                        }
+                    });
                 },
                 specialkey: function (c, e) {
+                    /* le calendrier ouvert par un clic dans le champ se ferme au clavier */
+                    if ((e.getKey() === e.TAB || e.getKey() === e.ESC || e.getKey() === e.ENTER) && me.panneau && me.panneau.isVisible()) {
+                        me.panneau.hide();
+                    }
                     if (e.getKey() === e.ENTER) {
                         if (me.valider(c.getValue())) {
                             me.lancer();
@@ -175,8 +195,12 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
         debut.on('change', suivre);
         fin.on('change', suivre);
         me.champ.on('destroy', function () {
+            if (me.surDocument) {
+                Ext.getDoc().un({mousedown: me.surDocument, keydown: me.surDocument});
+            }
             if (me.panneau) {
                 me.panneau.destroy();
+                me.panneau = null;
             }
         });
     },
@@ -245,7 +269,12 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
     },
 
     lancer: function () {
-        var me = this, bouton = me.declencher ? me.fin.ownerCt.down('#' + me.declencher) : null;
+        var me = this, bouton = null, c = me.declencher ? me.fin.ownerCt : null;
+        /* le bouton peut etre sur une autre barre de l'ecran (Suivi des bons) : recherche en remontant */
+        while (c && !bouton) {
+            bouton = c.down('#' + me.declencher);
+            c = c.ownerCt;
+        }
         if (bouton && !bouton.disabled) {
             /* comme un vrai clic : evenement « click » (controleurs) puis handler du bouton */
             if (bouton.fireHandler) {
@@ -266,7 +295,7 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
         me.choixDebut = null;
         if (!me.panneau) {
             me.panneau = Ext.create('Ext.container.Container', {
-                floating: true, shadow: 'frame', cls: 'champ-periode-panneau', layout: {type: 'hbox', align: 'stretch'},
+                floating: true, focusOnToFront: false, shadow: 'frame', cls: 'champ-periode-panneau', layout: {type: 'hbox', align: 'stretch'},
                 renderTo: Ext.getBody(), hidden: true,
                 items: [{xtype: 'container', itemId: 'raccourcis', cls: 'champ-periode-raccourcis', width: 120, layout: {type: 'vbox', align: 'stretch'},
                         items: Ext.Array.map(me.self.raccourcis(), function (r) {
@@ -277,8 +306,22 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
                                 }};
                         })},
                     {xtype: 'container', layout: {type: 'vbox', align: 'stretch'}, items: [
+                            {xtype: 'component', itemId: 'bornes', cls: 'champ-periode-bornes', html: '',
+                                listeners: {afterrender: function (c) {
+                                        c.getEl().on('click', function (e, t) {
+                                            me.changerCible(t.getAttribute('data-borne'));
+                                        }, null, {delegate: '.champ-periode-case'});
+                                    }}},
                             {xtype: 'component', itemId: 'consigne', cls: 'champ-periode-consigne', html: ''},
-                            {xtype: 'datepicker', itemId: 'calendrier', showToday: false, handler: function (p, d) {
+                            {xtype: 'datepicker', itemId: 'calendrier', showToday: false,
+                                /* jamais de focus pose par le calendrier sur un jour (focus(50) d'Ext a chaque mise a jour) : la frappe reste dans le champ */
+                                /* doCancelFocus est efface par Ext apres chaque clic sur un jour : remis a chaque mise a jour */
+                                doCancelFocus: true, focusOnSelect: false,
+                                selectedUpdate: function () {
+                                    this.doCancelFocus = true;
+                                    return Ext.picker.Date.prototype.selectedUpdate.apply(this, arguments);
+                                },
+                                handler: function (p, d) {
                                     me.choisir(d);
                                 }}]}]
             });
@@ -286,17 +329,49 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
             picker.update = Ext.Function.createSequence(picker.update, function () {
                 me.marquer();
             });
-            Ext.getDoc().on('mousedown', function (e) {
-                if (me.panneau && me.panneau.isVisible() && !e.within(me.panneau.getEl()) && !(me.champ.triggerWrap && e.within(me.champ.triggerWrap))) {
+            /* survol : la periode qui serait choisie se colore */
+            var survoler = function () {
+                picker.getEl().on('mouseover', function (e, td) {
+                    var a = td.firstChild;
+                    me.survol = a && a.dateValue ? a.dateValue : null;
+                    me.marquer();
+                }, null, {delegate: 'td'});
+                picker.getEl().on('mouseleave', function () {
+                    me.survol = null;
+                    me.marquer();
+                });
+            };
+            /* le panneau est dessine des sa creation (renderTo) : le calendrier l'est deja */
+            if (picker.rendered) {
+                survoler();
+            } else {
+                picker.on('afterrender', survoler, null, {single: true});
+            }
+            me.surDocument = function (e) {
+                if (!me.panneau || me.panneau.isDestroyed || !me.panneau.isVisible()) {
+                    return;
+                }
+                if (e.type === 'keydown') {
+                    /* Echap ferme le calendrier, ou que soit le focus (une recherche peut l'avoir repris) */
+                    if (e.getKey() === e.ESC) {
+                        me.panneau.hide();
+                    }
+                } else if (!e.within(me.panneau.getEl()) && !(me.champ.triggerWrap && e.within(me.champ.triggerWrap))) {
                     me.panneau.hide();
                 }
-            });
+            };
+            Ext.getDoc().on({mousedown: me.surDocument, keydown: me.surDocument});
         }
         var picker = me.panneau.down('#calendrier');
         picker.setMaxDate(me.max);
         picker.setMinDate(me.min);
-        me.consigne('Cliquez la date de <b>début</b>');
+        me.survol = null;
         me.panneau.show();
+        me.changerCible('debut');
+        /* la frappe continue dans le champ : le calendrier ne prend pas le focus */
+        if (!me.champ.hasFocus) {
+            me.champ.focus();
+        }
         picker.setValue(fin.getValue() || debut.getValue() || new Date());
         me.marquer();
         me.panneau.alignTo(me.champ.triggerWrap || me.champ.getEl(), 'tl-bl?', [0, 2]);
@@ -306,12 +381,60 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
         this.panneau.down('#consigne').update(html);
     },
 
+    /**
+     * Case « Du » ou « Au » : la date que le prochain clic dans le calendrier choisit. « debut » : premier clic = debut,
+     * second = fin. « fin » (sans debut en cours de choix) : un seul clic, qui ne change que la fin.
+     */
+    changerCible: function (cible) {
+        var me = this;
+        if (cible !== 'debut' && cible !== 'fin') {
+            return;
+        }
+        if (cible === 'debut') {
+            me.choixDebut = null;
+        }
+        me.cible = cible;
+        me.dessinerBornes();
+        if (cible === 'debut') {
+            me.consigne('Cliquez la date de <b>début</b>');
+        } else if (me.choixDebut) {
+            me.consigne('Début : <b>' + Ext.Date.format(me.choixDebut, 'd/m/Y') + '</b> — cliquez la date de <b>fin</b>');
+        } else {
+            me.consigne('Cliquez la nouvelle date de <b>fin</b> (le début reste le même)');
+        }
+        me.marquer();
+    },
+
+    /** Les deux cases « Du » et « Au » : dates en cours (ou choisie), case active en couleur. */
+    dessinerBornes: function () {
+        var me = this, c = me.panneau && me.panneau.down('#bornes');
+        if (!c) {
+            return;
+        }
+        var f = function (d) {
+            return d ? Ext.Date.format(d, 'd/m/Y') : '—';
+        };
+        var du = me.choixDebut || me.champDebut().getValue(), au = me.choixDebut ? null : me.fin.getValue();
+        var cas = function (role, libelle, d) {
+            return '<div class="champ-periode-case' + (me.cible === role ? ' champ-periode-case-active' : '') + '" data-borne="' + role + '"'
+                    + ' data-qtip="' + (role === 'debut' ? 'Choisir la période à partir du début' : 'Ne changer que la date de fin') + '">'
+                    + '<span data-borne="' + role + '">' + libelle + '</span> <b data-borne="' + role + '">' + f(d) + '</b></div>';
+        };
+        c.update(cas('debut', 'Du', du) + '<span class="champ-periode-fleche">→</span>' + cas('fin', 'Au', au));
+    },
+
     choisir: function (d) {
         var me = this;
+        if (me.cible === 'fin' && !me.choixDebut) {
+            /* case « Au » : seule la fin change ; un debut posterieur est remis dans l'ordre */
+            var debut = me.champDebut().getValue();
+            me.panneau.hide();
+            me.appliquer(debut && debut > d ? [d, debut] : [debut || null, d], true);
+            return;
+        }
         if (!me.choixDebut) {
             me.choixDebut = d;
-            me.consigne('Début : <b>' + Ext.Date.format(d, 'd/m/Y') + '</b> — cliquez la date de <b>fin</b>');
-            me.marquer();
+            me.changerCible('fin');
             return;
         }
         var d1 = me.choixDebut, d2 = d;
@@ -326,7 +449,10 @@ Ext.define('testextjs.view.commun.ChampPeriode', {
         if (!picker || !picker.cells) {
             return;
         }
-        var d1 = me.choixDebut || me.champDebut().getValue(), d2 = me.choixDebut ? me.choixDebut : me.fin.getValue();
+        var d1 = me.choixDebut || me.champDebut().getValue(), d2 = me.choixDebut ? (me.survol ? new Date(me.survol) : me.choixDebut) : me.fin.getValue();
+        if (!me.choixDebut && me.cible === 'fin' && me.survol) {
+            d2 = new Date(me.survol);
+        }
         var t1 = d1 ? Ext.Date.clearTime(d1, true).getTime() : null, t2 = d2 ? Ext.Date.clearTime(d2, true).getTime() : null;
         picker.cells.each(function (c) {
             var v = c.dom.firstChild && c.dom.firstChild.dateValue;

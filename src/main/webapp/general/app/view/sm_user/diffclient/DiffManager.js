@@ -14,7 +14,7 @@ Ext.define('testextjs.view.sm_user.diffclient.DiffManager', {
     xtype: 'diffmanager',
     id: 'diffmanagerID',
     title: 'Liste Des Differes',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
@@ -163,6 +163,8 @@ Ext.define('testextjs.view.sm_user.diffclient.DiffManager', {
                 }, {
                     xtype: 'datefield',
                     id: 'datefin',
+                    /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                    plugins: [{ptype: 'champperiode', souple: true, debut: 'datedebut', declencher: 'btnRechercherDiff'}],
                     name: 'datefin',
                     emptyText: 'Date fin',
                     maxValue: new Date(),
@@ -194,6 +196,7 @@ Ext.define('testextjs.view.sm_user.diffclient.DiffManager', {
                     }
                 }, '-', {
                     text: 'rechercher',
+                    itemId: 'btnRechercherDiff',
                     tooltip: 'rechercher',
                     scope: this,
                     iconCls: 'searchicon',

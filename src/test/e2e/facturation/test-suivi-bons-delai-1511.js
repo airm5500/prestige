@@ -58,13 +58,10 @@ const enBase = (du, au) => q("SELECT CONCAT(IFNULL(t.str_CODE_ORGANISME, ''), '|
     await vues.ouvrirMenu(p, 'FACTURATION', 'Suivi des bons');
     await p.waitForFunction(() => Ext.ComponentQuery.query('tpventes').some((c) => c.isVisible(true)), null, { timeout: 30000 });
     await p.waitForTimeout(1500);
-    const champ = (id) => p.evaluate((i) => '#' + Ext.ComponentQuery.query('tpventes #' + i)[0].inputEl.dom.id, id);
-    const taper = async (id, valeur) => { await p.click(await champ(id)); await p.keyboard.press('Control+A'); await p.keyboard.type(valeur, { delay: 15 }); await p.keyboard.press('Tab'); };
     const bouton = await p.evaluate(() => '#' + Ext.ComponentQuery.query('tpventes #rechercher')[0].getEl().id);
     for (const per of PERIODES) {
-      /* « Au » d'abord quand on recule : la date de debut ne doit pas depasser la date de fin */
-      await taper('dtStart', fr(per.du));
-      await taper('dtEnd', fr(per.au));
+      /* plan du 21/11, point 7.2 (retour du 22/11) : la periode se tape d'un coup dans le selecteur unique */
+      await vues.saisirPeriode(p, 'tpventes #dtEnd', fr(per.du), fr(per.au));
       reponses.length = 0;
       const t0 = Date.now();
       await p.click(bouton);

@@ -108,7 +108,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'facturemanager',
     id: 'facturemanagerID',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         'Ext.selection.CellModel',
         'Ext.selection.CheckboxModel',
         'Ext.grid.*',
@@ -395,19 +395,6 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 //                padding: '8',
                 items: [
                     {
-                        text: 'Cr&eacute;er',
-                        scope: this,
-                        iconCls: 'addicon',
-                        handler: this.onAddCreate
-                    }, '-', {
-                        text: 'Supprimer la s&eacute;lection',
-                        id: 'btnSupprimerSelectionFacture',
-                        hidden: true, // affiche au chargement si l'utilisateur a le privilege de suppression
-                        tooltip: 'Supprimer les factures coch&eacute;es',
-                        iconCls: 'cancelicon',
-                        scope: this,
-                        handler: this.onDeleteSelection
-                    }, '-', {
                         xtype: 'datefield',
                         id: 'datedebut',
                         name: 'datedebut',
@@ -429,6 +416,8 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     }, {
                         xtype: 'datefield',
                         id: 'datefin',
+                        /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                        plugins: [{ptype: 'champperiode', souple: true, debut: 'datedebut', declencher: 'btnRechercherFactures'}],
                         name: 'datefin',
                         emptyText: 'Date fin',
                         maxValue: new Date(),
@@ -532,6 +521,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
                     , {
                         text: 'rechercher',
+                        itemId: 'btnRechercherFactures',
                         tooltip: 'rechercher',
                         iconCls: 'searchicon',
 
@@ -547,9 +537,28 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         scope: this,
                         toggleHandler: this.onDejaFacture
                     },
+                ]
+            },
+            /* plan du 21/11, point 7.2 (retour du 22/11) : a 1366 et 1280, la barre unique debordait deja (1 384 px pour
+               1 301). Filtres et recherche sur la premiere ligne, actions sur la seconde. */
+            {xtype: 'toolbar',
+                dock: 'top',
+                itemId: 'facturesActions',
+                items: [
                     {
-                        xtype: 'tbseparator'
-                    },
+                        text: 'Cr&eacute;er',
+                        scope: this,
+                        iconCls: 'addicon',
+                        handler: this.onAddCreate
+                    }, '-', {
+                        text: 'Supprimer la s&eacute;lection',
+                        id: 'btnSupprimerSelectionFacture',
+                        hidden: true, // affiche au chargement si l'utilisateur a le privilege de suppression
+                        tooltip: 'Supprimer les factures coch&eacute;es',
+                        iconCls: 'cancelicon',
+                        scope: this,
+                        handler: this.onDeleteSelection
+                    }, '-',
                     {
                         text: 'Imprimer',
                         tooltip: 'Imprimer',

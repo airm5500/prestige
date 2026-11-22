@@ -86,6 +86,19 @@ async function saisir(p, requete, texte) {
   await p.keyboard.press('Tab');
 }
 
+/* Periode entiere tapee dans le selecteur unique (ChampPeriode) pose sur le champ de fin « requeteFin » : « du → au »,
+ * puis Tab. Pour avancer ou reculer une periode d'un coup : deux appels a « saisir » (debut puis fin) remettraient
+ * dans l'ordre une periode intermediaire. Retour du 22/11 sur le point 7.2. */
+async function saisirPeriode(p, requeteFin, du, au) {
+  const id = await p.evaluate((r) => { const c = Ext.ComponentQuery.query(r)[0]; return c && c.champPeriode ? c.champPeriode.inputEl.dom.id : null; }, requeteFin);
+  if (!id) { throw new Error('Sélecteur de période absent : ' + requeteFin); }
+  await p.click('#' + id);
+  await p.keyboard.press('Escape');
+  await p.keyboard.press('Control+A');
+  await p.keyboard.type((du || '') + ' → ' + (au || ''), { delay: 15 });
+  await p.keyboard.press('Tab');
+}
+
 /* texte des boites de message visibles */
 const texteMessage = (p) => p.evaluate(() => Ext.ComponentQuery.query('messagebox{isVisible()}').map((b) => b.el.dom.textContent).join(' | '));
 
@@ -119,4 +132,4 @@ async function choisirMotif(p, motif) {
   if (await item.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) { await item.click(); }
 }
 
-module.exports = { BASE, connexion, ouvrirMenu, ouvrirEcran, cliquer, choisir, saisir, texteMessage, attendreMessage, repondre, confirmerAnnulation, choisirMotif };
+module.exports = { BASE, connexion, ouvrirMenu, ouvrirEcran, cliquer, choisir, saisir, saisirPeriode, texteMessage, attendreMessage, repondre, confirmerAnnulation, choisirMotif };

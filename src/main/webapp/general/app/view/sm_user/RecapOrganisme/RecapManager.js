@@ -29,7 +29,7 @@ Ext.define('testextjs.view.sm_user.RecapOrganisme.RecapManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'recapOrganisme',
     id: 'recapOrganismeID',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         
     ],
     title: 'Le r&eacute;capitulatif par compte d’organisme',
@@ -267,6 +267,8 @@ Ext.define('testextjs.view.sm_user.RecapOrganisme.RecapManager', {
                                     labelWidth: 20,
                                     flex: 0.7,
                                     id: 'dt_end_recap',
+                                    /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                                    plugins: [{ptype: 'champperiode', souple: true, debut: 'dt_start_recap', declencher: 'btnRechercherRecap'}],
                                     listeners: {
                                         change: function () {
 
@@ -376,6 +378,7 @@ Ext.define('testextjs.view.sm_user.RecapOrganisme.RecapManager', {
                                     // flex: 0.4,
                                     width: 100,
                                     xtype: 'button',
+                                    itemId: 'btnRechercherRecap',
                                     iconCls: 'searchicon',
                                     text: 'Rechercher',
                                     listeners: {
@@ -394,12 +397,14 @@ Ext.define('testextjs.view.sm_user.RecapOrganisme.RecapManager', {
 
 
                                 },
-                                , {
-                                    xtype: 'tbseparator'
-                                }
-
-
-                                ,
+                            ]
+                        }, {
+                            /* plan du 21/11, point 7.2 (retour du 22/11) : a 1366 et 1280, la barre unique debordait deja
+                               (1 459 px pour 1 301). Filtres et recherche sur la premiere ligne, editions sur la seconde. */
+                            xtype: 'toolbar',
+                            dock: 'top',
+                            itemId: 'recapActions',
+                            items: [
                                 {
                                     width: 100,
                                     xtype: 'button',
@@ -465,7 +470,6 @@ Ext.define('testextjs.view.sm_user.RecapOrganisme.RecapManager', {
                                         }
                                     }
                                 }
-
 
                             ]
                         }
