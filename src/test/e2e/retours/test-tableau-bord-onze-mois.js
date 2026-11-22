@@ -19,7 +19,7 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
-const { connexion, ouvrirMenu, cliquer } = require('../outils/vues');
+const { connexion, ouvrirMenu, cliquer, saisirPeriode } = require('../outils/vues');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -125,8 +125,10 @@ function attendu() {
     await ouvrirMenu(p, menu[0], menu[1]);
     await p.waitForFunction(() => Ext.ComponentQuery.query('tableauPhama #rechercher').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     const taper = async (sel, texte) => { await cliquer(p, sel); await p.keyboard.press('Control+A'); await p.keyboard.type(texte); await p.keyboard.press('Tab'); };
-    await taper('tableauPhama #dtStart', '01/01/2025');
-    await taper('tableauPhama #dtEnd', '30/11/2025');
+    /* retour du 22/11 : un seul champ « période » (les champs Du / Au sont masques) */
+    await p.waitForFunction(() => { const f = Ext.ComponentQuery.query('tableauPhama #dtEnd')[0]; return f && f.champPeriode && f.champPeriode.isVisible(true); }, null, { timeout: 30000 });
+    await p.waitForTimeout(1500);
+    await saisirPeriode(p, 'tableauPhama #dtEnd', '01/01/2025', '30/11/2025');
     const coche = await p.evaluate(() => Ext.ComponentQuery.query('tableauPhama #monthly')[0].getValue());
     if (!coche) { await cliquer(p, 'tableauPhama #monthly'); }
     const rechercher = async () => {

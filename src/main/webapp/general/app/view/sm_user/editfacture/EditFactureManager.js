@@ -468,7 +468,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     },
                     /* retour du 22/11 : le bouton Rechercher suit le champ de recherche */
                     {
-                        text: 'Rechercher',
+                        text: 'rechercher', /* libelle d'origine garde (le bouton a seulement change de place) */
                         itemId: 'btnRechercherFactures',
                         tooltip: 'Rechercher',
                         iconCls: 'searchicon',

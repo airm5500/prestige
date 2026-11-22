@@ -84,7 +84,7 @@ print(json.dumps([[('' if c is None else str(c)) for c in r] for r in ws.iter_ro
         groupeAvantTp: !!groupe && visibles.indexOf(groupe) >= 0 && visibles.indexOf(groupe) < visibles.indexOf(tp),
         largeurPeriode: per ? per.getWidth() : null, deborde: t.layout.innerCt.dom.scrollWidth > t.getEl().dom.clientWidth + 2 };
     });
-    ok('Barre : « Rechercher » juste après le champ de recherche', /^btnRechercherFactures Rechercher$/.test(barre.suivant), barre.suivant);
+    ok('Barre : « Rechercher » juste après le champ de recherche', /^btnRechercherFactures rechercher$/i.test(barre.suivant), barre.suivant);
     ok('Barre : sélecteur de groupe de tiers payant visible, avant le tiers payant', barre.groupe && barre.groupeAvantTp, JSON.stringify(barre));
     ok('Barre : champ période de 190 à 215 px (il prenait la place des deux anciens champs), barre sans débordement',
       barre.largeurPeriode >= 190 && barre.largeurPeriode <= 215 && !barre.deborde, JSON.stringify(barre));

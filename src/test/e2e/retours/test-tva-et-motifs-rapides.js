@@ -17,7 +17,7 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
-const { connexion, ouvrirMenu, cliquer } = require('../outils/vues');
+const { connexion, ouvrirMenu, cliquer, saisirPeriode } = require('../outils/vues');
 const { execFileSync } = require('child_process');
 
 const res = [];
@@ -57,8 +57,8 @@ const ventesSql = (d, f) => `SELECT p.lg_USER_CAISSIER_ID, COUNT(*) FROM t_preen
     await ouvrirMenu(p, mTva[0], mTva[1]);
     await p.waitForFunction(() => Ext.ComponentQuery.query('tvastat #rechercher').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     for (const [d, f] of [['2026-11-01', '2026-11-16'], ['2026-11-12', '2026-11-12'], ['2026-10-01', '2026-10-31']]) {
-      await taper('tvastat #dtStart', fr(d));
-      await taper('tvastat #dtEnd', fr(f));
+      /* retour du 22/11 : un seul champ « période » (les champs Du / Au sont masques) */
+      await saisirPeriode(p, 'tvastat #dtEnd', fr(d), fr(f));
       const lire = async () => {
         const rep = p.waitForResponse((r) => r.url().includes('/api/v3/tvas') && r.url().includes('dtStart=' + d), { timeout: 60000 });
         const t0 = Date.now();
