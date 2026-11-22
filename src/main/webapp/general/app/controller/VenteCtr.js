@@ -5686,6 +5686,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "lgTYPECLIENTID": record.get('lgTYPECLIENTID'),
                 "lgVILLEID": record.get('lgVILLEID'),
                 "strADRESSE": record.get('strADRESSE'),
+                /* plan du 21/11, point 7 : telephone saisi dans « Modifier infos client » */
+                "strTELEPHONE": client.strTELEPHONE === undefined ? null : client.strTELEPHONE,
                 "strCODEPOSTAL": record.get('strCODEPOSTAL'),
                 "strFIRSTNAME": record.get('strFIRSTNAME'),
                 "strLASTNAME": record.get('strLASTNAME'),

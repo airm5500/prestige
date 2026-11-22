@@ -763,6 +763,10 @@ public class ClientServiceImpl implements ClientService {
         client.setDtUPDATED(new Date());
         client.setStrCODEPOSTAL(clientDTO.getStrCODEPOSTAL());
         client.setStrADRESSE(clientDTO.getStrADRESSE());
+        /* plan du 21/11, point 7 : telephone seulement s'il fait partie de l'envoi */
+        if (clientDTO.getStrTELEPHONE() != null) {
+            client.setStrTELEPHONE(StringUtils.trimToNull(clientDTO.getStrTELEPHONE()));
+        }
         client.setLgVILLEID(findVilleById(clientDTO.getLgVILLEID()));
         client.setRemise(findRemiseById(clientDTO.getRemiseId()));
         try {
@@ -785,6 +789,8 @@ public class ClientServiceImpl implements ClientService {
         client.setDtUPDATED(new Date());
         client.setStrCODEPOSTAL(clientDTO.getStrCODEPOSTAL());
         client.setStrADRESSE(clientDTO.getStrADRESSE());
+        /* plan du 21/11, point 7 */
+        client.setStrTELEPHONE(StringUtils.trimToNull(clientDTO.getStrTELEPHONE()));
         client.setLgTYPECLIENTID(findTypeClientById(clientDTO.getLgTYPECLIENTID()));
         client.setLgVILLEID(findVilleById(clientDTO.getLgVILLEID()));
         client.setStrCODEINTERNE(codeInterneLibre());
@@ -1451,6 +1457,11 @@ public class ClientServiceImpl implements ClientService {
             if (tauxInvalide != null) {
                 return json.put("success", false).put("msg", tauxInvalide);
             }
+            // plan du 21/11, point 7 : telephone controle (numero ivoirien) et normalise avant l'enregistrement
+            String telephoneInvalide = controleTelephone(client);
+            if (telephoneInvalide != null) {
+                return json.put("success", false).put("msg", telephoneInvalide);
+            }
             // Espaces de fin retires cote serveur, avant tout controle : sans cela « KONAN »
             // et « KONAN » restaient deux clients distincts pour le controle d'unicite.
             normaliserIdentite(client);
@@ -1529,6 +1540,30 @@ public class ClientServiceImpl implements ClientService {
             return json;
 
         }
+    }
+
+    /**
+     * Plan du 21/11, point 7 : telephone du client assure (fenetre « Modifier infos client »). Absent de l'envoi : rien
+     * ne change ; vide : efface ; sinon numero ivoirien exige, enregistre au format local a dix chiffres (meme regle
+     * que le client standard, util.TelephoneCi). Rend le message a afficher, ou null si tout est correct.
+     */
+    static String controleTelephone(ClientDTO client) {
+        String saisie = client.getStrTELEPHONE();
+        if (saisie == null) {
+            /* champ absent de l'envoi (autres ecrans) : le telephone de la fiche n'est pas touche */
+            return null;
+        }
+        if (saisie.trim().isEmpty()) {
+            client.setStrTELEPHONE("");
+            return null;
+        }
+        util.TelephoneCi.Resultat t = util.TelephoneCi.controler(saisie);
+        if (!t.isValide()) {
+            /* le numero saisi n'est ni journalise ni repris dans le message */
+            return "Téléphone : numéro ivoirien attendu, dix chiffres commençant par 01, 05 ou 07.";
+        }
+        client.setStrTELEPHONE(t.getLocal());
+        return null;
     }
 
     /**

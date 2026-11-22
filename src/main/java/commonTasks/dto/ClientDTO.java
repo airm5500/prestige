@@ -34,6 +34,17 @@ public class ClientDTO implements Serializable {
     private String strNUMEROSECURITESOCIAL = "";
     private String strSEXE;
     private String strADRESSE;
+    /** Plan du 21/11, point 7 : telephone du client (t_client.str_TELEPHONE), numero ivoirien. */
+    private String strTELEPHONE;
+
+    public String getStrTELEPHONE() {
+        return strTELEPHONE;
+    }
+
+    public void setStrTELEPHONE(String strTELEPHONE) {
+        this.strTELEPHONE = strTELEPHONE;
+    }
+
     /** Consentement SMS / WhatsApp (point 2) : "true", "false" ou vide. */
     private String consentSms;
 
@@ -271,6 +282,9 @@ public class ClientDTO implements Serializable {
         this.strNUMEROSECURITESOCIAL = client.getStrNUMEROSECURITESOCIAL();
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
+        this.strTELEPHONE = client.getStrTELEPHONE();
+        /* plan du 21/11, point 7 : le code postal etait absent, la fenetre le renvoyait vide et l'effacait */
+        this.strCODEPOSTAL = client.getStrCODEPOSTAL();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
         this.email = client.getEmail();
         this.libelleTypeClient = libelleTypeClient(client);
@@ -291,6 +305,9 @@ public class ClientDTO implements Serializable {
         this.strNUMEROSECURITESOCIAL = client.getStrNUMEROSECURITESOCIAL();
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
+        this.strTELEPHONE = client.getStrTELEPHONE();
+        /* plan du 21/11, point 7 : le code postal etait absent, la fenetre le renvoyait vide et l'effacait */
+        this.strCODEPOSTAL = client.getStrCODEPOSTAL();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
         this.lgTYPECLIENTID = identifiantTypeClient(client);
         this.ayantDroits = ayantDroits;
@@ -331,6 +348,9 @@ public class ClientDTO implements Serializable {
         this.strNUMEROSECURITESOCIAL = client.getStrNUMEROSECURITESOCIAL();
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
+        this.strTELEPHONE = client.getStrTELEPHONE();
+        /* plan du 21/11, point 7 : le code postal etait absent, la fenetre le renvoyait vide et l'effacait */
+        this.strCODEPOSTAL = client.getStrCODEPOSTAL();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
         this.lgTYPECLIENTID = identifiantTypeClient(client);
         if (client.getDtNAISSANCE() != null) {
@@ -459,6 +479,9 @@ public class ClientDTO implements Serializable {
         this.strNUMEROSECURITESOCIAL = client.getStrNUMEROSECURITESOCIAL();
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
+        this.strTELEPHONE = client.getStrTELEPHONE();
+        /* plan du 21/11, point 7 : le code postal etait absent, la fenetre le renvoyait vide et l'effacait */
+        this.strCODEPOSTAL = client.getStrCODEPOSTAL();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
         this.lgTYPECLIENTID = identifiantTypeClient(client);
         this.ayantDroits = ayantDroits;
