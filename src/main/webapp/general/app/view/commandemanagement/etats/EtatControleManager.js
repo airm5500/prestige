@@ -515,7 +515,9 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [
+            /* plan du 21/11, points 1.3 et 3 : filtres sur la 1re ligne, actions sur la 2e (comme l'etat du stock) :
+               sur une seule ligne, la barre defilait sur les petits ecrans */
+            dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'filtresControleAchats', items: [
                 {
                     xtype: 'combobox',
                     id: 'dateType',
@@ -642,7 +644,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     iconCls: 'searchicon',
                     scope: this,
                     handler: this.onRechClick
-                },
+                }]}, {xtype: 'toolbar', dock: 'top', itemId: 'actionsControleAchats', items: [
+                /* plan du 21/11 (point 1.3) : statut et écarts en tête de la seconde ligne, la première ligne tient à 1280 */
                 /* Point 17 : filtre sur le statut du controle et sur la presence d'ecarts. Ni
                  * l'un ni l'autre n'est stocke en base - le statut est calcule a partir des
                  * lignes du bon, l'ecart se lit en comparant le comptage a la quantite recue -,
@@ -738,11 +741,10 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     hidden: true,
                     scope: this,
                     handler: this.onReglerSelectionBL
-                }
-            ],
+                }]},
             /* retours du 13/10 : question et resultat de l'inventaire dans la page, en entier (plus de fenetre
                qui tronquait le message) */
-            dockedItems: [{
+                {
                     xtype: 'container', dock: 'top', itemId: 'bandeInventaire', hidden: true, padding: '8 10',
                     style: 'background:#eef4fb;border-bottom:1px solid #c9d8ea',
                     layout: {type: 'hbox', align: 'middle'},

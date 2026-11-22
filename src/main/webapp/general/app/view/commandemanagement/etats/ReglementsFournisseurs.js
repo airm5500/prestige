@@ -312,7 +312,9 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                                 me.down('#rfMontant').setValue(me.du());
                             }},
                         {xtype: 'datefield', itemId: 'rfDate', fieldLabel: 'Date', labelWidth: 32, width: 140, format: 'd/m/Y',
-                            value: aujourdhui, maxValue: aujourdhui},
+                            value: aujourdhui, maxValue: aujourdhui}]},
+                /* plan du 21/11, points 1.3 et 3 : la saisie tient sur deux lignes (plus de defilement sur petit ecran) */
+                {xtype: 'toolbar', dock: 'top', itemId: 'rfFormulaire2', items: [
                         {xtype: 'combobox', itemId: 'rfMode', fieldLabel: 'Mode', labelWidth: 36, width: 165, queryMode: 'local',
                             store: me.MODES, value: 'ESPECES', forceSelection: true, editable: false},
                         {xtype: 'textfield', itemId: 'rfReference', fieldLabel: 'Référence', labelWidth: 62, width: 210,
@@ -484,7 +486,9 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                                 }}, entree)},
                         {text: 'Rechercher', itemId: 'rfRechercher', iconCls: 'searchicon', handler: function () {
                                 me.storeReglements.load();
-                            }},
+                            }}]},
+                /* plan du 21/11, points 1.3 et 3 : filtres en haut, actions et totaux en dessous */
+                {xtype: 'toolbar', dock: 'top', itemId: 'rfActionsHistorique', items: [
                         {text: 'Relevé', itemId: 'rfReleve', menu: [
                                 {text: 'Excel', itemId: 'rfReleveExcel', handler: function () {
                                         me.releve('excel');
