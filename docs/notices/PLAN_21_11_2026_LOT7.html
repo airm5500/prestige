@@ -19,16 +19,17 @@
 </head>
 <body>
 <h1>Plan du 21/11/2026 : compte rendu du lot 7 (réserve, période en facturation, numéros étrangers, scan DataMatrix)</h1>
-<p class="sous">Retours du 22/11 sur les lots 3, 4 et 5. Branche <code>plan/21112026</code>, commits <code>384f14d3e</code> (réserve), <code>4638bf579</code> (7.2), <code>79f5494ee</code> (8.3) et <code>45a2d5216</code> (16.1), rien de fusionné. Tests d'écran sur domain4 (base de test <code>laborex_audit</code>), un par un. Aucun SMS ni message WhatsApp réel.</p>
+<p class="sous">Retours du 22/11 sur les lots 3, 4 et 5. Branche <code>plan/21112026</code>, commits <code>384f14d3e</code> (réserve), <code>4638bf579</code> (7.2), <code>79f5494ee</code> (8.3) <code>45a2d5216</code> (16.1) et <code>a096ff276</code> (1 boîte par scan), rien de fusionné. Version déployée aussi sur domain2 (copie <code>appaul</code>, envois coupés). Tests d'écran sur domain4 (base de test <code>laborex_audit</code>), un par un. Aucun SMS ni message WhatsApp réel.</p>
 
 <div class="ok">Les quatre demandes sont faites. Chaque nouveau test échouait sur l'ancien code et passe maintenant :
 <ul>
 <li>liste réserve : 24 sur 28 avant, 28 sur 28 après ;</li>
 <li>période en facturation : 0 sur 9 avant, 152 sur 152 après ;</li>
 <li>numéros étrangers : 8 sur 17 avant, 17 sur 17 après ;</li>
-<li>scan DataMatrix complet et « 0127 » : 15 sur 18 avant, 33 sur 33 après.</li>
+<li>scan DataMatrix complet et « 0127 » : 15 sur 18 avant, 33 sur 33 après ;</li>
+<li>1 boîte par scan : 3 sur 15 avant, 20 sur 20 après.</li>
 </ul>
-Non-régression : 43 tests d'écran rejoués un par un, tous verts (détail en fin de page).</div>
+Non-régression : 43 tests d'écran rejoués un par un, puis 9 tests de la saisie de commande et des étiquettes après le mode « 1 boîte par scan » : tous verts (détail en fin de page).</div>
 
 <h2>Lot 3 : liste réserve à 1280×720</h2>
 <p>L'onglet débordait (1 266 px de contenu pour 1 215 px de vue). Les en-têtes de colonnes étaient aussi tronqués.</p>
@@ -153,7 +154,51 @@ Non-régression : 43 tests d'écran rejoués un par un, tous verts (détail en f
 <tr><td>Incomplet (sans code produit, ou sans lot, ou sans date)</td><td>Comme avant : lot et date repris, curseur sur la date (ou sur le lot s'il manque), Entrée pour valider.</td></tr>
 </table>
 <p>Un même lot scanné à nouveau se cumule sur la ligne (règle existante : jamais deux lignes pour un lot).</p>
-<div class="note">Le scan complet ajoute la ligne avec la quantité tapée avant le scan. Le mode « 1 boîte par scan » (scan direct dans la recherche du produit, sans taper de quantité) reste noté « pour plus tard » dans l'analyse : à confirmer si vous le voulez maintenant.</div>
+<p>Le scan dans la petite fenêtre ajoute la ligne avec la quantité tapée avant le scan. Pour scanner sans taper de quantité, voir ci-dessous.</p>
+
+<h3>1 boîte par scan (réponse du 22/11)</h3>
+<p>Quand le paramètre <code>KEY_SAISIE_PEREMPTION_COMMANDE</code> vaut 1, le DataMatrix d'une boîte se scanne directement dans le champ « Article » de la commande en cours. Il passe par les deux modes déjà présents pour les étiquettes de grossiste (« Scan : 1 boîte par scan » et « Scan puis quantité ») :</p>
+<table>
+<tr><th>Cas</th><th>Ce qui se passe</th></tr>
+<tr><td>1 boîte par scan</td><td>Le produit est retrouvé par l'EAN de la boîte (ou son CIP, s'il y est). Sa ligne prend 1 boîte, avec le lot et la péremption, sans fenêtre ni quantité. Le champ se vide pour le scan suivant, et un message confirme (« ✓ 1 × produit ajouté (lot …) »).</td></tr>
+<tr><td>Même lot rescanné</td><td>+1 sur la ligne et sur le lot ; jamais deux lignes.</td></tr>
+<tr><td>Autre lot du même produit</td><td>Un lot de plus sur la même ligne.</td></tr>
+<tr><td>Scan puis quantité</td><td>Produit et lot annoncés, curseur sur la quantité ; Entrée ajoute la quantité tapée avec ce lot.</td></tr>
+<tr><td>Boîte périmée</td><td>Rien n'est ajouté ; le message donne la péremption et le lot.</td></tr>
+<tr><td>Code incomplet (lot manquant, date manquante ou impossible)</td><td>Rien n'est ajouté ; le message dit ce qui manque et invite à chercher le produit par son nom.</td></tr>
+<tr><td>Produit introuvable (EAN inconnu de Prestige)</td><td>Rien n'est ajouté ; le message donne l'EAN lu. Pas de proposition de création de fiche : une boîte ne porte ni désignation ni prix, et le produit existe peut-être sous son CIP local sans EAN enregistré.</td></tr>
+<tr><td>Paramètre à 0</td><td>Rien ne change.</td></tr>
+</table>
+<p>Le produit est retrouvé seulement si son EAN (EAN-13 ou EAN fabricant) est enregistré dans sa fiche. Une fois l'EAN ajouté à la fiche, les scans suivants le retrouvent.</p>
+<p><b>Défaut existant corrigé en route</b> : en « Scan puis quantité », étiquettes de grossiste comprises, la recherche lancée par la frappe du scan partait après coup sur le nom du produit. Elle rouvrait la liste et reprenait le curseur de la quantité, et la quantité tapée partait dans le champ « Article ». Le test des étiquettes ne passait que si le serveur répondait assez lentement. Si l'on tape un autre produit après un scan en attente, ce scan est maintenant abandonné.</p>
+<h3>Tests</h3>
+<ul>
+<li><b>Cohérence</b>, <code>ReceptionBoiteCoherenceTest</code> : 20 000 codes de boîte tirés au hasard (graine fixe), sous toutes les formes :
+<ul>
+<li>préfixe de douchette, numéro de série, quatre formes du séparateur, CIP présent ou non, lot avant ou après la date, jour 00 = fin du mois ;</li>
+<li>EAN, lot, péremption et CIP lus = ceux écrits ;</li>
+<li>boîte refusée si et seulement si la date est passée ;</li>
+<li>sur 5 000 codes : message « incomplet » si et seulement si le produit est lu sans lot ou sans date ;</li>
+<li>une étiquette de grossiste reste lue comme avant.</li>
+</ul></li>
+<li><b>Rapprochement et bilan</b>, <code>retours/test-commande-boite-par-scan-2211.js</code> :
+<ul>
+<li>scans successifs : ligne 1, 2, 3, 4, puis 10 après « scan puis quantité » de 6 ;</li>
+<li>boîte périmée, code sans lot, date impossible, produit introuvable : rien d'écrit ;</li>
+<li>recherche d'un autre produit après un scan en attente ;</li>
+<li>grille = vue des lots = base ;</li>
+<li>une seule commande, une seule ligne, quantité = somme des lots ;</li>
+<li>paramètre à 0 : rien d'ajouté.</li>
+</ul></li>
+<li>Rejoués :
+<ul>
+<li>réception par étiquettes 19/19, types d'étiquette 38/38, personnalisation des étiquettes 50/50 ;</li>
+<li>commande en cours 0825 5/5, lots en commande 33/33 ;</li>
+<li>mouvement de prix en commande 8/8, suggestion 10/10 ;</li>
+<li>retour fournisseur 9/9, retour de lots 7/7.</li>
+</ul></li>
+</ul>
+<div class="note">Sur domain2 (copie <code>appaul</code>), le paramètre <code>KEY_SAISIE_PEREMPTION_COMMANDE</code> vaut 0, comme à l'officine. Pour essayer le scan, mettez-le à 1 dans les paramètres, puis rouvrez l'écran de la commande.</div>
 
 <h3>Tests</h3>
 <ul>
