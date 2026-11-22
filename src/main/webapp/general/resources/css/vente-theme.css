@@ -3663,3 +3663,13 @@ table.pv-bulle td.n { text-align: right; white-space: nowrap; padding-left: 10px
 .x-toolbar.sugg-bandeau-nettoyage { background: #fff4e0 !important; background-image: none !important; border: 1px solid #e0a03a !important;
   border-radius: 4px; padding: 4px 8px !important; }
 .sugg-bandeau-nettoyage .sugg-bandeau-texte { color: #7a4a00 !important; font-weight: bold; font-size: 13px; white-space: normal; }
+/* Plan du 21/11, point 7.2 : selecteur de periode unique « du → au » (testextjs.view.commun.ChampPeriode) */
+.champ-periode input { font-weight: 600; color: #1e3a5f; }
+.champ-periode-panneau { background: #fff; border: 1px solid #c9d6e3; border-radius: 8px; padding: 8px; }
+.champ-periode-raccourcis { padding-right: 8px; border-right: 1px solid #eef1f4; margin-right: 8px; }
+.champ-periode-raccourci .x-btn-inner { text-align: left; }
+.champ-periode-consigne { font-size: 12px; color: #2c3e50; padding: 2px 4px 6px; min-height: 20px; }
+.champ-periode-panneau .x-datepicker td.champ-periode-dans { background: #dbeafe; }
+.champ-periode-panneau .x-datepicker td.champ-periode-borne { background: #1e5fa8; }
+.champ-periode-panneau .x-datepicker td.champ-periode-borne a,
+.champ-periode-panneau .x-datepicker td.champ-periode-borne div { color: #fff !important; font-weight: 700; }

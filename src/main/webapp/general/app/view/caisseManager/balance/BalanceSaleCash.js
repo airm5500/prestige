@@ -3,6 +3,7 @@
 Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
     extend: 'Ext.panel.Panel',
     xtype: 'balancesalecahs',
+    requires: ['testextjs.view.commun.ChampPeriode'],
     frame: true,
     title: 'Balance Vente/Caisse',
     width: '97%',
@@ -417,7 +418,9 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
             submitFormat: 'Y-m-d', maxValue: new Date(), format: 'd/m/Y', value: new Date()
         }, '-', {
             xtype: 'datefield', fieldLabel: 'Au', itemId: 'dtEnd' + suffixe, labelWidth: 20, flex: 1,
-            submitFormat: 'Y-m-d', maxValue: new Date(), format: 'd/m/Y', value: new Date()
+            submitFormat: 'Y-m-d', maxValue: new Date(), format: 'd/m/Y', value: new Date(),
+            /* plan du 21/11, point 7.2 : un seul selecteur de periode sur l'onglet Balance */
+            plugins: suffixe === '' ? [{ptype: 'champperiode', debut: 'dtStart', declencher: 'rechercher', libelle: 'Période'}] : []
         }, {
             text: 'rechercher', tooltip: 'rechercher', itemId: 'rechercher' + suffixe, iconCls: 'searchicon'
         });

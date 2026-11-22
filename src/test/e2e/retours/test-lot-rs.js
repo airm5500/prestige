@@ -129,10 +129,16 @@ function semer() {
     await p.waitForTimeout(1500);
     const ids = await p.evaluate(() => {
       const vue = Ext.ComponentQuery.query('balancesalecahs')[0];
-      return { du: vue.down('#dtStart').inputEl.id, au: vue.down('#dtEnd').inputEl.id, rechercher: vue.down('#rechercher').el.id, synthese: !!vue.down('#syntheseBalance') };
+      return { du: vue.down('#dtStart').inputEl.id, au: vue.down('#dtEnd').inputEl.id, rechercher: vue.down('#rechercher').el.id,
+        /* plan du 21/11, point 7.2 : un seul selecteur de periode sur l'onglet Balance */
+        periode: vue.down('#dtEnd').champPeriode ? vue.down('#dtEnd').champPeriode.inputEl.id : null, synthese: !!vue.down('#syntheseBalance') };
     });
-    await p.fill('#' + ids.du, fr(MOIS_A)); await p.keyboard.press('Tab');
-    await p.fill('#' + ids.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    if (ids.periode) {
+      await p.fill('#' + ids.periode, fr(MOIS_A) + ' → ' + fr(FIN_B)); await p.keyboard.press('Tab');
+    } else {
+      await p.fill('#' + ids.du, fr(MOIS_A)); await p.keyboard.press('Tab');
+      await p.fill('#' + ids.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    }
     await p.click('#' + ids.rechercher);
     await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('balancesalecahs #ventilationBalance')[0]; return c && c.el && /RÉSUMÉ/.test(c.el.dom.innerText); }, null, { timeout: 20000 });
     await p.waitForTimeout(800);

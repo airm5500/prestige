@@ -56,7 +56,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     xtype: 'etatscontrolemanager',
     id: 'etatscontrolemanagerID',
     frame: true,
-    requires: ['testextjs.view.commandemanagement.cmde_passees.action.edit', 'testextjs.view.commandemanagement.AvoirsBonFenetre'],
+    requires: ['testextjs.view.commandemanagement.cmde_passees.action.edit', 'testextjs.view.commandemanagement.AvoirsBonFenetre',
+        'testextjs.view.commun.ChampPeriode'],
 
     title: 'Etat de controle des achats',
 //    btnUpdate: false,
@@ -620,7 +621,9 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                         'change': function (me) {
                             Ext.getCmp('datedebut').setMaxValue(me.getValue());
                         }
-                    }
+                    },
+                    /* plan du 21/11, point 7.2 : un seul selecteur de periode */
+                    plugins: [{ptype: 'champperiode', debut: 'datedebut', declencher: 'btnRechercherControle', largeur: 205}]
                 }, '-',
                 {
                     xtype: 'textfield',
@@ -640,6 +643,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 /* retours du 10/10 : « Rechercher » juste apres le champ de recherche */
                 {
                     text: 'Rechercher',
+                    itemId: 'btnRechercherControle',
                     tooltip: 'Rechercher',
                     iconCls: 'searchicon',
                     scope: this,

@@ -34,8 +34,14 @@ function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' +
     ok('Ouverture : la liste répond', r0.status() === 200, r0.status());
     await p.waitForTimeout(1500);
 
-    await vider('datedebut');
-    await vider('datefin');
+    /* plan du 21/11, point 7.2 : « Date debut » et « Date fin » sont un seul champ de periode ; le vider vide les deux */
+    const periode = await p.evaluate(() => { const c = Ext.getCmp('datefin').champPeriode; return c && c.isVisible(true) ? c.getItemId() : null; });
+    if (periode) {
+      await vider(periode);
+    } else {
+      await vider('datedebut');
+      await vider('datefin');
+    }
     const valeurs = await p.evaluate(() => [Ext.getCmp('datedebut').getRawValue(), Ext.getCmp('datefin').getRawValue()]);
     ok('Les deux dates sont vides à l\'écran', valeurs[0] === '' && valeurs[1] === '', JSON.stringify(valeurs));
 

@@ -77,15 +77,21 @@ const TMP = ENV_E2E.TMP + '/claude-0/lot-n';
         // lot P : les barres du bas vivent dans l'onglet cache « Balance (ancienne) »
         recapBasVisible: ['recapBas1', 'recapBas2', 'recapBas3'].map(id => !!vue.down('#ongletBalanceAncienne').down('#' + id)),
         ancienneCachee: !vue.down('#ongletBalanceAncienne').tab.isVisible(),
-        du: vue.down('#dtStart').inputEl.id, au: vue.down('#dtEnd').inputEl.id, rechercher: vue.down('#rechercher').el.id
+        du: vue.down('#dtStart').inputEl.id, au: vue.down('#dtEnd').inputEl.id, rechercher: vue.down('#rechercher').el.id,
+        /* plan du 21/11, point 7.2 : un seul selecteur de periode sur l'onglet Balance */
+        periode: vue.down('#dtEnd').champPeriode ? vue.down('#dtEnd').champPeriode.inputEl.id : null
       };
     });
     ok('chaque onglet a sa recherche ; la liste de periode n est pas sur l onglet Balance',
       !structure.periodeSurBalance && structure.datesBalance && structure.datesAnalyse && structure.datesModes, JSON.stringify(structure));
     ok('grille Balance sans pagination ; les barres du bas sont dans l onglet « Balance (ancienne) », cache sans privilege',
       !structure.pagination && structure.recapBasVisible.every(Boolean) && structure.ancienneCachee, JSON.stringify(structure.recapBasVisible) + ' cachee=' + structure.ancienneCachee);
-    await p.fill('#' + structure.du, fr(MOIS_A)); await p.keyboard.press('Tab');
-    await p.fill('#' + structure.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    if (structure.periode) {
+      await p.fill('#' + structure.periode, fr(MOIS_A) + ' → ' + fr(FIN_B)); await p.keyboard.press('Tab');
+    } else {
+      await p.fill('#' + structure.du, fr(MOIS_A)); await p.keyboard.press('Tab');
+      await p.fill('#' + structure.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    }
     await p.click('#' + structure.rechercher);
     await p.waitForFunction(() => {
       const c = Ext.ComponentQuery.query('balancesalecahs #ventilationBalance')[0];

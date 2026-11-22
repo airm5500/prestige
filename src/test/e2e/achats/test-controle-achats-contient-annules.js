@@ -34,7 +34,14 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     await p.waitForFunction(() => !Ext.ComponentQuery.query('etatscontrolemanager')[0].getStore().isLoading(), null, { timeout: 60000 });
 
     /* « contient » : periode large, morceau du milieu de la reference */
-    await saisir('etatscontrolemanager #datedebut', '01/01/2020');
+    /* plan du 21/11, point 7.2 : les deux dates sont remplacees par un seul champ de periode */
+    const auJour = await p.evaluate(() => Ext.Date.format(Ext.getCmp('datefin').getValue() || new Date(), 'd/m/Y'));
+    if (await p.evaluate(() => !!Ext.getCmp('datefin').champPeriode)) {
+      await saisir('etatscontrolemanager #datefinPeriode', '01/01/2020 → ' + auJour);
+      await p.keyboard.press('Tab');
+    } else {
+      await saisir('etatscontrolemanager #datedebut', '01/01/2020');
+    }
     await saisir('etatscontrolemanager #rechecher', MILIEU);
     await p.keyboard.press('Enter');
     await p.waitForTimeout(800);

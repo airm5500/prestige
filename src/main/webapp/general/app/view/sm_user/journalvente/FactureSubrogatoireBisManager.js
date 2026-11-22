@@ -19,7 +19,7 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireBisManager', 
     minHeight: 570,
     /* integrer le menu a utiliser ici  */
 requires: [
-        'testextjs.view.vente.user.UpdateVenteClientTpForm'
+        'testextjs.view.vente.user.UpdateVenteClientTpForm', 'testextjs.view.commun.ChampPeriode'
     ],
     layout: {
         type: 'fit'
@@ -194,8 +194,9 @@ requires: [
                             value: new Date(),
                             margin: '0 9 0 0',
                             submitFormat: 'Y-m-d',
-                            format: 'd/m/Y'
-
+                            format: 'd/m/Y',
+                            /* plan du 21/11, point 7.2 : un seul selecteur de periode */
+                            plugins: [{ptype: 'champperiode', debut: 'dtStart', declencher: 'rechercher', libelle: 'Période', largeur: 265}]
                         }, {
                             xtype: 'timefield',
                             fieldLabel: 'De',

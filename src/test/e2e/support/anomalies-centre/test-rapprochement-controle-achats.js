@@ -52,7 +52,9 @@ const LIRE_XLS = 'import sys, json, xlrd\n'
   await p.route('**/api/v1/support/events', (r) => r.request().method() === 'POST' ? r.fulfill({ status: 200, body: '{}' }) : r.continue());
 
   const poserDate = async (id, valeur) => {
-    if (valeur) { await saisir(p, '#' + id, affiche(valeur)); return; }
+    /* plan du 21/11, point 7.2 : date remplacee par le champ de periode : saisie dans ce champ (cote vide compris) */
+    const remplacee = await p.evaluate((i) => { const c = Ext.getCmp(i); return !!(c && c.champPeriode && !c.isVisible(true)); }, id);
+    if (valeur || remplacee) { await saisir(p, '#' + id, valeur ? affiche(valeur) : ''); return; }
     await cliquer(p, '#' + id);
     await p.keyboard.press('Control+A'); await p.keyboard.press('Delete'); await p.keyboard.press('Tab');
   };

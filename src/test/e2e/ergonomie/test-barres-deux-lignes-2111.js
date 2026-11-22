@@ -113,7 +113,8 @@ const ordre = (p, ecran, filtre, action) => p.evaluate(([e, f, a]) => {
     await ouvrirMenu(p, 'GESTION COURANTE', 'Bons par organisme');
     await p.mouse.move(1200, 700);
     await attendre('facturesubrogatoireother');
-    await controler('Bons par organisme', 'facturesubrogatoireother', '#dtStart', '#printable');
+    /* plan du 21/11, point 7.2 : la date « Du » est remplacee par le champ de periode, sur la meme barre */
+    await controler('Bons par organisme', 'facturesubrogatoireother', '#dtStart, #dtEndPeriode', '#printable');
 
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {

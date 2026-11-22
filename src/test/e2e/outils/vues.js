@@ -63,8 +63,23 @@ async function choisir(p, requete, element) {
   return texte;
 }
 
-/* champ texte ou date : clic, tout selectionner, frappe, puis Tab */
+/* champ texte ou date : clic, tout selectionner, frappe, puis Tab.
+ * Plan du 21/11, point 7.2 : une date « Du » ou « Au » remplacee a l'ecran par le selecteur de periode unique
+ * (ChampPeriode) se saisit dans ce champ : la periode entiere y est tapee, l'autre date restant celle de l'ecran. */
 async function saisir(p, requete, texte) {
+  const periode = await p.evaluate(([r, t]) => { const c = Ext.ComponentQuery.query(r)[0];
+    if (!c || !c.champPeriode || c.isVisible(true) || !c.champPeriode.isVisible(true)) { return null; }
+    const ext = c.ownerCt.query('datefield').filter((x) => x.champPeriode === c.champPeriode && x !== c)[0];
+    const autre = ext && ext.getValue() ? Ext.Date.format(ext.getValue(), 'd/m/Y') : '';
+    const texte = !t && !autre ? '' : c.rolePeriode === 'debut' ? (t + ' → ' + autre).trim() : (autre + ' → ' + t).trim();
+    return { id: c.champPeriode.inputEl.dom.id, texte }; }, [requete, texte]);
+  if (periode) {
+    await p.click('#' + periode.id);
+    await p.keyboard.press('Control+A');
+    if (periode.texte) { await p.keyboard.type(periode.texte, { delay: 20 }); } else { await p.keyboard.press('Delete'); }
+    await p.keyboard.press('Tab');
+    return;
+  }
   await cliquer(p, requete);
   await p.keyboard.press('Control+A');
   await p.keyboard.type(texte, { delay: 20 });
