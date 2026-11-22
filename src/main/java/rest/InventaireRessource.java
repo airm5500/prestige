@@ -970,6 +970,99 @@ public class InventaireRessource {
         }
     }
 
+    /**
+     * Plan du 21/11, point 12 : liste des ecarts avec le stock reserve lu au moment de l'impression (reponse du 22/11).
+     * Memes lignes et memes totaux que l'ancienne edition (ws_generate_pdf.jsp, str_NAME_FILE=ecart) : produits
+     * inventories dont le compte differe du stock machine ; regroupement selon le type de l'inventaire (emplacement,
+     * famille, grossiste), « manquant » et « surplus » par famille ; filtres de l'ecran (emplacement, famille,
+     * grossiste, utilisateur). Le stock machine n'apparait qu'avec la case « Afficher stock » ET le droit de le voir.
+     * Produits sans emplacement, famille ou grossiste compris (l'ancienne edition les omettait). PDF rendu directement.
+     */
+    @GET
+    @Path("ecarts/pdf")
+    @Produces("application/pdf")
+    public Response imprimerEcarts(@DefaultValue("") @QueryParam("lg_INVENTAIRE_ID") String inventaireId,
+            @DefaultValue("") @QueryParam("P_ZONE_ID") String zoneId,
+            @DefaultValue("") @QueryParam("P_FAMILLEARTICLE_ID") String familleArticleId,
+            @DefaultValue("") @QueryParam("P_GROSSISTE_ID") String grossisteId,
+            @DefaultValue("") @QueryParam("str_FILTER") String filtre,
+            @DefaultValue("") @QueryParam("lg_USER_ID") String userId,
+            @DefaultValue("false") @QueryParam("showStock") boolean afficherStock,
+            @DefaultValue("false") @QueryParam("showReserve") boolean afficherReserve) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type("application/json")
+                    .entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TInventaire inv = StringUtils.isBlank(inventaireId) ? null
+                    : odm.getEm().find(TInventaire.class, inventaireId);
+            if (inv == null) {
+                return Response.status(Response.Status.NOT_FOUND).type("application/json")
+                        .entity(new JSONObject().put("success", false).put("msg", "Inventaire introuvable.").toString())
+                        .build();
+            }
+            boolean stock = afficherStock
+                    && new privilege(odm, user).isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
+            String type = StringUtils.defaultString(inv.getStrTYPE()).toLowerCase();
+            boolean parFamille = "famille".equals(type) || "manquant".equalsIgnoreCase(filtre)
+                    || "surplus".equalsIgnoreCase(filtre);
+            String groupe = parFamille ? "COALESCE(fa.str_LIBELLE, 'Sans famille')" : "grossiste".equals(type)
+                    ? "COALESCE(g.str_LIBELLE, 'Sans grossiste')" : "COALESCE(z.str_LIBELLEE, 'Sans emplacement')";
+            String ordre = parFamille ? "fa.str_CODE_FAMILLE, fa.str_LIBELLE"
+                    : "grossiste".equals(type) ? "g.str_LIBELLE" : "z.str_LIBELLEE";
+            String emplacement = user.getLgEMPLACEMENTID() == null ? "1"
+                    : user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            java.util.List<?> res = odm.getEm().createNativeQuery("SELECT " + groupe + ", f.int_CIP, f.str_DESCRIPTION,"
+                    + " COALESCE(f.int_PRICE, 0), COALESCE(f.int_PAF, 0), COALESCE(t.int_NUMBER_INIT, 0),"
+                    + " COALESCE(t.int_NUMBER, 0), (SELECT COALESCE(SUM(r.int_NUMBER), 0) FROM t_type_stock_famille r"
+                    + " WHERE r.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND r.lg_EMPLACEMENT_ID = ?2 AND r.lg_TYPE_STOCK_ID = '2'"
+                    + " AND r.str_STATUT = 'enable')"
+                    + " FROM t_inventaire_famille t JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID"
+                    + " LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID"
+                    + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
+                    + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID"
+                    + " WHERE t.lg_INVENTAIRE_ID = ?1 AND t.bool_INVENTAIRE = true"
+                    + " AND COALESCE(t.int_NUMBER, 0) <> COALESCE(t.int_NUMBER_INIT, 0)"
+                    + " AND (?3 = '' OR f.lg_ZONE_GEO_ID = ?3) AND (?4 = '' OR f.lg_FAMILLEARTICLE_ID = ?4)"
+                    + " AND (?5 = '' OR f.lg_GROSSISTE_ID = ?5) AND (?6 = '' OR t.str_UPDATED_ID = ?6)" + " ORDER BY "
+                    + ordre + ", f.str_DESCRIPTION").setParameter(1, inventaireId).setParameter(2, emplacement)
+                    .setParameter(3, StringUtils.defaultString(zoneId).trim())
+                    .setParameter(4, StringUtils.defaultString(familleArticleId).trim())
+                    .setParameter(5, StringUtils.defaultString(grossisteId).trim())
+                    .setParameter(6, StringUtils.defaultString(userId).trim()).getResultList();
+            java.util.List<rest.service.impl.EcartsInventaire.Ligne> lignes = new java.util.ArrayList<>();
+            for (Object o : res) {
+                Object[] l = (Object[]) o;
+                lignes.add(
+                        new rest.service.impl.EcartsInventaire.Ligne((String) l[0], l[1] == null ? "" : l[1].toString(),
+                                (String) l[2], ((Number) l[3]).longValue(), ((Number) l[4]).longValue(),
+                                ((Number) l[5]).intValue(), ((Number) l[6]).intValue(), ((Number) l[7]).intValue()));
+            }
+            rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+            Object officine = reportUtil.officineData(user).get("P_H_INSTITUTION");
+            e.officine = officine == null ? "" : officine.toString();
+            e.titre = "LISTE DES ÉCARTS D'INVENTAIRE";
+            e.sousTitre = rest.service.impl.EcartsInventaire.sousTitre(inv.getStrNAME(), filtre, stock, afficherReserve,
+                    new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date()));
+            e.imprimePar = (StringUtils.defaultString(user.getStrFIRSTNAME()) + " "
+                    + StringUtils.defaultString(user.getStrLASTNAME())).trim();
+            byte[] pdf = rest.report.pdf.TableauPdf.genererSections(e,
+                    rest.service.impl.EcartsInventaire.sections(lignes, filtre, stock, afficherReserve));
+            String nom = java.text.Normalizer
+                    .normalize(StringUtils.defaultString(inv.getStrNAME()), java.text.Normalizer.Form.NFD)
+                    .replaceAll("\\p{M}", "").replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "");
+            return Response.ok(pdf, "application/pdf").header("Content-Disposition",
+                    "inline; filename=ecarts_" + (nom.length() > 60 ? nom.substring(0, 60) : nom) + "_"
+                            + new java.text.SimpleDateFormat("ddMMyyyy_HHmmss").format(new java.util.Date()) + ".pdf")
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
