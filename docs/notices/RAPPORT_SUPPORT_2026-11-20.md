@@ -103,7 +103,7 @@ ne se reproduisent plus.
 | CA6 | Clôture de caisse : « résumé de caisse introuvable » | revient (16/11) | `billetage/cloture-data` pour une caissière sans caisse ouverte | à vérifier |
 | CA7 | Erreurs d'écran de la vente à crédit (`UpdateVenteClientTpForm`) | revient (18/11) | `getData() is null`, `tpRecord.data is undefined`, `strFIRSTNAME` ; `VenteCtr` : `getCurrent() is null` (17/11) | à reproduire sur `76aa5fc1b` |
 | CA8 | « Redémarrage inattendu » chaque matin | revient | une à trois alertes par jour, de 213 à 667 min d'arrêt (extinction le soir) | le message est plus précis depuis le 12/11 (cause donnée, voir Pontmain) ; l'arrêt du soir reste signalé |
-| CA9 | Veille de cohérence | revient | **221 lots périmés non marqués**, 500 commandes sans ligne, 10 dossiers de règlement sans détail, 4 ventes terminées sans mouvement de caisse, photographie de stock manquante | à analyser : le traitement des périmés ne tourne peut-être pas (serveur éteint à l'heure prévue) |
+| CA9 | Veille de cohérence | revient | **221 lots périmés avec du stock restant** (et non « non marqués » : le contrôle compte les lots déjà marqués périmés dont le stock n'est pas à zéro), 500 commandes sans ligne, 10 dossiers de règlement sans détail, 4 ventes terminées sans mouvement de caisse, photographie de stock manquante | à analyser : le traitement des périmés ne tourne peut-être pas (serveur éteint à l'heure prévue) |
 | CA10 | Recherche d'un article par un QR code | revient | ×20, sans effet pour la vente | bruit |
 | CA11 | SMS | revient | suspensions (×64), POL0001 (×33) | réglage |
 | CA12 | Base coupée vue d'une caisse | **disparu depuis le 13/11** | `Communications link failure` sur CAISSE4 (×5, jusqu'au 13/11) | — |
@@ -137,7 +137,7 @@ cohérence et un bilan.
 | 7 | **CA3** : interblocage à la déconnexion, à reproduire | capitale | M |
 | 8 | **CA2, LE4, LE5, LE13** : ticket Z, `ventestats`, comparaison Excel, compteurs à l'ouverture d'un poste : mesures sur le banc peuplé | capitale, leana | M |
 | 9 | **CA7, LE11** : erreurs d'écran de la vente à crédit et de la vente en dépôt, à reproduire sur `76aa5fc1b` | capitale, leana | M |
-| 10 | **CA9** : 221 lots périmés non marqués : vérifier le traitement des périmés et son rattrapage | capitale | S |
+| 10 | **CA9** : 221 lots périmés avec du stock restant. **Décision de l'utilisateur (22/11) : garder le bouton manuel** « remise à zéro du stock fantôme des lots périmés » du Centre de Support, pas de traitement de nuit ; les vraies boîtes périmées passent par la saisie de périmés de l'officine | capitale | — |
 
 **Décisions qui reviennent à l'utilisateur, sans code** :
 
