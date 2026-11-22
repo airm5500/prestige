@@ -121,7 +121,16 @@ if ($Annuler) {
     AjouterOption "-Xmx$Xmx"
     AjouterOption '-XX:+HeapDumpOnOutOfMemoryError'
     AjouterOption "-XX:HeapDumpPath=$d"
-    AjouterOption "-Xlog:gc*:file=$d/gc.log:time:filecount=5,filesize=20m"
+    # retour du 22/11 : Java refuse "file=D:/..." (le ":" du disque coupe l'option -Xlog) et Payara ne demarre plus.
+    # Le chemin est donne sans le disque : Payara tourne depuis le dossier de son domaine, qui doit etre sur le meme
+    # disque que le dossier de diagnostic.
+    $disqueDiag = [IO.Path]::GetPathRoot((Resolve-Path $DossierDiagnostic).Path).TrimEnd('\')
+    $disquePayara = [IO.Path]::GetPathRoot($Asadmin).TrimEnd('\')
+    if ($disqueDiag -ine $disquePayara) {
+        Write-Warning "Journal du ramasse-miettes non pose : $DossierDiagnostic n'est pas sur le disque de Payara ($disquePayara)."
+    } else {
+        AjouterOption ("-Xlog:gc*:file=" + ($d -replace '^[A-Za-z]:', '') + "/gc.log:time:filecount=5,filesize=20m")
+    }
     if ($ArretSurSaturation) {
         $service = Get-Service | Where-Object { $_.Name -match $Domaine -or $_.DisplayName -match $Domaine }
         if (-not $service) {
