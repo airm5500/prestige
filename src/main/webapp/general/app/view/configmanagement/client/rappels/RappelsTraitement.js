@@ -16,7 +16,7 @@
 Ext.define('testextjs.view.configmanagement.client.rappels.RappelsTraitement', {
     extend: 'Ext.panel.Panel',
     xtype: 'rappelstraitement',
-    requires: ['testextjs.view.configmanagement.client.rappels.RappelsHabitudeManager'],
+    requires: ['testextjs.view.configmanagement.client.rappels.RappelsHabitudeManager', 'testextjs.view.commun.CrayonTelephone'],
     layout: 'card',
     border: false,
     header: false,
@@ -324,7 +324,11 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsTraitement', {
                             viewConfig: {emptyText: '<div style="padding:20px;color:#7f8c8d">Choisissez le produit, la famille ou la DCI, puis « Rechercher ».</div>',
                                 deferEmptyText: false, markDirty: false},
                             columns: [{text: 'Client', dataIndex: 'client', flex: 1, minWidth: 170},
-                                {text: 'Téléphone', dataIndex: 'telephone', width: 110},
+                                /* plan du 21/11, point 8.3 (crayon des Rappels mis de cote au point 18) */
+                                testextjs.view.commun.CrayonTelephone.colonne({width: 125, canal: function () {
+                                        /* meme canal que la recherche du ciblage (sans accord explicite) */
+                                        return {canal: me.ciblage.down('#cbCanal').getValue(), accordExplicite: false};
+                                    }}),
                                 {text: 'Achats', dataIndex: 'achats', width: 65, align: 'right'},
                                 {text: 'Montant', dataIndex: 'montant', width: 90, align: 'right', renderer: nombre},
                                 {text: 'Dernier achat', dataIndex: 'dernierAchat', width: 95, renderer: function (v) {

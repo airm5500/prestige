@@ -3673,3 +3673,12 @@ table.pv-bulle td.n { text-align: right; white-space: nowrap; padding-left: 10px
 .champ-periode-panneau .x-datepicker td.champ-periode-borne { background: #1e5fa8; }
 .champ-periode-panneau .x-datepicker td.champ-periode-borne a,
 .champ-periode-panneau .x-datepicker td.champ-periode-borne div { color: #fff !important; font-weight: 700; }
+
+/* Plan du 21/11, point 8.3 : crayon de correction du numero dans les listes de destinataires */
+.crayon-tel-cellule .x-grid-cell-inner { display: flex; align-items: center; gap: 4px; }
+.crayon-tel-numero { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.crayon-tel { cursor: pointer; color: #2471a3; font-size: 14px; line-height: 14px; padding: 0 3px; border-radius: 3px; }
+.crayon-tel:hover { background: #d6eaf8; }
+.crayon-tel-alerte { color: #c0392b; font-weight: 700; }
+.crayon-tel-alerte:hover { background: #fadbd8; }
+.crayon-tel-editeur .x-form-text { font-size: 12px; }

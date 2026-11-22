@@ -21,6 +21,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
     cls: 'campagnes',
     URL: '../api/v1/campagnes/',
     config: {nameintern: '', titre: '', odatasource: ''},
+    requires: ['testextjs.view.commun.CrayonTelephone'],
 
     TOUS: 'TOUS',
     CANAUX: [{v: 'SMS', t: 'SMS'}, {v: 'WHATSAPP', t: 'WhatsApp'}, {v: 'SMS_WHATSAPP', t: 'WhatsApp, repli SMS'}],
@@ -187,7 +188,8 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         var me = this;
         return [
             {text: 'Client', dataIndex: 'client', flex: 1, minWidth: 180},
-            {text: 'Téléphone', dataIndex: 'telephone', width: 120},
+            /* plan du 21/11, point 8.3 : crayon de correction du numero */
+            testextjs.view.commun.CrayonTelephone.colonne({width: 135}),
             {text: 'Âge', dataIndex: 'age', width: 60, align: 'right'},
             {text: 'État', dataIndex: 'motif', width: 210, renderer: function (v, m, r) {
                     return r.get('joignable') ? '<span class="cmp-joignable"><i class="fa fa-check"></i> Joignable</span>'
@@ -907,7 +909,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             items: [{xtype: 'gridpanel', itemId: 'trouves', flex: 3, columnLines: true, selModel: cocheTrouves, title: 'Résultats',
                     store: Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone', 'achats', 'montant'], data: []}),
                     viewConfig: {emptyText: '<div class="cmp-vide">Nom ou téléphone (3 caractères au moins), ou des filtres puis « Chercher ».</div>', deferEmptyText: false, markDirty: false},
-                    columns: [{text: 'Client', dataIndex: 'client', flex: 1, minWidth: 150}, {text: 'Téléphone', dataIndex: 'telephone', width: 105},
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1, minWidth: 150}, testextjs.view.commun.CrayonTelephone.colonne({width: 120}),
                         {text: 'Achats', dataIndex: 'achats', width: 60, align: 'right'}],
                     bbar: [{xtype: 'button', itemId: 'ajouterResultats', text: 'Ajouter tous les résultats', iconCls: 'fa fa-plus-square', disabled: true, handler: function (b) {
                                 var n = me.down('#ongletListes #trouves').getStore().getCount();
@@ -917,7 +919,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                             }}]},
                 {xtype: 'gridpanel', itemId: 'panier', flex: 2, margin: '0 0 0 8', columnLines: true, title: 'Clients sélectionnés (0)', store: me.panier,
                     viewConfig: {emptyText: '<div class="cmp-vide">Cochez des clients : ils restent ici d\'une recherche à l\'autre.</div>', deferEmptyText: false},
-                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, {text: 'Téléphone', dataIndex: 'telephone', width: 100},
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, testextjs.view.commun.CrayonTelephone.colonne({width: 115}),
                         {text: '', width: 62, align: 'center', renderer: function () {
                                 return '<span class="cmp-retirer" style="color:#c0392b;cursor:pointer" title="Retirer de la sélection"><i class="fa fa-times"></i> Retirer</span>';
                             }}],
@@ -968,7 +970,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 {xtype: 'gridpanel', itemId: 'membres', flex: 2, margin: '8 0 0 0', title: 'Clients de la liste', columnLines: true, selModel: cocheMembres,
                     store: Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone', 'ajouteLe'], data: []}),
                     viewConfig: {emptyText: '<div class="cmp-vide">Choisissez une liste.</div>', deferEmptyText: false},
-                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, {text: 'Téléphone', dataIndex: 'telephone', width: 130}, {text: 'Ajouté le', dataIndex: 'ajouteLe', width: 100}],
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, testextjs.view.commun.CrayonTelephone.colonne({width: 135}), {text: 'Ajouté le', dataIndex: 'ajouteLe', width: 100}],
                     bbar: [{xtype: 'button', itemId: 'retirerMembres', text: 'Retirer les clients cochés', iconCls: 'fa fa-minus', disabled: true, handler: function (b) {
                                 var ids = Ext.Array.map(cocheMembres.getSelection(), function (r) {
                                     return r.get('clientId');
