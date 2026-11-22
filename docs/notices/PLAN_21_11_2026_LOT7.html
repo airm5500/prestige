@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 7 (réserve, période en facturation, numéros étrangers, scan DataMatrix)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  h3 { color: #1E5FA8; font-size: 15px; margin-bottom: 4px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 7 (réserve, période en facturation, numéros étrangers, scan DataMatrix)</h1>
+<p class="sous">Retours du 22/11 sur les lots 3, 4 et 5. Branche <code>plan/21112026</code>, commits <code>384f14d3e</code> (réserve), <code>4638bf579</code> (7.2), <code>79f5494ee</code> (8.3) et <code>45a2d5216</code> (16.1), rien de fusionné. Tests d'écran sur domain4 (base de test <code>laborex_audit</code>), un par un. Aucun SMS ni message WhatsApp réel.</p>
+
+<div class="ok">Les quatre demandes sont faites. Chaque nouveau test échouait sur l'ancien code et passe maintenant :
+<ul>
+<li>liste réserve : 24 sur 28 avant, 28 sur 28 après ;</li>
+<li>période en facturation : 0 sur 9 avant, 152 sur 152 après ;</li>
+<li>numéros étrangers : 8 sur 17 avant, 17 sur 17 après ;</li>
+<li>scan DataMatrix complet et « 0127 » : 15 sur 18 avant, 33 sur 33 après.</li>
+</ul>
+Non-régression : 43 tests d'écran rejoués un par un, tous verts (détail en fin de page).</div>
+
+<h2>Lot 3 : liste réserve à 1280×720</h2>
+<p>L'onglet débordait (1 266 px de contenu pour 1 215 px de vue). Les en-têtes de colonnes étaient aussi tronqués.</p>
+<ul>
+<li>Désignation prend la place libre (au moins 180 px) ; Emplacement, Famille et Grossiste se partagent le reste (au moins 85 px chacun).</li>
+<li>Les en-têtes longs passent sur deux lignes : « Stock rayon », « Stock réserve », « Capacité maxi rayon », « Seuil mini rayon ». Le nom entier reste dans l'info-bulle et dans le menu des colonnes.</li>
+</ul>
+<p>Test <code>stock/test-liste-reserve-largeur-2211.js</code>, en 1280×720, 1366×768 et 1920×1080 :</p>
+<ul>
+<li>rien ne déborde de l'onglet, ni barre, ni bouton coupé ;</li>
+<li>les colonnes tiennent dans la grille, chaque en-tête est lisible en entier ;</li>
+<li>aucun nombre n'est coupé ;</li>
+<li>le champ de recherche garde au moins 200 px.</li>
+</ul>
+
+<h2>Lot 4, point 7.2 : un seul champ « période » en facturation</h2>
+<p>Le champ unique est ajouté sur les écrans du menu Facturation qui ont deux dates :</p>
+<table>
+<tr><th>Écran</th><th>Fichier</th></tr>
+<tr><td>Gestion des différés (trois périodes : liste, détail, solde)</td><td><code>reglement/Differe.js</code></td></tr>
+<tr><td>Liste des différés client</td><td><code>sm_user/diffclient/DiffManager.js</code></td></tr>
+<tr><td>Liste des règlements</td><td><code>sm_user/reglement/ReglementManager.js</code></td></tr>
+<tr><td>Factures</td><td><code>sm_user/editfacture/EditFactureManager.js</code></td></tr>
+<tr><td>Dossiers à facturer</td><td><code>sm_user/reglement/FactureenAttendeEditionManager.js</code></td></tr>
+<tr><td>Récap par organisme</td><td><code>sm_user/RecapOrganisme/RecapManager.js</code></td></tr>
+<tr><td>Factures compagnies d'assurance</td><td><code>groupetierspayant/groupeInvoices.js</code></td></tr>
+<tr><td>Suivi des bons</td><td><code>vente/VenteTiersPayant.js</code></td></tr>
+</table>
+<p>« Règlement différé » n'est pas touché : son menu est désactivé.</p>
+
+<h3>Aide au choix, pour des utilisateurs habitués à deux champs</h3>
+<ul>
+<li>En haut du calendrier, deux cases <b>« Du »</b> et <b>« Au »</b> montrent les deux dates, comme avant. La case en cours est en couleur, avec une consigne : « Cliquez la date de début », puis « cliquez la date de fin ».</li>
+<li>Après le premier clic, le survol colore les jours de la période en cours de choix.</li>
+<li>Pour changer seulement la fin, on clique la case « Au » puis un jour : le début ne bouge pas.</li>
+<li>Un clic dans le champ ouvre le calendrier ; Tab, Échap ou Entrée le ferment.</li>
+<li>La saisie au clavier marche toujours : « 13/11/2026 → 18/11/2026 » puis Entrée lance la recherche.</li>
+</ul>
+<p>Défaut trouvé et corrigé en route : après des clics dans le calendrier, des caractères tapés se perdaient (le calendrier reprenait le curseur).</p>
+<p>Les écrans Factures et Récap par organisme débordaient déjà à 1366 px (1 384 et 1 459 px pour 1 301). Leurs boutons d'action (Créer, Imprimer, Exporter…) passent sur une deuxième barre.</p>
+
+<h3>Tests</h3>
+<ul>
+<li><code>ergonomie/test-champ-periode-facturation-2211.js</code> : sur les 10 périodes, saisie au clavier, calendrier, case « Au » seule, saisie au clavier après des clics, Échap, trois tailles d'écran, et aucune barre de l'écran qui déborde.</li>
+<li><b>Rapprochement</b> : texte du champ = cases Du/Au = dates de la requête envoyée au serveur, à chaque choix.</li>
+<li><b>Cohérence</b> : le survol colore exactement le nombre de jours de la période.</li>
+<li>Le test de délai du Suivi des bons passe maintenant par le champ unique.</li>
+</ul>
+
+<h2>Lot 4, point 8.3 : numéros étrangers, officine hors de Côte d'Ivoire</h2>
+<h3>Règle</h3>
+<table>
+<tr><th>Saisie</th><th>Résultat</th></tr>
+<tr><td>Sans indicatif, officine en Côte d'Ivoire</td><td>Règle d'avant, inchangée : dix chiffres commençant par 01, 05 ou 07. Exemple : <code>07 08 47 37 50</code> → <code>0708473750</code>.</td></tr>
+<tr><td>« + » ou « 00 » puis un autre indicatif</td><td>Numéro étranger : accepté de 8 à 15 chiffres (indicatif compris), gardé sous la forme <code>+32470123456</code>.</td></tr>
+<tr><td>« +225 » ou « 00225 »</td><td>Numéro ivoirien, comme avant.</td></tr>
+<tr><td>« +07… » (zéro après le +)</td><td>Numéro du pays, comme avant.</td></tr>
+<tr><td>Officine hors de Côte d'Ivoire</td><td>Numéro national de 6 à 12 chiffres hors zéro de tête ; les numéros d'autres pays s'écrivent avec leur indicatif.</td></tr>
+</table>
+<ul>
+<li>Le pays de l'officine est un paramètre : <b><code>KEY_INDICATIF_PAYS</code></b>, rubrique Messages. Il vaut <b>225</b> par défaut (migration V7.6.41.2197), donc rien ne change pour les officines actuelles. Le serveur le relit toutes les cinq minutes.</li>
+<li>Un numéro refusé affiche le motif et la manière d'écrire un numéro étranger, par exemple : « Numéro invalide : Préfixe non mobile (04). Un numéro ivoirien compte dix chiffres et commence par 01, 05 ou 07 ; un numéro étranger s'écrit avec son indicatif, par exemple +33 6 12 34 56 78. »</li>
+<li>L'unicité parmi les clients du même type et la mise à jour de l'adresse lue par la caisse (client standard) restent les mêmes. Un même numéro écrit « +32… » ou « 0032… » est reconnu comme le même.</li>
+<li>Un SMS vers un numéro étranger part avec l'indicatif de ce numéro, et non plus « 225 » collé devant.</li>
+</ul>
+
+<h3>Où le numéro apparaît</h3>
+<table>
+<tr><th>Endroit</th><th>Contrôle</th><th>Test</th></tr>
+<tr><td>Crayon des Campagnes et des Rappels</td><td>Écran et serveur</td><td>e2e <code>campagnes/test-crayon-telephone-etranger-2211.js</code> et <code>test-crayon-telephone-2211.js</code></td></tr>
+<tr><td>Fiche client standard et assurance, numéro WhatsApp d'un organisme</td><td>Écran (même règle que le serveur), puis serveur</td><td>Équivalence écran = serveur sous Nashorn (<code>TelephonePaysCoherenceTest</code>) ; e2e existants de création de client rejoués</td></tr>
+<tr><td>Base : <code>str_TELEPHONE</code>, et <code>str_ADRESSE</code> pour un client standard</td><td>Relue par le test</td><td>e2e, bilan fiche par fiche</td></tr>
+<tr><td>Liste des destinataires (joignable ou non)</td><td>Serveur</td><td>e2e : écran = nouvelle recherche du serveur = base</td></tr>
+<tr><td>Envoi SMS (LeTexto, Orange) et WhatsApp</td><td>Forme internationale</td><td><code>LeTextoNumeroEtrangerTest</code> : tout numéro accepté part vers sa forme internationale</td></tr>
+</table>
+
+<h3>Tests</h3>
+<ul>
+<li><b>Cohérence</b>, <code>TelephonePaysCoherenceTest</code>, graine fixe :
+<ul>
+<li>sur 20 000 saisies tirées au hasard, la règle ivoirienne donne exactement le même résultat qu'avant ;</li>
+<li>plus de 30 000 numéros étrangers tirés au hasard (indicatif de 1 à 3 chiffres, de 4 à 19 chiffres en tout) : acceptés seulement de 8 à 15 chiffres, et un numéro relu depuis la base redonne le même numéro ;</li>
+<li>officine en France (33) ;</li>
+<li>l'écran et le serveur rendent le même résultat, pour 225, 33 et 1.</li>
+</ul></li>
+<li><b>Rapprochement et bilan</b>, <code>campagnes/test-crayon-telephone-etranger-2211.js</code> :
+<ul>
+<li>« 04 70 12 34 56 » est refusé avec l'aide ;</li>
+<li>un numéro de 17 chiffres est refusé ;</li>
+<li>« +32 470 12 34 56 » est enregistré : ligne joignable, crayon bleu, téléphone et adresse en base ;</li>
+<li>« 0033 6 12 34 56 78 » est accepté pour un client assurance (téléphone seul) ;</li>
+<li>le numéro belge, écrit « 0032 … », est refusé pour un autre client standard ;</li>
+<li>écran = serveur = base ;</li>
+<li>seuls les deux clients prévus sont modifiés, aucune campagne ni notification n'est écrite.</li>
+</ul></li>
+<li>Tests unitaires existants rejoués : <code>TelephoneCiTest</code>, <code>TelephoneClientModificationCoherenceTest</code>, <code>ClientStandardSaisieTest</code>, <code>SmsTelephoneClientTest</code>, <code>RubriqueParametreTest</code>. Une seule attente a changé : « 00 » suivi d'un autre indicatif était refusé ; c'est maintenant un numéro étranger valide.</li>
+</ul>
+<div class="note">
+<ul>
+<li>Un SMS vers l'étranger peut coûter plus cher chez le fournisseur.</li>
+<li>La saisie d'un numéro étranger dans la fiche client et dans la fiche organisme n'a pas de test d'écran dédié : elle est couverte par l'équivalence écran = serveur.</li>
+</ul>
+</div>
+
+<h2>Lot 5, point 16.1 : scan DataMatrix complet et « 0127 »</h2>
+<p>Réponses du 22/11 : « oui, ajoute la ligne directement après un scan complet » et « 0127 signifie 31/01/2027 ».</p>
+<h3>Saisie de la péremption</h3>
+<table>
+<tr><th>Saisie</th><th>Date lue</th></tr>
+<tr><td><code>01/27</code>, <b><code>0127</code></b> (nouveau), <code>01/2027</code>, <code>012027</code></td><td>31/01/2027 (fin du mois)</td></tr>
+<tr><td><code>010127</code>, <code>01012027</code>, <code>01/01/27</code>, <code>01-01-2027</code></td><td>01/01/2027</td></tr>
+<tr><td><code>1327</code>, <code>13/27</code>, date passée</td><td>refusée, message sous le champ</td></tr>
+</table>
+<p>Questions 11, 12 et 13 : la lecture était déjà en place depuis le lot 5 et reste la même (« 01/27 » = fin du mois, blocage quand la somme des lots dépasse la quantité de la ligne).</p>
+
+<h3>Scan dans le champ du lot (petite fenêtre, après la quantité)</h3>
+<table>
+<tr><th>Code scanné</th><th>Ce qui se passe</th></tr>
+<tr><td><b>Complet</b> (produit 01, lot 10, péremption 17), boîte du produit choisi</td><td>La ligne est ajoutée tout de suite, sans Entrée, avec la quantité tapée. La fenêtre se ferme, le curseur revient sur la recherche du produit.</td></tr>
+<tr><td>Complet, mais le code produit de la boîte (CIP ou EAN) n'est pas celui du produit choisi</td><td>Rien n'est ajouté. Le lot et la date sont remplis, un avertissement s'affiche sous le lot (« n'est pas celui du produit choisi »), curseur sur la date : Entrée valide après vérification, Échap annule.</td></tr>
+<tr><td>Complet, produit sans code connu dans Prestige (ni EAN ni code correspondant)</td><td>Rien à comparer : la ligne est ajoutée tout de suite. On ne bloque jamais à tort.</td></tr>
+<tr><td>Incomplet (sans code produit, ou sans lot, ou sans date)</td><td>Comme avant : lot et date repris, curseur sur la date (ou sur le lot s'il manque), Entrée pour valider.</td></tr>
+</table>
+<p>Un même lot scanné à nouveau se cumule sur la ligne (règle existante : jamais deux lignes pour un lot).</p>
+<div class="note">Le scan complet ajoute la ligne avec la quantité tapée avant le scan. Le mode « 1 boîte par scan » (scan direct dans la recherche du produit, sans taper de quantité) reste noté « pour plus tard » dans l'analyse : à confirmer si vous le voulez maintenant.</div>
+
+<h3>Tests</h3>
+<ul>
+<li><b>Cohérence</b>, <code>PeremptionSaisieCoherenceTest</code> : la forme MMAA ajoutée au tirage au hasard de toutes les formes ; l'écran et le serveur lisent la même date (8 000 saisies, dont des nombres de 4 chiffres).</li>
+<li><b>Cohérence</b>, <code>LotsCommandeScanCoherenceTest</code> : contrôle du produit sur 20 000 cas tirés au hasard (graine fixe). CONFORME si et seulement si un code lu est un code connu ; DIFFERENT seulement quand il y a de quoi comparer ; INCONNU sinon. Les trois issues sont largement couvertes.</li>
+<li><b>Rapprochement et bilan</b>, <code>retours/test-lots-commande-en-cours-2211.js</code> :
+<ul>
+<li>scan complet de la boîte du produit : ligne ajoutée sans Entrée ;</li>
+<li>scan de la boîte d'un autre produit : avertissement, rien d'écrit ;</li>
+<li>scan incomplet : curseur sur la date ;</li>
+<li>« 0127 » : aperçu au 31/01/2027 ;</li>
+<li>grille = vue des lots = base ;</li>
+<li>BL créé : lots du BL = lots saisis, stock inchangé.</li>
+</ul></li>
+<li>L'explication du paramètre <code>KEY_SAISIE_PEREMPTION_COMMANDE</code> est mise à jour (migration V7.6.41.2198), et la mise à jour a été relue en base de test.</li>
+</ul>
+
+<h2>Non-régression</h2>
+<p>Rejoués un par un sur domain4 après le déploiement :</p>
+<table>
+<tr><th>Domaine</th><th>Tests</th><th>Résultat</th></tr>
+<tr><td>Liste réserve</td><td>liste, import, non retenus, droits, suggestions, largeur</td><td>35, 29, 19, 28, 15, 28 : tous verts</td></tr>
+<tr><td>Période</td><td>champ période (7.2), facturation (10 périodes)</td><td>39/39, 152/152</td></tr>
+<tr><td>Facturation</td><td>en-tête, envoi par courriel, envoi WhatsApp, relevé Excel, suivi des bons, créer facture (3), déjà facturé, bons organisme, journal des règlements, récap par organisme</td><td>tous verts (courriel 21/21, voir note)</td></tr>
+<tr><td>Différés et règlements</td><td>liste des règlements, nom client, solde client, solde, règlement</td><td>19, 14, 30, 16, 14 : tous verts</td></tr>
+<tr><td>Clients et téléphones</td><td>crayon (2), client standard, date de naissance, import clients, modifier infos client, vente en dépôt</td><td>tous verts</td></tr>
+<tr><td>Campagnes et messages</td><td>campagnes, recherche, panier téléphone, destinataires, journal des messages, message d'avoir, WhatsApp</td><td>tous verts</td></tr>
+<tr><td>Commande en cours</td><td>lots et péremption</td><td>33/33</td></tr>
+<tr><td>Divers</td><td>hauteur des écrans, points du 29/10, détails de vente</td><td>tous verts</td></tr>
+</table>
+<div class="note">
+<ul>
+<li><b>Solde des différés</b> : le contrôle « dates inversées → message » ne peut plus se produire. Le champ unique remet une période tapée à l'envers dans l'ordre, comme sur les autres écrans du point 7.2. Le test vérifie maintenant la remise en ordre (champ = Du/Au = dates envoyées).</li>
+<li><b>Envoi de facture par courriel</b> : il échouait sur domain4 parce que le dossier de courriel d'essai n'y était pas configuré. Avec ce dossier, il passe 21/21 : rien ne sort, les messages sont écrits dans un dossier local.</li>
+<li><b>Période en facturation</b> : un seul passage a échoué, juste après un déploiement (un clic hors délai, écran encore à froid). Deux passages suivants : 152/152.</li>
+</ul>
+</div>
+</body>
+</html>
