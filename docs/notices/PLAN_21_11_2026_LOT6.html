@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 6 (téléphones, message d'avoir, journal des messages)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  h3 { color: #1E5FA8; font-size: 15px; margin-bottom: 4px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 6 (téléphones, message d'avoir, journal des messages)</h1>
+<p class="sous">Branche <code>plan/21112026</code>, commits <code>5b465caa6</code> (point 7), <code>eafb24d8c</code> (point 11) et <code>bc9b2bd35</code> (point 8.1), rien de fusionné. Tests d'écran sur domain4 (base de test <code>laborex_audit</code>), un par un. Aucun SMS ni message WhatsApp réel : faux fournisseur SMS local et comptes WhatsApp en mode test.</p>
+
+<div class="ok">Les trois derniers points du plan sont faits. Chaque nouveau test échouait sur l'ancien code ; ils passent tous maintenant :
+<ul>
+<li>script du point 7 : 17 sur 17 ;</li>
+<li>point 11 : 18 sur 18 ;</li>
+<li>point 8.1 : 26 sur 26.</li>
+</ul>
+Deux défauts existants ont été trouvés et corrigés en route : la colonne « Message » restait vide (requête refusée), et « Envoyer SMS » du ticket Z plantait sur une période sans vente.</div>
+
+<h2>Point 7 : script de recopie des téléphones</h2>
+<p>Script manuel, hors migrations : <code>outils/officine/recopier-telephones-depuis-adresse.sql</code>.</p>
+<ul>
+<li>Lancé tel quel, il ne fait qu'un <b>aperçu</b> : nombre de fiches à recopier, de doublons écartés, d'adresses non conformes et de téléphones déjà remplis.</li>
+<li>Il recopie seulement si l'Adresse contient un numéro conforme (même règle que l'écran) et si le Téléphone est vide. Il n'efface jamais l'Adresse.</li>
+<li>Un numéro déjà pris par un autre client du même type est écarté.</li>
+<li>Il n'affiche aucun numéro ni aucun nom, seulement des nombres.</li>
+<li>Avec <code>@ecrire = 1</code>, il garde une copie pour le retour arrière, recopie, puis contrôle.</li>
+</ul>
+<p>Tests : 4 018 saisies variées comparées à la règle de l'écran (espaces, points, +225, 00225, zéro perdu dans un tableur, doublons) ; aperçu, recopie, bilan fiche par fiche, relance sans effet, retour arrière.</p>
+
+<h2>Point 11 : canal et suivi du message d'avoir</h2>
+<table>
+<tr><th>Sujet</th><th>Comportement</th></tr>
+<tr><td>Paramètre « Canal des messages d'avoir »</td><td><code>KEY_SMS_AVOIR_CANAL</code> (migration V7.6.41.2194), avec son explication :
+<ul>
+<li><b>SMS</b>, la valeur par défaut, comme avant ;</li>
+<li><b>WHATSAPP</b> : WhatsApp seulement, sans SMS si WhatsApp refuse ;</li>
+<li><b>SMS_WHATSAPP</b> : WhatsApp, puis SMS si WhatsApp refuse.</li>
+</ul>
+Toute autre valeur vaut SMS.</td></tr>
+<tr><td>Liste des avoirs</td><td>Nouvelle colonne « Message » dans les deux onglets. Elle montre l'état (En attente, Envoyé, Distribué, Lu, Échec), le canal et la date. Le motif d'un échec apparaît en info-bulle.
+<br>« — » signifie qu'il n'y a pas de message suivi pour cette vente. C'est le cas des messages antérieurs à cette version.</td></tr>
+<tr><td>Rattachement</td><td>Chaque message d'avoir est relié à ses ventes, y compris le repli SMS. Un message qui couvre deux ventes d'un même client met à jour les deux lignes.</td></tr>
+<tr><td>Défaut évité</td><td>Une notification confiée à WhatsApp restait « à envoyer », et le passage SMS planifié pouvait la renvoyer par SMS. Elle est maintenant écartée.</td></tr>
+</table>
+<div class="note">WhatsApp n'accepte un premier message à un client qu'avec un modèle validé par Meta. Tant que le modèle « avoir disponible » n'est pas validé sur votre compte, choisissez <b>SMS_WHATSAPP</b> plutôt que WHATSAPP.</div>
+
+<h2>Point 8.1 : journal des messages</h2>
+<table>
+<tr><th>Sujet</th><th>Comportement</th></tr>
+<tr><td>Menu et droit</td><td>CAMPAGNES SMS / WHATSAPP &gt; « Journal des messages », déclaré dans <code>correctifs-affichage.js</code>.
+<br>Le droit <code>P_SM_JOURNAL_MESSAGES</code> est donné aux rôles qui voient les campagnes ou les comptes WhatsApp, et à l'administrateur (migration V7.6.41.2195).</td></tr>
+<tr><td>Lignes</td><td>Une ligne par envoi :
+<ul>
+<li>message WhatsApp ;</li>
+<li>SMS à un client, sans doublon quand WhatsApp l'a servi ;</li>
+<li>SMS au numéro d'administration.</li>
+</ul>
+Le texte des messages n'est jamais montré ni gardé.</td></tr>
+<tr><td>Colonnes</td><td>Date, Canal, Origine, Destinataire, Numéro, État, Motif d'échec, Utilisateur (« Automatique » pour un envoi sans utilisateur).</td></tr>
+<tr><td>Filtres</td><td>
+<ul>
+<li>période : aujourd'hui par défaut, 93 jours au plus ;</li>
+<li>canal ;</li>
+<li>origine : avis, avoir, campagne, rappel, ticket Z, clôture de caisse, point d'activité, facture, etc. ;</li>
+<li>état ;</li>
+<li>recherche par nom (sans tenir compte des accents) ou par numéro (même avec des espaces).</li>
+</ul></td></tr>
+<tr><td>Compteurs et export</td><td>Compteurs de toute la sélection : messages, envoyés, distribués, lus, échecs, en attente. Un lu compte aussi comme distribué et envoyé.
+<br>« Export CSV » donne les mêmes lignes, dans le même ordre, sur toutes les pages.</td></tr>
+<tr><td>Envois qui ne laissaient pas de trace</td><td>Le ticket Z par SMS, la clôture de caisse et le point d'activité envoyés au numéro d'administration sont maintenant tracés : origine, état, motif, fournisseur et utilisateur, jamais le texte.
+<br>Un envoi impossible est aussi tracé, avec son motif (par exemple « aucun numéro d'administration »).</td></tr>
+<tr><td>Ticket Z (défauts corrigés)</td><td>« Envoyer SMS » affichait toujours « SMS envoyé ». Il affiche maintenant l'état réel, par exemple « SMS : Non envoyé : aucun numéro d'administration ».
+<br>Sur une période sans mouvement, « Envoyer SMS » et « Envoyer WhatsApp » répondaient « erreur interne ». Ils disent maintenant « aucun mouvement sur la période ».</td></tr>
+</table>
+
+<h2>Rapprochement, cohérence et bilan</h2>
+<table>
+<tr><th></th><th>Point 11</th><th>Point 8.1</th></tr>
+<tr><td>Où la donnée apparaît, et test de rapprochement</td><td>Colonne de la liste (texte et info-bulle), réponse de l'API et base, vente par vente, avant et après les accusés de réception simulés.
+<br>Test : <code>retours/test-avoir-message-canal-2211</code>.</td><td>Écran, API, fichier CSV téléchargé par le bouton et base, ligne par ligne et dans le même ordre ; compteurs à l'écran, dans l'API et en base. La comparaison est refaite après chaque filtre.
+<br>Test : <code>campagnes/test-journal-messages-2211</code>.</td></tr>
+<tr><td>Règles de calcul, et test de cohérence</td><td>État du dernier envoi, repli SMS après WhatsApp à date égale, motif seulement sur un échec, canal par défaut.
+<br>Test : <code>AvoirMessageCoherenceTest</code>, 20 000 jeux. <code>NotificationSansWhatsAppTest</code> vérifie qu'aucune notification n'est renvoyée.</td><td>Filtres, ordre, compteurs, découpage en pages, CSV identique à l'écran, formules de tableur neutralisées, période bornée.
+<br>Test : <code>JournalMessagesCoherenceTest</code>, 3 000 sélections.</td></tr>
+<tr><td>Traces attendues (bilan)</td><td>Par bon de livraison : nombre de messages d'avoir, d'envois WhatsApp, de liens aux ventes et de SMS reçus par le faux fournisseur. Stocks remis à l'identique.</td><td>Une seule trace d'administration (le ticket Z), aucune notification créée, aucun SMS hors ticket Z.</td></tr>
+<tr><td>Cas variés</td><td>
+<ul>
+<li>un message pour deux ventes ;</li>
+<li>client qui refuse WhatsApp ;</li>
+<li>repli SMS ;</li>
+<li>valeur inconnue du paramètre ;</li>
+<li>vente sans message ;</li>
+<li>1366×768, 1280×720 et 1920×1080.</li>
+</ul></td><td>
+<ul>
+<li>5 SMS et 5 WhatsApp dans les 5 états ;</li>
+<li>deux destinataires dans une même notification ;</li>
+<li>motifs du fournisseur, par défaut et de WhatsApp ;</li>
+<li>ticket Z sur une période vide et sur une période avec ventes ;</li>
+<li>accès sans le droit (menu absent, accès refusé) ;</li>
+<li>export CSV en 0,2 s, pour un plafond fixé à 15 s ;</li>
+<li>3 tailles d'écran.</li>
+</ul></td></tr>
+</table>
+
+<h2>Non-régression (un test à la fois)</h2>
+<ul>
+<li>Point 11 : 16 tests d'écran. Ils couvrent l'entrée en stock avec avoirs, l'analyse des avoirs, le lot T, les explications des paramètres, les campagnes, WhatsApp, l'avis client, le ticket Z, le tableau de bord et la facture WhatsApp. Ils sont tous au vert.
+<br>La facture WhatsApp a échoué une fois dans la série (23 sur 24), puis a passé 24 sur 24 seule et dans le même enchaînement. L'échec ne s'est pas reproduit.</li>
+<li>Point 8.1 : 17 tests d'écran et 20 tests unitaires, au vert.
+<br><code>test-campagnes</code> a été mis à jour, car il attend la liste exacte des sous-menus et en compte maintenant un de plus.
+<br><code>caisse/test-ticketz</code> appelle le port 8080 en dur (domaine principal, arrêté ici). Sur une copie pointée vers domain4, il passe 18 sur 18, y compris le bouton « Envoyer SMS ».</li>
+</ul>
+
+<h2>À savoir</h2>
+<div class="note">
+<ul>
+<li><code>retours/test-libelles-menus</code> échoue sur le libellé « Ouverture / clôture caisse » : 26 caractères pour une limite de 25. Ce libellé vient du plan du 14/11 et n'a pas été touché ici. Le nouveau libellé « Journal des messages » en fait 20.</li>
+<li>Le numéro d'administration n'est pas réglé sur le poste de test : il est dans la configuration protégée, que je n'ouvre pas. L'envoi réussi d'un SMS à ce numéro n'a donc pas pu être joué de bout en bout. Le cas « non envoyé » est vérifié : bouton, trace, journal.</li>
+<li>Le script du point 7 n'a été exécuté que sur la base de test. En officine, lancez-le d'abord tel quel pour voir l'aperçu.</li>
+<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (lots 1 à 6).</li>
+</ul>
+</div>
+</body>
+</html>
