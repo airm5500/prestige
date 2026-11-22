@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 3 (évolutions sans question)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  td.n { text-align: right; white-space: nowrap; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .risque { background: #fdecec; border-left: 4px solid #c0392b; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 3 (évolutions sans question)</h1>
+<p class="sous">Branche <code>plan/21112026</code> (worktree <code>prestige-plan21112026</code>), rien de fusionné.
+Tests d'écran sur domain4 (port 11090, base de test <code>laborex_audit</code>), lancés un par un, en 1366×768, 1280×720 et grand écran
+quand l'affichage est en jeu.</p>
+
+<div class="ok">Les 15 points du lot 3 sont faits, chacun dans son commit poussé. Chaque nouveau test a d'abord échoué sur l'ancien code, puis il est passé.
+La question 9 a reçu sa réponse le 22/11 : le droit « Voir la liste réserve » est créé et livré avec le point 13.
+<br>Repasse finale sur domain4, un test à la fois : les 22 tests d'écran du lot passent, ainsi que les 25 tests de non-régression de la réserve, le test de fumée (28 écrans) et le test de connexion pendant le démarrage.
+Une seule exception, due à l'environnement : <code>test-avis-clients</code> passe 9 contrôles sur 10 (voir « À savoir »).
+Suite unitaire : <b>SUITE_UNITAIRE</b>.</div>
+
+<h2>Résultats, point par point</h2>
+<table>
+<tr><th>Point</th><th>Ce qui change</th><th>Test (ancien code → nouveau)</th><th>Commit</th></tr>
+<tr><td>Tableau de bord : BFR, fréquentation, négatifs</td>
+<td>Carte BFR retirée (le menu BFR reste). Fréquentation : ◀ Veille, champ date et lien Aujourd'hui ; une date future revient à aujourd'hui. Négatifs : bouton Imprimer et PDF (CIP, désignation, emplacement, stock, total).</td>
+<td><code>test-tableau-bord-lot3-2111</code> 5/9 → 51/51 ; <code>test-tableau-bord</code> 61/61 ; <code>test-bfr-1911</code> 26/26</td><td>3341fe6ce</td></tr>
+<tr><td>1.3 et 3 Barres de filtres sur deux lignes</td>
+<td>Contrôle des achats, règlements fournisseurs, bons par organisme : les filtres sur la première ligne, les actions sur la seconde. Plus aucun bouton hors de la barre à 1366 ni à 1280.</td>
+<td><code>test-barres-deux-lignes-2111</code> 8/26 → 26/26</td><td>f4f19589f</td></tr>
+<tr><td>4.2 et 4.5 Suggestion et commande en cours</td>
+<td>« Actualiser » et le filtre de disponibilité vont dans la barre de pagination. Les boutons de vérification restent affichés et sont grisés, avec une info-bulle, quand la disponibilité est coupée. La classe ABC suit le nom du produit.</td>
+<td><code>test-suggestion-dispo-abc-2111</code> 4/9 → 18/18 ; <code>ClasseAbcTest</code> 3/3</td><td>9f15f1531</td></tr>
+<tr><td>5 Œil du mot de passe</td>
+<td>Il affiche ou masque le mot de passe à la connexion. Le mot de passe est remasqué à chaque tentative et le curseur reste dans le champ.</td>
+<td><code>test-connexion-oeil-mdp-2111</code> 2/4 → 20/20</td><td>53b5db648</td></tr>
+<tr><td>6 Colonne Adresse</td>
+<td>Elle s'affiche après Téléphone dans la gestion des clients, en texte brut, entière au survol.</td>
+<td><code>test-colonne-adresse-2111</code> 8/22 → 22/22</td><td>403e17cf5</td></tr>
+<tr><td>7 « Modifier infos client »</td>
+<td>Téléphone à la place de l'adresse, Adresse à droite ; le code postal n'est plus effacé. La hauteur de la fenêtre suit l'écran. Entrée enchaîne Matricule → Téléphone → Adresse.</td>
+<td><code>test-modifier-infos-client-2111</code> échec → 19/19 ; <code>ClientTelephoneAssureTest</code></td><td>95f9af00f</td></tr>
+<tr><td>8.2 Campagnes</td>
+<td>Recherche simple en première ligne, avec le curseur dedans ; filtres sur la seconde ligne. Liste « Accord ». Partout dans l'application, une liste déroulante s'élargit jusqu'à son plus long choix.</td>
+<td><code>test-campagnes-recherche-2111</code> 0/25 → 29/29</td><td>5387f7d43</td></tr>
+<tr><td>18 Rappels, « Ciblage libre »</td>
+<td>Champ de recherche plus large, curseur dedans, Entrée pour choisir puis chercher ; « Acheté du … au … » et « Au moins … achats » sur une ligne.</td>
+<td><code>test-rappels-ciblage-recherche-2111</code> 1/8 → 14/14</td><td>7c42519e6</td></tr>
+<tr><td>9 « Déjà facturé ? »</td>
+<td>Recherche d'un bon dans toutes les factures, par nom, matricule, bon ou ticket. Chaque bon affiche sa facture (un clic l'ouvre) ou « Non facturé », et les avoirs. Index en base (migration V7.6.41.2190).</td>
+<td><code>test-deja-facture-2111</code> échec → 16/16 ; <code>DejaFactureTest</code> (5 000 bons tirés)</td><td>c0cc9255a</td></tr>
+<tr><td>10 Affiche de l'avis</td>
+<td>L'affiche A4/A5 n'imprime plus l'adresse web sous le QR code.</td>
+<td><code>test-avis-affiche-2111</code> 16/20 → 20/20 ; <code>AvisAfficheTest</code></td><td>7578148da</td></tr>
+<tr><td>13 Réserve</td>
+<td>Motif « journalier » proposé d'office dans les trois fenêtres de création. Onglet SUGGESTIONS : colonnes Sens et Origine, une seule colonne Actions, info-bulles bleues du thème. Annulation d'une suggestion traitée par une flèche rouge, confirmée par un second clic sur l'icône, sans fenêtre. Plus de défilement horizontal à 1366, 1280 et 1920.
+<br><b>Question 9</b> : l'onglet LISTE RÉSERVE est lié au nouveau droit <code>P_RESERVE_LISTE</code> (migration V7.6.41.2191). Ce droit est donné d'office aux rôles qui ont le menu, pour que personne ne perde l'onglet.</td>
+<td><code>test-reserve-suggestion-2111</code> échec (largeurs, motif) → 27/27 ; <code>test-reserve-voir-liste-droits-2111</code> 15/28 → 28/28</td><td>84b89d2d8</td></tr>
+<tr><td>16 Boutons de la commande ouverte</td>
+<td>Nouveau style, une icône par action. Info-bulle de « Vérifier la disponibilité » : toute la commande. Une seule ligne à 1366, 1280 et 1920.</td>
+<td><code>test-commande-boutons-2111</code> 6/10 → 11/11</td><td>2aeb1a148</td></tr>
+<tr><td>15 Prévisions, « Analyse de la demande »</td>
+<td>Boutons « 🖨 Imprimer » et « ⬇ Excel », grisés tant que l'analyse n'est pas affichée. On y retrouve la synthèse, la matrice année × mois et ses indices, les produits à anticiper et les plus saisonniers.</td>
+<td><code>test-analyse-demande-edition-2111</code> échec → 16/16 ; <code>EditionDemandeTest</code> 5/5</td><td>338595a57</td></tr>
+<tr><td>Hors lot : code interne d'un nouveau client</td>
+<td>Il est tiré au hasard et redemandé tant qu'il est déjà pris. Avant, il venait de l'heure et retombait sur des codes pris.</td>
+<td><code>test-code-interne-client-2111</code> 14/21 → 21/21 ; <code>CodeInterneClientCoherenceTest</code> 4/4</td><td>3a992ebcb</td></tr>
+</table>
+
+<h2>Rapprochement : où la donnée apparaît, et le test qui compare</h2>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Négatifs du tableau de bord</td><td>fenêtre, PDF, base, ligne par ligne ; date de la fréquentation comparée à la base</td><td><code>test-tableau-bord-lot3-2111</code></td></tr>
+<tr><td>Bon déjà facturé</td><td>écran, réponse de l'API, base, facture ouverte (bon et montant) ; facture annulée, bon jamais facturé, deux organismes</td><td><code>test-deja-facture-2111</code></td></tr>
+<tr><td>Analyse de la demande</td><td>écran, PDF, Excel, API, base</td><td><code>test-analyse-demande-edition-2111</code></td></tr>
+<tr><td>Classe ABC</td><td>nom + classe dans la suggestion et la commande = fiche produit, ligne par ligne</td><td><code>test-suggestion-dispo-abc-2111</code></td></tr>
+<tr><td>Adresse du client</td><td>colonne de l'écran = base, sur cinq adresses variées</td><td><code>test-colonne-adresse-2111</code></td></tr>
+<tr><td>QR de l'affiche</td><td>QR décodé = lien de l'écran ; aucune adresse http dans le PDF</td><td><code>test-avis-affiche-2111</code>, <code>AvisAfficheTest</code></td></tr>
+<tr><td>Critères des campagnes et des rappels</td><td>filtres envoyés = écran ; grille = réponse</td><td><code>test-campagnes-recherche-2111</code>, <code>test-rappels-ciblage-recherche-2111</code></td></tr>
+<tr><td>Suggestion de réserve</td><td>création à l'écran = base (sens, motif, quantité) ; stock rayon / réserve à l'écran = base, avant, après traitement, après annulation</td><td><code>test-reserve-suggestion-2111</code></td></tr>
+<tr><td>Droit « Voir la liste réserve »</td><td>onglet affiché, réponse de <code>reserve/droits</code>, droit en base, pour trois profils ; nombre de produits de la grille = route</td><td><code>test-reserve-voir-liste-droits-2111</code></td></tr>
+</table>
+
+<h2>Cohérence, bilan et cas variés</h2>
+<ul>
+<li>Tests de cohérence à graine fixe :
+  <ul>
+  <li><code>DejaFactureTest</code> : 5 000 bons ;</li>
+  <li><code>ClasseAbcTest</code> : 5 000 cas ;</li>
+  <li><code>ClientTelephoneAssureTest</code> : 5 000 numéros ;</li>
+  <li><code>EditionDemandeTest</code> : 16 000 analyses, classeur relu cellule par cellule ;</li>
+  <li><code>CodeInterneClientCoherenceTest</code> : 2 000 bases.</li>
+  </ul></li>
+<li>Bilan avant / après :
+  <ul>
+  <li>Les écrans de recherche, d'impression et d'affichage n'écrivent rien, et chaque test le vérifie en base.</li>
+  <li>Réserve, traitement : stock 5|5|30 → 9|9|26 (rayon + 4, réserve − 4), un seul mouvement, suggestion traitée.</li>
+  <li>Réserve, annulation : stock revenu à 5|5|30, un seul mouvement inverse (quantité, utilisateur, date, motif saisi), suggestion « ANNULEE ». Une seule suggestion créée sur tout le parcours.</li>
+  <li>Droit : un profil sans le droit ne laisse aucune trace (réglages de réserve, mouvements, suggestions identiques).</li>
+  </ul></li>
+<li>Cas variés couverts :
+  <ul>
+  <li>deux sens de réserve, quantité supérieure à 1, annulation ;</li>
+  <li>confirmation qui retombe au bout de 5 s sans second clic ;</li>
+  <li>droit absent, présent, puis désactivé en base (on retrouve alors le comportement d'avant) ;</li>
+  <li>sans session ;</li>
+  <li>trois tailles d'écran.</li>
+  </ul></li>
+</ul>
+
+<h2>À savoir</h2>
+<div class="note"><b>LISTE RÉSERVE à 1280×720 :</b> l'onglet déborde (1 266 px de contenu pour 1 215 px de vue). Ce débordement existait déjà avant le lot et ne fait pas partie du point 13. Je le corrige si vous le souhaitez.</div>
+<div class="note"><b><code>test-avis-clients</code> 9/10 sur domain4 :</b> sa dernière partie interroge le second port public 8090, qui n'existe que sur domain1. La partie écran (réglages, QR, bandeaux) passe. Ce n'est pas une régression.</div>
+<ul>
+<li><code>test-libelles-menus</code> échoue déjà avant le lot 3, sur « Ouverture / clôture caisse » (26 caractères, migration V7.6.41.1511 du plan du 14/11). Ce n'est pas une régression du lot.</li>
+<li><code>test-ecran-suggestion-extranet-0911</code> est refusé sur domain4. L'envoi des factures par mail n'y est pas testable non plus : il manque à ce domaine le dossier de mails d'essai.</li>
+<li>domain4 s'est arrêté plusieurs fois faute de mémoire pendant les longues séries. Il a été redémarré et les tests relancés.</li>
+<li>Règle générale introduite au point 8.2 : une liste déroulante s'élargit jusqu'à son plus long choix, sans dépasser l'écran. Le test de fumée (28 écrans) passe.</li>
+<li>Migrations du lot :
+  <ul>
+  <li>V7.6.41.2190 : index pour « Déjà facturé ? », posés sans bloquer la base ;</li>
+  <li>V7.6.41.2191 : droit « Voir la liste réserve ».</li>
+  </ul></li>
+<li>Vos réponses du 22/11 aux questions des lots 4 et 5 sont notées dans <code>PLAN_21_11_2026_ANALYSE.html</code>, dont le crayon des Rappels (8.3) et la fenêtre de prévision (question 10). Ces points passent au lot 4.</li>
+<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (lots 1 à 3).</li>
+</ul>
+</body>
+</html>
