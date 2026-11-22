@@ -10,6 +10,13 @@
  *  - impression PDF (meme ecran, consommations sur 6 mois, dernier bon, inventaire) : 311 s avant, moins de 40 s,
  *    une ligne par article ; consommation du mois et dernier bon d'un echantillon conformes a la base.
  * Le modele PDF de l'officine n'est pas dans le depot : le test pose un modele qui imprime les donnees, et le retire.
+ * Si le poste a deja le modele de l'officine (rp_comparaison_surstock), le test lit ses lignes : CIP en tete, les
+ * sept mois de consommation en fin de ligne (mois en cours d'abord ; un CIP de 13 chiffres y est tronque a 12, colle au
+ * libelle) ; la date du dernier bon n'y est alors pas comparee.
+ *
+ * Mesures du 22/11 (point 8, LE5) sur la copie laborex_audit (8 030 articles en stock) : CSV 31 s, Excel 36 s, PDF 67 s.
+ * La requete principale chargeait chaque article par une requete a part, et Hibernate revérifiait tous les articles
+ * charges avant chaque lot : CSV 3,5 a 4,8 s, Excel 4,9 a 7,8 s, PDF 13 s apres correction.
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -105,8 +112,12 @@ function retirerModele() {
     const msPdf = Date.now() - t0;
     let lien = null; try { const j = JSON.parse(imp.t); lien = j.msg || j.url; } catch (e) { if (/\/data\/reports\//.test(imp.url)) { lien = imp.url; } }
     const fichier = lien ? fichierEdition(lien.split('?')[0]) : null;  /* dossier des editions du poste (support/editions.js) */
-    const lignesPdf = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 })
-      .split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('L|')).map((l) => l.split('|')) : [];
+    const textePdf = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 }) : '';
+    /* modele pose par le test : « L|cip|conso|bon|... » ; modele de l'officine : cip, libelle, ..., 7 mois (en cours d'abord) */
+    const lignesPdf = modelePose
+      ? textePdf.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('L|')).map((l) => l.split('|'))
+      : textePdf.split(/\r?\n/).map((l) => /^\s*(\S+)\s+\S.*?((?:\s+-?\d+){7})\s*$/.exec(l)).filter(Boolean)
+        .map((m) => { const mois = m[2].trim().split(/\s+/); return ['L', m[1], mois[0], null]; });
     if (fichier && fs.existsSync(fichier)) { fs.unlinkSync(fichier); }
     ok('Impression PDF en moins de 40 s, une ligne par article', msPdf < 40000 && lignesPdf.length === total, msPdf + ' ms, ' + lignesPdf.length + ' lignes / ' + total + ' ' + (lien || imp.t.slice(0, 120)));
     const mois = q("SELECT DATE_FORMAT(CURDATE(), '%Y-%m')");
@@ -120,7 +131,7 @@ function retirerModele() {
       const bon = q("SELECT IFNULL(DATE_FORMAT(MAX(b.dt_DATE_LIVRAISON), '%d/%m/%Y %H:%i'), 'null') FROM t_bon_livraison_detail d JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID"
         + " WHERE d.lg_FAMILLE_ID = '" + ids[0] + "' AND b.str_STATUT = 'is_Closed'");
       vus++;
-      if (String(conso) !== l[2] || bon !== l[3]) { faux.push(l[1] + ' : ' + l[2] + '/' + l[3] + ' ≠ ' + conso + '/' + bon); }
+      if (String(conso) !== l[2] || (modelePose && bon !== l[3])) { faux.push(l[1] + ' : ' + l[2] + '/' + l[3] + ' ≠ ' + conso + '/' + bon); }
     }
     ok('PDF : consommation du mois et date du dernier bon conformes à la base (échantillon)', vus >= 10 && faux.length === 0, vus + ' comparés ; ' + faux.slice(0, 3).join(' | '));
   } catch (e) {

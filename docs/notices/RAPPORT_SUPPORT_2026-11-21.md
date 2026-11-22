@@ -203,6 +203,80 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
       ses traces. Échoue sur l'ancien code (4 contrôles, une alerte « Arrêt forcé » comme à appaul), passe sur la
       branche (10/10).
 
+### 3.7 Point 8 : mesures des routes signalées lentes (22/11)
+
+Mesures sur domain3, une requête à la fois, sans cache du navigateur, avec les paramètres des écrans. Deux copies :
+`laborex_audit` (476 000 ventes, jusqu'à octobre) et la copie d'appaul (2,1 millions de ventes, jusqu'au 20/11),
+servie par le WAR d'appaul `4afc885b4`. Froid = premier appel ; chaud = appels suivants.
+
+| Route (écran) | Copie d'appaul, froid | chaud | `laborex_audit` |
+|---|---|---|---|
+| `caisse/fetch-tickez`, 30 jours (CA2, ticket Z) | 11,2 s | 3,8 à 4,4 s | moins de 1 s |
+| `ventestats`, 30 jours (LE4) | 5,3 s | 4 s | moins de 1 s |
+| `ventestats`, avoirs en cours | 2 s | 1 s | moins de 1 s |
+| `ventestats/article-vendus`, mois | 4,4 s | 0,65 s | moins de 1 s |
+| `ventestats/suggerer`, mois (**écrit** des suggestions, voir plus bas) | 8,3 s | 6,5 s | 13 à 16 s |
+| **Comparaison stock : export Excel** (LE5) | — | — | **33 à 46 s** |
+| **Comparaison stock : export CSV** | — | — | **32 s** |
+| **Comparaison stock : impression PDF** | 119 à 132 s | — | **64 à 67 s** |
+| Compteurs à l'ouverture d'un poste (LE13 : réserve, périmés, ventes ratées) | moins de 10 ms | — | moins de 10 ms |
+| `tableau-bord/bfr` | 10 s | 6,2 s | 2,2 à 2,6 s |
+| `tableau-bord/top-marges` | 3 à 3,4 s | — | 0,3 s |
+| `audit/analyse`, mois | 12,8 / 9,8 / 4,3 s | — | 3,5 à 5,8 s |
+| `audit/analyse`, 3 mois | 4,7 s | — | — |
+
+- **Le 404 de l'impression PDF n'est pas un défaut.** La configuration du poste fait écrire les PDF dans le dossier de
+  domain1 ; domain3 ne les sert pas. À appaul, un seul serveur par poste : sans objet.
+- **Effet de bord de la mesure, réparé.** `ventestats/suggerer` n'est pas une lecture : il crée des suggestions de
+  commande. Les appels de mesure en ont créé 114 (13 293 lignes) dans `laborex_audit` et 39 (9 894 lignes) dans la
+  copie d'appaul. Aucune suggestion plus ancienne n'a été modifiée. Toutes ont été retirées, lignes puis en-têtes ; le
+  script de mesure ne l'appelle plus sans demande expresse.
+- **Plantage de domain3 pendant une impression PDF (mémoire de la machine épuisée, `hs_err_pid36028.log`).** Le
+  surveillant l'a bien classé « plantage de Java », mais il a clos la session de domain4, qui écrit dans la même base
+  depuis le même poste (**suspecté**, propre au poste local à plusieurs domaines ; à appaul, chaque poste a son nom).
+
+#### LE5 : comparaison stock, exports et impression (corrigé)
+
+- **Cause (confirmée par vidages de threads pendant l'export) :**
+  - `new ArticleDTO(article, …)` dans la requête principale ne lisait que l'identifiant de chaque article ;
+    Hibernate rechargeait ensuite chaque article par une requête à part : 8 030 requêtes pour les articles en stock ;
+  - avant chaque lot de lecture (stock de réserve, dernière vente), Hibernate revérifiait tous les articles déjà
+    chargés.
+- **Correction :**
+  - la requête lit les colonnes (identifiant, stock, code et libellé du regroupement), puis les articles par lots de
+    500 ; chaque ligne est construite par le même constructeur, dans le même ordre ;
+  - les lectures par lots ne déclenchent plus la revérification (`FlushModeType.COMMIT`) : ce sont des lectures
+    faites avant toute écriture de la transaction (export, impression, suggestion, inventaire depuis l'écran).
+- **Résultat sur `laborex_audit` (8 030 articles en stock) :**
+
+  | | Avant | Après |
+  |---|---|---|
+  | Export CSV | 31 s | 3,5 à 4,8 s |
+  | Export Excel | 36 s | 4,9 à 7,8 s |
+  | Impression PDF | 67 s | 12,8 à 13,8 s |
+  | Grille, une page | 0,7 à 0,9 s | 0,8 à 1,1 s (inchangé) |
+
+- **Réponses identiques octet par octet** avant et après sur 18 cas : grille page 1 et page 4, CSV ; sans filtre, en
+  stock, par famille, par grossiste, par rayon avec stock, recherche, seuil.
+- **Tests :**
+  - `perf/test-comparaison-stock-export.js` (délai et rapprochement) : CSV, Excel sous 20 s, PDF sous 40 s ; autant
+    de lignes que le total de l'écran dans le CSV et le PDF ; dernière vente, consommation du mois et dernier bon d'un
+    échantillon comparés à la base. Il échouait sur l'ancien code (CSV 31 s, Excel 36 s, PDF 67 s) ; 5/5 après.
+    Le test lit maintenant aussi le modèle PDF de l'officine quand le poste l'a (un CIP de 13 chiffres y est tronqué
+    à 12, sans conséquence pour le test) ;
+  - non-régression :
+    - `retours/test-stock-reserve-colonnes.js` : 39/39 ;
+    - `filtres/test-filtre-multiple-menus.js` : 62/62 ;
+    - `filtres/test-impressions-filtres.js` : 15/17. Les deux échecs (évaluation des ventes, feuille de match :
+      noms des rayons) portent sur d'autres impressions et sont les mêmes sur l'ancien code.
+
+#### Routes qui restent lentes
+
+`bfr`, `top-marges` et `audit/analyse` n'existent que sur la lignée principale (`4afc885b4`), pas sur
+`plan/support-1811` ; `fetch-tickez` et `ventestats` y ont aussi changé. Leur correction se fera sur une branche partie
+de cette lignée. Par ordre de gain attendu : `audit/analyse` (jusqu'à 13 s), `fetch-tickez` 30 jours (11 s à froid),
+`bfr` (6 à 10 s), `suggerer` (6 à 8 s), `ventestats` (4 à 5 s).
+
 ## 4. Ordre proposé pour la suite
 
 1. **Sur site, sans code** (décision de l'utilisateur) :
