@@ -16,6 +16,7 @@ import javax.persistence.PersistenceContext;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import rest.report.pdf.Gs1;
 import rest.service.OrderService;
 import rest.service.dto.OrderDetailDTO;
 import util.PeremptionSaisie;
@@ -150,6 +151,93 @@ public class LotsCommandeService {
         ecrire(d.getLgORDERDETAILID(), lots);
         return ajout.put("success", true).put("itemId", d.getLgORDERDETAILID()).put("lots", new JSONArray(json(lots)))
                 .put("peremption", date.getDate().format(JJMMAAAA));
+    }
+
+    /* ====================================== scan d'un DataMatrix dans la petite fenetre du lot (reponse du 22/11) */
+
+    public static final String CONFORME = "CONFORME", DIFFERENT = "DIFFERENT", INCONNU = "INCONNU";
+
+    private static String code(String s) {
+        String c = StringUtils.deleteWhitespace(StringUtils.defaultString(s));
+        String sansZeros = StringUtils.stripStart(c, "0");
+        return sansZeros.isEmpty() ? c : sansZeros;
+    }
+
+    /**
+     * Le code produit lu sur la boite est-il celui du produit de la ligne ? CONFORME : le CIP (240) ou l'EAN du GTIN
+     * (01) est l'un des codes connus du produit ; DIFFERENT : la boite porte un code de meme nature que ceux du produit
+     * (CIP lu face aux codes du produit, EAN lu face a un EAN connu) et aucun ne correspond ; INCONNU : rien a
+     * comparer. Zeros de tete et espaces ignores.
+     *
+     * @param eans
+     *            EAN connus du produit (EAN-13, EAN fabricant)
+     * @param autres
+     *            autres codes connus (CIP du produit, codes article des grossistes)
+     */
+    static String comparerProduit(Gs1.Contenu c, List<String> eans, List<String> autres) {
+        List<String> connus = new ArrayList<>();
+        List<String> eansConnus = new ArrayList<>();
+        for (String e : eans) {
+            if (StringUtils.isNotBlank(e)) {
+                eansConnus.add(code(e));
+                connus.add(code(e));
+            }
+        }
+        for (String a : autres) {
+            if (StringUtils.isNotBlank(a)) {
+                connus.add(code(a));
+            }
+        }
+        String cip = StringUtils.isBlank(c.cip) ? null : code(c.cip);
+        String ean = c.gtin == null ? null : code(Gs1.ean13(c.gtin));
+        if ((cip != null && connus.contains(cip)) || (ean != null && connus.contains(ean))) {
+            return CONFORME;
+        }
+        if ((cip != null && !connus.isEmpty()) || (ean != null && !eansConnus.isEmpty())) {
+            return DIFFERENT;
+        }
+        return INCONNU;
+    }
+
+    /**
+     * Lecture d'un code scanne dans le champ du lot : lot et peremption (JJ/MM/AAAA) ; {@code complet} quand le code
+     * porte le produit (01), le lot (10) et la peremption (17) : l'ecran ajoute alors la ligne sans attendre Entree,
+     * sauf si {@code produit} vaut DIFFERENT (la boite n'est pas celle du produit choisi : avertissement).
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject lireCode(String code, String familleId) {
+        Gs1.Contenu c = Gs1.lire(code);
+        JSONObject r = new JSONObject().put("success", c.lot != null || c.peremption != null);
+        r.put("lot", c.lot == null ? "" : c.lot);
+        r.put("peremption", c.peremption == null ? "" : c.peremption.format(JJMMAAAA));
+        r.put("complet", c.gtin != null && c.lot != null && c.peremption != null);
+        String produit = INCONNU;
+        if (StringUtils.isNotBlank(familleId) && (c.gtin != null || c.cip != null)) {
+            List<Object[]> f = em
+                    .createNativeQuery(
+                            "SELECT int_CIP, int_EAN13, code_ean_fabriquant FROM t_famille WHERE lg_FAMILLE_ID = ?1")
+                    .setParameter(1, familleId).getResultList();
+            if (!f.isEmpty()) {
+                List<String> autres = new ArrayList<>();
+                autres.add(texte(f.get(0)[0]));
+                for (Object x : em
+                        .createNativeQuery("SELECT str_CODE_ARTICLE FROM t_famille_grossiste WHERE lg_FAMILLE_ID = ?1")
+                        .setParameter(1, familleId).getResultList()) {
+                    autres.add(texte(x));
+                }
+                produit = comparerProduit(c, java.util.Arrays.asList(texte(f.get(0)[1]), texte(f.get(0)[2])), autres);
+            }
+        }
+        r.put("produit", produit);
+        if (DIFFERENT.equals(produit)) {
+            r.put("message", "Le code de cette boîte (" + (c.cip != null ? "CIP " + c.cip : "EAN " + Gs1.ean13(c.gtin))
+                    + ") n'est pas celui du produit choisi : vérifiez la boîte, puis Entrée pour valider.");
+        }
+        return r;
+    }
+
+    private static String texte(Object o) {
+        return o == null ? null : String.valueOf(o);
     }
 
     /** Lots d'une ligne, pour la petite vue des lots (double-clic sur LOTS / PÉREMPTION). */

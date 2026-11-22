@@ -8,7 +8,10 @@
  *    au champ suivant ; Entrée sur la date valide la ligne (produit, quantité et lot en une seule transaction) ; les
  *    deux champs vides : la ligne est ajoutée sans lot ; Échap : rien n'est ajouté. L'aperçu « 01/27 → 31/01/2027 »
  *    s'affiche pendant la frappe ; une erreur s'affiche sous le champ et la ligne n'est pas validée ;
- *  - un scan DataMatrix dans le champ du lot (lecteur 1D/2D) remplit seulement le lot et la péremption ;
+ *  - un scan DataMatrix dans le champ du lot (lecteur 1D/2D) remplit le lot et la péremption ; réponse du 22/11 :
+ *    un scan complet (produit 01, lot 10, péremption 17) ajoute la ligne tout de suite, sans Entrée, avec la quantité
+ *    tapée ; si le code produit de la boîte n'est pas celui du produit choisi, rien n'est ajouté : avertissement sous
+ *    le lot, curseur sur la date, Entrée valide après vérification ; scan incomplet : curseur sur la date, comme avant ;
  *  - double-clic sur LOTS / DATE DE PÉREMPTION : les lots de la ligne, un par ligne, modifiables (numéro, date,
  *    quantité), ajout et retrait ; la somme ne dépasse jamais la quantité de la ligne.
  */
@@ -35,7 +38,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.LotsCommande', {
     apercu: function (fen) {
         var champ = fen.down('#peremption'), t = Ext.String.trim(champ.getValue() || ''), aide = fen.down('#apercu');
         if (!t) {
-            aide.update('<span class="lc-gris">Exemples : 01/27 → fin du mois · 010127 → 01/01/2027</span>');
+            aide.update('<span class="lc-gris">Exemples : 01/27 ou 0127 → fin du mois · 010127 → 01/01/2027</span>');
             return null;
         }
         var r = testextjs.view.commun.PeremptionSaisie.lire(t);
@@ -57,7 +60,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.LotsCommande', {
                 {xtype: 'textfield', itemId: 'lot', fieldLabel: 'N° de lot', labelWidth: 90, maxLength: 200, enforceMaxLength: true, msgTarget: 'under',
                     emptyText: 'Lot, ou scan du DataMatrix', enableKeyEvents: true, validateOnChange: false, validateOnBlur: false},
                 {xtype: 'textfield', itemId: 'peremption', fieldLabel: 'Péremption', labelWidth: 90, maxLength: 12, enforceMaxLength: true, msgTarget: 'under',
-                    emptyText: '01/27, 010127, 01/01/2027', enableKeyEvents: true, validateOnChange: false, validateOnBlur: false},
+                    emptyText: '01/27, 0127, 010127, 01/01/2027', enableKeyEvents: true, validateOnChange: false, validateOnBlur: false},
                 {xtype: 'component', itemId: 'apercu', cls: 'lc-apercu', margin: '0 0 0 95'},
                 {xtype: 'component', cls: 'lc-aide', margin: '8 0 0 0',
                     html: 'Entrée : champ suivant · Entrée sur les deux champs vides : valider sans lot · Échap : annuler'}
@@ -116,7 +119,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.LotsCommande', {
                 e.stopEvent();
                 var v = f.getValue();
                 if (me.ressembleCode(v)) {
-                    me.lireCode(v, lot, per, fen);
+                    me.lireCode(v, lot, per, fen, corps.familleId, valider);
                     return;
                 }
                 per.focus(true);
@@ -145,10 +148,13 @@ Ext.define('testextjs.view.commandemanagement.order.action.LotsCommande', {
         return fen;
     },
 
-    /** Scan dans le champ du lot : le serveur lit le DataMatrix ; seuls le lot et la peremption sont repris. */
-    lireCode: function (code, lot, per, fen) {
+    /**
+     * Scan dans le champ du lot : le serveur lit le DataMatrix (lot, peremption, code complet, produit conforme) ; un
+     * scan complet d'une boite du produit choisi valide la ligne aussitot (valider).
+     */
+    lireCode: function (code, lot, per, fen, familleId, valider) {
         var me = this;
-        Ext.Ajax.request({url: me.URL + 'lot-depuis-code', method: 'POST', jsonData: {code: code}, callback: function (o, ok, rep) {
+        Ext.Ajax.request({url: me.URL + 'lot-depuis-code', method: 'POST', jsonData: {code: code, familleId: familleId || ''}, callback: function (o, ok, rep) {
                 var x = Ext.JSON.decode(rep && rep.responseText, true) || {};
                 if (fen.isDestroyed) {
                     return;
@@ -160,8 +166,15 @@ Ext.define('testextjs.view.commandemanagement.order.action.LotsCommande', {
                 }
                 lot.setValue(x.lot || '');
                 per.setValue(x.peremption || '');
-                me.apercu(fen);
+                var r = me.apercu(fen);
+                if (x.complet && x.produit !== 'DIFFERENT' && r && r.date && valider) {
+                    valider();
+                    return;
+                }
                 (x.lot ? per : lot).focus(true);
+                if (x.produit === 'DIFFERENT') {
+                    lot.markInvalid(x.message);
+                }
             }});
     },
 

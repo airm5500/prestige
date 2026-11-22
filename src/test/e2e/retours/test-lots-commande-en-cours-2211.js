@@ -6,7 +6,9 @@
  *  - même produit, 5, même lot (« 310127 ») : les quantités s'additionnent, jamais deux lignes pour un lot ;
  *  - « 13/27 » : erreur sous le champ, rien d'écrit ; corrigé en « 012028 » (fin du mois) : enregistré ;
  *  - deux champs vides + Entrée : ligne sans lot ; Échap : rien d'ajouté ;
- *  - DataMatrix scanné dans le champ du lot (avec numéro de série 21 avant le lot) : lot et péremption repris ;
+ *  - DataMatrix scanné dans le champ du lot (avec numéro de série 21 avant le lot) ; réponses du 22/11 : un scan
+ *    complet de la boîte du produit ajoute la ligne sans Entrée ; la boîte d'un autre produit : rien d'ajouté,
+ *    avertissement ; un scan sans code produit : lot et péremption repris, curseur sur la date ; « 0127 » = 31/01/2027 ;
  *  - double-clic sur LOTS : les lots de la ligne, modifiables ; somme > quantité refusée, rien d'écrit ; correction
  *    et retrait enregistrés ;
  *  - rapprochement : colonnes LOTS / DATE DE PÉREMPTION de la grille = vue des lots = base, lot par lot ;
@@ -141,13 +143,32 @@ const lotsTexte = (lots) => lots.map((x) => x.numeroLot + ':' + x.datePeremption
     ok('Échap : fenêtre fermée, rien d\'ajouté (toujours 2)', !(await fenetre()) && l2.n === 2, JSON.stringify(l2));
 
     /* e. DataMatrix dans le champ du lot (numero de serie 21 avant le lot) */
+    /* e1. reponse du 22/11 : scan complet (01 + 17 + 10, CIP 240 du produit) : ligne ajoutee aussitot, sans Entree */
     await produit(P[0][1], 1);
-    await taper('0103400930000106' + '17290331' + '21SER9X' + '<GS>' + '10DM9', 'Enter'); await p.waitForTimeout(800);
-    f = await fenetre();
-    ok('Scan DataMatrix dans le lot : lot DM9 et péremption 31/03/2029 repris, curseur sur la date', f && f.lot === 'DM9' && f.date === '31/03/2029' && f.focus === 'peremption', JSON.stringify(f));
-    await p.keyboard.press('Enter'); await p.waitForTimeout(1500);
+    await taper('0103400930000106' + '17290331' + '21SER9X' + '<GS>' + '10DM9' + '<GS>' + '240' + P[0][1], 'Enter'); await p.waitForTimeout(1500);
     l1 = ligne(P[0][0]);
-    ok('… Entrée : ligne 29, lot DM9 (1) ajouté', l1.n === 29 && lotsTexte(l1.lots) === 'A2341:31/01/2027:25,B77:31/01/2028:3,DM9:31/03/2029:1', JSON.stringify(l1));
+    ok('Scan DataMatrix complet de la boîte du produit : ligne ajoutée tout de suite, sans Entrée (29, lot DM9 au 31/03/2029)', !(await fenetre())
+      && l1.n === 29 && lotsTexte(l1.lots) === 'A2341:31/01/2027:25,B77:31/01/2028:3,DM9:31/03/2029:1', JSON.stringify(l1));
+    ok('… curseur revenu sur la recherche du produit', await p.evaluate(() => /str_NAME/.test(document.activeElement && document.activeElement.id)));
+    /* e2. scan complet d'une autre boite (CIP de l'autre produit) : rien d'ajoute, avertissement, Entree apres verification */
+    await produit(P[0][1], 1);
+    await taper('0103400930000106' + '17290331' + '10DM7' + '<GS>' + '240' + P[1][1], 'Enter'); await p.waitForTimeout(800);
+    f = await fenetre();
+    ok('Scan complet d\'une boîte d\'un autre produit : rien d\'ajouté, avertissement sous le lot, curseur sur la date', f && f.lot === 'DM7' && f.date === '31/03/2029'
+      && f.focus === 'peremption' && /n'est pas celui du produit choisi/.test(f.erreurLot) && f.erreurLot.indexOf(P[1][1]) >= 0 && ligne(P[0][0]).n === 29, JSON.stringify(f));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(800);
+    ok('… Échap : rien d\'écrit (toujours 29, lots inchangés)', !(await fenetre()) && ligne(P[0][0]).n === 29 && lotsTexte(ligne(P[0][0]).lots) === lotsTexte(l1.lots));
+    /* e3. scan incomplet (17 + 10, sans code produit) : comme avant, curseur sur la date ; « 0127 » = 31/01/2027 */
+    await produit(P[0][1], 1);
+    await taper('17290331' + '10DM8', 'Enter'); await p.waitForTimeout(800);
+    f = await fenetre();
+    ok('Scan incomplet (sans code produit) : lot DM8 et péremption repris, curseur sur la date, rien d\'ajouté', f && f.lot === 'DM8' && f.date === '31/03/2029' && f.focus === 'peremption'
+      && ligne(P[0][0]).n === 29, JSON.stringify(f));
+    await taper('0127');
+    f = await fenetre();
+    ok('« 0127 » : aperçu « → 31/01/2027 » (fin du mois, réponse du 22/11)', f && /→ 31\/01\/2027/.test(f.apercu), f && f.apercu);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(800);
+    ok('… Échap : rien d\'écrit', !(await fenetre()) && ligne(P[0][0]).n === 29);
 
     /* f. rapprochement grille = vue des lots = base */
     await p.waitForFunction(() => !Ext.getCmp('gridpanelID').getStore().isLoading(), null, { timeout: 15000 });

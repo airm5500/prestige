@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
  * <ul>
  * <li>{@code MM/AA} ({@code 01/27}) et {@code MM/AAAA} : mois et annee seulement, donc le DERNIER jour du mois
  * (31/01/2027), comme le DataMatrix et les boites ;</li>
+ * <li>4 chiffres : {@code MMAA} ({@code 0127} = 31/01/2027, reponse du 22/11), dernier jour du mois ;</li>
  * <li>6 chiffres finissant par 20AA : {@code MMAAAA} ({@code 012027}), dernier jour du mois aussi ;</li>
  * <li>autres 6 chiffres : {@code JJMMAA} ({@code 010127} = 01/01/2027) ; les deux formes ne se confondent pas : en
  * JJMMAA, les 3e et 4e chiffres sont un mois (01 a 12), jamais « 20 » ;</li>
@@ -68,7 +69,7 @@ public final class PeremptionSaisie {
             return refus("Date impossible : « " + s + " ».");
         }
         if (d == null) {
-            return refus("Date non reconnue : « " + s + " ». Exemples : 01/27, 012027, 010127, 01/01/2027.");
+            return refus("Date non reconnue : « " + s + " ». Exemples : 01/27, 0127, 012027, 010127, 01/01/2027.");
         }
         if (d.isBefore(aujourdhui)) {
             return refus("Date passée : "
@@ -79,6 +80,9 @@ public final class PeremptionSaisie {
 
     /** La date lue, null si la forme n'est pas reconnue ; DateTimeException si elle est impossible. */
     static LocalDate interpreter(String s) {
+        if (s.matches("\\d{4}")) {
+            return finDeMois(Integer.parseInt(s.substring(0, 2)), annee(s.substring(2)));
+        }
         if (s.matches("\\d{6}")) {
             if (s.startsWith("20", 2)) {
                 return finDeMois(Integer.parseInt(s.substring(0, 2)), Integer.parseInt(s.substring(2)));

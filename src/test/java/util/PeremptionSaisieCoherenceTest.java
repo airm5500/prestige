@@ -51,7 +51,7 @@ class PeremptionSaisieCoherenceTest {
                 assertEquals(d, res.getDate(), s);
             }
             /* mois et annee seulement : dernier jour du mois */
-            for (String s : new String[] { m + "/" + a2, m + sep + a4, m + a4 }) {
+            for (String s : new String[] { m + "/" + a2, m + sep + a4, m + a4, m + a2 }) {
                 PeremptionSaisie.Resultat res = PeremptionSaisie.lire(s, AUJOURDHUI);
                 assertTrue(res.isValide(), s + " -> " + res.getMotif());
                 assertEquals(fin, res.getDate(), s);
@@ -95,7 +95,7 @@ class PeremptionSaisieCoherenceTest {
             assertTrue(res.getMotif().startsWith("Date passée"), s + " " + res.getMotif());
         }
         for (String s : new String[] { "13/27", "32/01/27", "00/27", "310227", "30022028", "29/02/2027", "abc",
-                "1/2/3/4", "0127" }) {
+                "1/2/3/4", "1327", "0027", "127", "01271" }) {
             PeremptionSaisie.Resultat res = PeremptionSaisie.lire(s, AUJOURDHUI);
             assertFalse(res.isValide(), s);
             assertFalse(res.getMotif().isEmpty(), s);
@@ -108,6 +108,10 @@ class PeremptionSaisieCoherenceTest {
     void exemplesDuPlan() {
         assertEquals(LocalDate.of(2027, 1, 31), PeremptionSaisie.lire("01/27", AUJOURDHUI).getDate());
         assertEquals(LocalDate.of(2027, 1, 31), PeremptionSaisie.lire("012027", AUJOURDHUI).getDate());
+        /* reponse du 22/11 : « 0127 signifie 31/01/2027 » (MMAA) */
+        assertEquals(LocalDate.of(2027, 1, 31), PeremptionSaisie.lire("0127", AUJOURDHUI).getDate());
+        assertEquals(LocalDate.of(2028, 2, 29), PeremptionSaisie.lire("0228", AUJOURDHUI).getDate());
+        assertEquals("Date passée : 31/10/2026.", PeremptionSaisie.lire("1026", AUJOURDHUI).getMotif());
         assertEquals(LocalDate.of(2027, 1, 1), PeremptionSaisie.lire("010127", AUJOURDHUI).getDate());
         assertEquals(LocalDate.of(2027, 1, 1), PeremptionSaisie.lire("01012027", AUJOURDHUI).getDate());
         assertEquals(LocalDate.of(2027, 1, 1), PeremptionSaisie.lire("01-01-27", AUJOURDHUI).getDate());
@@ -135,7 +139,7 @@ class PeremptionSaisieCoherenceTest {
         int valides = 0;
         for (int i = 0; i < 8000; i++) {
             String s;
-            int forme = r.nextInt(5);
+            int forme = r.nextInt(6);
             String j = d2(r.nextInt(34)), m = d2(r.nextInt(15)),
                     a = r.nextBoolean() ? d2(r.nextInt(100)) : String.valueOf(2000 + r.nextInt(80));
             String sep = seps[r.nextInt(4)];
@@ -147,8 +151,10 @@ class PeremptionSaisieCoherenceTest {
                 s = String.format("%06d", r.nextInt(1_000_000));
             } else if (forme == 3) {
                 s = String.format("%08d", r.nextInt(100_000_000));
-            } else {
+            } else if (forme == 4) {
                 s = m + "20" + d2(r.nextInt(100));
+            } else {
+                s = String.format("%04d", r.nextInt(10_000));
             }
             PeremptionSaisie.Resultat java = PeremptionSaisie.lire(s, AUJOURDHUI);
             String attendu = java.isValide() ? String.format("%02d/%02d/%04d", java.getDate().getDayOfMonth(),

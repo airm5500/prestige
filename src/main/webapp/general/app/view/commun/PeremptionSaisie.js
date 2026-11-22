@@ -3,7 +3,7 @@
 /*
  * Plan du 21/11, point 16.1 : lecture de la date de peremption tapee au clavier (commande en cours). Memes regles que
  * util.PeremptionSaisie cote serveur, qui recontrole a l'enregistrement :
- *  - MM/AA (01/27), MM/AAAA et MMAAAA (6 chiffres finissant par 20AA) : dernier jour du mois (31/01/2027) ;
+ *  - MM/AA (01/27), MMAA (0127, reponse du 22/11), MM/AAAA et MMAAAA (6 chiffres finissant par 20AA) : dernier jour du mois (31/01/2027) ;
  *  - autres 6 chiffres : JJMMAA (010127 = 01/01/2027) ; 8 chiffres : JJMMAAAA ;
  *  - JJ/MM/AA, JJ-MM-AA, JJ.MM.AA, et les memes avec l'annee sur 4 chiffres ;
  *  - refus avec un motif : date impossible (13/27, 32/01/27), date passee, saisie non reconnue.
@@ -31,6 +31,10 @@
         /** {date} | {impossible: true} | null (forme non reconnue). */
         interpreter: function (s) {
             var m, d;
+            if (/^\d{4}$/.test(s)) {
+                d = P.finDeMois(parseInt(s.substr(0, 2), 10), P.annee(s.substr(2)));
+                return d ? {date: d} : {impossible: true};
+            }
             if (/^\d{6}$/.test(s)) {
                 d = s.substr(2, 2) === '20' ? P.finDeMois(parseInt(s.substr(0, 2), 10), parseInt(s.substr(2), 10))
                         : P.jour(parseInt(s.substr(0, 2), 10), parseInt(s.substr(2, 2), 10), P.annee(s.substr(4)));
@@ -63,7 +67,7 @@
             }
             var r = P.interpreter(s);
             if (!r) {
-                return {motif: 'Date non reconnue : « ' + s + ' ». Exemples : 01/27, 012027, 010127, 01/01/2027.'};
+                return {motif: 'Date non reconnue : « ' + s + ' ». Exemples : 01/27, 0127, 012027, 010127, 01/01/2027.'};
             }
             if (r.impossible) {
                 return {motif: 'Date impossible : « ' + s + ' ».'};

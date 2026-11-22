@@ -312,7 +312,10 @@ public class CommandeRessource {
                 .build();
     }
 
-    /** Scan d'un DataMatrix dans le champ du lot : seulement le lot et la peremption (JJ/MM/AAAA). */
+    /**
+     * Scan d'un DataMatrix dans le champ du lot : lot et peremption (JJ/MM/AAAA), code complet ou non, et code produit
+     * compare a celui du produit de la ligne (familleId, facultatif).
+     */
     @POST
     @Path("lot-depuis-code")
     public Response lotDepuisCode(String corps) {
@@ -320,11 +323,9 @@ public class CommandeRessource {
             return deconnecte();
         }
         JSONObject o = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
-        rest.report.pdf.Gs1.Contenu c = rest.report.pdf.Gs1.lire(o.optString("code", ""));
-        JSONObject r = new JSONObject().put("success", c.lot != null || c.peremption != null);
-        r.put("lot", c.lot == null ? "" : c.lot);
-        r.put("peremption", c.peremption == null ? "" : c.peremption.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-        return Response.ok().entity(r.toString()).build();
+        return Response.ok()
+                .entity(lotsCommande.lireCode(o.optString("code", ""), o.optString("familleId", "")).toString())
+                .build();
     }
 
     @PUT
