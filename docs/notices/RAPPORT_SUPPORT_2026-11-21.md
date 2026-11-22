@@ -142,11 +142,17 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
   renvoyées, et pour le tiers payant = bons en base ; aucune erreur JavaScript ; bilan sans donnée modifiée. Échoue
   sur `4afc885b4` (5 contrôles, « Cannot read properties of undefined (reading 'getStore') », comme au journal), passe
   sur la branche (7/7).
-- **Remarque (suspecté, hors N3) :** sur `laborex_audit`, la vue `v_facture_subrogatoire` compte 3 559 ventes en
-  octobre 2026, la liste en annonce 3 317 ; une référence de la vue (`261001_00649`) n'est pas trouvée par la
-  recherche. De même, `test-facture-subrogatoire-api.js` trouve des totaux différents entre la JSP et l'API (7 062
-  contre 7 108 sur la période longue, 7 contrôles en échec), **à l'identique sur `4afc885b4`** : l'écart précède N3 et
-  n'en vient pas. Les règles de la liste (droits, emplacement, statut) l'expliquent peut-être ; à examiner à part.
+- **Remarque (examinée le 22/11) : pas d'écart entre la JSP et l'API.**
+  - Sur le poste de développement, les JSP lisent la base `capitale` et l'API la base de Payara (`laborex_audit` sur
+    domain3) : c'est le montage voulu. J'avais lancé `test-facture-subrogatoire-api.js` avec `DB_JSP=laborex_audit`,
+    donc sur deux bases différentes : 7 064 références sur la période dans `capitale`, donc 7 062 affichées par la
+    JSP ; 7 110 dans `laborex_audit`, donc 7 108 renvoyées par l'API.
+  - Relancé avec `DB_JSP=capitale`, sur les mois identiques dans les deux bases (août et septembre 2026) : **18/18**.
+    Pages 1, 2 et dernière, recherche par référence et par nom, tiers payant, plage horaire et période vide donnent
+    les mêmes ventes, dans le même ordre et aux mêmes valeurs ; l'écran et le PDF suivent.
+  - Les 3 559 ventes d'octobre contre 3 317 affichées : la liste écarte, comme la JSP, les ventes annulées et les
+    montants nuls ou négatifs (142 ventes), regroupe par référence, puis applique la règle historique du bon
+    identique au précédent. La référence `261001_00649` est une vente annulée : elle est écartée à bon droit.
 
 ### 3.5 N4 : SMS envoyés après la suspension
 
