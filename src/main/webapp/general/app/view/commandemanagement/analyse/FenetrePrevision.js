@@ -22,6 +22,19 @@ Ext.define('testextjs.view.commandemanagement.analyse.FenetrePrevision', {
         HOLT: 'Niveau récent des ventes (les derniers mois comptent le plus) plus la tendance (hausse ou baisse par mois).',
         HOLT_WINTERS: 'Niveau récent, tendance, et effet de la saison sur le mois prévu (24 mois d\'historique au moins).'},
 
+    /**
+     * Retour du 22/11 : a l'ouverture d'une suggestion ou d'une commande en cours, le serveur calcule les previsions de
+     * ses produits qui ne sont pas du jour (ou sans le detail du calcul) : la fenetre du produit les a tout de suite.
+     * En arriere-plan et sans message ; sans acces aux previsions, le serveur refuse et rien ne change.
+     */
+    actualiser: function (type, id) {
+        if (!id || id === '0') {
+            return;
+        }
+        Ext.Ajax.request({url: '../api/v1/analyse-commande/actualiser?type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(id),
+            method: 'POST', timeout: 120000, success: Ext.emptyFn, failure: Ext.emptyFn});
+    },
+
     MOIS_COURTS: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
 
     h: function (s) {
@@ -99,8 +112,7 @@ Ext.define('testextjs.view.commandemanagement.analyse.FenetrePrevision', {
     bulleExplication: function (o) {
         var me = this, e = o.explication;
         if (!e) {
-            return '<b>Prévu en ' + me.h(o.prochainMois) + ' : ' + me.h(me.dec(o.prevuMois)) + '</b><br>Le détail du calcul sera disponible'
-                    + ' après le prochain calcul des prévisions (cette nuit, ou « Recalculer maintenant »).';
+            return '<b>Prévu en ' + me.h(o.prochainMois) + ' : ' + me.h(me.dec(o.prevuMois)) + '</b><br>Le détail du calcul n\'a pas pu être refait pour ce produit.';
         }
         return '<b>Prévu en ' + me.h(o.prochainMois) + ' : ' + me.h(me.dec(e.valeur)) + '</b> — méthode ' + me.h(me.METHODES[e.methode] || e.methode)
                 + '<table class="pv-bulle">' + (e.etapes || []).map(function (x) {

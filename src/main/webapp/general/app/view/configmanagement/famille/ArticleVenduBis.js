@@ -15,7 +15,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
     extend: 'Ext.grid.Panel',
     xtype: 'articlevendurecapitulatif',
     id: 'articlevendurecapitulatifID',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode',
         'Ext.selection.CellModel',
         'testextjs.view.configmanagement.famille.action.detailArticleVendus',
         'Ext.grid.*',
@@ -381,6 +381,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                             fieldLabel: 'Au',
                             name: 'dt_fin',
                             id: 'dt_fin',
+                            plugins: [{ptype: 'champperiode', debut: 'dt_debut', declencher: 'btnRechercherArticlesRecap', largeur: 205}], /* retour du 22/11 : un seul selecteur de periode, 205 px comme en facturation (cases Du / Au dans le calendrier) */
                             labelWidth: 15,
                             flex: 1,
                             value: new Date(),
@@ -438,6 +439,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
 
                         {
                             text: 'rechercher',
+                            itemId: 'btnRechercherArticlesRecap',
                             tooltip: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon',

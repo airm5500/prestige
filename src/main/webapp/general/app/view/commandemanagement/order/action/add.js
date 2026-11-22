@@ -1052,6 +1052,8 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         if (this.estModification()) {
             this.chargerSubstitutions();
             this.etatBoutonPharmaMl(this.getOdatasource());
+            /* retour du 22/11 : previsions des produits de la commande calculees a l'ouverture */
+            testextjs.view.commandemanagement.analyse.FenetrePrevision.actualiser('COMMANDE', this.getNameintern());
         }
         /* plan du 21/11, point 16.1 : lot et peremption en commande en cours, si le parametre est a 1 */
         var ecranLots = this;

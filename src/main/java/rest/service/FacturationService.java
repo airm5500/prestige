@@ -115,6 +115,10 @@ public interface FacturationService {
      */
     JSONObject modelFacturesPourListeDeroulante(String query, int start, int limit) throws JSONException;
 
+    /** Retour du 22/11 : groupe de tiers payant (null : tous), comme la liste des factures. */
+    ReportTypeTiersPayantFactureDTO exportReleveFacture(String invoiceFilter, String tiersPayantId, String codeFacture,
+            String searchTerm, String dtStart, String dtEnd, Integer groupe);
+
     ReportTypeTiersPayantFactureDTO exportReleveFacture(String invoiceFilter, String tiersPayantId, String codeFacture,
             String searchTerm, String dtStart, String dtEnd);
 }

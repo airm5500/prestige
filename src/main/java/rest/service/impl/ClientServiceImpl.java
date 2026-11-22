@@ -484,6 +484,11 @@ public class ClientServiceImpl implements ClientService {
      */
     @Override
     public List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot) {
+        return findTiersPayants(query, type, carnetDepot, null);
+    }
+
+    @Override
+    public List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot, Integer groupeId) {
         try {
             EntityManager emg = this.getEmg();
             List<Predicate> predicates = new ArrayList<>();
@@ -503,6 +508,11 @@ public class ClientServiceImpl implements ClientService {
             } else if (Boolean.FALSE.equals(carnetDepot)) {
                 predicates.add(
                         cb.or(cb.isNull(root.get(TTiersPayant_.isDepot)), cb.isFalse(root.get(TTiersPayant_.isDepot))));
+            }
+            if (groupeId != null) {
+                /* retour du 22/11 : selecteur de groupe de la liste des factures */
+                predicates.add(
+                        cb.equal(root.get(TTiersPayant_.lgGROUPEID).get(TGroupeTierspayant_.lgGROUPEID), groupeId));
             }
 
             if (query != null && !query.trim().isEmpty()) {

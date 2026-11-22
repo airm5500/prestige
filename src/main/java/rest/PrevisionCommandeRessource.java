@@ -545,6 +545,23 @@ public class PrevisionCommandeRessource {
                 utilisateur()));
     }
 
+    /**
+     * Retour du 22/11 : a l'ouverture d'une suggestion ou d'une commande en cours, les previsions de ses produits sont
+     * calculees (celles qui ne sont pas du jour ou n'ont pas le detail du calcul), sans attendre le calcul de la nuit.
+     */
+    @POST
+    @Path("actualiser")
+    public Response actualiser(@QueryParam("type") String type, @QueryParam("id") String id) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        if (id == null || id.trim().isEmpty()) {
+            return refus("Suggestion ou commande manquante.");
+        }
+        return reponse(service.actualiser(emplacement(), type == null ? "" : type.trim().toUpperCase(), id.trim()));
+    }
+
     @POST
     @Path("recalculer")
     public Response recalculer() {

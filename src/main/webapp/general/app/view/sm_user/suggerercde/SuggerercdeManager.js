@@ -600,6 +600,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             
             /* plan du 08/11, point 11.5 : nettoyage a l'ouverture si le parametre est a 1, puis la liste */
             Me_Window.ouvrirPuisCharger(OgridpanelSuggestionID);
+            /* retour du 22/11 : previsions des produits de la suggestion calculees a l'ouverture */
+            testextjs.view.commandemanagement.analyse.FenetrePrevision.actualiser('SUGGESTION', orderIdRef);
         }
 
         Ext.getCmp('gridpanelSuggestionID').on('edit', function (editor, e) {

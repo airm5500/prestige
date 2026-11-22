@@ -135,4 +135,68 @@ public class DejaFactureTest {
         assertTrue(j.getBoolean("tronque"));
         assertEquals(DejaFacture.LIMITE, j.getInt("limite"));
     }
+
+    /** LIKE de MariaDB (echappement « \ »), pour verifier le motif sans base. */
+    static boolean like(String texte, String motif) {
+        StringBuilder re = new StringBuilder();
+        for (int i = 0; i < motif.length(); i++) {
+            char c = motif.charAt(i);
+            if (c == '\\' && i + 1 < motif.length()) {
+                re.append(java.util.regex.Pattern.quote(String.valueOf(motif.charAt(++i))));
+            } else if (c == '%') {
+                re.append("(?s).*");
+            } else if (c == '_') {
+                re.append("(?s).");
+            } else {
+                re.append(java.util.regex.Pattern.quote(String.valueOf(c)));
+            }
+        }
+        return texte.matches(re.toString());
+    }
+
+    /**
+     * Retour du 22/11 : le numero de bon se cherche par « contient ». Sur des milliers de numeros et de saisies tires
+     * au hasard (graine fixe), le motif trouve un bon si et seulement si la saisie est dans le numero, quels que soient
+     * les caracteres (%, _, \, tiret, barre) ; une saisie avec une espace (un nom) ne fait pas de motif.
+     */
+    @Test
+    public void numeroDeBonParContient() {
+        Random r = new Random(22112026L);
+        String alphabet = "0123456789ABCx%_\\-/.";
+        int trouves = 0, absents = 0;
+        for (int i = 0; i < 20000; i++) {
+            StringBuilder b = new StringBuilder();
+            for (int k = 0, n = 1 + r.nextInt(12); k < n; k++) {
+                b.append(alphabet.charAt(r.nextInt(alphabet.length())));
+            }
+            String bon = b.toString();
+            String saisie;
+            if (r.nextBoolean()) {
+                int de = r.nextInt(bon.length()), a = de + 1 + r.nextInt(bon.length() - de);
+                saisie = bon.substring(de, a);
+            } else {
+                StringBuilder s = new StringBuilder();
+                for (int k = 0, n = 1 + r.nextInt(4); k < n; k++) {
+                    s.append(alphabet.charAt(r.nextInt(alphabet.length())));
+                }
+                saisie = s.toString();
+            }
+            String motif = DejaFacture.motifBon(saisie);
+            boolean attendu = bon.contains(saisie);
+            assertEquals(attendu, like(bon, motif), bon + " / " + saisie + " -> " + motif);
+            if (attendu) {
+                trouves++;
+            } else {
+                absents++;
+            }
+        }
+        assertTrue(trouves > 5000 && absents > 3000, trouves + " / " + absents);
+        assertEquals("%007808%", DejaFacture.motifBon("007808"));
+        assertTrue(like("BON-2026-007808", DejaFacture.motifBon("007808")), "milieu du numero");
+        assertTrue(like("007808", DejaFacture.motifBon("0078")), "debut (comme avant)");
+        assertFalse(like("007809", DejaFacture.motifBon("007808")));
+        assertNull(DejaFacture.motifBon("KONAN AWA"), "un nom");
+        assertNull(DejaFacture.motifBon(null));
+        assertNull(DejaFacture.motifBon(""));
+    }
 }

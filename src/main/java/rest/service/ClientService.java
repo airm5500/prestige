@@ -69,6 +69,9 @@ public interface ClientService {
 
     List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot);
 
+    /** Retour du 22/11 : avec groupeId, seulement les tiers payants de ce groupe (facturation). */
+    List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot, Integer groupeId);
+
     List<AyantDroitDTO> findAyantDroitByClientId(String clientId, String query);
 
     JSONObject addAyantDroitToClient(AyantDroitDTO ayantDroit) throws JSONException;

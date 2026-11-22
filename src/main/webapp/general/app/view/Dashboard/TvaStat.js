@@ -3,6 +3,7 @@
 Ext.define('testextjs.view.Dashboard.TvaStat', {
     extend: 'Ext.tab.Panel',
     xtype: 'tvastat',
+    requires: ['testextjs.view.commun.ChampPeriode'],
     frame: true,
     width: '95%',
     height: 500,
@@ -66,6 +67,7 @@ Ext.define('testextjs.view.Dashboard.TvaStat', {
                             xtype: 'datefield',
                             fieldLabel: 'Au',
                             itemId: 'dtEnd',
+                            plugins: [{ptype: 'champperiode', debut: 'dtStart', declencher: 'rechercher', largeur: 205}], /* retour du 22/11 : un seul selecteur de periode, 205 px comme en facturation (cases Du / Au dans le calendrier) */
                             labelWidth: 20,
                             flex: 1,
                             maxValue: new Date(),

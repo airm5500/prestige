@@ -147,6 +147,7 @@ public class FactureTiersPayantRessource {
             @DefaultValue("") @QueryParam("dt_debut") String dtDebutParam,
             @DefaultValue("") @QueryParam("dt_fin") String dtFinParam,
             @DefaultValue("") @QueryParam("impayes") String impayesParam,
+            @DefaultValue("") @QueryParam("groupe") String groupeParam,
             @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
@@ -171,9 +172,9 @@ public class FactureTiersPayantRessource {
             odm.initEntityManager();
             factureManagement ofm = new factureManagement(odm, sessionUser);
             List<TFacture> lstTFacture = ofm.getListFacture(searchValue, lgFACTUREID, lgTYPEFACTUREID, dtDebut, dtFin,
-                    lgCUSTOMERID, "", impayes, start, limit);
+                    lgCUSTOMERID, "", impayes, rest.service.facture.FiltreGroupe.lire(groupeParam), start, limit);
             int count = ofm.getListFacturesCount(searchValue, lgFACTUREID, lgTYPEFACTUREID, dtDebut, dtFin,
-                    lgCUSTOMERID, "", impayes);
+                    lgCUSTOMERID, "", impayes, rest.service.facture.FiltreGroupe.lire(groupeParam));
 
             List<TPrivilege> lstTPrivilege = (List<TPrivilege>) servletRequest.getSession()
                     .getAttribute(commonparameter.USER_LIST_PRIVILEGE);

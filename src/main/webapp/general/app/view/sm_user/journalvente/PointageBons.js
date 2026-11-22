@@ -19,6 +19,7 @@
 Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
     extend: 'Ext.panel.Panel',
     xtype: 'pointagebons',
+    requires: ['testextjs.view.commun.ChampPeriode'],
     layout: 'border',
     border: false,
     cls: 'pt-pointage',
@@ -124,6 +125,7 @@ Ext.define('testextjs.view.sm_user.journalvente.PointageBons', {
                                 }
                             }}},
                     {xtype: 'datefield', itemId: 'ptFin', fieldLabel: 'au', labelWidth: 18, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: new Date(),
+                        plugins: [{ptype: 'champperiode', debut: 'ptDebut', largeur: 205}], /* retour du 22/11 : un seul selecteur de periode, 205 px comme en facturation (cases Du / Au dans le calendrier) */
                         listeners: {select: function () {
                                 me.recharger();
                             }, specialkey: function (f, e) {

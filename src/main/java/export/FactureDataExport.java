@@ -111,7 +111,8 @@ public class FactureDataExport extends HttpServlet {
             }
 
             dataToExport = management.getInvoiceExportToExcelData(search_value, lg_FACTURE_ID, lg_TYPE_FACTURE_ID,
-                    java.sql.Date.valueOf(dt_debut), end, lg_customer_id, code, impayes);
+                    java.sql.Date.valueOf(dt_debut), end, lg_customer_id, code, impayes,
+                    rest.service.facture.FiltreGroupe.lire(request.getParameter("groupe")));
 
             extportFactureData2(dataToExport, response, "Facture releve client");
         }

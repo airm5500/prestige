@@ -3,6 +3,7 @@
 Ext.define('testextjs.view.Dashboard.TableauPhama', {
     extend: 'Ext.tab.Panel',
     xtype: 'tableauPhama',
+    requires: ['testextjs.view.commun.ChampPeriode'],
     frame: true,
     width: '97%',
     height: 'auto',
@@ -115,6 +116,7 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                             xtype: 'datefield',
                             fieldLabel: 'Au',
                             itemId: 'dtEnd',
+                            plugins: [{ptype: 'champperiode', debut: 'dtStart', declencher: 'rechercher', largeur: 205}], /* retour du 22/11 : un seul selecteur de periode, 205 px comme en facturation (cases Du / Au dans le calendrier) */
                             labelWidth: 20,
                             flex: 0.6,
                             maxValue: new Date(),

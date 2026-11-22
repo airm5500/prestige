@@ -20,7 +20,8 @@ import org.json.JSONObject;
 /**
  * Plan du 21/11, point 9 : « Déjà facturé ? ». Retrouve les bons de tiers payant (une part tiers payant d'une vente
  * close et non annulee) par numero de bon, numero de ticket, matricule ou nom du client, sur toutes les factures et
- * sans limite de periode, et dit pour chacun s'il est facture et dans quelle facture.
+ * sans limite de periode, et dit pour chacun s'il est facture et dans quelle facture. Retour du 22/11 : le numero de
+ * bon se cherche par « contient » (avant : a l'identique).
  *
  * <p>
  * Regles :
@@ -70,6 +71,18 @@ public final class DejaFacture {
             }
         }
         return l;
+    }
+
+    /**
+     * Retour du 22/11 : motif LIKE « contient » du numero de bon (% et _ neutralises), ou null si la saisie n'est pas
+     * un numero (une espace : c'est un nom). Le numero cherche est celui affiche : celui de la part tiers payant, ou a
+     * defaut celui de la vente.
+     */
+    public static String motifBon(String saisie) {
+        if (saisie == null || saisie.isEmpty() || saisie.contains(" ")) {
+            return null;
+        }
+        return "%" + saisie.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
     }
 
     /** Une facture compte : definitive, ni annulee par avoir, ni supprimee. */
@@ -177,6 +190,18 @@ public final class DejaFacture {
         for (String sql : exacts) {
             Query q = em.createNativeQuery(sql + " LIMIT " + CANDIDATS_MAX);
             q.setParameter(1, saisie);
+            ids.addAll((List<String>) q.getResultList());
+        }
+        String motifBon = motifBon(saisie);
+        if (motifBon != null && ids.size() < CANDIDATS_MAX) {
+            Query q = em.createNativeQuery(p + " WHERE p.str_REF_BON LIKE ?1 LIMIT " + CANDIDATS_MAX);
+            q.setParameter(1, motifBon);
+            ids.addAll((List<String>) q.getResultList());
+            q = em.createNativeQuery(
+                    p + " JOIN t_preenregistrement v ON v.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                            + " WHERE (p.str_REF_BON IS NULL OR p.str_REF_BON = '') AND v.str_REF_BON LIKE ?1 LIMIT "
+                            + CANDIDATS_MAX);
+            q.setParameter(1, motifBon);
             ids.addAll((List<String>) q.getResultList());
         }
         List<String> motifs = motifsNom(saisie);

@@ -256,7 +256,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                             // l'extreme droite de la carte). L'infobulle dit ce que fait
                                             // le bouton, et vp-btn-plat retire le cadre bleu du theme.
                                             itemId: 'btnModifierInfo',
-                                            icon: 'resources/images/icons/fam/user_edit.png',
+                                            iconCls: 'ic7 ic7-client', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                                             tooltip: 'Cliquez ici pour modifier',
                                             cls: 'vp-btn-plat',
                                             margin: '0 0 0 6',
@@ -267,7 +267,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                             /* Suivi de consommation de l'assure (retour du 30/09), comme pour le
                                              * client standard : fenetre en lecture seule. */
                                             itemId: 'suiviConsoAssure',
-                                            icon: 'resources/images/icons/fam/chart_bar.png',
+                                            iconCls: 'ic7 ic7-suivi', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                                             tooltip: 'Suivi de consommation de ce client',
                                             cls: 'vp-btn-plat',
                                             margin: '0 0 0 2',
@@ -339,7 +339,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
 
                                                 {
                                                     itemId: 'btnModifierAyant',
-                                                    icon: 'resources/images/icons/fam/user_add.png',
+                                                    iconCls: 'ic7 ic7-ayant', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                                                     tooltip: 'Cliquez ici pour choisir un autre ayant droit',
                                                     // Meme presentation que le bouton de la carte client : icone sans cadre.
                                                     cls: 'vp-btn-plat',
@@ -1397,7 +1397,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     text: 'FICHE CLIENT',
                                                     itemId: 'btnFicheClient',
                                                     hidden: true,
-                                                    iconCls: 'cartclient',
+                                                    iconCls: 'ic7 ic7-fiche', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                                                     height: 38,
                                                     cls: 'btn-primarya',
                                                     tooltip: 'Fiche du client de la vente : allergies, terrains, mesures, consommation'
@@ -1405,7 +1405,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     text: 'AFFICHER NET A PAYER',
                                                     itemId: 'netBtn',
-                                                    iconCls: 'afficheur_caisse',
+                                                    iconCls: 'ic7 ic7-afficheur', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                                                     scope: this,
                                                     height: 38,
                                                     cls: 'btn-primarya'
@@ -1414,7 +1414,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     text: 'RETOUR',
                                                     itemId: 'btnGoBack',
-                                                    iconCls: 'retour',
+                                                    iconCls: 'ic7 ic7-retour', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                                                     scope: this,
                                                     height: 38,
                                                     cls: 'btn-secondary'

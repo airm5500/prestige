@@ -80,7 +80,8 @@ public class ReleveFactureServlet extends HttpServlet {
                 : "SAUF ERREUR DE NOTRE PART LE REGLEMENT DE VOS FACTURES CI-DESSUS RELEVES NE NOUS EST PAS ENCORE PARVENU. NOUS VOUS PRIONS DE BIEN VOULOIR NOUS LES REGLER A VOTRE CONVENANCE DANS LES DELAIS";
 
         ReportTypeTiersPayantFactureDTO datas = facturationService.exportReleveFacture(invoiceFilter, tiersPayantId,
-                codeFacture, searchTerm, dtStart, dtEnd);
+                codeFacture, searchTerm, dtStart, dtEnd,
+                rest.service.facture.FiltreGroupe.lire(request.getParameter("groupe")));
         return reportUtil.buildReport(getParameters(request, "RELEVE DES FACTURES CLIENTS EN COMPTE PERIODE DU ",
                 dtStart, dtEnd, info, datas), reportName, datas.getTierspayants());
 
