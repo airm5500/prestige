@@ -200,6 +200,63 @@ public class TableauBordRessource {
         return Response.ok(o.put("success", !o.optBoolean("erreur", false)).toString()).build();
     }
 
+    @EJB
+    private rest.service.CaisseService caisseService;
+
+    /** Lecture complete des negatifs pour le PDF (la fenetre en montre 500 au plus). */
+    static final int NEGATIFS_PDF_MAX = 100000;
+
+    /**
+     * Plan du 21/11 : PDF des articles en stock negatif de l'alerte du tableau de bord (CIP, designation, emplacement,
+     * stock), meme liste et meme ordre que la fenetre, sans limite de 500 lignes, avec le total.
+     */
+    @GET
+    @Path("alertes/negatifs/pdf")
+    @Produces("application/pdf")
+    public Response negatifsPdf() {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        JSONObject o = service.alerteListe("negatifs", 6, 7, 30, emplacement(u), NEGATIFS_PDF_MAX);
+        if (o.optBoolean("erreur", false)) {
+            return Response.status(500).type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false).put("msg", "Liste indisponible.").toString())
+                    .build();
+        }
+        org.json.JSONArray a = o.getJSONArray("data");
+        java.util.List<String[]> l = new java.util.ArrayList<>();
+        long total = 0;
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject x = a.getJSONObject(i);
+            l.add(new String[] { x.optString("cip"), x.optString("libelle"), x.optString("emplacement"),
+                    milliers(x.optLong("quantite")) });
+            total += x.optLong("quantite");
+        }
+        l.add(new String[] { "TOTAL", a.length() + " article(s)", "", milliers(total) });
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        dal.TOfficine off = caisseService.findOfficine();
+        e.officine = off != null ? StringUtils.defaultString(off.getStrNOMCOMPLET()) : "";
+        e.titre = "ARTICLES EN STOCK NÉGATIF";
+        e.sousTitre = "Stock au "
+                + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                + " ; " + a.length() + " article(s), du stock le plus négatif au moins négatif";
+        e.imprimePar = (StringUtils.defaultString(u.getStrFIRSTNAME()) + " "
+                + StringUtils.defaultString(u.getStrLASTNAME())).trim();
+        e.entetes = new String[] { "CIP", "Désignation", "Emplacement", "Stock" };
+        e.largeurs = new float[] { 12, 52, 26, 10 };
+        e.droite = new boolean[] { false, false, false, true };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, l), "application/pdf")
+                .header("Content-Disposition", "inline; filename=stock_negatif_"
+                        + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd_MM_yyyy")) + ".pdf")
+                .build();
+    }
+
+    static String milliers(long v) {
+        String s = String.valueOf(Math.abs(v)).replaceAll("\\B(?=(\\d{3})+(?!\\d))", " ");
+        return (v < 0 ? "-" : "") + s;
+    }
+
     @javax.ejb.EJB
     private rest.service.impl.AnalyseMargesService analyseMarges;
 

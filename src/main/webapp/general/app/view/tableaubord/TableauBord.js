@@ -35,8 +35,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         CARTES: [
             {id: 'evolution', titre: 'Évolution du chiffre d\'affaires (Net TTC)', ico: 'fa-chart-area', t: 't-bleu', l: 'l8'},
             {id: 'valorisation', titre: 'Valorisation du stock', ico: 'fa-cubes', t: 't-cyan', l: 'l4'},
-            /* Plan du 19/11 : besoin en fonds de roulement, memes chiffres que le menu « BFR » (reservee a son droit) */
-            {id: 'bfr', titre: 'BFR (besoin en fonds de roulement)', ico: 'fa-scale-balanced', t: 't-ambre', l: 'l4', droit: 'bfr'},
+            /* Plan du 21/11 : carte BFR retiree (six lectures lourdes a chaque ouverture) ; le menu « BFR » reste. */
             {id: 'encaissements', titre: 'Encaissements du jour', ico: 'fa-money-bill-wave', t: 't-vert', l: 'l4'},
             {id: 'mouvements', titre: 'Mouvements de caisse du jour', ico: 'fa-right-left', t: 't-violet', l: 'l4'},
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
@@ -555,7 +554,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 });
             },
             frequentation: function () {
-                lire('../api/v1/tableau-bord/frequentation', {date: j, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/frequentation', {date: me.dateFreq || j, frais: fr}, function (o) {
                     me.donneesFreq = o;
                     me.dessinerFrequentation();
                 });
@@ -1062,6 +1061,29 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         c.innerHTML = html;
     },
 
+    /* --- frequentation : date au choix (plan du 21/11) : ◀ Veille, calendrier, Aujourd'hui. La semaine affichee va du
+       lundi au jour choisi ; la semaine precedente suit. Jamais apres aujourd'hui. */
+
+    dateFreqCourante: function () {
+        return this.dateFreq || this.jour();
+    },
+
+    outilsDateFreq: function () {
+        var me = this, d = me.dateFreqCourante(), auj = me.jour();
+        return '<span class="tb-freq-date" data-freqdate="1"><span class="tb-seg"><button data-fd="veille" title="Jour précédent">◀ Veille</button></span> '
+                + '<input type="date" class="tb-select" data-freqjour="1" title="Date de la fréquentation" value="' + d + '" max="' + auj + '"> '
+                + (d === auj ? '<span class="tb-note">aujourd\'hui</span>' : '<span class="tb-lien" data-fd="aujourdhui">Aujourd\'hui</span>') + '</span>';
+    },
+
+    choisirDateFreq: function (valeur) {
+        var me = this, auj = me.jour();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(valeur || '') || !Ext.Date.parse(valeur, 'Y-m-d')) {
+            return;
+        }
+        me.dateFreq = valeur >= auj ? null : valeur;
+        me.chargerCarte('frequentation');
+    },
+
     /* --- frequentation (retours du 06/10) : ventes par tranche de 2 h, semaine precedente / semaine en cours */
 
     dessinerFrequentation: function () {
@@ -1080,7 +1102,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             out.innerHTML = '<select class="tb-select" data-tranche="1" title="Tranche horaire">' + [1, 2, 3, 4, 5, 6].map(function (n) {
                 return '<option value="' + n + '"' + (n === pas ? ' selected' : '') + '>Tranche de ' + n + ' h</option>';
             }).join('') + '</select> <span class="tb-seg" data-seg="freq"><button data-v="moyenne" class="' + (moy ? 'on' : '') + '">Moyenne par jour</button>'
-                    + '<button data-v="total" class="' + (moy ? '' : 'on') + '">Total de la semaine</button></span>';
+                    + '<button data-v="total" class="' + (moy ? '' : 'on') + '">Total de la semaine</button></span> ' + me.outilsDateFreq();
         }
         /* Ventes par heure (24 cases) regroupees par tranche de « pas » heures ; repli sur les tranches de 2 h. */
         var regrouper = function (sem) {
@@ -1150,7 +1172,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             var ev = v0 > 0 ? Math.round((v1 / v0 - 1) * 100) : null;
             svg += '<rect x="' + (x0 - lb - 1) + '" y="' + Y(v0) + '" width="' + lb + '" height="' + (h - pb - Y(v0)) + '" rx="3" fill="#9fb3c8"><title>Semaine précédente, '
                     + etiquette(i) + ' : ' + nb(v0) + partCa(p, i) + '</title></rect>';
-            svg += '<rect x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>Semaine en cours, '
+            svg += '<rect x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>' + (me.dateFreq ? 'Semaine du jour choisi, ' : 'Semaine en cours, ')
                     + etiquette(i) + ' : ' + nb(v1) + partCa(s, i) + '</title></rect>';
             svg += '<text x="' + (x0 - lb / 2 - 1) + '" y="' + (Y(v0) - 4) + '" font-size="10" fill="#5b6b7c" text-anchor="middle">' + nb(v0) + '</text>';
             svg += '<text x="' + (x0 + lb / 2 + 1) + '" y="' + (Y(v1) - 4) + '" font-size="10" font-weight="700" fill="#0e5f73" text-anchor="middle">' + nb(v1) + '</text>';
@@ -1166,7 +1188,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         };
         var totP = Ext.Array.sum(p.ventes), totS = Ext.Array.sum(s.ventes);
         c.innerHTML = svg + '<div class="tb-legende"><span><i style="background:#9fb3c8"></i>Semaine précédente (' + d(p.debut) + ' → ' + d(p.fin) + ') : <b>'
-                + me.fmt(totP) + '</b> ventes sur ' + p.jours + ' j</span><span><i style="background:#0891b2"></i>Semaine en cours (' + d(s.debut) + ' → ' + d(s.fin)
+                + me.fmt(totP) + '</b> ventes sur ' + p.jours + ' j</span><span><i style="background:#0891b2"></i>' + (me.dateFreq ? 'Semaine du jour choisi' : 'Semaine en cours') + ' (' + d(s.debut) + ' → ' + d(s.fin)
                 + ') : <b>' + me.fmt(totS) + '</b> ventes sur ' + s.jours + ' j</span><span>' + (moy ? 'Moyenne par jour de vente ; % : évolution de la semaine en cours'
                 : 'Total de chaque semaine (la semaine en cours n\'est pas terminée)') + '</span></div>';
     },
@@ -1375,12 +1397,19 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
 
     /* ------------------------------------------------------------------ fenetres de consultation */
 
-    fenetre: function (titre, html, menu) {
+    fenetre: function (titre, html, menu, imprimer) {
         var me = this;
         var pied = menu && me.menu(menu.xtype) ? [{text: menu.texte, cls: 'fen-btn-principal', handler: function (b) {
                     b.up('window').close();
                     me.ouvrirMenu(menu.xtype, menu.donnees);
                 }}] : [];
+        /* plan du 21/11 : impression de la liste (PDF ouvert dans un onglet, dans le clic) */
+        if (imprimer) {
+            pied.push({text: 'Imprimer', itemId: 'tbImprimerListe', cls: 'fen-btn', icon: 'resources/images/icons/fam/printer.png',
+                tooltip: 'Imprimer la liste complète (PDF)', handler: function () {
+                    window.open(imprimer, '_blank');
+                }});
+        }
         pied.push({text: 'Fermer', cls: 'fen-btn', handler: function (b) {
                 b.up('window').close();
             }});
@@ -1464,7 +1493,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td class="tb-n tb-baisse">'
                             + me.fmt(x.quantite) + '</td><td class="tb-nom1">' + me.esc(x.emplacement) + '</td></tr>';
                 }).join('');
-                me.fenetre('Articles en stock négatif (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>', {xtype: 'etatstock', texte: 'Ouvrir l\'état du stock', donnees: {stock: 'negatif'}}); /* plan du 21/11, point 2 : negatifs deja filtres */
+                me.fenetre('Articles en stock négatif (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>', {xtype: 'etatstock', texte: 'Ouvrir l\'état du stock', donnees: {stock: 'negatif'}}, /* plan du 21/11, point 2 : negatifs deja filtres */
+                        '../api/v1/tableau-bord/alertes/negatifs/pdf');
             } else if (type === 'peremptions') {
                 t = '<tr><th style="width:46%">Produit</th><th>CIP</th><th>Lot</th><th>Péremption</th><th class="tb-n">Qté</th></tr>' + l.map(function (x) {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td>' + me.esc(x.lot) + '</td><td>'
@@ -1578,6 +1608,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var me = this, racine = me.body.dom;
         racine.addEventListener('change', function (e) {
             var t = e.target;
+            if (t.hasAttribute('data-freqjour')) {
+                me.choisirDateFreq(t.value);
+                return;
+            }
             if (t.hasAttribute('data-tranche')) {
                 /* Retours du 06/10 (2) : tranche de 1 a 6 h, la vue est regroupee sans relire la base */
                 me.prefs.tranche = parseInt(t.value, 10) || 2;
@@ -1656,6 +1690,14 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 return;
             }
             if (me.edition) {
+                return;
+            }
+            if ((x = cible('[data-fd]'))) {
+                if (x.getAttribute('data-fd') === 'aujourdhui') {
+                    me.choisirDateFreq(me.jour());
+                } else {
+                    me.choisirDateFreq(Ext.Date.format(Ext.Date.add(Ext.Date.parse(me.dateFreqCourante(), 'Y-m-d'), Ext.Date.DAY, -1), 'Y-m-d'));
+                }
                 return;
             }
             if ((x = cible('[data-aff]'))) {

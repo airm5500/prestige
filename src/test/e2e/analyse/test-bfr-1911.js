@@ -10,7 +10,7 @@
  *    parts par organisme, dettes par grossiste) = base, ligne par ligne, et sa somme = la composante ;
  *  - coherence a l'ecran : BFR = stock + creances − dettes ; jours = BFR / CA HT × 360 ; postes non suivis a 0 avec
  *    « non suivi dans Prestige » ; mention « Dettes fournisseurs suivies depuis le 01/10/2026 » ;
- *  - delais : carte sous son plafond ; le tableau de bord ne ralentit pas (premieres cartes avec et sans la carte BFR) ;
+ *  - plan du 21/11 : la carte du tableau de bord est retiree (le menu reste) ; la route garde les memes chiffres ;
  *  - droit : sans P_SM_BFR, ni carte, ni menu, et le serveur refuse ;
  *  - bilan : lecture seule, rien n'est ecrit (empreinte des tables) ; aucune erreur JavaScript, aucune fenetre.
  */
@@ -129,41 +129,12 @@ const memeListe = (ecran, sql, cle) => { const f = (l) => l.map((x) => [x[cle], 
       A.dettes.fiscalesSociales === 0 && A.dettes.autres === 0 && A.creances.autres === 0 && A.dettes.nonSuivi === 'non suivi dans Prestige'
       && A.mention === 'Dettes fournisseurs suivies depuis le 01/10/2026', A.mention);
 
-    /* 2. tableau de bord : carte BFR et delai des autres cartes */
+    /* 2. tableau de bord : plan du 21/11, la carte BFR est retiree (le menu reste) ; la route reste juste */
     etape = 'tableau de bord';
-    const mesurer = async (avecBfr) => p.evaluate(async (avec) => {
-      const S = testextjs.view.tableaubord.TableauBord, tb = Ext.ComponentQuery.query('tableaubord')[0];
-      if (!S.CARTES_ORIG) { S.CARTES_ORIG = S.CARTES.slice(); }
-      S.CARTES.length = 0; S.CARTES_ORIG.filter((c) => avec || c.id !== 'bfr').forEach((c) => S.CARTES.push(c));
-      tb.body.dom.scrollTop = 0;
-      await new Promise((ok2) => tb.chargerPreferences(() => { tb.construire(); ok2(); }));
-      const ids = ['valorisation', 'encaissements', 'mouvements'].concat(avec ? ['bfr'] : []);
-      const plein = (id) => { const c = document.querySelector('[data-corps="' + id + '"]'); return c && !c.querySelector('[data-ancien]') && c.innerText && !/Chargement/.test(c.innerText) && c.querySelector('table, .tb-attente, [data-bfr]'); };
-      const attendre = (t0) => new Promise((fin) => { const r = {}; const tic = () => { ids.forEach((id) => { if (!r[id] && plein(id)) { r[id] = Math.round(performance.now() - t0); } });
-        if (ids.every((id) => r[id]) || performance.now() - t0 > 60000) { fin(r); } else { setTimeout(tic, 25); } }; tic(); });
-      await attendre(performance.now());
-      /* « Actualiser » : toutes les cartes relisent la base, sans cache (premier affichage du matin) */
-      ids.forEach((id) => { const c = document.querySelector('[data-corps="' + id + '"]'); if (c) { c.insertAdjacentHTML('afterbegin', '<i data-ancien></i>'); } });
-      const t0 = performance.now();
-      document.querySelector('[data-tb="actualiser"]').click();
-      return attendre(t0);
-    }, avecBfr);
-    const m = [];
-    for (let i = 0; i < 3; i++) { m.push({ sans: await mesurer(false), avec: await mesurer(true) }); }
-    const med = (l) => l.slice().sort((x, y) => x - y)[Math.floor(l.length / 2)];
-    const premieres = (r) => Math.max(r.valorisation || 99999, r.encaissements || 99999, r.mouvements || 99999);
-    const sans = med(m.map((x) => premieres(x.sans))), avec = med(m.map((x) => premieres(x.avec))), carteMs = med(m.map((x) => x.avec.bfr || 99999));
-    ok('Tableau de bord, « Actualiser » sans cache : premières cartes ' + avec + ' ms avec la carte BFR, ' + sans + ' ms sans (écart < ' + ECART_TB_MS + ' ms)', avec - sans < ECART_TB_MS, JSON.stringify(m));
-    ok('Carte « BFR » relue sans cache et affichée en ' + carteMs + ' ms (< ' + PLAFOND_CARTE_MS + ' ms)', carteMs < PLAFOND_CARTE_MS);
-    const frais = Date.now(); const af = await api('../api/v1/tableau-bord/bfr?frais=1'); const dFrais = Date.now() - frais;
-    ok('Route de la carte, sans cache : ' + dFrais + ' ms (< ' + PLAFOND_CARTE_MS + ' ms), mêmes chiffres que l\'API du menu', af.success && af.bfr === A.bfr && dFrais < PLAFOND_CARTE_MS, dFrais);
-    const C = await lire('[data-corps="bfr"]');
-    const attenduJoursCarte = B.jours === null ? 'non calculable (CA HT nul)' : await p.evaluate((j) => Number(j).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' j', B.jours);
-    ok('Rapprochement carte = base : BFR, stock, créances, dettes, jours',
-      montant(C.bfr) === B.bfr && montant(C.stock) === B.stock && montant(C.creances) === B.creances && montant(C.dettes) === B.dettes && C.jours === attenduJoursCarte
-      , JSON.stringify(C) + ' / ' + attenduJoursCarte);
-    ok('Carte : mention de la date de départ et dettes fiscales et sociales « non suivi dans Prestige »', /^Dettes fournisseurs suivies depuis le 01\/10\/2026 ; dettes fiscales et sociales : non suivi dans Prestige\.$/.test(C.mention), C.mention);
-    ok('Carte : lien « Voir le détail » vers le menu « BFR »', await p.locator('[data-corps="bfr"] [data-menu="bfr"]').count() === 1);
+    const tb = await p.evaluate(() => ({ carte: !!document.querySelector('[data-carte="bfr"]'), menu: !!Ext.ComponentQuery.query('tableaubord')[0].menu('bfr') }));
+    ok('Tableau de bord : plus de carte « BFR » (plan du 21/11), le menu « BFR » reste', !tb.carte && tb.menu, JSON.stringify(tb));
+    const af = await api('../api/v1/tableau-bord/bfr?frais=1');
+    ok('Route du tableau de bord, sans cache : mêmes chiffres que l\'API du menu', af.success && af.bfr === A.bfr, af.bfr + ' / ' + A.bfr);
 
     /* 3. menu ANALYSE DE GESTION > BFR */
     etape = 'menu';
@@ -193,7 +164,8 @@ const memeListe = (ecran, sql, cle) => { const f = (l) => l.map((x) => [x[cle], 
     const lignesParts = await p.locator('#' + idMenu + ' .x-grid-row').filter({ visible: true }).count();
     ok('Onglet « Parts tiers payant non facturées » : ses lignes s\'affichent', lignesParts === Math.min(B.parts.length, lignesParts) && lignesParts > 0, lignesParts);
 
-    ok('Rapprochement carte = menu : BFR, stock, créances, dettes', ['bfr', 'stock', 'creances', 'dettes'].every((k) => montant(C[k]) === montant(M[k])), JSON.stringify(C) + ' / ' + JSON.stringify(M));
+    ok('Rapprochement route du tableau de bord = menu : BFR, stock, créances, dettes', montant(M.bfr) === af.bfr && montant(M.stock) === af.stock.total
+      && montant(M.creances) === af.creances.total && montant(M.dettes) === af.dettes.total, JSON.stringify(M));
     /* 4. droit : sans P_SM_BFR */
     etape = 'droit';
     q(`SELECT CONCAT_WS('#', lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID) FROM t_role_privelege WHERE lg_PRIVILEGE_ID = '${PRIV}' AND lg_ROLE_ID IN (${ROLES.map((r) => `'${r}'`).join(',')})`)
