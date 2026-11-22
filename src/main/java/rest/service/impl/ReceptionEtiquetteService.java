@@ -5,7 +5,9 @@ import dal.OrderDetailLot;
 import dal.TFamille;
 import dal.TOrderDetail;
 import dal.TUser;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.ejb.EJB;
@@ -15,6 +17,7 @@ import javax.persistence.PersistenceContext;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import rest.report.pdf.ContenuEtendu;
+import rest.report.pdf.Gs1;
 import rest.service.OrderService;
 import rest.service.dto.OrderDetailDTO;
 
@@ -36,11 +39,17 @@ import rest.service.dto.OrderDetailDTO;
 public class ReceptionEtiquetteService {
 
     public static final int QTE_MAX = 9999;
+    /** Parametre de la saisie du lot et de la peremption en commande en cours (plan du 21/11, point 16.1). */
+    public static final String PARAM_LOTS = "KEY_SAISIE_PEREMPTION_COMMANDE";
+    private static final java.time.format.DateTimeFormatter JJMMAAAA = java.time.format.DateTimeFormatter
+            .ofPattern("dd/MM/yyyy");
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
     private OrderService orderService;
+    @EJB
+    private rest.service.ParametreService parametreService;
 
     /** Produit actif portant ce CIP, sinon cet EAN (EAN-13 ou EAN fabricant). */
     TFamille produit(String cip, String ean) {
@@ -88,17 +97,85 @@ public class ReceptionEtiquetteService {
     }
 
     /**
+     * Reponse du 22/11 sur le point 16.1 (saisie du lot et de la peremption, parametre {@value #PARAM_LOTS} a 1) : le
+     * DataMatrix d'une boite (produit 01, peremption 17, lot 10, CIP 240 s'il y est) est lu comme une etiquette, pour
+     * le mode « 1 boite par scan » ou « scan puis quantite ». Cles : EAN, CIP, LOT, PER (jj/mm/aaaa), TYPE = GS1 ; null
+     * s'il manque le produit, le lot ou la date.
+     */
+    static Map<String, String> boite(String saisie) {
+        Gs1.Contenu c = Gs1.lire(saisie);
+        if (c.gtin == null || c.lot == null || c.peremption == null) {
+            return null;
+        }
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put(ContenuEtendu.EAN, Gs1.ean13(c.gtin));
+        if (StringUtils.isNotBlank(c.cip)) {
+            m.put(ContenuEtendu.CIP, c.cip.trim());
+        }
+        m.put(ContenuEtendu.LOT, c.lot.trim());
+        m.put(ContenuEtendu.PER, c.peremption.format(JJMMAAAA));
+        m.put("TYPE", "GS1");
+        return m;
+    }
+
+    /**
+     * Code de boite (produit 01 lu) sans lot ou sans date lisible : message (au lieu d'une recherche par nom qui ne
+     * trouverait rien) ; null si ce n'est pas un code de boite.
+     */
+    static String motifIncomplet(String saisie) {
+        Gs1.Contenu c = Gs1.lire(saisie);
+        if (c.gtin == null || (c.lot != null && c.peremption != null)) {
+            return null;
+        }
+        String manque = c.lot == null && c.peremption == null ? "lot et péremption manquants"
+                : c.lot == null ? "lot manquant" : "péremption manquante ou date impossible";
+        return "Code de la boîte incomplet (" + manque
+                + ") : cherchez le produit par son nom, le lot et la péremption vous seront demandés.";
+    }
+
+    /** Refus d'une boite lue : perimee (date passee) ; null si elle peut etre ajoutee. */
+    static String motifBoite(Map<String, String> m, LocalDate aujourdhui) {
+        LocalDate per = LocalDate.parse(m.get(ContenuEtendu.PER), JJMMAAAA);
+        return per.isBefore(aujourdhui) ? "Boîte périmée (péremption " + m.get(ContenuEtendu.PER) + ", lot "
+                + m.get(ContenuEtendu.LOT) + ") : non ajoutée." : null;
+    }
+
+    /**
      * Scan d'une etiquette dans la commande en cours. {@code ajouter} faux : identification seulement (mode « scan puis
      * quantite ») ; vrai : ajout de {@code qte} boites.
      */
     public JSONObject scanner(String orderId, String grossisteId, String statut, String saisie, int qte,
             boolean ajouter, TUser user) {
         Map<String, String> m = ContenuEtendu.lire(saisie);
+        boolean boite = false;
+        if (m == null && "1".equals(StringUtils.trim(parametreService.getValue(PARAM_LOTS, "0")))) {
+            m = boite(saisie);
+            boite = m != null;
+            String incomplet = m == null ? motifIncomplet(saisie) : null;
+            if (incomplet != null) {
+                return echec(incomplet);
+            }
+        }
         if (m == null) {
             return new JSONObject().put("success", true).put("etendu", false);
         }
+        if (boite) {
+            String motif = motifBoite(m, LocalDate.now());
+            if (motif != null) {
+                return echec(motif);
+            }
+        }
         JSONObject r = new JSONObject().put("success", true).put("etendu", true).put("infos", infos(m));
         TFamille f = produit(m.get(ContenuEtendu.CIP), m.get(ContenuEtendu.EAN));
+        if (f == null && boite) {
+            /*
+             * une boite ne porte ni designation ni prix : pas de creation de fiche (le produit existe peut-etre sous
+             * son CIP local, sans EAN enregistre)
+             */
+            return echec("Aucun produit avec l'EAN " + m.get(ContenuEtendu.EAN)
+                    + (m.containsKey(ContenuEtendu.CIP) ? " ni le CIP " + m.get(ContenuEtendu.CIP) : "")
+                    + " : cherchez le produit par son nom (le lot et la péremption vous seront demandés).");
+        }
         if (f == null) {
             return r.put("inconnu", true).put("message",
                     "Produit inconnu (CIP " + StringUtils.defaultIfBlank(m.get(ContenuEtendu.CIP), "?")

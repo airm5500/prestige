@@ -368,10 +368,21 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         /* retours du 11/10 : etiquette DataMatrix+ / QR+ d'un grossiste (ou code GS1) en cours
                                            de scan : pas de recherche par nom sur ce texte */
                                         beforequery: function (qe) {
-                                            if (ecranCommande(qe.combo).ressembleEtiquette(qe.query)) {
+                                            const ecran = ecranCommande(qe.combo);
+                                            if (ecran.ressembleEtiquette(qe.query)) {
                                                 qe.cancel = true;
                                                 qe.combo.collapse();
                                                 return false;
+                                            }
+                                            /* « scan puis quantite » (22/11) : le nom du produit pose par le scan n'est pas une
+                                               recherche (elle rouvrait la liste et reprenait le curseur de la quantite) ;
+                                               autre texte tape : le scan en attente est abandonne */
+                                            if (ecran.scanEnAttente) {
+                                                if (qe.query === ecran.scanNom) {
+                                                    qe.cancel = true;
+                                                    return false;
+                                                }
+                                                ecran.scanEnAttente = null;
                                             }
                                         },
                                         /* une recherche lancee sur les premiers caracteres du scan a pu ouvrir la liste :
@@ -2113,8 +2124,15 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         me.dernierScan = {saisie: saisie, t: maintenant};
         if (mode === 'QUANTITE') {
             me.appelScan(saisie, 0, false, function (r) {
+                const article = Ext.getCmp('str_NAME');
                 me.scanEnAttente = saisie;
-                Ext.getCmp('str_NAME').setRawValue(r.produit.nom);
+                me.scanNom = r.produit.nom;
+                /* la recherche differee lancee par la frappe du scan ne doit pas partir sur le nom pose ici */
+                if (article.doQueryTask) {
+                    article.doQueryTask.cancel();
+                }
+                article.collapse();
+                article.setRawValue(r.produit.nom);
                 me.etatScan(Ext.String.htmlEncode(r.produit.nom) + (r.infos.lot ? ' — lot ' + Ext.String.htmlEncode(r.infos.lot) : '')
                         + ' : saisissez la quantité puis Entrée', '#1f6fb2');
                 Ext.getCmp('int_QUANTITE').focus(true, 50);
