@@ -14,8 +14,8 @@ toutes retrouvées dans les données :
 1. **La caisse compte les règlements de tiers payant encaissés en espèces**, la balance ne compte que les ventes.
 2. **L'écran des ventes UG compte toutes les ventes au comptant, quel que soit le mode de paiement.** Une UG payée
    par Wave y figure, alors que la balance la retire de la colonne Wave et non des espèces.
-3. **Suspecté comme défaut : une vente encaissée restée à l'état « en cours »** est dans la caisse mais pas dans la
-   balance (22 ventes en 2026, 132 835 F).
+3. **Défaut : une vente encaissée remise à l'état « en cours »** par le bouton « Terminer la prévente » est dans la
+   caisse mais pas dans la balance (22 ventes en 2026, 132 835 F). Déjà corrigé dans la version actuelle.
 
 ## Ce que compte chaque écran
 
@@ -69,7 +69,43 @@ Les sept ventes UG du jour sont toutes payées en espèces : elles ne créent pa
 22 ventes au comptant de 2026 sont dans cet état (première le 16/01, dernière le 21/11), pour 132 835 F encaissés.
 Toutes ont leurs lignes clôturées, 21 ont un ticket. Ces ventes manquent à la balance et au chiffre d'affaires.
 
-Je n'ai pas cherché la cause dans le code : c'est un défaut suspecté, à instruire à part.
+### Cause : le bouton « Terminer la prévente » sur une vente déjà encaissée
+
+Dans la version de l'officine (schéma 5.9.7, code de fin mai 2026), `SalesServiceImpl.closePreventeVente` remet la
+vente à l'état « en cours » sans lire son état : il écrit `is_Process`, l'utilisateur du poste et la date
+d'achèvement. Si la caisse a déjà encaissé la prévente, la vente clôturée redevient « en cours » et sort de la
+balance.
+
+Les 22 ventes portent la signature de cette fonction :
+
+| Signature | Les 22 ventes | Ventes clôturées de 2026 (89 832) |
+|---|---:|---:|
+| Utilisateur de la vente différent du caissier | 22 (100 %) | 255 (0,3 %) |
+| dont utilisateur = vendeur | 16 | 7 |
+| Date d'achèvement postérieure à l'encaissement | 21 | 586 |
+
+L'écart entre l'encaissement et le clic va de 5 secondes à 50 minutes.
+
+Dans 5 des 22 ventes, le vendeur a aussi ajouté des produits après l'encaissement (8 lignes, 24 115 F). Ces lignes
+sont restées « en cours » : elles ne sont ni encaissées ni sorties du stock.
+
+Niveau de preuve : la cause est lue dans le code et recoupée par les données ; je ne l'ai pas rejouée. Le même
+défaut a été reproduit lors de l'audit du 25/10 (point VC-02).
+
+### Déjà corrigé dans la version actuelle
+
+- `fe7b075bd` (26/10/2026) : « Terminer la prévente » refuse une vente clôturée, annulée ou supprimée, et verrouille
+  la vente pendant l'encaissement.
+- `3254e2072` (05/09/2026) : l'ajout ou la modification d'un produit sur une vente clôturée est refusé.
+
+Les deux sont dans `integration/recette-2026-10-29`. Lagunes n'a pas ces corrections : le défaut continuera jusqu'à
+la mise à jour.
+
+### Rattrapage des 22 ventes (non réalisé)
+
+- 17 ventes sans ligne ajoutée : remettre l'en-tête à « clôturé » suffit, elles reviennent dans la balance.
+- 5 ventes avec lignes ajoutées : décision à prendre sur les 8 lignes non encaissées (les retirer et rétablir le
+  montant encaissé, ou vérifier si le client a payé autrement).
 
 ## Limites
 
