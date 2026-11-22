@@ -2458,6 +2458,11 @@ public class SuggestionImpl implements SuggestionService {
         return nettoyer(suggestionId, tUser);
     }
 
+    @Override
+    public int compterANettoyer(String suggestionId, TUser tUser) {
+        return supprimerLigneSuggestion(suggestionId, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).size();
+    }
+
     private int nettoyer(String suggestionId, TUser tUser) {
         // On récupère l'ID de l'emplacement de l'utilisateur
         String emplacementId = tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();

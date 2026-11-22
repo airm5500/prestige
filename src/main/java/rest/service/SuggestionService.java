@@ -147,6 +147,12 @@ public interface SuggestionService {
      */
     int nettoyerALOuverture(String suggestionId, TUser tUser);
 
+    /**
+     * Plan du 21/11, point 4.1 : nombre de lignes que « Nettoyer la suggestion » retirerait maintenant (meme regle),
+     * sans rien retirer. Sert au bandeau de la suggestion ouverte.
+     */
+    int compterANettoyer(String suggestionId, TUser tUser);
+
     void deleteSuggestion(String suggestionId);
 
     boolean changeGrossiste(String suggestionId, String grossisteId);

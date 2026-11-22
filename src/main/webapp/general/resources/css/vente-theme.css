@@ -3636,3 +3636,8 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     color: #0f4f3c; font-size: 13px; line-height: 19px; }
 .vp-paye-mobile.vp-paye-mobile-ecart { background: #fff4e0; border-color: #d97f06; color: #6b3d00; }
 .vp-paye-mobile-cellule .x-grid-cell-inner { color: #17795f !important; font-weight: 700; }
+
+/* Plan du 21/11, point 4.1 : bandeau « nettoyer la suggestion ? » en haut de la suggestion ouverte (pas de fenetre) */
+.x-toolbar.sugg-bandeau-nettoyage { background: #fff4e0 !important; background-image: none !important; border: 1px solid #e0a03a !important;
+  border-radius: 4px; padding: 4px 8px !important; }
+.sugg-bandeau-nettoyage .sugg-bandeau-texte { color: #7a4a00 !important; font-weight: bold; font-size: 13px; white-space: normal; }
