@@ -101,11 +101,48 @@ défaut a été reproduit lors de l'audit du 25/10 (point VC-02).
 Les deux sont dans `integration/recette-2026-10-29`. Lagunes n'a pas ces corrections : le défaut continuera jusqu'à
 la mise à jour.
 
-### Rattrapage des 22 ventes (non réalisé)
+### Rattrapage : `rattrapage-ventes-en-cours-lagunes.sql`
 
-- 17 ventes sans ligne ajoutée : remettre l'en-tête à « clôturé » suffit, elles reviennent dans la balance.
-- 5 ventes avec lignes ajoutées : décision à prendre sur les 8 lignes non encaissées (les retirer et rétablir le
-  montant encaissé, ou vérifier si le client a payé autrement).
+Le script est prêt et essayé sur une base jetable, supprimée ensuite. La copie locale `lagunes` n'a pas été
+modifiée.
+
+Ce que fait le script :
+
+1. Il crée une table de trace `rattrapage_ventes_en_cours_20261122` avec l'état et l'utilisateur d'avant. Si la table
+   existe déjà, le script s'arrête.
+2. Il remet l'en-tête des ventes dans l'état de l'encaissement : état « clôturé », utilisateur enregistré par le
+   mouvement de caisse. Les dates ne changent pas, chaque vente revient dans la balance de son jour d'origine.
+3. Il exclut et liste les ventes où des produits ont été ajoutés après l'encaissement.
+4. Il affiche les contrôles et donne en commentaire le retour arrière.
+
+Résultat de l'essai :
+
+| Contrôle | Valeur |
+|---|---:|
+| Ventes repérées | 22 |
+| Corrigées | 17 |
+| Exclues | 5 |
+| Montant rendu à la balance | 114 420 |
+| Ventes corrigées restées « en cours » | 0 |
+| Balance espèces du 21/11 | 598 763 → 602 863 |
+| Écart du 21/11 (caisse − balance − UG) | 4 100 → 0 |
+| Second lancement | refusé |
+
+Les 17 ventes corrigées touchent 16 journées, du 16/01 au 21/11 : la balance et le chiffre d'affaires de ces
+journées, donc de mois déjà arrêtés, augmentent.
+
+Les 5 ventes exclues demandent une décision sur leurs 8 lignes non encaissées :
+
+| Vente | Jour | Montant de la vente | Encaissé | Non encaissé |
+|---|---|---:|---:|---:|
+| `260912_00166` | 12/09 | 4 670 | 1 280 | 3 390 |
+| `260912_00015` | 12/09 | 4 755 | 3 955 | 800 |
+| `260919_00038` | 19/09 | 17 515 | 7 095 | 10 420 |
+| `261011_00311` | 11/10 | 4 870 | 3 770 | 1 100 |
+| `261021_00104` | 21/10 | 10 720 | 2 315 | 8 405 |
+
+Conditions d'exécution en officine : sauvegarde juste avant, Prestige arrêté. Tant que Lagunes n'est pas mise à
+jour, le défaut peut se reproduire.
 
 ## Limites
 
