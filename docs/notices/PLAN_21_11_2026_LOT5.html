@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 5 (lot et péremption en commande en cours)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 5 (lot et péremption en commande en cours)</h1>
+<p class="sous">Branche <code>plan/21112026</code>, commit <code>ece1e3970</code>, rien de fusionné. Tests d'écran sur domain4 (base de test <code>laborex_audit</code>), un par un.</p>
+
+<div class="ok">Le point 16.1 est fait, selon vos réponses du 22/11 (questions 11, 12 et 13). Le nouveau test d'écran passait 1 contrôle sur 7 sur l'ancien code ; il en passe maintenant 28 sur 28.
+Les 8 tests de non-régression (commande en cours, étiquettes, GS1, entrée en stock) sont au vert.
+<br>Le réglage est désactivé par défaut : tant que le paramètre reste à 0, la commande en cours fonctionne comme avant.</div>
+
+<h2>Ce qui change</h2>
+<table>
+<tr><th>Sujet</th><th>Comportement</th></tr>
+<tr><td>Activation</td><td>Paramètre <code>KEY_SAISIE_PEREMPTION_COMMANDE</code>, rubrique Commande (migration V7.6.41.2193), avec son explication. À 0 : rien ne change.</td></tr>
+<tr><td>Saisie au clavier</td><td>Après le produit et la quantité, Entrée ouvre une petite fenêtre « N° de lot » puis « Péremption » :
+<ul>
+<li>Entrée passe d'un champ à l'autre ;</li>
+<li>Entrée sur la date ajoute la ligne et son lot ensemble ; si le lot est refusé, rien n'est ajouté ;</li>
+<li>les deux champs vides : la ligne est ajoutée sans lot ;</li>
+<li>Échap : rien n'est ajouté.</li>
+</ul>
+Après l'ajout, le curseur revient sur la recherche du produit.</td></tr>
+<tr><td>Dates (questions 11 et 12)</td><td>
+<ul>
+<li><code>010127</code> donne le 01/01/2027 ;</li>
+<li><code>01/27</code>, <code>01/2027</code> et <code>012027</code> donnent la fin du mois, soit le 31/01/2027, comme le DataMatrix ;</li>
+<li><code>01/01/2027</code> et <code>01.01.27</code> sont aussi acceptés.</li>
+</ul>
+Un aperçu « → 31/01/2027 » s'affiche pendant la frappe. Une date passée, impossible (13/27) ou illisible est refusée par un message sous le champ.</td></tr>
+<tr><td>Scan DataMatrix</td><td>Un code scanné dans le champ du lot remplit le lot et la péremption, et le curseur passe sur la date.</td></tr>
+<tr><td>Même lot saisi deux fois</td><td>Les quantités s'additionnent : jamais deux lignes pour un même lot.</td></tr>
+<tr><td>Double-clic sur LOTS / DATE DE PÉREMPTION</td><td>La vue des lots de la ligne s'ouvre. On peut y modifier le numéro, la date et la quantité, ajouter un lot ou en retirer un.
+<br><b>Question 13</b> : si la somme des lots dépasse la quantité de la ligne, l'enregistrement est bloqué et un message s'affiche ; rien n'est écrit.</td></tr>
+<tr><td>Réception</td><td>Les lots sont rangés comme après un import de grossiste. Le BL créé depuis « Commande en cours » les reprend : lots de la ligne, lots en base (<code>t_lot</code>) et étiquettes.</td></tr>
+<tr><td>Lecture GS1 (défaut corrigé au passage)</td><td>Un identifiant inconnu, comme le numéro de série 21 placé avant le lot, arrêtait la lecture : le lot était perdu. Il est maintenant sauté selon sa longueur. Cela vaut aussi pour la réception par étiquette.</td></tr>
+</table>
+
+<h2>Rapprochement, cohérence et bilan</h2>
+<ul>
+<li>Rapprochement (<code>test-lots-commande-en-cours-2211</code>) : pour chaque lot (numéro, date, quantité), les colonnes LOTS / PÉREMPTION de la grille, la vue des lots, la base et le BL créé (sa ligne et <code>t_lot</code>) donnent les mêmes valeurs. La comparaison est refaite après une modification.</li>
+<li>Cohérence, avec une graine fixe :
+  <ul>
+  <li><code>PeremptionSaisieCoherenceTest</code> : 8 000 saisies, avec le même résultat à l'écran (JavaScript) et sur le serveur (Java), toujours une date future et la fin du mois pour MM/AA ;</li>
+  <li><code>LotsCommandeCoherenceTest</code> : 3 000 tirages ; un lot par numéro, quantité du lot égale à la somme de ses saisies, total juste, refus dès que la somme dépasse la quantité de la ligne, unités gratuites gardées ;</li>
+  <li><code>Gs1ChampsInconnusTest</code> : en échec sur l'ancien code.</li>
+  </ul></li>
+<li>Bilan :
+  <ul>
+  <li>une seule commande, une ligne par produit, quantités exactes ;</li>
+  <li>un refus (date fausse, somme dépassée, Échap) n'écrit rien ;</li>
+  <li>la création du BL ne change pas le stock avant l'entrée en stock ;</li>
+  <li>la commande, le BL, les lots et les étiquettes d'essai sont retirés, et le paramètre est remis.</li>
+  </ul></li>
+<li>Cas variés :
+  <ul>
+  <li>quantités 20, 5, 3, 2 et 1 ;</li>
+  <li>même lot saisi deux fois ;</li>
+  <li>date fausse puis corrigée ;</li>
+  <li>ligne sans lot ;</li>
+  <li>scan ;</li>
+  <li>somme dépassée ;</li>
+  <li>retrait d'un lot ;</li>
+  <li>paramètre à 0 et à 1 ;</li>
+  <li>1366×768, 1280×720 et 1920×1080.</li>
+  </ul></li>
+</ul>
+
+<h2>À savoir</h2>
+<div class="note">Pour l'utiliser en officine, passez à 1 le paramètre « SAISIE DATE DE PEREMPTION COMMANDE EN COURS » (rubrique Commande des paramètres). Aucune impression n'est concernée par ce point.</div>
+<ul>
+<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (lots 1 à 5).</li>
+<li>Reste du plan, sans question en attente : 8.1 (journal des messages), 11 (canal de l'avoir) et le script du point 7.</li>
+</ul>
+</body>
+</html>

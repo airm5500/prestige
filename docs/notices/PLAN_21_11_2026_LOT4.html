@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 4 (points tranchés le 22/11)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  td.n { text-align: right; white-space: nowrap; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .risque { background: #fdecec; border-left: 4px solid #c0392b; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 4 (points tranchés le 22/11)</h1>
+<p class="sous">Branche <code>plan/21112026</code> (worktree <code>prestige-plan21112026</code>), rien de fusionné.
+Tests d'écran sur domain4 (port 11090, base de test <code>laborex_audit</code>), lancés un par un, en 1366×768, 1280×720 et grand écran
+quand l'affichage est en jeu.</p>
+
+<div class="ok">Les points du lot 4 sont faits, chacun dans son commit poussé : 4.1, 7.1, 7.2, 8.3, 12 et 15. Le point 4.4 ne demande rien
+(réponse du 22/11 : la prévision porte sur le mois suivant). Chaque nouveau test a d'abord échoué sur l'ancien code, puis il est passé.
+<br>Non-régression sur domain4, un test à la fois : 13 tests Campagnes et Rappels, 10 tests de la vente, les 6 écrans qui utilisent le sélecteur de période, et les tests de suggestion, d'inventaire et de prévision : tous au vert.</div>
+
+<h2>Résultats, point par point</h2>
+<table>
+<tr><th>Point</th><th>Ce qui change</th><th>Test (ancien code → nouveau)</th><th>Commit</th></tr>
+<tr><td>4.1 Bandeau « Nettoyer la suggestion ? »</td>
+<td>Quand le nettoyage automatique est coupé et que des produits sont repassés au-dessus du seuil (rayon + réserve), un bandeau s'affiche en haut de la suggestion ouverte, avec « Oui, nettoyer » et « Non, garder ». Aucune fenêtre ne s'ouvre.
+<br>« Oui » fait exactement le nettoyage du bouton : même route, et les retraits sont journalisés. « Non » ne touche à rien. Paramètre à 1 : le nettoyage reste automatique, comme avant.</td>
+<td><code>test-suggestion-bandeau-nettoyage-2211</code> 5/11 → 22/22</td><td>a1844a5ed</td></tr>
+<tr><td>4.4 Textes et mois en cours</td>
+<td>Rien à faire : la prévision porte sur le mois suivant (réponse du 22/11).</td><td>—</td><td>—</td></tr>
+<tr><td>7.1 Icônes de la vente (« on essaie »)</td>
+<td>Six boutons de la vente reçoivent une icône dessinée au trait, aux couleurs du thème, sur fond blanc arrondi :
+<ul>
+<li>Terminer la vente : coche verte ;</li>
+<li>Mettre en attente : pause orange ;</li>
+<li>Ventes en attente : horloge ;</li>
+<li>Suivi conso : graphe ;</li>
+<li>Modifier infos client : personne et crayon ;</li>
+<li>Mobile money : téléphone.</li>
+</ul>
+« Ajouter un ayant droit » reçoit aussi la sienne. Les icônes font 24 px dans la barre d'actions et 16 px ailleurs, à gauche d'un libellé qui reste entier. La même chose est faite dans la vente en dépôt.</td>
+<td><code>test-icones-vente-2211</code> 2/10 → 10/10</td><td>ab37df8ce</td></tr>
+<tr><td>7.2 Sélecteur de période</td>
+<td>Un seul champ « du → au » sur « Balance vente caisse 2 », « État de contrôle des achats » et « Liste des bons par organisme ».
+<br>Un côté peut rester vide (« 01/11/2026 → » ou « → 22/11/2026 »), ce que permettaient les anciens champs. Une période hors bornes est appliquée avec l'avertissement rouge, comme avant ; seul un texte illisible est refusé.</td>
+<td><code>test-champ-periode-2211</code> échec → 39/39 ; <code>test-controle-bons-a-la-demande</code> 35/35 ; <code>test-rapprochement-controle-achats</code> 23/23</td><td>5c41befa1</td></tr>
+<tr><td>8.3 Crayon du numéro (Campagnes et Rappels)</td>
+<td>Un crayon ✎ suit le numéro dans les listes de destinataires des Campagnes et dans « Ciblage libre » des Rappels. Il est rouge si le numéro est absent ou invalide, bleu sinon.
+<br>Un clic change la cellule en champ : Entrée enregistre, Échap annule. Une erreur s'affiche sous le champ, qui reste ouvert, et aucune fenêtre ne s'ouvre.
+<br>Règles :
+<ul>
+<li>numéro ivoirien valide, avec le zéro de tête rétabli ;</li>
+<li>numéro unique parmi les clients du même type ;</li>
+<li>pour un client standard, l'adresse lue par la caisse est mise à jour aussi.</li>
+</ul>
+La ligne est recalculée comme la liste (joignable, motif). Un client devenu injoignable est décoché. Droit <code>P_CLIENT_STANDARD_MAJ</code> pour tous les types de clients : sans lui, pas de crayon, et le serveur refuse.</td>
+<td><code>test-crayon-telephone-2211</code> 3/5 → 30/30 ; <code>TelephoneClientModificationCoherenceTest</code> 4/4</td><td>bf218f532</td></tr>
+<tr><td>12 Écarts d'inventaire avec la réserve</td>
+<td>Bouton « Afficher réserve » sur la fiche d'inventaire. Sur OUI, la liste des écarts porte la colonne « Stock réserve », lue au moment de l'impression. Sur NON, l'édition reste celle d'avant.</td>
+<td><code>test-inventaire-ecarts-reserve-2211</code> échec → 19/19 ; <code>EcartsInventaireCoherenceTest</code> (6 000 cas)</td><td>ad7bffe07</td></tr>
+<tr><td>15 Fenêtre de prévision</td>
+<td>La fenêtre n'a plus de défilement à 1366 ni à 1280. On y trouve :
+<ul>
+<li>le graphe sur 24 mois ;</li>
+<li>les unités vendues par mois et l'indice saisonnier ;</li>
+<li>la valeur prévue, expliquée par les chiffres mêmes du calcul (migration V7.6.41.2192) ;</li>
+<li>la quantité à commander, expliquée « en clair ».</li>
+</ul></td>
+<td><code>test-prevision-explication-2211</code> échec → 17/17 ; <code>ExplicationPrevisionCoherenceTest</code> (8 000 séries, prévisions inchangées)</td><td>1a7f758fd</td></tr>
+</table>
+
+<h2>Rapprochement : où la donnée apparaît, et le test qui compare</h2>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Numéro corrigé au crayon</td><td>cellule de l'écran, réponse du serveur, base (téléphone, et adresse pour un client standard), liste relue après une nouvelle recherche, onglet Rappels</td><td><code>test-crayon-telephone-2211</code></td></tr>
+<tr><td>Période choisie</td><td>texte du champ, dates envoyées au serveur, lignes affichées = base</td><td><code>test-champ-periode-2211</code>, <code>test-rapprochement-controle-achats</code></td></tr>
+<tr><td>Produits à nettoyer</td><td>nombre du bandeau = règle appliquée aux stocks en base = lignes sorties = retraits journalisés</td><td><code>test-suggestion-bandeau-nettoyage-2211</code></td></tr>
+<tr><td>Écarts d'inventaire et réserve</td><td>PDF = base, ligne par ligne, et totaux</td><td><code>test-inventaire-ecarts-reserve-2211</code></td></tr>
+<tr><td>Prévision expliquée</td><td>écran = base, par produit et par méthode ; phrase = quantité recommandée</td><td><code>test-prevision-explication-2211</code></td></tr>
+</table>
+
+<h2>Cohérence, bilan et cas variés</h2>
+<ul>
+<li>Cohérence à graine fixe :
+  <ul>
+  <li><code>EcartsInventaireCoherenceTest</code> : 6 000 cas ;</li>
+  <li><code>ExplicationPrevisionCoherenceTest</code> : 8 000 séries ;</li>
+  <li><code>TelephoneClientModificationCoherenceTest</code> : numéros tirés au hasard, contrôle et zéro de tête.</li>
+  </ul></li>
+<li>Bilan avant / après :
+  <ul>
+  <li>Crayon : un refus (doublon, numéro invalide, Échap, sans le droit) n'écrit rien en base. Un enregistrement écrit le téléphone (et l'adresse d'un client standard), rien d'autre. Les clients d'essai sont retirés à la fin.</li>
+  <li>Bandeau : « Non » ne change rien. « Oui » retire exactement les produits annoncés, et les stocks restent inchangés.</li>
+  <li>Sélecteur de période, icônes, écarts, prévision : rien n'est écrit, et les tests le vérifient.</li>
+  </ul></li>
+<li>Cas variés :
+  <ul>
+  <li>cinq clients de types différents (standard, assurance), avec un numéro absent, invalide ou valide ;</li>
+  <li>doublon du même type refusé, doublon d'un autre type accepté ;</li>
+  <li>période sans début ou sans fin, hors bornes, illisible ;</li>
+  <li>paramètre de nettoyage à 0 et à 1 ;</li>
+  <li>réserve changée entre deux impressions ;</li>
+  <li>trois tailles d'écran.</li>
+  </ul></li>
+</ul>
+
+<h2>À savoir</h2>
+<div class="note"><b>Défaut trouvé par le test du crayon, et corrigé :</b> la liste des destinataires lit la base hors transaction. Le numéro tout juste écrit n'était donc pas encore visible, et la ligne revenait avec l'ancien numéro. Le numéro est maintenant écrit et validé dans sa propre transaction, puis la ligne est relue.</div>
+<div class="note"><b>Point 7.2, régression évitée :</b> les anciens champs date envoyaient une date au-delà de leur limite, et <code>test-controle-bons-a-la-demande</code> en dépend (bons d'essai datés de 2031). Le nouveau champ fait de même : la date est appliquée, avec l'avertissement rouge.</div>
+<ul>
+<li>Échecs constatés à l'identique sur l'ancien code, donc pas des régressions du lot :
+  <ul>
+  <li><code>test-envoi-facture-mail-1511</code> 14/21 : dossier de mails d'essai absent sur domain4 ;</li>
+  <li><code>test-controle-achats-controleur-0811</code> 1/3 ;</li>
+  <li><code>test-retours-pharmaml</code> 3/4 ;</li>
+  <li><code>test-retours-rapprochement-etats</code> 37/40 ;</li>
+  <li><code>test-theme-trois-ecrans</code> 11/12 ;</li>
+  <li><code>test-style-lots-0510</code> 230/232, déjà connu.</li>
+  </ul></li>
+<li>Migration du lot : V7.6.41.2192 (explication de la prévision).</li>
+<li>Pour tester vous-même : WAR <code>D:\projet\p3\wars-session-principale\essai-plan2111.war</code> (lots 1 à 5).</li>
+</ul>
+</body>
+</html>
