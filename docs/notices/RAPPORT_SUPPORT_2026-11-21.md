@@ -44,7 +44,7 @@ Légende de la colonne « Corrigé par les 7 du 20/11 » : « non » = aucun des
 | 25, 51 (version 16/11) | Alertes de la surveillance de la base levées par **DESKTOP-CEPK07B** (ancienne version) : requête de 35 s (la sauvegarde), connexions élevées | non | **R7 / R14** | non | Disparaîtra avec la mise à jour de ce poste |
 | 6, 7, 10–14, 16–20, 22, 26, 27, 29, 31, 35–38, 40, 42, 43, 47, 49, 58–61, 63, 64, 71 | Requêtes lentes (> 5 s) | non | **R8** | non | Groupées aux heures des coupures de CAISSE44 (12:27–14:47, 17:31–17:51, 19:07–20:34) : conséquence de R3, sauf `audit/analyse` (22:32), `tableau-bord/bfr` (22:14) et `top-marges` (17:45), à mesurer avec le point 8 |
 | 30 | `horloge/etat` lent une fois (17:51) | non | **R2** | — | Plus aucun blocage de 27 à 62 s (le correctif tient). Celle-ci tombe dans la coupure de 17:51 |
-| 69, 72, 74, 75, 77, 78, 80 | « Arrêt brutal du serveur » sur 7 postes, 07:04–07:19 | non | R10 (même alerte) | non | Mise à jour du matin, pas une panne. Détecteur à affiner, N6 |
+| 69, 72, 74, 75, 77, 78, 80 | « Arrêt brutal du serveur » sur 7 postes, 07:04–07:19 | non | R10 (même alerte) | non | Mise à jour du matin, pas une panne. **Corrigé** le 22/11 (`959a3166a`), **confirmé** par test, N6 |
 | 67 | Application mobile : `licence/find` en 503 « Prestige indisponible » (07:34) | **oui** | — | non | Pendant les redémarrages de la mise à jour. Information |
 | 81 | Purge manuelle du journal (06:43, 51 événements) | non | **R13** | — | Maintenance |
 | — | R1 (impression), R4 (double BL), R5 (`loadPage`), R6 (fiche en 400) | — | R1, R4, R5, R6 | — | **Absents** : rien à signaler sur une journée complète |
@@ -178,6 +178,30 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
   - il présente N1.
 - **N6, redémarrages de la mise à jour comptés comme « arrêts brutaux » :** 7 alertes WARN chaque fois qu'on déploie.
   Le détecteur pourrait reconnaître un arrêt suivi d'un démarrage sur une autre version (**suspecté**).
+  - **Cause (confirmée) :** les 7 alertes portent la cause « Arrêt forcé, sans erreur visible ». La mise à jour
+    arrête Prestige sans lui laisser le temps de s'arrêter proprement : le fichier témoin du watchdog reste, et le
+    redémarrage le lit comme un arrêt brutal. Rien ne disait au détecteur que la version avait changé entre-temps.
+  - **Correction (22/11, `959a3166a`) :**
+    - le fichier témoin note la version de Prestige à chaque battement (`version=…`) ;
+    - au redémarrage, si cette version et celle qui démarre sont connues et différentes, et qu'aucun indice plus fort
+      n'explique l'arrêt (plantage de Java, mémoire, disque, coupure ou redémarrage de la machine), la cause est
+      « Arrêt pour la mise à jour de Prestige » (niveau INFO) ;
+    - la session reste dans l'historique du serveur avec ses deux versions, sans alerte au Centre de support ;
+    - sans changement de version, le diagnostic est exactement celui d'avant (DESKTOP-CEPK07B, resté sur le 16/11,
+      aurait gardé son alerte).
+  - **Limite :** le témoin laissé par une version antérieure ne porte pas de version. La première mise à jour qui
+    installe ce correctif donne donc encore une alerte par poste ; les suivantes, plus.
+  - **Tests :**
+    - `CauseArretMiseAJourTest` (cohérence) : le cas d'appaul, même version, version inconnue, indices forts
+      prioritaires, et 20 000 jeux d'indices tirés au hasard (graine 20261122) : avec un changement de version, la
+      cause devient la mise à jour si et seulement si elle aurait été un arrêt forcé, un arrêt de service, une
+      mémoire presque saturée, une base saturée ou un arrêt de MariaDB ; à version égale ou inconnue, rien ne change ;
+    - `BoiteNoireTest` : la version s'écrit, se relit, et manque sans erreur dans un ancien témoin ;
+    - `support/test-arret-mise-a-jour.js` (bilan, vrai chemin sur domain3) : arrêt forcé du processus Java puis
+      redémarrage. Même version : « Arrêt forcé » et une alerte (inchangé). Version changée : session close avec la
+      cause « mise à jour » et les deux versions, aucune alerte, une seule nouvelle session ; le test retire ensuite
+      ses traces. Échoue sur l'ancien code (4 contrôles, une alerte « Arrêt forcé » comme à appaul), passe sur la
+      branche (10/10).
 
 ## 4. Ordre proposé pour la suite
 
@@ -193,7 +217,7 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
 5. **N4 :** suspension des SMS qui tient, à reproduire d'abord. **Analysé : pas un défaut** (§ 3.5).
 6. **N3 :** facture subrogatoire sans `Me` global. **Fait** (`bde7896ef`). La revue des autres écrans qui utilisent `Me`
    reste à faire.
-7. **Déploiement de `plan/support-1811`** (7 correctifs du 20/11), puis N6 (détecteur d'arrêts) et le point 8
+7. **Déploiement de `plan/support-1811`** (7 correctifs du 20/11), puis N6 (détecteur d'arrêts, **fait** : `959a3166a`) et le point 8
    (mesures : `audit/analyse`, `tableau-bord/bfr`, `top-marges`).
 
 Chaque correction suivra la règle du projet :
