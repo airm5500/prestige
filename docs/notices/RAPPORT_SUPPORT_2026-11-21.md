@@ -36,10 +36,10 @@ Légende de la colonne « Corrigé par les 7 du 20/11 » : « non » = aucun des
 | 56, 44, 41, 45, 46 | Clôture d'une vente assurance bloquée **2 h** (13:31 → 15:31), « réponse de clôture non revenue au poste » ×2, clôture lente CAISSE44 | **oui** (durée) | lié à R3 | non | **Ouvert**, élevé (§ 3.1) |
 | 33, 34, 21 | `modereglement/clients-mobile-money` bloqué 1 min 13 puis **2 h** (17:30 → 19:30) | **oui** | lié à R3 | non | **Ouvert** (§ 3.1) |
 | 62, 66, 70, 73, 76, 79 | Auto-diagnostic : anomalie **POOL** sur SERVEUR, CAISSE11, 22, 33, 44, SERVEURLENOVO ; CONFIG_POSTE en plus sur CAISSE11 | **oui** (nouveau point de contrôle) | R3 (correctif du 18/11 qui le détecte) + R11 | non | Le correctif marche : il montre que le script du pool n'est passé sur **aucun** poste. Action sur site |
-| 4, 5, 50 (×6) | `vente/update/item/vno` en 500, `StaleObjectStateException` sur une ligne de vente (CAISSE22 22:39, DESKTOP-CEPK07B 14:18) | **oui** | — | non | **Ouvert** (§ 3.2), N1 |
-| 32 | `VenteCtr.js:5297`, `onBtnCancelClient` : `destroy` sur une fenêtre absente (CAISSE44 17:41) | **oui** | — | non | **Ouvert**, **confirmé** par lecture du code (§ 3.3), N2 |
-| 39 | Facture subrogatoire : `Ext.getCmp(...) is undefined` dans `detailProduct.js:230` (COMPTA-NDA 15:51) | **oui** | — | non (même famille que **LE9**, autre écran) | **Ouvert**, **confirmé** par lecture du code (§ 3.4), N3 |
-| 8, 9, 68 (×21) | SMS refusés par Orange (POL0001) ; « Forfait SMS Orange expiré : envois suspendus » à 06:48 et 07:19, puis **18 envois refusés jusqu'à 21:39** | non | **R9** | non | Contrat : action de l'officine. Suspension non tenue : **ouvert**, N4 (§ 3.5) |
+| 4, 5, 50 (×6) | `vente/update/item/vno` en 500, `StaleObjectStateException` sur une ligne de vente (CAISSE22 22:39, DESKTOP-CEPK07B 14:18) | **oui** | — | non | **Corrigé** le 21/11 (`536b2c0ea`), **confirmé** par test (§ 3.2), N1 |
+| 32 | `VenteCtr.js:5297`, `onBtnCancelClient` : `destroy` sur une fenêtre absente (CAISSE44 17:41) | **oui** | — | non | **Corrigé** le 21/11 (`cd7d9233e`), **confirmé** par test (§ 3.3), N2 |
+| 39 | Facture subrogatoire : `Ext.getCmp(...) is undefined` dans `detailProduct.js:230` (COMPTA-NDA 15:51) | **oui** | — | non (même famille que **LE9**, autre écran) | **Corrigé** le 22/11 (`bde7896ef`), **confirmé** par test (§ 3.4), N3 |
+| 8, 9, 68 (×21) | SMS refusés par Orange (POL0001) ; « Forfait SMS Orange expiré : envois suspendus » à 06:48 et 07:19, puis **18 envois refusés jusqu'à 21:39** | non | **R9** | non | Contrat : action de l'officine. Suspension : **tenue**, pas un défaut (§ 3.5), N4 |
 | 24 | « Sauvegarde en cours depuis 36 s… ce n'est pas une requête lente » | non | **R7** | — | **Corrigé** (correctif du 18/11 vu à l'œuvre) |
 | 25, 51 (version 16/11) | Alertes de la surveillance de la base levées par **DESKTOP-CEPK07B** (ancienne version) : requête de 35 s (la sauvegarde), connexions élevées | non | **R7 / R14** | non | Disparaîtra avec la mise à jour de ce poste |
 | 6, 7, 10–14, 16–20, 22, 26, 27, 29, 31, 35–38, 40, 42, 43, 47, 49, 58–61, 63, 64, 71 | Requêtes lentes (> 5 s) | non | **R8** | non | Groupées aux heures des coupures de CAISSE44 (12:27–14:47, 17:31–17:51, 19:07–20:34) : conséquence de R3, sauf `audit/analyse` (22:32), `tableau-bord/bfr` (22:14) et `top-marges` (17:45), à mesurer avec le point 8 |
@@ -97,9 +97,19 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
 - enchaînement : **confirmé** par le fil d'Ariane du premier cas ;
 - CAISSE22, 22:39 : même message, fil non conservé, donc **suspecté**.
 
-**Correction proposée :**
-- ne pas envoyer la modification d'une ligne retirée ;
-- côté serveur, répondre « ligne déjà retirée » sans 500.
+**Correction (21/11, `536b2c0ea`) :**
+- l'écran marque la ligne retirée et n'envoie plus sa modification (`VenteCtr.js`, `removeItemVno` et
+  `updateventeOngrid`) ;
+- côté serveur, le conflit (`StaleObjectStateException` ou `OptimisticLockException`, à toute profondeur de la chaîne
+  des causes) répond « Ce produit n'est plus dans la vente : actualisez l'écran avant de continuer. » au lieu de 500
+  (`LigneVenteRetiree`, dans `SalesRessource` et `VenteRessource`) ; toute autre erreur reste une erreur.
+
+**Tests :**
+- `retours/test-ligne-retiree-pendant-saisie.js` (écran) : quantité tapée puis ligne retirée au même clic ; un seul
+  retrait, aucune modification envoyée, aucune réponse 400 ou plus ; écran = base (une ligne, quantité, total) ; la
+  ligne restante se modifie encore (montant = PU × 3). Échoue sur `4afc885b4`, passe sur la branche.
+- `LigneVenteRetireeTest` (cohérence) : la chaîne du journal, les variantes, les autres erreurs non reconnues, une
+  chaîne en boucle, et 20 000 chaînes tirées au hasard (graine 20261121).
 
 ### 3.3 N2 : vente assurance, échec de la recherche du client
 
@@ -108,7 +118,11 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
   ouverte (`getAssuranceClient()` vide).
 - **Effet :** l'exception empêche le message prévu, « La recherche du client a échoué : réessayez ».
 - **État :** **confirmé** par lecture du code (`VenteCtr.js:5294–5299` de `4afc885b4`).
-- **Correction proposée :** détruire la fenêtre seulement si elle existe.
+- **Correction (21/11, `cd7d9233e`) :** la fenêtre est détruite seulement si elle existe ; même garde en vente en
+  dépôt et en devis.
+- **Test :** `retours/test-recherche-client-assure-echec.js` : lecture en échec (500), message affiché, une seule
+  requête, ni fenêtre ni erreur ; puis recherche réelle (lignes affichées = clients renvoyés) et « Annuler » ; bilan
+  sans vente ni client créé. Échoue sur `4afc885b4`, passe sur la branche.
 
 ### 3.4 N3 : facture subrogatoire, choix d'un tiers payant après le détail d'une vente
 
@@ -120,7 +134,19 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
 - **Effet :** la liste des factures n'est pas filtrée.
 - **Cause :** la même que LE9 (inventaires), sur un autre écran.
 - **État :** **confirmé** par lecture du code.
-- **Correction proposée :** celle de LE9, sans la variable globale.
+- **Correction (22/11, `bde7896ef`) :** les écouteurs de l'écran (choix du tiers payant, touche Entrée de la recherche)
+  gardent leur propre référence à l'écran au lieu de `Me`.
+- **Test :** `retours/test-liste-bons-apres-detail.js` (GESTION COURANTE > « Liste des bons ») : recherche d'un mois,
+  détail d'une vente ouvert puis fermé, puis choix d'un tiers payant, Entrée avec une référence, et autre tiers payant
+  avec le détail encore en mémoire. À chaque fois : la requête part avec le bon filtre, lignes affichées = lignes
+  renvoyées, et pour le tiers payant = bons en base ; aucune erreur JavaScript ; bilan sans donnée modifiée. Échoue
+  sur `4afc885b4` (5 contrôles, « Cannot read properties of undefined (reading 'getStore') », comme au journal), passe
+  sur la branche (7/7).
+- **Remarque (suspecté, hors N3) :** sur `laborex_audit`, la vue `v_facture_subrogatoire` compte 3 559 ventes en
+  octobre 2026, la liste en annonce 3 317 ; une référence de la vue (`261001_00649`) n'est pas trouvée par la
+  recherche. De même, `test-facture-subrogatoire-api.js` trouve des totaux différents entre la JSP et l'API (7 062
+  contre 7 108 sur la période longue, 7 contrôles en échec), **à l'identique sur `4afc885b4`** : l'écart précède N3 et
+  n'en vient pas. Les règles de la liste (droits, emplacement, statut) l'expliquent peut-être ; à examiner à part.
 
 ### 3.5 N4 : SMS envoyés après la suspension
 
@@ -129,6 +155,14 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
 - **Lien avec R9 :** le contrat expiré relève de l'officine. La suspension qui ne tient pas est un défaut de
   Prestige ; c'était le point « pause » de R9.
 - **État :** **suspecté**, à reproduire sur le chemin d'envoi.
+- **Conclusion après analyse (22/11) : pas un défaut.**
+  - Le coupe-circuit (`SmsCoupeCircuit`) suspend les envois après 3 refus de suite, pendant 60 minutes, puis laisse
+    passer un essai. Il est consulté sur les deux chemins, administration (`sendSMSStatut`) et notifications.
+  - Son état est en mémoire : un redémarrage de Payara le remet à zéro. Le 21/11, Payara a redémarré à 06:48, 07:10
+    et 07:18 (mise à jour) ; après chacun, il a fallu 3 nouveaux refus pour suspendre.
+  - Les autres refus de la journée sont les essais d'une fois par heure après les 60 minutes, comme prévu.
+  - **Amélioration possible :** garder la suspension d'un redémarrage à l'autre (en base), pour économiser les 3
+    refus après chaque démarrage. À décider ; elle n'est pas urgente.
 
 ### 3.6 N5 et N6 : postes et détection
 
@@ -148,10 +182,11 @@ Le fil d'Ariane de DESKTOP-CEPK07B montre l'enchaînement :
 2. **Choisir une limite de connexions :** `max-pool-size` des caisses (par exemple 10) ou `max_connections` de MariaDB
    au-dessus de 320. C'est une question pour l'utilisateur ; ensuite, ajout au script et à l'auto-diagnostic, avec
    test.
-3. **N2 :** garde de `onBtnCancelClient`. Effet direct en caisse : un message au lieu d'un écran bloqué.
-4. **N1 :** pas d'envoi pour une ligne retirée, et refus clair côté serveur.
-5. **N4 :** suspension des SMS qui tient, à reproduire d'abord.
-6. **N3 :** facture subrogatoire sans `Me` global, en même temps que la revue des autres écrans qui l'utilisent.
+3. **N2 :** garde de `onBtnCancelClient`. Effet direct en caisse : un message au lieu d'un écran bloqué. **Fait** (`cd7d9233e`).
+4. **N1 :** pas d'envoi pour une ligne retirée, et refus clair côté serveur. **Fait** (`536b2c0ea`).
+5. **N4 :** suspension des SMS qui tient, à reproduire d'abord. **Analysé : pas un défaut** (§ 3.5).
+6. **N3 :** facture subrogatoire sans `Me` global. **Fait** (`bde7896ef`). La revue des autres écrans qui utilisent `Me`
+   reste à faire.
 7. **Déploiement de `plan/support-1811`** (7 correctifs du 20/11), puis N6 (détecteur d'arrêts) et le point 8
    (mesures : `audit/analyse`, `tableau-bord/bfr`, `top-marges`).
 
