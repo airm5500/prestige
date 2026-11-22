@@ -3605,3 +3605,51 @@ window.PrestigeRoueBoutons = (function () {
             return !!(b && b.prRoueAuto);
         }};
 })();
+
+/*
+ * =====================================================================================
+ * Plan du 21/11, point 8.2 : LISTES DEROULANTES A LA LARGEUR DE LEUR CONTENU (toute l'application).
+ *
+ * Symptome : dans les campagnes, « Achat dans les 12 derniers mois » s'affichait sur deux lignes ; ailleurs, un
+ * libelle long etait coupe. Cause commune : la liste prend exactement la largeur du champ (matchFieldWidth d'ExtJS),
+ * quelle que soit la longueur de ses elements.
+ * Regle : la liste garde au moins la largeur du champ et s'elargit jusqu'a son plus long element, sans depasser la
+ * fenetre ; chaque element tient sur une ligne. Un ecran peut garder l'ancienne largeur avec largeurListeFixe: true.
+ */
+(function () {
+    'use strict';
+
+    var Combo = window.Ext && Ext.form && Ext.form.field && Ext.form.field.ComboBox;
+    if (!Combo || Combo.prototype.prLargeurContenu) {
+        return;
+    }
+    if (!document.getElementById('pr-liste-une-ligne')) {
+        Ext.util.CSS.createStyleSheet('.x-boundlist-item{white-space:nowrap}', 'pr-liste-une-ligne');
+    }
+    /* methode d'origine gardee a part (callParent depuis Ext.override echoue ici : methode heritee de Picker) */
+    var alignerOrigine = Combo.prototype.alignPicker;
+    Ext.override(Combo, {
+        prLargeurContenu: true,
+        alignPicker: function () {
+            alignerOrigine.apply(this, arguments);
+            var me = this, picker = me.picker;
+            if (!me.isExpanded || !picker || !picker.rendered || !me.matchFieldWidth || me.largeurListeFixe) {
+                return;
+            }
+            var el = picker.getEl(), items = el.query('.x-boundlist-item'), besoin = 0, i;
+            for (i = 0; i < items.length && i < 500; i++) {
+                besoin = Math.max(besoin, items[i].scrollWidth);
+            }
+            if (!besoin) {
+                return;
+            }
+            var corps = picker.listEl ? picker.listEl.dom : el.dom;
+            /* bordures et barre de defilement, plus une marge pour la mesure arrondie du texte */
+            var voulu = Math.min(besoin + (picker.getWidth() - corps.clientWidth) + 12, Ext.Element.getViewWidth() - 16);
+            if (voulu > picker.getWidth()) {
+                picker.setWidth(voulu);
+                me.doAlign();
+            }
+        }
+    });
+})();
