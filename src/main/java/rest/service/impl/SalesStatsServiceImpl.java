@@ -3285,6 +3285,19 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     ventes.stream().map(VenteDTO::getLgPREENREGISTREMENTID).collect(Collectors.toList()));
             ventes.forEach(vente -> vente
                     .setItems(parVente.getOrDefault(vente.getLgPREENREGISTREMENTID(), Collections.emptyList())));
+            /* plan du 21/11, point 11 : etat du message d'avoir de chaque vente, pour toute la page en une fois */
+            Map<String, AvoirMessage.Etat> messages = AvoirMessage.etats(getEntityManager(),
+                    ventes.stream().map(VenteDTO::getLgPREENREGISTREMENTID).collect(Collectors.toList()));
+            java.text.SimpleDateFormat jour = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+            ventes.forEach(vente -> {
+                AvoirMessage.Etat m = messages.get(vente.getLgPREENREGISTREMENTID());
+                if (m != null) {
+                    vente.setMessageEtat(m.etat);
+                    vente.setMessageCanal(m.canal);
+                    vente.setMessageDate(m.date == null ? null : jour.format(m.date));
+                    vente.setMessageMotif(m.motif);
+                }
+            });
         }
         return ventes;
     }

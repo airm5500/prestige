@@ -61,6 +61,7 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                 // Apres cloture, lg_USER_ID porte l'utilisateur qui a valide l'avoir
                 {sortable: false, menuDisabled: true, header: 'Valide par', dataIndex: 'userValidateur', flex: 1},
                 {sortable: false, menuDisabled: true, header: 'Caissier', dataIndex: 'userCaissierName', flex: 1},
+                this.messageColumn(),
                 this.detailsColumn()
             ]);
         }
@@ -71,6 +72,7 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
             {sortable: false, menuDisabled: true, header: 'Heure', dataIndex: 'heure', flex: 0.6, align: 'center'},
             {sortable: false, menuDisabled: true, header: 'Vendeur', dataIndex: 'userFullName', flex: 1},
             {sortable: false, menuDisabled: true, header: 'Caissier', dataIndex: 'userCaissierName', flex: 1},
+            this.messageColumn(),
             this.detailsColumn(),
             {
                 xtype: 'actioncolumn',
@@ -88,6 +90,30 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                     }]
             }
         ]);
+    },
+
+    /*
+     * Plan du 21/11, point 11 : etat du message « produits disponibles » de la vente (en attente, envoye, distribue,
+     * lu, echec), avec le canal et la date ; le motif d'un echec en info-bulle. « — » : aucun message (pas encore de
+     * produit arrive, vente sans client, ou message anterieur a ce suivi).
+     */
+    messageColumn: function () {
+        var classes = {'En attente': 'av-msg-attente', 'Envoyé': 'av-msg-envoye', 'Distribué': 'av-msg-distribue',
+            'Lu': 'av-msg-lu', 'Échec': 'av-msg-echec'};
+        return {sortable: false, menuDisabled: true, header: 'Message', dataIndex: 'messageEtat', width: 150,
+            itemId: 'colMessage',
+            renderer: function (v, meta, r) {
+                if (!v) {
+                    meta.tdAttr = 'data-qtip="Aucun message suivi pour cette vente"';
+                    return '<span class="av-msg-aucun">—</span>';
+                }
+                var bulle = v + ' par ' + r.get('messageCanal') + (r.get('messageDate') ? ' le ' + r.get('messageDate') : '')
+                        + (r.get('messageMotif') ? ' : ' + r.get('messageMotif') : '');
+                meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(bulle)) + '"';
+                return '<span class="av-msg ' + (classes[v] || '') + '">' + Ext.String.htmlEncode(v) + '</span>'
+                        + '<span class="av-msg-canal">' + Ext.String.htmlEncode(r.get('messageCanal') || '')
+                        + (r.get('messageDate') ? ' · ' + Ext.String.htmlEncode(r.get('messageDate')) : '') + '</span>';
+            }};
     },
 
     // Construit un onglet (grille + pagination) lie a un store.

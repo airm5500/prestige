@@ -95,6 +95,44 @@ public class VenteDTO implements Serializable {
     private boolean copy = false;
     /** Cas 1 du 03/11/2026 : identifiant et reference de la vente nee de la meme saisie (null sinon). */
     private String venteLiee;
+    /* plan du 21/11, point 11 : message d'avoir de la vente (liste des avoirs) */
+    private String messageEtat;
+    private String messageCanal;
+    private String messageDate;
+    private String messageMotif;
+
+    public String getMessageEtat() {
+        return messageEtat;
+    }
+
+    public void setMessageEtat(String messageEtat) {
+        this.messageEtat = messageEtat;
+    }
+
+    public String getMessageCanal() {
+        return messageCanal;
+    }
+
+    public void setMessageCanal(String messageCanal) {
+        this.messageCanal = messageCanal;
+    }
+
+    public String getMessageDate() {
+        return messageDate;
+    }
+
+    public void setMessageDate(String messageDate) {
+        this.messageDate = messageDate;
+    }
+
+    public String getMessageMotif() {
+        return messageMotif;
+    }
+
+    public void setMessageMotif(String messageMotif) {
+        this.messageMotif = messageMotif;
+    }
+
     private String venteLieeRef;
 
     public String getVenteLiee() {

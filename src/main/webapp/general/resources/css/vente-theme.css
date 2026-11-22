@@ -3701,3 +3701,13 @@ table.pv-bulle td.n { text-align: right; white-space: nowrap; padding-left: 10px
 .lc-fenetre .lc-aide, .lc-gris { color: #7f8c8d; font-size: 11px; }
 .lc-ok { color: #1e8449; font-weight: 700; }
 .lc-ko { color: #c0392b; font-weight: 700; }
+
+/* Plan du 21/11, point 11 : etat du message d'avoir dans la liste des avoirs */
+.av-msg { display: inline-block; padding: 0 6px; border-radius: 8px; font-weight: 600; font-size: 11px; line-height: 16px; }
+.av-msg-attente { background: #eef1f5; color: #5a6b7d; }
+.av-msg-envoye { background: #e4eefa; color: #1E5FA8; }
+.av-msg-distribue { background: #e3f4ea; color: #2e7d4f; }
+.av-msg-lu { background: #2e9d57; color: #fff; }
+.av-msg-echec { background: #fdecec; color: #c0392b; }
+.av-msg-canal { display: block; color: #6b7a8c; font-size: 10.5px; line-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.av-msg-aucun { color: #9aa7b5; }
