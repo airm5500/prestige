@@ -194,7 +194,7 @@ const disponibilite = (v) => sql(`UPDATE t_grossiste SET int_PHARMAML_DISPO = ${
     await ouvrirCommande();
     await p.waitForTimeout(1000);
     const cA = await etatBouton('btn_cmd_dispo_verifier'), vCA = await verifs('gridpanelID');
-    ok('4.5 commande : disponibilité réactivée, bouton normal et ⟳ actifs', cA && cA.visible && !cA.grise && /Interroger le grossiste/.test(cA.tooltip) && vCA.actifs === PC.length, JSON.stringify({ cA, vCA }));
+    ok('4.5 commande : disponibilité réactivée, bouton normal et ⟳ actifs', cA && cA.visible && !cA.grise && /auprès du grossiste, par PharmaML/.test(cA.tooltip) && !/Interroger la disponibilité/.test(cA.tooltip) && vCA.actifs === PC.length, JSON.stringify({ cA, vCA }));
 
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {

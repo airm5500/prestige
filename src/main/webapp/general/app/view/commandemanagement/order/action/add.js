@@ -937,11 +937,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     items: [
                         /* Export CSV de la commande en cours : meme fichier (CIP;QTE) que les
                          * autres exports, telecharge directement au clic. */
+                        /* plan du 21/11, point 16 : boutons du bas au nouveau style (taille normale : la barre tient sur une ligne en 1280 px,
+                           « Commander par PharmaML » compris en 1366 px), chacun avec l'icone de son action */
                         {
-                            text: 'Exporter CSV',
+                            text: '\u2B07 Exporter CSV',
                             id: 'btn_export_cmd_csv',
-                            cls: 'btn-primary',
-                            iconCls: 'export_csv_icon',
+                            cls: 'ordo-btn',
                             tooltip: 'Exporter les lignes de cette commande au format CSV',
                             scope: this,
                             handler: this.onExportCsvCommande
@@ -950,16 +951,16 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                          * produit. L'import n'ecrit rien tout seul - il rend un compte rendu que
                          * l'officine lit avant de decider, les substitutions etant signalees. */
                         {
-                            text: 'Importer la réponse du grossiste',
+                            text: '\u2B06 Réponse du grossiste',
                             id: 'btn_import_reponse',
-                            cls: 'btn-primary',
-                            iconCls: 'importicon',
+                            cls: 'ordo-btn',
                             tooltip: 'Charger le fichier de réponse (CSV ou Excel) envoyé par le grossiste',
                             scope: this,
                             handler: this.onImporterReponseGrossiste
                         },
-                        {text: 'Vérifier la disponibilité', id: 'btn_cmd_dispo_verifier', cls: 'btn-primary',
-                            tooltip: 'Interroger le grossiste par PharmaML (information seulement, aucune commande)',
+                        {text: '\u2714 Vérifier la disponibilité', id: 'btn_cmd_dispo_verifier', cls: 'ordo-btn',
+                            tooltip: 'Vérifie TOUS les produits de la commande auprès du grossiste, par PharmaML (information seulement, aucune commande).'
+                                    + '<br/>Le \u27F3 de la colonne Dispo vérifie un seul produit.',
                             handler: function (b) {
                                 /* plan du 21/11, point 4.5 : bouton grise quand la disponibilite est coupee */
                                 if (b && b.dispoCoupee) {
@@ -967,12 +968,13 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 }
                                 ecranCommande().verifierDispo(false);
                             }},
-                        {text: 'Revérifier les indisponibles', id: 'btn_cmd_dispo_reverifier', cls: 'btn-primary',
+                        {text: '\u27F3 Revérifier les indisponibles', id: 'btn_cmd_dispo_reverifier', cls: 'ordo-btn',
                             tooltip: 'Interroger un grossiste au choix pour les produits non disponibles',
                             handler: function () {
                                 ecranCommande().verifierDispo(true);
                             }},
-                        {text: 'Imprimer la disponibilité', id: 'btn_cmd_dispo_imprimer', cls: 'btn-primary',
+                        {text: '\uD83D\uDDA8 Imprimer la disponibilité', id: 'btn_cmd_dispo_imprimer', cls: 'ordo-btn',
+                            tooltip: 'Imprimer le résultat de la dernière vérification de disponibilité',
                             handler: function () {
                                 var e = ecranCommande();
                                 testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.imprimer('COMMANDE', e.getNameintern(), e.getOdatasource() && e.getOdatasource().str_REF_ORDER);
@@ -981,28 +983,28 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         /* retours du 08/10 (8) puis du 09/10 (2) : passer la commande par PharmaML, en bas a cote des
                          * autres boutons ; visible seulement si le grossiste a un lien PharmaML (etatBoutonPharmaMl) */
                         {
-                            text: 'Commander par PharmaML',
+                            text: '\uD83D\uDCE8 Commander par PharmaML',
                             id: 'btn_cmd_envoyer_pml',
-                            cls: 'btn-primary btn-commander-pml',
+                            cls: 'ordo-btn btn-commander-pml',
                             hidden: true,
                             handler: function () {
                                 ecranCommande().envoyerPharmaMl();
                             }
                         },
                         {
-                            text: 'CREER BON DE LIVRAISON',
+                            text: '\uD83D\uDCE6 Créer bon de livraison',
                             id: 'btn_creerbl',
-                            cls: 'btn-primary',
-                            iconCls: 'icon-clear-group',
+                            cls: 'ordo-btn-primaire',
+                            tooltip: 'Créer le bon de livraison de cette commande',
                             scope: this,
                             handler: this.onCreateBLClick
                         },
 
                         {
-                            text: 'Retour',
+                            text: '\u21A9 Retour',
                             id: 'btn_cancel',
-                            cls: 'btn-primary',
-                            iconCls: 'icon-clear-group',
+                            cls: 'ordo-btn',
+                            tooltip: 'Revenir à la liste des commandes',
                             scope: this,
                             hidden: false,
                             handler: this.onbtncancel
@@ -1209,7 +1211,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         var clos = E.ENVOIS_CLOS[d.str_ENVOI_PHARMAML];
         b.setDisabled(!!clos);
         /* un bouton desactive n'a pas d'info-bulle : la raison est dans le libelle */
-        b.setText(clos ? (d.str_ENVOI_PHARMAML === 'EN_ATTENTE' ? 'Déjà envoyée (en attente)' : 'Déjà envoyée (répondue)') : 'Commander par PharmaML');
+        b.setText(clos ? (d.str_ENVOI_PHARMAML === 'EN_ATTENTE' ? 'Déjà envoyée (en attente)' : 'Déjà envoyée (répondue)') : '📨 Commander par PharmaML');
         b.setTooltip(clos ? 'Commande ' + clos + ' (' + (d.dt_ENVOI_PHARMAML || '') + ') : pas de renvoi'
                 : 'Envoyer cette commande au grossiste par PharmaML ; les produits non livrés vont dans la liste des ruptures');
     },
