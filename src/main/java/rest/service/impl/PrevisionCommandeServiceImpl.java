@@ -25,6 +25,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.PrevisionCommandeService;
 import rest.service.impl.prevision.AlertesLigne;
+import rest.service.impl.prevision.ExplicationPrevision;
 import rest.service.impl.prevision.Prevision;
 import rest.service.impl.prevision.Recommandation;
 
@@ -249,7 +250,8 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                         Math.round(r.ecartTypeMois * 100) / 100.0, r.fiabilite, erreurs.toString(), h.toString(),
                         ventes12, p.derniereVente == null ? null : Timestamp.valueOf(p.derniereVente), stockTotal,
                         p.enCours, p.equivalents, p.delai, couverture < 0 ? null : Math.min(couverture, 99999),
-                        recommande });
+                        recommande, ExplicationPrevision.expliquer(serie, r.methode, YearMonth.now().minusMonths(1))
+                                .json().toString() });
                 if (ventes12 > 0) {
                     poids += ventes12;
                     fiabilitePonderee += (long) ventes12 * r.fiabilite;
@@ -335,11 +337,12 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
             List<Object[]> lot = lignes.subList(de, Math.min(lignes.size(), de + parLot));
             StringBuilder sql = new StringBuilder("INSERT INTO t_prevision_produit (lg_FAMILLE_ID, lg_EMPLACEMENT_ID,"
                     + " methode, prevu_mois, ecart_type_mois, fiabilite, erreurs, historique, ventes_12_mois, derniere_vente,"
-                    + " stock, en_cours, equivalents, delai_jours, couverture_jours, recommande, dt_CALCUL) VALUES ");
+                    + " stock, en_cours, equivalents, delai_jours, couverture_jours, recommande, explication, dt_CALCUL)"
+                    + " VALUES ");
             int n = 0;
             for (int i = 0; i < lot.size(); i++) {
                 sql.append(i > 0 ? "," : "").append('(');
-                for (int k = 0; k < 16; k++) {
+                for (int k = 0; k < 17; k++) {
                     sql.append('?').append(++n).append(',');
                 }
                 sql.append("NOW())");
@@ -648,7 +651,7 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
     @Override
     public JSONObject produit(String emplacementId, String familleId) {
         rafraichirEnCours(emplacementId);
-        List<Object[]> r = lignes(COLONNES + ", p.erreurs FROM t_prevision_produit p JOIN t_famille f"
+        List<Object[]> r = lignes(COLONNES + ", p.erreurs, p.explication FROM t_prevision_produit p JOIN t_famille f"
                 + " ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = ?1 AND p.lg_FAMILLE_ID = ?2",
                 emplacementId, familleId);
         if (r.isEmpty()) {
@@ -680,6 +683,7 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
             }
         }
         o.put("methodes", methodes);
+        explicationEtSaison(o, texte(x[19]), h, dernier);
         /* le detail du calcul de la quantite recommandee, pour l'expliquer a l'ecran */
         int couverture = Math.max(0, entierParametre("KEY_PREVISION_COUVERTURE_JOURS", 15));
         double parJour = o.getDouble("prevuMois") / 30.0;
@@ -689,9 +693,64 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         o.put("calcul",
                 new JSONObject().put("parJour", Math.round(parJour * 100) / 100.0).put("delai", delai)
                         .put("couvertureVoulue", couverture).put("besoin", Math.round(besoin * 10) / 10.0)
-                        .put("securite", Math.round(securite * 10) / 10.0).put("ecartType", ecartType));
+                        .put("securite", Math.round(securite * 10) / 10.0).put("ecartType", ecartType)
+                        /* plan du 21/11, point 15 : besoin + securite arrondi au-dessus, comme Recommandation */
+                        .put("arrondi", (int) Math.ceil(Math.max(0, besoin) + securite - 1e-9)));
         detailFenetre(o, emplacementId, familleId);
         return o;
+    }
+
+    /**
+     * Plan du 21/11, point 15 : explication de la prevision (celle enregistree au calcul ; a defaut, refaite sur
+     * l'historique quand il suffit : moyenne, saison, ou historique complet de moins de 24 mois), gardee seulement si
+     * elle redonne la prevision enregistree. Et le tableau des unites vendues par mois avec l'indice saisonnier du
+     * produit, sur les mois de l'historique (meme regle que l'analyse de la demande).
+     */
+    void explicationEtSaison(JSONObject o, String enregistree, String[] h, YearMonth dernier) {
+        double prevu = o.getDouble("prevuMois");
+        JSONObject e = null;
+        if (enregistree != null && !enregistree.isEmpty()) {
+            JSONObject lue = new JSONObject(enregistree);
+            if (Math.abs(lue.optDouble("valeur", -1) - prevu) < 1e-6) {
+                e = lue;
+            }
+        }
+        double[] serie = new double[h.length];
+        for (int i = 0; i < h.length; i++) {
+            serie[i] = Double.parseDouble(h[i].trim());
+        }
+        String methode = o.optString("methode");
+        if (e == null && (h.length < MOIS_AFFICHES || Prevision.MOYENNE.equals(methode)
+                || Prevision.SAISON.equals(methode))) {
+            ExplicationPrevision refaite = ExplicationPrevision.expliquer(serie, methode, dernier);
+            if (Math.abs(refaite.valeur - prevu) < 1e-6) {
+                e = refaite.json();
+            }
+        }
+        o.put("explication", e == null ? JSONObject.NULL : e);
+        java.util.Map<YearMonth, Long> unites = new java.util.HashMap<>();
+        Map<Integer, JSONArray> annees = new java.util.TreeMap<>();
+        for (int i = 0; i < h.length; i++) {
+            YearMonth m = dernier.minusMonths(h.length - 1L - i);
+            long u = Math.round(serie[i]);
+            unites.put(m, u);
+            annees.computeIfAbsent(m.getYear(), a -> {
+                JSONArray vide = new JSONArray();
+                for (int k = 0; k < 12; k++) {
+                    vide.put(JSONObject.NULL);
+                }
+                return vide;
+            }).put(m.getMonthValue() - 1, u);
+        }
+        JSONArray lignesAnnees = new JSONArray();
+        annees.forEach((a, mois) -> lignesAnnees.put(new JSONObject().put("annee", a).put("mois", mois)));
+        JSONArray indices = new JSONArray();
+        if (h.length > 0) {
+            for (double v : DemandeSaisonniereService.indices(unites, dernier.minusMonths(h.length - 1L), dernier)) {
+                indices.put(v);
+            }
+        }
+        o.put("annees", lignesAnnees).put("indices", indices);
     }
 
     /**

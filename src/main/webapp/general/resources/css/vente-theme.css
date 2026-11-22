@@ -3278,6 +3278,28 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pv-calcul tr.pv-total td { font-weight: 700; border-top: 2px solid #94a3b8; }
 .pv-calcul .pv-origine { color: #5b6b7b; font-size: 10px; font-weight: normal; }
 .pv-calcul tr { cursor: help; }
+/* Plan du 21/11, point 15 : fenetre de prevision sans defilement en 1366x768 (lignes resserrees), tableau des unites et
+   de l'indice saisonnier sous le graphe, explication de la valeur prevue et de la quantite a commander */
+.pv-fenetre .ac-bloc-t { margin: 2px 0 4px; }
+.pv-fenetre .ac-detail svg { margin-bottom: 2px; }
+.pv-fenetre .ac-table th, .pv-fenetre .ac-table td { padding: 2px 6px; }
+.pv-fenetre .ac-note { margin-top: 4px; line-height: 1.35; }
+.pv-fenetre .ac-colonnes { margin-top: 6px; }
+.pv-fenetre .ac-colonnes > div:first-child { flex: 0 1 300px; }
+.pv-fenetre .ac-colonnes > div:last-child { flex: 1 1 400px; }
+.pv-saison { font-size: 11px; margin-bottom: 2px; }
+.pv-saison tr.pv-indice td { border-bottom: none; font-weight: 600; cursor: help; }
+.pv-explication { background: #fef5e7; border-left: 3px solid #e67e22; border-radius: 4px; padding: 3px 8px; margin: 0 0 6px;
+    font-size: 12px; color: #6e3b0c; cursor: help; }
+.pv-explication-t { font-weight: 700; }
+.pv-explication-aide { color: #d35400; font-size: 11px; margin-left: 4px; }
+.pv-methodes tr.pv-methode { cursor: help; }
+.pv-fiabilite { cursor: help; }
+.pv-phrase { color: #2c3e50; background: #f4f7fa; border-radius: 4px; padding: 4px 8px; }
+.pv-ecart-calcul { color: #b45309; }
+table.pv-bulle { border-collapse: collapse; margin-top: 4px; }
+table.pv-bulle td { padding: 1px 6px 1px 0; vertical-align: top; }
+table.pv-bulle td.n { text-align: right; white-space: nowrap; padding-left: 10px; }
 /* Retours du 10/10 : onglet Analyse (nombre de lignes en vert, pastilles filtrantes, marqueur equivalent cliquable) */
 .ac-nb-lignes { color: #17795f; font-weight: 700; }
 .ac-puce-filtre, .ac-puce-eq { cursor: pointer; }
