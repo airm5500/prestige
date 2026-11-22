@@ -620,7 +620,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     /* retours du 08/10 (7) : produit livre par le grossiste a la place d'un autre (EL / RL) */
                                     renderer: function (v, meta, r) {
                                         var e = ecranCommande(), s = e && e.substitutions && e.substitutions[r.get('lg_ORDERDETAIL_ID')];
-                                        var t = Ext.String.htmlEncode(v || '');
+                                        var t = Ext.String.htmlEncode(v || ''), c = r.get('str_CLASSE_ABC');
+                                        /* plan du 21/11, point 4.5 : classe ABC de la fiche apres le nom ; rien sans classe */
+                                        if (c) {
+                                            t += ' <span class="classe-abc" data-classe-abc="' + Ext.String.htmlEncode(c)
+                                                    + '" style="color:#2E75B6;font-weight:600">(' + Ext.String.htmlEncode(c) + ')</span>';
+                                        }
                                         if (!s) {
                                             return t;
                                         }
@@ -955,7 +960,11 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         },
                         {text: 'Vérifier la disponibilité', id: 'btn_cmd_dispo_verifier', cls: 'btn-primary',
                             tooltip: 'Interroger le grossiste par PharmaML (information seulement, aucune commande)',
-                            handler: function () {
+                            handler: function (b) {
+                                /* plan du 21/11, point 4.5 : bouton grise quand la disponibilite est coupee */
+                                if (b && b.dispoCoupee) {
+                                    return;
+                                }
                                 ecranCommande().verifierDispo(false);
                             }},
                         {text: 'Revérifier les indisponibles', id: 'btn_cmd_dispo_reverifier', cls: 'btn-primary',

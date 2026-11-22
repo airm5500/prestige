@@ -57,6 +57,11 @@ Ext.define('testextjs.model.OrderDetail', {
         {
             name: 'lg_FAMILLE_NAME',
             type: 'string'
+        },
+        /* plan du 21/11, point 4.5 */
+        {
+            name: 'str_CLASSE_ABC',
+            type: 'string'
         }
         ,
         {

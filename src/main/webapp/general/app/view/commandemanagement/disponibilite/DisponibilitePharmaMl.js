@@ -35,14 +35,41 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
         });
     },
 
-    /** Affiche ou masque les boutons de verification selon le reglage du grossiste. */
+    /** Plan du 21/11, point 4.5 : raison affichee quand la disponibilite est coupee pour le grossiste. */
+    RAISON_COUPEE: 'Disponibilité non interrogée pour ce grossiste. Pour l\'activer : fiche du grossiste'
+            + ' (Grossistes, Modifier), cadre PharmaML, cocher « Interroger la disponibilité ».',
+
+    /**
+     * Boutons de verification selon le reglage du grossiste. Plan du 21/11, point 4.5 : toujours affiches ; si la
+     * disponibilite est coupee, grises (classe dispo-coupee), sans effet au clic, l'info-bulle dit pourquoi et comment
+     * l'activer. Un bouton desactive par Ext n'a pas d'info-bulle : le bouton reste donc actif et son gestionnaire
+     * teste dispoCoupee.
+     */
     appliquerActive: function (active, ids) {
+        var me = this;
+        me.styleCoupee();
         Ext.each(ids, function (id) {
             var b = Ext.getCmp(id);
-            if (b) {
-                b.setVisible(active);
+            if (!b) {
+                return;
             }
+            if (b.tooltipOrigine === undefined) {
+                b.tooltipOrigine = b.tooltip || '';
+            }
+            b.dispoCoupee = !active;
+            b.setVisible(true);
+            b[active ? 'removeCls' : 'addCls']('dispo-coupee');
+            b.setTooltip(active ? b.tooltipOrigine : me.RAISON_COUPEE);
         });
+    },
+
+    /** Feuille de style des elements grises (une seule fois). */
+    styleCoupee: function () {
+        if (!document.getElementById('style-dispo-coupee')) {
+            Ext.util.CSS.createStyleSheet('.dispo-coupee{opacity:.45;cursor:not-allowed!important}'
+                    + '.dispo-coupee *{cursor:not-allowed!important}'
+                    + '.dispo-verif-coupee{color:#9aa8b6!important;cursor:not-allowed!important}', 'style-dispo-coupee');
+        }
     },
 
     /** Rendu de la colonne : pastille de couleur + info-bulle. */
@@ -76,8 +103,12 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
     renduAvecVerif: function (etat, meta, desactivee) {
         var pastille = this.rendu(etat, meta);
         if (desactivee) {
-            /* disponibilite coupee pour ce grossiste : pas de bouton ⟳, l'ancien resultat reste visible */
-            return pastille;
+            /* disponibilite coupee pour ce grossiste : l'ancien resultat reste visible ; plan du 21/11, point 4.5 :
+               le ⟳ reste affiche, grise, sans effet au clic (pas de data-verif-dispo), la raison au survol */
+            this.styleCoupee();
+            return '<span style="display:inline-flex;align-items:center;gap:5px">' + (pastille || '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1px dashed #b6c2cf"></span>')
+                    + '<span class="dispo-verif dispo-verif-coupee" data-verif-coupee="1" data-qtip="' + Ext.String.htmlEncode(this.RAISON_COUPEE)
+                    + '" style="font-size:13px;line-height:1">&#x27F3;</span></span>';
         }
         if (meta && !etat) {
             meta.tdAttr = 'data-qtip="Disponibilité non vérifiée"';

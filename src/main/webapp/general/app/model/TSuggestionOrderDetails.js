@@ -13,6 +13,11 @@ Ext.define('testextjs.model.TSuggestionOrderDetails', {
             name: 'str_FAMILLE_NAME',
             type: 'string'
         },
+        /* plan du 21/11, point 4.5 */
+        {
+            name: 'str_CLASSE_ABC',
+            type: 'string'
+        },
         {
             name: 'str_FAMILLE_CIP',
             type: 'string'

@@ -60,6 +60,8 @@ public class CommandeEncourDetailDTO {
 
     private final int ug;
     private final String produitName;
+    /* plan du 21/11, point 4.5 : classe ABC de la fiche, affichee apres le nom */
+    private final String classeAbc;
     private String produitCip;
     private final Integer produitPrixAchat;
     private final Integer produitPrixVente;
@@ -187,6 +189,11 @@ public class CommandeEncourDetailDTO {
         return ug;
     }
 
+    @JSONPropertyName("str_CLASSE_ABC")
+    public String getClasseAbc() {
+        return classeAbc;
+    }
+
     @JSONPropertyName("lg_FAMILLE_NAME")
     public String getProduitName() {
         return produitName;
@@ -298,6 +305,7 @@ public class CommandeEncourDetailDTO {
         this.lgORDERID = order.getLgORDERID();
         this.lgFAMILLEID = famille.getLgFAMILLEID();
         this.produitName = famille.getStrNAME();
+        this.classeAbc = ClasseAbc.lettre(famille.getLgCLASSEABCID());
         this.grossisteLibelle = grossiste.getStrLIBELLE();
         this.intORERSTATUS = detail.getIntORERSTATUS();
         this.ug = detail.getUg();
@@ -415,6 +423,7 @@ public class CommandeEncourDetailDTO {
         this.lgORDERID = order.getLgORDERID();
         this.lgFAMILLEID = famille.getLgFAMILLEID();
         this.produitName = famille.getStrNAME();
+        this.classeAbc = ClasseAbc.lettre(famille.getLgCLASSEABCID());
         this.grossisteLibelle = grossiste.getStrLIBELLE();
         this.intORERSTATUS = detail.getIntORERSTATUS();
         this.ug = detail.getUg();
