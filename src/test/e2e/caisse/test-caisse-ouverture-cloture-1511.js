@@ -1,7 +1,7 @@
 /* PLAN DU 14/11, POINT 5 : « Ouverture / clôture de caisse » en un seul ecran (SERVICE CLIENT).
  *
  * Parcours du compte d'essai, a la souris et au clavier, sur un ecran de portable (1366 x 768) :
- *  - le menu « Ouverture / clôture caisse » remplace les deux anciens (masques puisque l'utilisateur a le nouveau) ;
+ *  - le menu « Ouverture/clôture caisse » remplace les deux anciens (masques puisque l'utilisateur a le nouveau) ;
  *  - l'ecran tient dans la largeur, sans barre de defilement horizontale ;
  *  - caisse fermee : ouverture active, cloture grisee ; fond de caisse tape (15 500), « Ouvrir la caisse », « Non » au
  *    ticket ;
@@ -90,10 +90,10 @@ async function attendreEtat(p, ouverte) {
   try {
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const menus = await p.evaluate(() => { const ids = []; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { ids.push(n.get('id')); }); return ids; });
-    ok('Menu « Ouverture / clôture caisse » présent, les deux anciens masqués',
+    ok('Menu « Ouverture/clôture caisse » présent, les deux anciens masqués',
       menus.indexOf(ECRAN) >= 0 && menus.indexOf('ouverturecaissemanger') < 0 && menus.indexOf('caissemanger') < 0,
       JSON.stringify(['caisseouverturecloture', 'ouverturecaissemanger', 'caissemanger'].map((x) => x + '=' + (menus.indexOf(x) >= 0))));
-    await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture / clôture caisse');
+    await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture/clôture caisse');
     /* refermer le volet du menu par un clic dans une zone vide de l'ecran (jamais dans l'en-tete : la cloche y est) */
     await p.mouse.move(1250, 700); await p.mouse.click(1250, 700);
     ok('Aucune fenêtre ouverte par la navigation', !(await p.evaluate(() => !!Ext.getCmp('notif-center-win'))), '');

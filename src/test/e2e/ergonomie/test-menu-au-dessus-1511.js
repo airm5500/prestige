@@ -49,7 +49,7 @@ function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' +
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
 
     /* 1. Ouverture / cloture caisse : un des deux cotes est grise */
-    await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture / clôture caisse');
+    await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture/clôture caisse');
     await p.waitForFunction(() => Ext.ComponentQuery.query('caisseouverturecloture').length > 0, null, { timeout: 30000 }).catch(() => {});
     await p.waitForTimeout(2500);
     const v1 = await voiles();

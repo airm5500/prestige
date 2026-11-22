@@ -34,7 +34,7 @@ async function ouvrirMenu(p, parent, entree) {
 }
 
 /* ecran dont le menu peut etre masque au profit d'un menu qui le remplace (correctifs-affichage.js, MENUS_REMPLACES ;
-   plan du 14/11 : « Ouverture de Caisse » et « Cloture de Caisse » remplaces par « Ouverture / clôture caisse ») :
+   plan du 14/11 : « Ouverture de Caisse » et « Cloture de Caisse » remplaces par « Ouverture/clôture caisse ») :
    par son menu s'il est affiche, sinon par son composant, comme l'application ouvre un ecran */
 async function ouvrirEcran(p, parent, entree, xtype) {
   const affiche = await p.evaluate((x) => { let t = false; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { if (n.get('id') === x) { t = true; } }); return t; }, xtype);

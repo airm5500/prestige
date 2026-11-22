@@ -1,4 +1,4 @@
-/* RETOUR DU 16/11 : « Ouverture / clôture caisse » centre dans l'ecran, pour que le volet de navigation deplie ne le
+/* RETOUR DU 16/11 : « Ouverture/clôture caisse » centre dans l'ecran, pour que le volet de navigation deplie ne le
  * cache plus.
  *
  * Defaut : le bloc (etat + ouverture + cloture) etait colle a gauche ; le volet de navigation deplie (260 px, flottant
@@ -30,7 +30,7 @@ const ECRAN = 'caisseouverturecloture';
       const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
       await p.route('**/api/v1/support/events', (r) => (r.request().method() === 'POST' ? r.fulfill({ status: 200, body: '{}' }) : r.continue()));
       await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
-      await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture / clôture caisse');
+      await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture/clôture caisse');
       await p.mouse.move(l - 100, h - 60); await p.mouse.click(l - 100, h - 60);
       await p.waitForFunction((e) => { const v = Ext.ComponentQuery.query(e).filter((x) => x.isVisible(true))[0];
         return v && /ferm|ouvert/.test(v.down('#ocEtat').getEl().dom.textContent); }, ECRAN, { timeout: 30000 });

@@ -75,11 +75,11 @@ const fermerFenetres = (p) => p.evaluate(() => Ext.ComponentQuery.query('message
     ok('refus du serveur (400) : son message est affiché', r.envois.length === 1 && r.msgs.some((m) => /nombre entier est attendu/.test(m)) && !r.msgs.some((m) => /n'a pas répondu/.test(m)), JSON.stringify(r));
     await fermerFenetres(p);
 
-    /* meme parcours sur l'ecran unique « Ouverture / clôture caisse » (plan du 14/11, point 5), ouvert par son menu */
+    /* meme parcours sur l'ecran unique « Ouverture/clôture caisse » (plan du 14/11, point 5), ouvert par son menu */
     const nouveau = await p.evaluate(() => { let t = false; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { if (n.get('id') === 'caisseouverturecloture') { t = true; } }); return t; });
     if (nouveau) {
       reponseServeur = null;
-      await ouvrirMenu(p, process.env.MENU || 'SERVICE CLIENT', 'Ouverture / clôture caisse');
+      await ouvrirMenu(p, process.env.MENU || 'SERVICE CLIENT', 'Ouverture/clôture caisse');
       await p.mouse.click(1500, 850);
       const ECRAN = 'caisseouverturecloture';
       await p.waitForFunction((e) => { const v = Ext.ComponentQuery.query(e).filter((x) => x.isVisible(true))[0]; return v && !v.down('#ocOuverture').isDisabled(); }, ECRAN, { timeout: 30000 });
