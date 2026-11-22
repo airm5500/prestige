@@ -40,6 +40,11 @@ public final class CauseArret {
         ARRET_SERVICE("Service du serveur arrêté de façon inattendue", "FATAL"),
         MEMOIRE_PROBABLE("Mémoire presque saturée avant l'arrêt", "ERROR"),
         BASE_SATUREE("Connexions à la base saturées", "ERROR"), MARIADB_ARRETEE("MariaDB s'est aussi arrêtée", "ERROR"),
+        /*
+         * journal d'appaul du 21/11 (N6) : le serveur a ete arrete puis relance sur une autre version de Prestige ;
+         * c'est une mise a jour, pas une panne : historique du serveur, sans incident au Centre de support
+         */
+        MISE_A_JOUR("Arrêt pour la mise à jour de Prestige", "INFO"),
         ARRET_FORCE("Arrêt forcé, sans erreur visible", "WARN");
 
         public final String libelle, niveau;
@@ -71,6 +76,11 @@ public final class CauseArret {
         public String extraitLog = "";
         public boolean rapportJvm, vidageMemoire, mariadbRedemarree;
         public long memoirePct = -1, disqueLibreMo = -1;
+        /**
+         * Version de Prestige au dernier battement (fichier temoin) et version qui redemarre ; vide ou null si inconnue
+         * (temoin ecrit par une version qui ne la notait pas).
+         */
+        public String versionAvant, versionApres;
     }
 
     /** Cause retenue, avec l'explication et le conseil. */
@@ -177,6 +187,13 @@ public final class CauseArret {
         return OUT_OF_MEMORY.matcher(log).find();
     }
 
+    /** Les deux versions sont connues et different : Prestige a ete mis a jour pendant l'arret. */
+    static boolean versionChangee(Indices x) {
+        String avant = x.versionAvant == null ? "" : x.versionAvant.trim();
+        String apres = x.versionApres == null ? "" : x.versionApres.trim();
+        return !avant.isEmpty() && !apres.isEmpty() && !avant.equals(apres);
+    }
+
     /** Cause probable d'un arret brutal. */
     public static Diagnostic diagnostiquer(Indices x) {
         Diagnostic r = new Diagnostic();
@@ -230,6 +247,15 @@ public final class CauseArret {
         } else if (machineRedemarree) {
             fixer(r, Code.REDEMARRAGE_MACHINE, "La machine a redémarré pendant que le serveur tournait.",
                     "Arrêter le serveur avant d'éteindre la machine ; vérifier l'alimentation.");
+        } else if (versionChangee(x)) {
+            /*
+             * journal d'appaul du 21/11 (N6) : la mise a jour arrete le serveur sans lui laisser le temps de s'arreter
+             * proprement ; aucun indice plus fort (Java, memoire, disque, machine) : c'est la mise a jour
+             */
+            fixer(r, Code.MISE_A_JOUR,
+                    "Le serveur a été arrêté puis relancé sur une nouvelle version de Prestige ("
+                            + x.versionAvant.trim() + " → " + x.versionApres.trim() + ") : mise à jour.",
+                    "Aucune action : arrêt dû à la mise à jour.");
         } else if (serviceServeur) {
             fixer(r, Code.ARRET_SERVICE,
                     "Windows signale l'arrêt inattendu du service du serveur (événement 7031/7034).",

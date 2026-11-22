@@ -98,4 +98,30 @@ class BoiteNoireTest {
         assertEquals(BoiteNoire.INCONNU,
                 new BoiteNoire.Instantane(REPLI, 10L, 0L, 0L, 0L, null, 0L).pourcentageMemoire());
     }
+
+    /**
+     * Journal d'appaul du 21/11 (N6) : le temoin garde la version de Prestige du dernier battement, pour reconnaitre au
+     * redemarrage un arret du a une mise a jour. Un temoin d'une version qui ne la notait pas se relit sans version.
+     */
+    @Test
+    @DisplayName("La version du dernier battement se relit ; absente d'un ancien temoin")
+    void versionDuDernierBattement() {
+        LocalDateTime t = LocalDateTime.of(2026, 11, 21, 7, 6, 0);
+        BoiteNoire.Instantane avec = new BoiteNoire.Instantane(t, 512L, 2048L, 90_000L, 3L, "GET /x", 1200L,
+                "2026-11-16 03:45 UTC");
+        String texte = BoiteNoire.formater(avec);
+        assertTrue(texte.contains("version=2026-11-16 03:45 UTC"), texte);
+        BoiteNoire.Instantane relu = BoiteNoire.lire(texte, REPLI);
+        assertEquals("2026-11-16 03:45 UTC", relu.version);
+        assertEquals(t, relu.horodatage);
+        assertEquals(512L, relu.memoireUtiliseeMo);
+        assertTrue(relu.enTexte().contains("2026-11-16 03:45 UTC"));
+
+        BoiteNoire.Instantane ancien = BoiteNoire
+                .lire(BoiteNoire.formater(new BoiteNoire.Instantane(t, 512L, 2048L, 90_000L, 3L, null, 0L)), REPLI);
+        assertNull(ancien.version);
+        assertNull(BoiteNoire.lire("2026-11-21 07:06:00", REPLI).version);
+        assertFalse(
+                BoiteNoire.formater(new BoiteNoire.Instantane(t, 1L, 2L, 3L, 0L, null, 0L, "  ")).contains("version="));
+    }
 }

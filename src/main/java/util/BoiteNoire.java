@@ -33,6 +33,8 @@ public final class BoiteNoire {
     private static final String CLE_REQUETES = "requetesEnCours";
     private static final String CLE_PLUS_LONGUE = "requeteLaPlusLongue";
     private static final String CLE_PLUS_LONGUE_MS = "requeteLaPlusLongueMs";
+    /** journal d'appaul du 21/11 (N6) : version de Prestige qui ecrivait le temoin. */
+    private static final String CLE_VERSION = "version";
 
     /** Valeur portee par les mesures qui n'ont pas pu etre relevees. */
     public static final long INCONNU = -1L;
@@ -53,9 +55,18 @@ public final class BoiteNoire {
         public final long requetesEnCours;
         public final String requeteLaPlusLongue;
         public final long requeteLaPlusLongueMs;
+        /** Version de Prestige au moment du releve, ou null si inconnue (ancien temoin). */
+        public final String version;
 
         public Instantane(LocalDateTime horodatage, long memoireUtiliseeMo, long memoireMaxMo, long disqueLibreMo,
                 long requetesEnCours, String requeteLaPlusLongue, long requeteLaPlusLongueMs) {
+            this(horodatage, memoireUtiliseeMo, memoireMaxMo, disqueLibreMo, requetesEnCours, requeteLaPlusLongue,
+                    requeteLaPlusLongueMs, null);
+        }
+
+        public Instantane(LocalDateTime horodatage, long memoireUtiliseeMo, long memoireMaxMo, long disqueLibreMo,
+                long requetesEnCours, String requeteLaPlusLongue, long requeteLaPlusLongueMs, String version) {
+            this.version = StringUtils.trimToNull(version);
             this.horodatage = horodatage;
             this.memoireUtiliseeMo = memoireUtiliseeMo;
             this.memoireMaxMo = memoireMaxMo;
@@ -102,6 +113,9 @@ public final class BoiteNoire {
             sb.append("\n");
             sb.append("Disque libre    : ").append(mesure(disqueLibreMo, " Mo")).append("\n");
             sb.append("Requetes en vol : ").append(mesure(requetesEnCours, "")).append("\n");
+            if (version != null) {
+                sb.append("Version         : ").append(version).append("\n");
+            }
             if (StringUtils.isNotBlank(requeteLaPlusLongue)) {
                 sb.append("Plus ancienne   : ").append(requeteLaPlusLongue);
                 if (requeteLaPlusLongueMs != INCONNU) {
@@ -134,6 +148,9 @@ public final class BoiteNoire {
             lignes.put(CLE_PLUS_LONGUE, instantane.requeteLaPlusLongue.replaceAll("\\s+", " ").trim());
             ajouter(lignes, CLE_PLUS_LONGUE_MS, instantane.requeteLaPlusLongueMs);
         }
+        if (instantane.version != null) {
+            lignes.put(CLE_VERSION, instantane.version.replaceAll("\\s+", " "));
+        }
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, String> ligne : lignes.entrySet()) {
             sb.append(ligne.getKey()).append('=').append(ligne.getValue()).append('\n');
@@ -165,7 +182,7 @@ public final class BoiteNoire {
         return new Instantane(parseDate(valeurs.get(CLE_HORODATAGE), repli), parseLong(valeurs.get(CLE_MEM_UTILISEE)),
                 parseLong(valeurs.get(CLE_MEM_MAX)), parseLong(valeurs.get(CLE_DISQUE_LIBRE)),
                 parseLong(valeurs.get(CLE_REQUETES)), StringUtils.trimToNull(valeurs.get(CLE_PLUS_LONGUE)),
-                parseLong(valeurs.get(CLE_PLUS_LONGUE_MS)));
+                parseLong(valeurs.get(CLE_PLUS_LONGUE_MS)), valeurs.get(CLE_VERSION));
     }
 
     private static void ajouter(Map<String, String> lignes, String cle, long valeur) {
