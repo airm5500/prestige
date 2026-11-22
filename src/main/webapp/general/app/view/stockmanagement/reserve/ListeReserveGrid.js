@@ -275,19 +275,21 @@ Ext.define('testextjs.view.stockmanagement.reserve.ListeReserveGrid', {
                     return '<span class="lr-case" role="checkbox" aria-checked="' + l.enReserve + '" style="cursor:pointer;font-size:15px">'
                             + (l.enReserve ? '☑' : '☐') + '</span>';
                 }},
+            /* retour du 22/11 : a 1280×720 les colonnes faisaient 1 266 px pour 1 215 px de vue. Les colonnes de texte
+               se partagent la place (avec un minimum), les en-tetes chiffres passent sur deux lignes. */
             {text: 'CIP', dataIndex: 'cip', width: 85},
-            {text: 'Désignation', dataIndex: 'designation', flex: 1, minWidth: 200},
-            {text: 'Emplacement', dataIndex: 'emplacement', width: 110},
-            {text: 'Famille', dataIndex: 'famille', width: 120},
-            {text: 'Grossiste', dataIndex: 'grossiste', width: 110},
-            {text: 'Stock rayon', dataIndex: 'stockRayon', width: 75, align: 'right'},
-            {text: 'Stock réserve', dataIndex: 'stockReserve', width: 82, align: 'right'},
+            {text: 'Désignation', dataIndex: 'designation', flex: 2, minWidth: 180},
+            {text: 'Emplacement', dataIndex: 'emplacement', flex: 1, minWidth: 85},
+            {text: 'Famille', dataIndex: 'famille', flex: 1, minWidth: 85},
+            {text: 'Grossiste', dataIndex: 'grossiste', flex: 1, minWidth: 85},
+            {text: 'Stock<br>rayon', menuText: 'Stock rayon', tooltip: 'Stock rayon', dataIndex: 'stockRayon', width: 62, align: 'right'},
+            {text: 'Stock<br>réserve', menuText: 'Stock réserve', tooltip: 'Stock réserve', dataIndex: 'stockReserve', width: 66, align: 'right'},
             {text: 'VMJ', dataIndex: 'vmj', width: 60, align: 'right', renderer: function (v) {
                     return v === null || v === undefined ? '—' : Ext.util.Format.number(v, '0,000.00').replace('.', ',');
                 }},
-            {text: 'Capacité maxi rayon', dataIndex: 'capacite', width: 125, align: 'right', renderer: rendu('capacite'),
+            {text: 'Capacité<br>maxi rayon', menuText: 'Capacité maxi rayon', tooltip: 'Capacité maxi rayon', dataIndex: 'capacite', width: 92, align: 'right', renderer: rendu('capacite'),
                 editor: {xtype: 'numberfield', minValue: 0, allowDecimals: false}},
-            {text: 'Seuil mini rayon', dataIndex: 'seuilMini', width: 115, align: 'right', renderer: rendu('seuilMini'),
+            {text: 'Seuil mini<br>rayon', menuText: 'Seuil mini rayon', tooltip: 'Seuil mini rayon', dataIndex: 'seuilMini', width: 88, align: 'right', renderer: rendu('seuilMini'),
                 editor: {xtype: 'numberfield', minValue: 0, allowDecimals: false}},
             {text: 'État', width: 150, sortable: false, renderer: function (v, meta, rec) {
                     return me.texteEtat(rec);
