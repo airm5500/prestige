@@ -101,6 +101,13 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsTraitement', {
         if (cle === 'ciblage') {
             me.getLayout().setActiveItem(me.ciblage);
             me.initialiserCiblage();
+            /* plan du 21/11, point 18 : curseur dans la recherche (appel direct differe : focus(false, delai) ne part pas) */
+            var ref = me.ciblage.down('#cbReference');
+            Ext.defer(function () {
+                if (!ref.isDestroyed && ref.isVisible(true)) {
+                    ref.focus();
+                }
+            }, 250);
             return me.ciblage;
         }
         me.getLayout().setActiveItem(me.liste);
@@ -288,14 +295,24 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsTraitement', {
                                     ref.clearValue();
                                     ref.lastQuery = null;
                                 }}},
-                        {xtype: 'combobox', itemId: 'cbReference', width: 280, store: references, queryMode: 'remote', queryParam: 'q', minChars: 2,
+                        /* plan du 21/11, point 18 : champ agrandi, curseur dedans a l'ouverture ; Entree choisit dans la
+                           liste ouverte, puis Entree (liste fermee) lance la recherche */
+                        {xtype: 'combobox', itemId: 'cbReference', width: 380, store: references, queryMode: 'remote', queryParam: 'q', minChars: 2,
                             displayField: 'affiche', valueField: 'id', hideTrigger: true, typeAhead: false, forceSelection: true,
-                            emptyText: 'Nom ou CIP (2 lettres au moins)', tooltip: 'Le produit, la famille ou la DCI achetés'},
-                        {xtype: 'datefield', itemId: 'cbDu', fieldLabel: 'Achats du', labelWidth: 58, width: 168, format: 'd/m/Y',
+                            emptyText: '\uD83D\uDD0D Nom ou CIP (2 lettres au moins)', tooltip: 'Le produit, la famille ou la DCI achetés',
+                            listeners: {specialkey: function (c, e) {
+                                    if (e.getKey() === e.ENTER && !c.isExpanded) {
+                                        e.stopEvent();
+                                        me.chercherCiblage();
+                                    }
+                                }}},
+                        /* plan du 21/11, point 18 : « Acheté du … au … » et « Au moins … achats », chacun sur une ligne */
+                        {xtype: 'datefield', itemId: 'cbDu', fieldLabel: 'Acheté du', labelWidth: 64, width: 176, format: 'd/m/Y', labelStyle: 'white-space:nowrap',
                             value: Ext.Date.add(aujourdhui, Ext.Date.MONTH, -6)},
-                        {xtype: 'datefield', itemId: 'cbAu', fieldLabel: 'au', labelWidth: 18, width: 128, format: 'd/m/Y', value: aujourdhui},
-                        {xtype: 'numberfield', itemId: 'cbMin', fieldLabel: 'Achats au moins', labelWidth: 95, width: 150, value: 2, minValue: 1, maxValue: 1000,
+                        {xtype: 'datefield', itemId: 'cbAu', fieldLabel: 'au', labelWidth: 18, width: 128, format: 'd/m/Y', labelStyle: 'white-space:nowrap', value: aujourdhui},
+                        {xtype: 'numberfield', itemId: 'cbMin', fieldLabel: 'Au moins', labelWidth: 58, width: 118, labelStyle: 'white-space:nowrap', value: 2, minValue: 1, maxValue: 1000,
                             allowDecimals: false, tooltip: 'Nombre minimal d\'achats (ventes) sur la période'},
+                        {xtype: 'tbtext', itemId: 'cbMinSuite', text: 'achats'},
                         {xtype: 'button', itemId: 'cbChercher', text: 'Rechercher', iconCls: 'searchicon', handler: function () {
                                 me.chercherCiblage();
                             }}]}],
