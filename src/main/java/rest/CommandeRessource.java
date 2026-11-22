@@ -254,6 +254,79 @@ public class CommandeRessource {
         return Response.ok().entity(this.orderService.addItem(orderDetail, tu).toString()).build();
     }
 
+    /* ------------------------------------------------ plan du 21/11, point 16.1 : lot et peremption en commande */
+
+    @EJB
+    private rest.service.impl.LotsCommandeService lotsCommande;
+
+    private TUser utilisateurConnecte() {
+        return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+    }
+
+    private static Response deconnecte() {
+        return Response.ok()
+                .entity(new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                .build();
+    }
+
+    /** Produit, quantite ET lot en une transaction. Corps : celui de item/add, plus numeroLot et peremption. */
+    @POST
+    @Path("item/add-lot")
+    public Response addItemAvecLot(String corps) {
+        TUser tu = utilisateurConnecte();
+        if (tu == null) {
+            return deconnecte();
+        }
+        JSONObject o = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
+        OrderDetailDTO dto = new OrderDetailDTO();
+        dto.setFamilleId(o.optString("familleId", null));
+        dto.setOrderId(o.optString("orderId", null));
+        dto.setGrossisteId(o.optString("grossisteId", null));
+        dto.setStatut(o.optString("statut", null));
+        dto.setQte(o.optInt("qte", 0));
+        return Response.ok().entity(lotsCommande
+                .ajouterAvecLot(dto, o.optString("numeroLot", ""), o.optString("peremption", ""), tu).toString())
+                .build();
+    }
+
+    @GET
+    @Path("item/{itemId}/lots")
+    public Response lotsLigne(@PathParam("itemId") String itemId) {
+        if (utilisateurConnecte() == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(lotsCommande.lire(itemId).toString()).build();
+    }
+
+    /** Corps : {lots: [{numeroLot, datePeremption (saisie), quantity}]}. */
+    @PUT
+    @Path("item/{itemId}/lots")
+    public Response remplacerLotsLigne(@PathParam("itemId") String itemId, String corps) {
+        if (utilisateurConnecte() == null) {
+            return deconnecte();
+        }
+        JSONObject o = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
+        org.json.JSONArray lots = o.optJSONArray("lots");
+        return Response.ok()
+                .entity(lotsCommande.remplacer(itemId, lots == null ? new org.json.JSONArray() : lots).toString())
+                .build();
+    }
+
+    /** Scan d'un DataMatrix dans le champ du lot : seulement le lot et la peremption (JJ/MM/AAAA). */
+    @POST
+    @Path("lot-depuis-code")
+    public Response lotDepuisCode(String corps) {
+        if (utilisateurConnecte() == null) {
+            return deconnecte();
+        }
+        JSONObject o = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
+        rest.report.pdf.Gs1.Contenu c = rest.report.pdf.Gs1.lire(o.optString("code", ""));
+        JSONObject r = new JSONObject().put("success", c.lot != null || c.peremption != null);
+        r.put("lot", c.lot == null ? "" : c.lot);
+        r.put("peremption", c.peremption == null ? "" : c.peremption.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        return Response.ok().entity(r.toString()).build();
+    }
+
     @PUT
     @Path("clone-commande/{id}")
     public Response cloneCommande(@PathParam("id") String id) throws JSONException {

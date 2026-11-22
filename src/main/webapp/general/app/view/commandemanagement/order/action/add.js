@@ -44,6 +44,7 @@ function amountformat(val) {
 Ext.define('testextjs.view.commandemanagement.order.action.add', {
     extend: 'Ext.form.Panel',
     requires: ['testextjs.view.commandemanagement.analyse.FenetrePrevision',
+        'testextjs.view.commandemanagement.order.action.LotsCommande',
         'testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl',
         'Ext.selection.CellModel',
         'Ext.grid.*',
@@ -1041,6 +1042,20 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             this.chargerSubstitutions();
             this.etatBoutonPharmaMl(this.getOdatasource());
         }
+        /* plan du 21/11, point 16.1 : lot et peremption en commande en cours, si le parametre est a 1 */
+        var ecranLots = this;
+        testextjs.view.commandemanagement.order.action.LotsCommande.lireParametre(function (actif) {
+            ecranLots.saisieLots = actif;
+        });
+        Ext.getCmp('gridpanelID').on('celldblclick', function (view, td, ci, record) {
+            var col = view.getGridColumns()[ci];
+            if (ecranLots.saisieLots && col && (col.dataIndex === 'lotNums' || col.dataIndex === 'datePeremption')) {
+                testextjs.view.commandemanagement.order.action.LotsCommande.ouvrirLots(record.get('lg_ORDERDETAIL_ID'), function () {
+                    ecranLots.onRechClick();
+                });
+                return false;
+            }
+        });
         Ext.getCmp('gridpanelID').on('cellclick', function (view, td, ci, record, tr, ri, e) {
             var retrait = e && e.getTarget && e.getTarget('[data-retirer-substitution]');
             if (retrait) {
@@ -2259,6 +2274,30 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         const  me = this;
         if (Ext.getCmp('lgGROSSISTEID').getValue() === null) {
             Ext.MessageBox.alert('Error Message', 'Renseignez le Grossiste ');
+        } else if (me.saisieLots && !me.sansDemandeLot) {
+            /* plan du 21/11, point 16.1 : la petite fenetre du lot, puis l'ajout (avec ou sans lot) */
+            testextjs.view.commandemanagement.order.action.LotsCommande.ouvrirSaisie({
+                familleId: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(), orderId: me.getNameintern(),
+                grossisteId: Ext.getCmp('lgGROSSISTEID').getValue(), statut: str_STATUT, qte: Ext.getCmp('int_QUANTITE').getValue()
+            }, Ext.getCmp('str_NAME').getRawValue(), function () {
+                me.sansDemandeLot = true;
+                try {
+                    me.onAddNewItem();
+                } finally {
+                    me.sansDemandeLot = false;
+                }
+            }, function (data) {
+                me.nameintern = data.orderId;
+                me.onRechClick();
+                Ext.getCmp('int_QUANTITE').setValue(1);
+                Ext.getCmp('str_NAME').focus(true, 100, function () {
+                    Ext.getCmp('str_NAME').setValue("");
+                    Ext.getCmp('str_NAME').selectText(0, 1);
+                    me.getCommandeAmount(data.orderId);
+                });
+            }, function () {
+                Ext.getCmp('int_QUANTITE').focus(true, 50);
+            });
         } else {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({

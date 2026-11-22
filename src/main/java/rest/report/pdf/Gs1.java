@@ -230,7 +230,16 @@ public final class Gs1 {
                     champs.put(ai, s.substring(debut, fin));
                     i = fin;
                 } else {
-                    break; // identifiant inconnu : on s'arrete (le reste n'est pas lisible sans table complete)
+                    /*
+                     * plan du 21/11, point 16.1 : identifiant non utilise (21 numero de serie, 11 date de fabrication,
+                     * 710 code national...) : saute selon sa longueur GS1 au lieu d'arreter la lecture (le lot ou la
+                     * date qui suivent etaient perdus) ; inconnu de la table : on s'arrete comme avant
+                     */
+                    int saut = sauter(s, i);
+                    if (saut <= i) {
+                        break;
+                    }
+                    i = saut;
                 }
             }
         }
@@ -252,6 +261,98 @@ public final class Gs1 {
         c.lot = vide(champs.get("10"));
         c.cip = vide(champs.get("240"));
         return c;
+    }
+
+    /**
+     * Position qui suit le champ GS1 commencant en {@code i} (identifiant non lu), ou {@code i} s'il est inconnu.
+     * Longueurs de la norme GS1 : fixes (00, 02, 03, 04, 11 a 20, 31xx a 36xx, 41x, 7003...) ou variables jusqu'au
+     * separateur GS (21, 22, 30, 37, 90 a 99, 24x, 25x, 40x, 42x, 71x...).
+     */
+    static int sauter(String s, int i) {
+        if (i + 2 > s.length() || !Character.isDigit(s.charAt(i)) || !Character.isDigit(s.charAt(i + 1))) {
+            return i;
+        }
+        String ai2 = s.substring(i, i + 2);
+        int fixe = -1, longueurAi = 2;
+        switch (ai2) {
+        case "00":
+            fixe = 18;
+            break;
+        case "02":
+        case "03":
+            fixe = 14;
+            break;
+        case "04":
+            fixe = 16;
+            break;
+        case "11":
+        case "12":
+        case "13":
+        case "14":
+        case "15":
+        case "16":
+        case "18":
+        case "19":
+            fixe = 6;
+            break;
+        case "20":
+            fixe = 2;
+            break;
+        case "21":
+        case "22":
+        case "30":
+        case "37":
+        case "90":
+        case "91":
+        case "92":
+        case "93":
+        case "94":
+        case "95":
+        case "96":
+        case "97":
+        case "98":
+        case "99":
+            break; // variable, identifiant sur 2 chiffres
+        case "31":
+        case "32":
+        case "33":
+        case "34":
+        case "35":
+        case "36":
+            fixe = 6;
+            longueurAi = 4;
+            break;
+        case "41":
+            fixe = 13;
+            longueurAi = 3;
+            break;
+        case "24":
+        case "25":
+        case "40":
+        case "42":
+        case "71":
+            longueurAi = 3; // variable, identifiant sur 3 chiffres
+            break;
+        case "70":
+            longueurAi = 4;
+            if (s.startsWith("7003", i)) {
+                fixe = 10;
+            } else if (s.startsWith("7006", i) || s.startsWith("7007", i)) {
+                fixe = 6;
+            }
+            break;
+        default:
+            return i;
+        }
+        int debut = i + longueurAi;
+        if (debut > s.length()) {
+            return i;
+        }
+        if (fixe >= 0) {
+            return Math.min(s.length(), debut + fixe);
+        }
+        int fin = s.indexOf(GS, debut);
+        return fin < 0 ? s.length() : fin;
     }
 
     private static String vide(String v) {

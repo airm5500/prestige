@@ -3694,3 +3694,10 @@ table.pv-bulle td.n { text-align: right; white-space: nowrap; padding-left: 10px
 .x-btn .x-btn-icon-el.ic7-attente { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e67e22' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M10 8v8M14 8v8'/%3E%3C/g%3E%3C/svg%3E") !important; }
 .x-btn .x-btn-icon-el.ic7-ventes-attente { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/g%3E%3C/svg%3E") !important; }
 .x-btn .x-btn-icon-el.ic7-mobile { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Crect x='6' y='2' width='12' height='20' rx='2'/%3E%3Cpath d='M10 18h4'/%3E%3Cpath d='M9 8h6M9 11h4'/%3E%3C/g%3E%3C/svg%3E") !important; }
+
+/* Plan du 21/11, point 16.1 : lot et peremption en commande en cours */
+.lc-fenetre .lc-produit { font-size: 13px; margin-bottom: 8px; color: #1e3a5f; }
+.lc-fenetre .lc-apercu { min-height: 18px; font-size: 12px; }
+.lc-fenetre .lc-aide, .lc-gris { color: #7f8c8d; font-size: 11px; }
+.lc-ok { color: #1e8449; font-weight: 700; }
+.lc-ko { color: #c0392b; font-weight: 700; }

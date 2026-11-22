@@ -46,7 +46,7 @@ public final class RubriqueParametre {
             new Rubrique("COMMANDE", "Commandes, PharmaML et achats", "#16a085", "KEY_PHARMAML", "KEY_DELAI_REAPPRO",
                     "KEY_DAY_SEUIL", "KEY_OPTION_SUGGESTION", "KEY_NETTOYER_SUGGESTION", "KEY_POINTAGE_BL",
                     "KEY_CONTROLE_ACHAT", "KEY_LAST_ORDER_COMMAND", "KEY_AFFICHER_STOCK_GROSSISTE", "KEY_RISQUE_",
-                    "SEMOIS", "Q1", "Q2", "Q3", "KEY_DAY"),
+                    "SEMOIS", "Q1", "Q2", "Q3", "KEY_DAY", "KEY_SAISIE_PEREMPTION_COMMANDE"),
             new Rubrique("PREVISION", "Prévisions et analyses", "#8e44ad", "KEY_PREVISION", "ABC_",
                     "KEY_OBJECTIF_TAUX_MAR", "KEY_TABLEAU_BORD"),
             new Rubrique("ETIQUETTE", "Étiquettes", "#d35400", "KEY_ETIQUETTE"),
