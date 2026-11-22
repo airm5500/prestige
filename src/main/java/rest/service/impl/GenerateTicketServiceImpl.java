@@ -4380,14 +4380,27 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
     }
 
+    /** Plan du 21/11, point 8.1 : etat d'un envoi du ticket Z sur une periode sans mouvement. */
+    static final String SANS_MOUVEMENT = "Non envoyé : aucun mouvement sur la période";
+
     // @Asynchronous
     @Override
-    public void sendToSms(Params params) throws JSONException {
+    public String sendToSms(Params params) throws JSONException {
         TUser u = this.sessionHelperService.getCurrentUser();
         params.setOperateur(u);
-        String statut = this.smsService.sendSMSStatut(texteTicketZ(buildTicketZ(params)));
+        TicketRecapWrapper recap = buildTicketZ(params);
+        /*
+         * plan du 21/11, point 8.1 : periode sans mouvement -> rien a envoyer (avant : NullPointerException, « erreur
+         * interne » et « Échec : réessayer » dans le bouton)
+         */
+        if (recap == null) {
+            return SANS_MOUVEMENT;
+        }
+        String statut = this.smsService.sendSMSStatut(texteTicketZ(recap),
+                rest.service.impl.whatsapp.OrigineEnvoi.TICKET_Z, u == null ? null : u.getLgUSERID());
         /* plan du 09/11, point 13 : envoi trace dans le journal des evenements (jamais le texte) */
         tracerTicketZ(u, "SMS", statut);
+        return statut;
     }
 
     /**
@@ -4424,7 +4437,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
         TUser u = this.sessionHelperService.getCurrentUser();
         params.setOperateur(u);
-        JSONObject r = whatsAppService.envoyerTexte(numero, texteTicketZ(buildTicketZ(params)),
+        TicketRecapWrapper recap = buildTicketZ(params);
+        /* plan du 21/11, point 8.1 : periode sans mouvement -> rien a envoyer (avant : NullPointerException) */
+        if (recap == null) {
+            return new JSONObject().put("success", false).put("statut", "ECHEC").put("message", SANS_MOUVEMENT);
+        }
+        JSONObject r = whatsAppService.envoyerTexte(numero, texteTicketZ(recap),
                 rest.service.impl.whatsapp.OrigineEnvoi.TICKET_Z, u == null ? null : u.getLgUSERID());
         tracerTicketZ(u, "WhatsApp", rest.service.impl.whatsapp.OrigineEnvoi.etat(r.optString("statut", "ECHEC")));
         return r;

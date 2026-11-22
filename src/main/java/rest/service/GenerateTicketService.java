@@ -119,7 +119,8 @@ public interface GenerateTicketService {
 
     JSONObject printReglementFacture(String lgDossierReglementId, TUser user);
 
-    void sendToSms(Params params) throws JSONException;
+    /** Plan du 21/11, point 8.1 : renvoie l'etat de l'envoi (« Envoyé », « Échec », « Non envoyé : motif »). */
+    String sendToSms(Params params) throws JSONException;
 
     /**
      * Plan du 08/11, point 19 : ticket Z par WhatsApp (numero du SMS, texte seul) ; success, simule, statut, message.

@@ -80,7 +80,8 @@ public class Sms implements Runnable {
             try {
                 rest.service.SmsService smsService = (rest.service.SmsService) new javax.naming.InitialContext()
                         .lookup(jndiName);
-                smsService.sendSMS(getMessage());
+                /* plan du 21/11, point 8.1 : cloture de caisse (ancien ecran), tracee dans le journal des messages */
+                smsService.sendSMS(getMessage(), JournalMessages.CLOTURE_CAISSE, null);
                 return true;
             } catch (Exception e) {
                 LOG.log(Level.FINE, "Lookup SmsService impossible via " + jndiName, e);

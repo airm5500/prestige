@@ -931,6 +931,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'activiteequipes',
     // menu « BFR » (ANALYSE DE GESTION, plan du 19/11)
     'bfr',
+    // menu « Journal des messages » (CAMPAGNES SMS / WHATSAPP, plan du 21/11, point 8.1)
+    'journalmessages',
     // menu « Péremptions courtes » (GESTION DES COMMANDES, demande mobile 36 D12)
     'peremptionscourtes',
     // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
@@ -1081,6 +1083,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'activiteequipes',
     // menu « BFR » (plan du 19/11)
     'bfr',
+    // menu « Journal des messages » (plan du 21/11, point 8.1)
+    'journalmessages',
     // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
     'extranetsgrossistes',
     // menu « Péremptions courtes »

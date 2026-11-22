@@ -3711,3 +3711,10 @@ table.pv-bulle td.n { text-align: right; white-space: nowrap; padding-left: 10px
 .av-msg-echec { background: #fdecec; color: #c0392b; }
 .av-msg-canal { display: block; color: #6b7a8c; font-size: 10.5px; line-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .av-msg-aucun { color: #9aa7b5; }
+
+/* ===== Plan du 21/11, point 8.1 : journal des messages (SMS et WhatsApp) ===== */
+.jm-compteurs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px 0; }
+.jm-compteur { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; line-height: 18px; white-space: nowrap; }
+.jm-compteur b { margin-left: 4px; }
+.jm-compteur.jm-total { background: #1e3a5f; color: #fff; }
+.jm-journal .av-msg { white-space: nowrap; }
