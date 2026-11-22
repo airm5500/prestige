@@ -65,6 +65,20 @@ public class ClientTelephoneRessource {
         return reponse(new JSONObject().put("success", true).put("modifier", autorise()));
     }
 
+    /**
+     * Retour du 22/11 sur le point 8.3 : indicatif du pays de l'officine et aide, pour que les ecrans controlent les
+     * numeros comme le serveur (view/commun/TelephoneSaisie.js). Aucun droit particulier : une session suffit.
+     */
+    @GET
+    @Path("pays")
+    public Response pays() {
+        if (utilisateur() == null) {
+            return refus(Constant.DECONNECTED_MESSAGE);
+        }
+        return reponse(new JSONObject().put("success", true).put("indicatif", util.TelephoneCi.indicatifPays())
+                .put("aide", util.TelephoneCi.aide()));
+    }
+
     /** Corps : clientId, telephone, canal (SMS ou WHATSAPP), accordExplicite. */
     @POST
     public Response enregistrer(String corps) {

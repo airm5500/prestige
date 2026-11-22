@@ -14,6 +14,7 @@
  * accordExplicite} pour la grille, facultative : par defaut, les champs #canal et #accord de l'onglet).
  */
 Ext.define('testextjs.view.commun.CrayonTelephone', {
+    requires: ['testextjs.view.commun.TelephoneSaisie'],
     singleton: true,
     URL: '../api/v1/client-telephone',
     /** null : pas encore lu ; puis true / false. */
@@ -46,9 +47,9 @@ Ext.define('testextjs.view.commun.CrayonTelephone', {
             }});
     },
 
-    /** Un mobile ivoirien a dix chiffres (01, 05, 07) ? */
+    /** Numero valide selon les regles du serveur (mobile ivoirien, ou etranger avec son indicatif : retour du 22/11) ? */
     valide: function (tel) {
-        return /^0[157][0-9]{8}$/.test(String(tel || '').replace(/[\s.\-]/g, ''));
+        return testextjs.view.commun.TelephoneSaisie.controler(tel).valide;
     },
 
     colonne: function (options) {

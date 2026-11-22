@@ -54,7 +54,7 @@ public final class RubriqueParametre {
                     "KEY_RAPPEL", "KEY_GERE_ORDONCIER", "KEY_MONOGRAPHIE"),
             new Rubrique("MESSAGE", "SMS, WhatsApp, e-mails et notifications", "#27ae60", "KEY_SMS", "SMS_",
                     "KEY_WHATSAPP", "KEY_MAIL", "KEY_HEURE_EMAIL", "KEY_HEURE_ENVOI_SMS", "KEY_NOTIFICATION",
-                    "KEY_INTERVAL_SEND"),
+                    "KEY_INTERVAL_SEND", "KEY_INDICATIF_PAYS"),
             new Rubrique("RH", "Ressources humaines et mobile", "#2c3e50", "KEY_RH_", "KEY_MOBILE",
                     "KEY_CONNEXION_BADGE"),
             new Rubrique("TVA", "TVA et comptabilité", "#6c5ce7", "KEY_TVA", "TVA_", "KEY_TAUX_CODE_TABLEAU"),

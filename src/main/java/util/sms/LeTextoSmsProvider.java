@@ -61,8 +61,15 @@ public class LeTextoSmsProvider implements SmsProvider {
                 .build();
     }
 
-    /** "0709133208" / "+2250709133208" / "225 07 09..." -> "2250709133208". */
+    /**
+     * "0709133208" / "+2250709133208" / "225 07 09..." -> "2250709133208". Retour du 22/11 : un numero etranger («
+     * +32470123456 ») part avec son propre indicatif ; un numero non reconnu garde la regle d'avant.
+     */
     static String toInternational(String localNumber) {
+        util.TelephoneCi.Resultat r = util.TelephoneCi.controler(localNumber);
+        if (r.isValide()) {
+            return r.getInternational();
+        }
         String num = StringUtils.trimToEmpty(localNumber).replaceAll("[\\s.-]", "");
         if (num.startsWith("+")) {
             num = num.substring(1);

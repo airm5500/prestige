@@ -1560,7 +1560,7 @@ public class ClientServiceImpl implements ClientService {
         util.TelephoneCi.Resultat t = util.TelephoneCi.controler(saisie);
         if (!t.isValide()) {
             /* le numero saisi n'est ni journalise ni repris dans le message */
-            return "Téléphone : numéro ivoirien attendu, dix chiffres commençant par 01, 05 ou 07.";
+            return "Téléphone : numéro invalide. " + util.TelephoneCi.aide();
         }
         client.setStrTELEPHONE(t.getLocal());
         return null;

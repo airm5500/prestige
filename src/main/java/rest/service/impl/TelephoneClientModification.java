@@ -25,11 +25,12 @@ import util.TelephoneCi;
  * enregistre le numero.
  *
  * <p>
- * Regles : tout client actif, quel que soit son type ; numero mobile ivoirien valide (dix chiffres, 01, 05 ou 07), zero
- * de tete retabli s'il a ete perdu ; numero UNIQUE parmi les clients du meme type. Le numero est ecrit dans
- * {@code str_TELEPHONE} ; pour un client standard, aussi dans l'ancien champ {@code str_ADRESSE} que lit la caisse
- * (meme regle que la modification depuis la vente). Le droit {@code P_CLIENT_STANDARD_MAJ} est verifie par la
- * ressource. Le numero n'est jamais journalise.
+ * Regles : tout client actif, quel que soit son type ; numero valide selon {@link TelephoneCi} : mobile ivoirien (dix
+ * chiffres, 01, 05 ou 07, zero de tete retabli s'il a ete perdu) ou, retour du 22/11, numero etranger ecrit avec son
+ * indicatif (+32 470 12 34 56), garde sous la forme +32470123456 ; numero UNIQUE parmi les clients du meme type. Le
+ * numero est ecrit dans {@code str_TELEPHONE} ; pour un client standard, aussi dans l'ancien champ {@code str_ADRESSE}
+ * que lit la caisse (meme regle que la modification depuis la vente). Le droit {@code P_CLIENT_STANDARD_MAJ} est
+ * verifie par la ressource. Le numero n'est jamais journalise.
  */
 @Stateless
 public class TelephoneClientModification {
@@ -61,8 +62,7 @@ public class TelephoneClientModification {
     }
 
     static String messageInvalide(TelephoneCi.Resultat r) {
-        return "Numéro invalide : " + r.getMotif()
-                + ". Un numéro ivoirien compte dix chiffres et commence par 01, 05 ou 07.";
+        return "Numéro invalide : " + r.getMotif() + ". " + TelephoneCi.aide();
     }
 
     /** Un client standard porte aussi son numero dans l'ancien champ adresse (lu par la caisse et les SMS). */

@@ -1,4 +1,5 @@
 Ext.define('testextjs.view.vente.user.addClientAssurance', {
+    requires: ['testextjs.view.commun.TelephoneSaisie'],
     extend: 'Ext.window.Window',
     xtype: 'addaddclientwindow',
     autoShow: false,
@@ -301,8 +302,10 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     flex: 1,
                                                     allowBlank: true,
                                                     /* meme controle que le client standard (le serveur le refait : util.TelephoneCi) */
-                                                    regex: /^(\+?225|00225)?[\s.\-()]*0[157]([\s.\-()]*[0-9]){8}[\s.\-()]*$/,
-                                                    regexText: 'Numéro ivoirien attendu : dix chiffres commençant par 01, 05 ou 07.',
+                                                    /* retour du 22/11 : numero etranger accepte avec son indicatif */
+                                                    validator: function (v) {
+                                                        return testextjs.view.commun.TelephoneSaisie.validateur(v);
+                                                    },
                                                     enableKeyEvents: true,
                                                     listeners: {
                                                         specialkey: function (field, e) {

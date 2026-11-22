@@ -80,8 +80,13 @@ class TelephoneClientModificationCoherenceTest {
             }
             String saisie = b.toString();
             TelephoneCi.Resultat res = TelephoneClientModification.controler(saisie);
-            if (res.isValide()) {
-                /* seules les formes ivoiriennes mobiles passent */
+            if (res.isValide() && res.getLocal().startsWith("+")) {
+                /* retour du 22/11 : « 00 » puis un autre indicatif = numero etranger, 8 a 15 chiffres, garde « + » */
+                assertTrue(saisie.startsWith("00") && !saisie.startsWith("00225") && !saisie.startsWith("000"), saisie);
+                assertEquals("+" + saisie.substring(2), res.getLocal(), saisie);
+                assertTrue(saisie.length() - 2 >= 8 && saisie.length() - 2 <= 15, saisie);
+            } else if (res.isValide()) {
+                /* sinon, seules les formes ivoiriennes mobiles passent */
                 assertTrue(res.getLocal().matches("0[157][0-9]{8}"), saisie);
                 String chiffres = saisie.replaceAll("^(00225|225)", "");
                 assertTrue(chiffres.equals(res.getLocal()) || ("0" + chiffres).equals(res.getLocal()), saisie);

@@ -675,6 +675,11 @@ public class SmsImpl implements SmsService {
         if (a.startsWith("tel:")) {
             a = a.substring(4);
         }
+        /* retour du 22/11 : un numero etranger est range tel que TelephoneCi le garde (« +32470123456 ») */
+        util.TelephoneCi.Resultat r = util.TelephoneCi.controler(a.startsWith("+") || a.startsWith("00") ? a : "+" + a);
+        if (r.isValide() && r.getLocal().startsWith("+")) {
+            return r.getLocal();
+        }
         if (a.startsWith("+225")) {
             a = a.substring(4);
         } else if (a.startsWith("225")) {

@@ -42,20 +42,19 @@ function modeEnvoiFactureValide(mode, champMail, champMobile) {
     return morceaux.length ? true : 'Envoi des factures par email : renseignez l\'adresse email de l\'organisme (champ Mail)';
 }
 
-/* Demande du 15/11 : en mode WhatsApp, le champ Mobile doit porter un numero mobile ivoirien (10 chiffres commencant
-   par 01, 05 ou 07, indicatif 225 accepte) ; meme regle que le serveur (util.TelephoneCi). */
+/* Demande du 15/11 : en mode WhatsApp, le champ Mobile doit porter un numero mobile valide (ivoirien : 10 chiffres
+   commencant par 01, 05 ou 07, indicatif 225 accepte ; etranger : avec son indicatif) ; meme regle que le serveur. */
 function numeroWhatsAppValide(champMobile) {
     var n = String(champMobile || '').replace(/[\s.\-()]/g, '').replace(/^\+/, '');
     if (n === '') {
         return 'Envoi des factures par WhatsApp : renseignez le numéro mobile de l\'organisme (champ Mobile)';
     }
-    if (/^00225/.test(n)) {
-        n = n.substring(5);
-    } else if (/^225/.test(n) && n.length === 13) {
-        n = n.substring(3);
-    }
-    if (!/^\d{10}$/.test(n) || !/^0[157]/.test(n)) {
-        return 'Envoi des factures par WhatsApp : numéro mobile invalide (10 chiffres, commençant par 01, 05 ou 07)';
+    /* retour du 22/11 (plan du 21/11, point 8.3) : numero etranger accepte avec son indicatif ; meme regle que le
+       serveur (view/commun/TelephoneSaisie.js = util.TelephoneCi) */
+    var r = testextjs.view.commun.TelephoneSaisie.controler(champMobile);
+    if (!r.valide) {
+        return 'Envoi des factures par WhatsApp : numéro mobile invalide (' + r.motif + '). '
+                + testextjs.view.commun.TelephoneSaisie.aide();
     }
     return true;
 }
@@ -132,7 +131,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
     xtype: 'addtierspayant',
     id: 'addtierspayantID',
     maximizable: true,
-    requires: [
+    requires: ['testextjs.view.commun.TelephoneSaisie', 
         'Ext.form.*',
         'Ext.window.Window',
         'testextjs.model.OptimisationQuantite',

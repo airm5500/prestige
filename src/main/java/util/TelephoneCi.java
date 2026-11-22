@@ -48,21 +48,90 @@ public final class TelephoneCi {
 
     private static final String INDICATIF = "225";
 
+    /**
+     * Indicatif du pays de l'officine (parametre KEY_INDICATIF_PAYS, 225 par defaut), pose au demarrage et relu
+     * regulierement par job.PaysOfficineBootstrap. Retour du 22/11 sur le point 8.3 : le logiciel peut etre installe
+     * hors de Cote d'Ivoire.
+     */
+    private static volatile String indicatifPays = INDICATIF;
+
+    /** Longueurs d'un numero international complet (indicatif compris), norme E.164. */
+    private static final int INTERNATIONAL_MIN = 8;
+    private static final int INTERNATIONAL_MAX = 15;
+    /** Longueurs d'un numero national hors Cote d'Ivoire (sans le zero de tete). */
+    private static final int NATIONAL_MIN = 6;
+    private static final int NATIONAL_MAX = 12;
+
     private TelephoneCi() {
     }
 
+    public static String indicatifPays() {
+        return indicatifPays;
+    }
+
+    /** Pose l'indicatif du pays de l'officine (« 225 », « +33 », « 0032 ») ; une valeur illisible remet 225. */
+    public static void indicatifPays(String valeur) {
+        indicatifPays = lireIndicatif(valeur);
+    }
+
+    static String lireIndicatif(String valeur) {
+        String n = valeur == null ? "" : valeur.replaceAll("[\\s+]", "");
+        if (n.startsWith("00")) {
+            n = n.substring(2);
+        }
+        return n.matches("[1-9][0-9]{0,2}") ? n : INDICATIF;
+    }
+
+    /** L'officine est en Cote d'Ivoire : les numeros sans indicatif suivent la regle ivoirienne. */
+    public static boolean paysCoteDIvoire() {
+        return INDICATIF.equals(indicatifPays);
+    }
+
+    /** Aide affichee avec un refus : ce qu'on attend selon le pays de l'officine. */
+    public static String aide() {
+        return aide(indicatifPays);
+    }
+
+    static String aide(String pays) {
+        return (INDICATIF.equals(pays) ? "Un numéro ivoirien compte dix chiffres et commence par 01, 05 ou 07 ; un"
+                : "Un") + " numéro étranger s'écrit avec son indicatif, par exemple +33 6 12 34 56 78.";
+    }
+
+    /**
+     * Controle selon le pays de l'officine. Retour du 22/11 sur le point 8.3 : un client peut avoir un numero etranger
+     * (belge, francais...). Un numero precede de « + » ou de « 00 » et d'un autre indicatif que celui de l'officine est
+     * un numero etranger : valide s'il compte 8 a 15 chiffres, garde sous la forme « +32470123456 ». Un numero du pays
+     * de l'officine suit, en Cote d'Ivoire, la regle d'avant (inchangee) ; ailleurs, 6 a 12 chiffres hors zero de tete.
+     */
     public static Resultat controler(String saisie) {
+        return controler(saisie, indicatifPays);
+    }
+
+    static Resultat controler(String saisie, String pays) {
         if (saisie == null || saisie.trim().isEmpty()) {
             return rejet("Numéro absent");
         }
         String brut = saisie.trim();
         // Separateurs toleres : espaces, points, tirets, parentheses, et un « + » en tete.
         String nettoye = brut.replaceAll("[\\s.\\-()]", "");
-        if (nettoye.startsWith("+")) {
+        boolean plus = nettoye.startsWith("+");
+        if (plus) {
             nettoye = nettoye.substring(1);
         }
         if (!nettoye.matches("\\d+")) {
             return rejet("Caractères non numériques");
+        }
+        /*
+         * « + » ou « 00 » puis un indicatif (jamais 0) : numero ecrit avec son indicatif ; un autre indicatif que celui
+         * de l'officine = etranger. « +07 08... » reste un numero du pays, comme avant.
+         */
+        String chiffres = !plus && nettoye.startsWith("00") ? nettoye.substring(2) : nettoye;
+        boolean avecIndicatif = (plus || nettoye.startsWith("00")) && !chiffres.startsWith("0");
+        if (avecIndicatif && !chiffres.startsWith(pays)) {
+            return etranger(chiffres);
+        }
+        if (!INDICATIF.equals(pays)) {
+            return autrePays(avecIndicatif, chiffres, pays);
         }
         if (nettoye.startsWith("00" + INDICATIF)) {
             nettoye = nettoye.substring(5);
@@ -133,6 +202,24 @@ public final class TelephoneCi {
             return n.replaceAll(".", "*");
         }
         return n.substring(0, n.length() - 2).replaceAll(".", "*") + n.substring(n.length() - 2);
+    }
+
+    /** Numero etranger, sans « + » ni « 00 » : indicatif et numero, 8 a 15 chiffres. Garde : « +32470123456 ». */
+    private static Resultat etranger(String chiffres) {
+        if (chiffres.length() < INTERNATIONAL_MIN || chiffres.length() > INTERNATIONAL_MAX) {
+            return rejet("Numéro étranger : nombre de chiffres incorrect (" + chiffres.length() + ")");
+        }
+        return new Resultat(true, "+" + chiffres, chiffres, "");
+    }
+
+    /** Numero du pays de l'officine, hors Cote d'Ivoire : 6 a 12 chiffres hors zero de tete. */
+    private static Resultat autrePays(boolean avecIndicatif, String chiffres, String pays) {
+        String national = avecIndicatif ? chiffres.substring(pays.length()) : chiffres;
+        String utile = national.startsWith("0") ? national.substring(1) : national;
+        if (utile.length() < NATIONAL_MIN || utile.length() > NATIONAL_MAX) {
+            return rejet("Nombre de chiffres incorrect (" + national.length() + ")");
+        }
+        return new Resultat(true, avecIndicatif ? "+" + chiffres : national, pays + utile, "");
     }
 
     private static Resultat rejet(String motif) {

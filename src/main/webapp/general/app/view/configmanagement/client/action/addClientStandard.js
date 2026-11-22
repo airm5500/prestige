@@ -22,6 +22,7 @@
  * dans l'enchainement sans avoir a chercher le curseur.
  */
 Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
+    requires: ['testextjs.view.commun.TelephoneSaisie'],
     extend: 'Ext.window.Window',
     xtype: 'addclientstandard',
     itemId: 'addClientStandard',
@@ -81,8 +82,11 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
                             // [157] et non [1570] : un numero commencant par 02 n'existe pas, et la
                             // classe fautive l'acceptait. Le serveur le refusait bien, mais l'ecran
                             // laissait l'operateur envoyer une saisie vouee a l'echec.
-                            regex: /^(\+?225|00225)?[\s.\-()]*0[157]([\s.\-()]*[0-9]){8}[\s.\-()]*$/,
-                            regexText: 'Numéro ivoirien attendu : dix chiffres commençant par 01, 05 ou 07.',
+                            /* retour du 22/11 (plan du 21/11, point 8.3) : numero etranger accepte avec son indicatif ;
+                               memes regles que le serveur (view/commun/TelephoneSaisie.js = util.TelephoneCi) */
+                            validator: function (v) {
+                                return testextjs.view.commun.TelephoneSaisie.validateur(v);
+                            },
                             enableKeyEvents: true
                         }, {
                             /* retours du 13/10 (point 14) : date de naissance et sexe, FACULTATIFS. Ils completent la
