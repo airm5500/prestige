@@ -70,6 +70,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                 reader: {type: 'json'}
             }
         });
+        /* plan du 21/11, point 13 : motif « journalier » du sens propose d'office */
+        PrestigeMotifReserve.proposer(storeMotifs, function () {
+            return win && !win.isDestroyed && win.down('#cboMotifReappro');
+        }, categorie);
         storeMotifs.load();
 
         var barreMotif = {

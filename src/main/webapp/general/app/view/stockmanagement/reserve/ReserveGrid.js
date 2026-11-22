@@ -51,13 +51,23 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         });
 
         // ---- Colonnes communes (identiques a la vue d'origine)
+        /*
+         * Plan du 21/11, point 13 : plus de defilement horizontal en 1366 px (la grille faisait jusqu'a 1 414 px sur
+         * REASSORT) : colonnes souples, en-tetes plus courts ; le libelle complet de chaque en-tete est en info-bulle.
+         */
         var columns = [
             {header: 'lg_FAMILLE_ID', dataIndex: 'lg_FAMILLE_ID', hidden: true, flex: 1},
-            {header: 'CIP', dataIndex: 'int_CIP', flex: 1, minWidth: 80},
-            {header: 'Designation', dataIndex: 'str_NAME', flex: 3, minWidth: 220},
-            {header: 'Emplacement', dataIndex: 'lg_ZONE_GEO_ID', flex: 1, minWidth: 200},
+            {header: 'CIP', dataIndex: 'int_CIP', flex: 1, minWidth: 70},
+            {header: 'Désignation', dataIndex: 'str_NAME', flex: 3, minWidth: 200},
+            {header: 'Emplacement', dataIndex: 'lg_ZONE_GEO_ID', flex: 1, minWidth: 110,
+                renderer: function (v, m) {
+                    if (v) {
+                        m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(tip(Ext.String.htmlEncode(v))) + '"';
+                    }
+                    return Ext.String.htmlEncode(v || '');
+                }},
             {
-                header: 'Stock Rayon', dataIndex: 'int_STOCK_RAYON', align: 'center', flex: 1, minWidth: 100,
+                header: 'Stock rayon', dataIndex: 'int_STOCK_RAYON', align: 'center', flex: 1, minWidth: 80,
                 renderer: function (v, m, r) {
                     var seuil = r.get('int_SEUIL_RESERVE');
                     if (seuil > 0 && v < seuil) {
@@ -66,17 +76,20 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                     return v;
                 }
             },
-            {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1, minWidth: 110},
-            {header: 'Seuil Reserve (maxi rayon)', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1.4, minWidth: 210},
+            {header: 'Stock réserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1, minWidth: 85},
+            {header: 'Seuil réserve', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1, minWidth: 90,
+                tooltip: 'Seuil réserve : stock maximum du rayon ; au-delà, le surplus part en réserve'},
             {
-                header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1, minWidth: 130,
+                header: 'Mini rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1, minWidth: 80,
+                tooltip: 'Seuil mini du rayon : en dessous, la réserve renvoie du stock au rayon',
                 hidden: mode !== 'REASSORT',
                 renderer: function (v) {
                     return (v === null || v === undefined || v === '') ? '-' : v;
                 }
             },
             {
-                header: 'Quantité Suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1, minWidth: 150,
+                header: 'Qté suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1, minWidth: 95,
+                tooltip: 'Quantité suggérée pour le mouvement',
                 renderer: function (v, m, r) {
                     // Onglet REASSORT : hover pedagogique, y compris quand la cellule est vide
                     if (mode === 'REASSORT') {

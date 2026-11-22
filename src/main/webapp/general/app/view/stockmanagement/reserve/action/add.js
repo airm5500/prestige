@@ -76,6 +76,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                 extraParams: {categorie: categorieSuggestion}, reader: {type: 'json'}
             }
         });
+        /* plan du 21/11, point 13 : motif « journalier » du sens propose d'office */
+        PrestigeMotifReserve.proposer(storeMotifs, function () {
+            return win && !win.isDestroyed && win.down('#cboMotifLigne');
+        }, categorieSuggestion);
         storeMotifs.load();
 
         var form = new Ext.form.Panel({

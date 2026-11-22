@@ -19,6 +19,27 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         RAYON: 'REAPPRO RAYON (envoi en rayon)',
         RESERVE: 'REAPPRO RESERVE (envoi en reserve)'
     },
+    /* plan du 21/11, point 13 : libelle court dans la colonne, libelle complet dans l'info-bulle */
+    libelleSens: {
+        RAYON: 'Vers le rayon',
+        RESERVE: 'Vers la réserve'
+    },
+    libelleOrigine: {
+        MANUELLE: 'manuelle (créée par un utilisateur)',
+        AUTOMATIQUE: 'automatique (calculée par le système)',
+        SYSTEME: 'système'
+    },
+
+    /** Info-bulle bleue du theme au survol d'une donnee (meme style que les autres onglets de la reserve). */
+    bulleDonnee: function (m, texte) {
+        if (!texte) {
+            return;
+        }
+        /* info-bulle bleue du theme (.x-tip.bulle-theme : fond bleu, texte blanc) */
+        var html = '<b>' + Ext.String.htmlEncode(texte) + '</b>';
+        m.tdAttr = (m.tdAttr ? m.tdAttr + ' ' : '') + 'data-qtip="' + Ext.String.htmlEncode(html) + '"';
+    },
+
     libelleStatut: {
         A_TRAITER: {texte: 'A traiter', couleur: '#b06000'},
         EN_COURS: {texte: 'En cours', couleur: '#0b57d0'},
@@ -176,78 +197,50 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             {text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaireLibre},
             '-',
             /* Plan du 08/11, point 9a : suppression des suggestions cochees, un seul motif, confirmation dans le bouton */
-            {xtype: 'textfield', itemId: 'fMotifSuppression', emptyText: 'Motif de suppression', width: 190, maxLength: 500},
+            /* plan du 21/11, point 13 : le meme champ sert de motif (facultatif) a l'annulation des mouvements */
+            {xtype: 'textfield', itemId: 'fMotifSuppression', emptyText: 'Motif (suppression, annulation)', width: 200, maxLength: 500},
             {text: 'Supprimer la sélection', itemId: 'btnSupprimerSelection', disabled: true, scope: me,
                 handler: me.onSupprimerSelection}
         ];
 
-        // Boutons a icone, sur le meme modele que la suppression.
-        var colOuvrir = {
-            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
-            sortable: false, menuDisabled: true,
+        /*
+         * Plan du 21/11, point 13 : les cinq icones (ouvrir, inventaire, imprimer, controle, annulation) sont reunies
+         * dans une seule colonne « Actions », dans cet ordre ; la suppression garde sa colonne a part. Annulation : la
+         * fleche de retour rouge « annuler le mouvement » remplace le retour arriere de lecteur (⏪) ; la confirmation se
+         * fait sur l'icone elle-meme (premier clic : halo rouge, « cliquez encore pour confirmer » ; second clic dans les
+         * 5 s : annulation), sans fenetre. Le motif facultatif est celui saisi dans la barre.
+         */
+        var bulle = function (titre, texte) {
+            return '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>' + titre + '</b><br>' + texte + '</div>';
+        };
+        var colActions = {
+            xtype: 'actioncolumn', header: 'Actions', itemId: 'colActions', width: 118, align: 'center',
+            sortable: false, menuDisabled: true, tdCls: 'sugg-actions',
             items: [{
                     icon: 'resources/images/icons/fam/page_white_edit.png',
-                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Ouvrir la suggestion</b><br>Pour la consulter ou la traiter.</div>',
+                    tooltip: bulle('Ouvrir la suggestion', 'Pour la consulter ou la traiter.'),
                     handler: function (g, rowIndex) {
                         me.ouvrir(g.getStore().getAt(rowIndex));
                     }
-                }]
-        };
-
-        var colInventaire = {
-            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
-            sortable: false, menuDisabled: true,
-            items: [{
+                }, {
                     icon: 'resources/images/icons/fam/inventaire.png',
-                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Inventaire de cette suggestion</b><br>Cree un inventaire reserve portant sur ses produits.</div>',
+                    tooltip: bulle('Inventaire de cette suggestion', 'Cree un inventaire reserve portant sur ses produits.'),
                     handler: function (g, rowIndex) {
                         me.onCreerInventaire(g.getStore().getAt(rowIndex));
                     }
-                }]
-        };
-
-        // Impression : le compte rendu si la suggestion a ete traitee, la suggestion sinon.
-        var colImprimer = {
-            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
-            sortable: false, menuDisabled: true,
-            items: [{
+                }, {
+                    // Impression : le compte rendu si la suggestion a ete traitee, la suggestion sinon.
                     icon: 'resources/images/icons/fam/printer.png',
-                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Imprimer</b><br>La suggestion tant qu\'elle est a traiter, le compte rendu une fois traitee.</div>',
+                    tooltip: bulle('Imprimer', 'La suggestion tant qu\'elle est a traiter, le compte rendu une fois traitee.'),
                     handler: function (g, rowIndex) {
                         me.onImprimerLigne(g.getStore().getAt(rowIndex));
                     }
-                }]
-        };
-
-        var colAnnuler = {
-            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
-            sortable: false, menuDisabled: true,
-            items: [{
-                    icon: 'resources/images/icons/fam/control_rewind.png',
-                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Annuler les mouvements</b><br>Un mouvement inverse est cree : rien n\'est efface de l\'historique.</div>',
+                }, {
+                    // Validation du controle : confirme que le deplacement a bien ete fait dans les rayons.
+                    // Une suggestion deja controlee affiche la coche verte, sans action possible : le nom du
+                    // premier controleur ne doit pas pouvoir etre remplace.
                     getClass: function (v, m, rec) {
-                        // Rien a annuler tant que rien n'a ete deplace, et action reservee
-                        // aux detenteurs du privilege.
-                        return (rec.get('str_STATUT') === 'TRAITEE' && me.peutAnnuler)
-                                ? '' : 'x-hidden';
-                    },
-                    handler: function (g, rowIndex) {
-                        me.onAnnuler(g.getStore().getAt(rowIndex));
-                    }
-                }]
-        };
-
-        // Validation du controle : confirme que le deplacement a bien ete fait dans les rayons.
-        // Une suggestion deja controlee affiche la coche verte, sans action possible : le nom du
-        // premier controleur ne doit pas pouvoir etre remplace.
-        var colControler = {
-            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
-            sortable: false, menuDisabled: true,
-            items: [{
-                    getClass: function (v, m, rec) {
-                        // Seule une suggestion traitee peut etre controlee ; une fois controlee,
-                        // la coche reste visible mais l'action ne fait plus rien.
-                        return (rec.get('str_STATUT') === 'TRAITEE') ? '' : 'x-hidden';
+                        return (rec.get('str_STATUT') === 'TRAITEE') ? 'sugg-controler' : 'x-hidden';
                     },
                     getTip: function (v, m, rec) {
                         return rec.get('bl_CONTROLEE')
@@ -258,6 +251,25 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                     icon: 'resources/images/icons/fam/accept.png',
                     handler: function (g, rowIndex) {
                         me.onControler(g.getStore().getAt(rowIndex));
+                    }
+                }, {
+                    icon: 'resources/images/icons/fam/annuler_mouvement.svg',
+                    getTip: function (v, m, rec) {
+                        return me.annulerAConfirmer === rec.get('lg_SUGGESTION_RESERVE_ID')
+                                ? bulle('Cliquez encore pour confirmer', 'Annuler les mouvements de ' + Ext.String.htmlEncode(rec.get('str_REF') || '') + '.')
+                                : bulle('Annuler le mouvement', 'Un mouvement inverse est cree : rien n\'est efface de l\'historique.'
+                                        + '<br>Cliquez deux fois : la confirmation se fait sur l\'icone.');
+                    },
+                    getClass: function (v, m, rec) {
+                        // Rien a annuler tant que rien n'a ete deplace, et action reservee
+                        // aux detenteurs du privilege.
+                        if (rec.get('str_STATUT') !== 'TRAITEE' || !me.peutAnnuler) {
+                            return 'x-hidden';
+                        }
+                        return me.annulerAConfirmer === rec.get('lg_SUGGESTION_RESERVE_ID') ? 'sugg-annuler sugg-annuler-confirmer' : 'sugg-annuler';
+                    },
+                    handler: function (g, rowIndex) {
+                        me.onAnnuler(g.getStore().getAt(rowIndex));
                     }
                 }]
         };
@@ -296,79 +308,103 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             // Case a cocher a gauche de la reference : cocher des suggestions puis cliquer
             // "Creer un inventaire" cible directement leurs produits.
             selModel: Ext.create('Ext.selection.CheckboxModel', {checkOnly: true, mode: 'MULTI'}),
+            /*
+             * Plan du 21/11, point 13 : plus de defilement horizontal en 1366 px (la liste faisait 1 520 px) : colonnes
+             * souples, en-tetes plus courts, icones dans une seule colonne « Actions ». Au survol de chaque donnee,
+             * l'info-bulle bleue du theme (comme sur les autres onglets) donne la valeur complete et son sens.
+             */
             columns: [
-                // Reference et date/heure elargies : elles doivent se lire en entier, sans troncature.
                 {
                     // Meme code couleur que la colonne du sens : la reference se lit d'un coup
                     // d'oeil sans avoir a parcourir la ligne.
-                    header: 'Reference', dataIndex: 'str_REF', width: 175,
+                    header: 'Référence', dataIndex: 'str_REF', width: 140,
                     renderer: function (v, m, rec) {
                         m.style = 'color:' + (rec.get('str_CATEGORIE') === 'RESERVE'
                                 ? '#c26500' : '#256b2a') + ';font-weight:bold;';
-                        return v;
+                        me.bulleDonnee(m, 'Suggestion ' + (v || '') + (rec.get('str_COMMENTAIRE') ? ' — ' + rec.get('str_COMMENTAIRE') : ''));
+                        return Ext.String.htmlEncode(v || '');
                     }
                 },
-                {header: 'Creee le', dataIndex: 'dt_CREATED', width: 150,
+                {header: 'Créée le', dataIndex: 'dt_CREATED', width: 150,
                     /* Plan du 08/11, point 9b : une suggestion encore a traiter reste affichee quelle que soit la periode
                        (retour du 03/11) ; si elle est anterieure a la periode choisie, elle le dit. */
                     renderer: function (v, m, rec) {
-                        return me.estAnterieure(rec) ? Ext.String.htmlEncode(v || '')
-                                + ' <span class="sugg-ancienne" data-qtip="Encore à traiter : affichée quelle que soit la période choisie."'
-                                + ' style="background:#fde7c8;color:#8a4b00;border-radius:3px;padding:0 4px;font-size:10px;font-weight:bold">ancienne</span>'
-                                : Ext.String.htmlEncode(v || '');
+                        if (me.estAnterieure(rec)) {
+                            return Ext.String.htmlEncode(v || '')
+                                    + ' <span class="sugg-ancienne" data-qtip="Encore à traiter : affichée quelle que soit la période choisie."'
+                                    + ' style="background:#fde7c8;color:#8a4b00;border-radius:3px;padding:0 4px;font-size:10px;font-weight:bold">ancienne</span>';
+                        }
+                        me.bulleDonnee(m, 'Créée le ' + (v || '') + (rec.get('dt_TRAITEE') ? ' · traitée le ' + rec.get('dt_TRAITEE') : ''));
+                        return Ext.String.htmlEncode(v || '');
                     }},
                 {
-                    header: 'Sens du mouvement', dataIndex: 'str_CATEGORIE', flex: 1, minWidth: 200,
+                    header: 'Sens', dataIndex: 'str_CATEGORIE', flex: 1, minWidth: 100,
                     renderer: function (v, m) {
                         // Meme code couleur que les onglets : reserve en orange, rayon en vert.
                         m.style = 'color:' + (v === 'RESERVE' ? '#c26500' : '#256b2a')
                                 + ';font-weight:bold;';
-                        return me.libelleCategorie[v] || v;
+                        me.bulleDonnee(m, me.libelleCategorie[v] || v);
+                        return me.libelleSens[v] || v;
                     }
                 },
                 {
-                    header: 'Produits', dataIndex: 'nb_produits', width: 70, align: 'center',
+                    header: 'Produits', dataIndex: 'nb_produits', width: 64, align: 'center',
                     renderer: function (v, m) {
                         m.style = 'font-weight:bold;';
-                        return v === null || v === undefined ? 0 : v;
+                        var n = v === null || v === undefined ? 0 : v;
+                        me.bulleDonnee(m, n + ' produit(s) dans la suggestion');
+                        return n;
                     }
                 },
-                {header: 'Origine', dataIndex: 'str_ORIGINE', width: 100},
+                {header: 'Origine', dataIndex: 'str_ORIGINE', width: 85,
+                    renderer: function (v, m) {
+                        me.bulleDonnee(m, 'Origine : ' + (me.libelleOrigine[v] || v || ''));
+                        return Ext.String.htmlEncode(v || '');
+                    }},
                 {
-                    header: 'Statut', dataIndex: 'str_STATUT', width: 95, align: 'center',
+                    header: 'Statut', dataIndex: 'str_STATUT', width: 80, align: 'center',
                     renderer: function (v, m) {
                         var s = me.libelleStatut[v] || {texte: v, couleur: '#555555'};
                         m.style = 'color:' + s.couleur + ';font-weight:bold;';
+                        me.bulleDonnee(m, 'Statut : ' + s.texte);
                         return s.texte;
                     }
                 },
-                {header: 'Motif', dataIndex: 'motif_libelle', flex: 1, minWidth: 140},
-                {header: 'Creee par', dataIndex: 'str_USER_CREATEUR', width: 120},
-                {header: 'Traitee par', dataIndex: 'str_USER_TRAITANT', width: 120},
+                {header: 'Motif', dataIndex: 'motif_libelle', flex: 1, minWidth: 100,
+                    renderer: function (v, m) {
+                        me.bulleDonnee(m, v ? 'Motif : ' + v : 'Sans motif');
+                        return Ext.String.htmlEncode(v || '');
+                    }},
+                {header: 'Créée par', dataIndex: 'str_USER_CREATEUR', width: 95,
+                    renderer: function (v, m) {
+                        me.bulleDonnee(m, v ? 'Créée par ' + v : '');
+                        return Ext.String.htmlEncode(v || '');
+                    }},
+                {header: 'Traitée par', dataIndex: 'str_USER_TRAITANT', width: 95,
+                    renderer: function (v, m, rec) {
+                        me.bulleDonnee(m, v ? 'Traitée par ' + v + (rec.get('dt_TRAITEE') ? ' le ' + rec.get('dt_TRAITEE') : '') : '');
+                        return Ext.String.htmlEncode(v || '');
+                    }},
                 {
-                    header: 'Controle par', dataIndex: 'str_USER_CONTROLE', width: 140,
+                    header: 'Contrôle', dataIndex: 'str_USER_CONTROLE', width: 100,
                     renderer: function (v, m, rec) {
                         if (rec.get('bl_CONTROLEE')) {
                             m.style = 'color:#2a6b2e;font-weight:bold;';
                             var obs = rec.get('str_OBSERVATION_CONTROLE');
-                            m.tdAttr = 'data-qtip="Controlee le ' + (rec.get('dt_CONTROLE') || '')
-                                    + (obs ? ' - ' + Ext.String.htmlEncode(obs) : '') + '"';
-                            return v;
+                            me.bulleDonnee(m, 'Contrôlée par ' + (v || '') + ' le ' + (rec.get('dt_CONTROLE') || '') + (obs ? ' — ' + obs : ''));
+                            return Ext.String.htmlEncode(v || '');
                         }
                         // Une suggestion non traitee n'a pas vocation a etre controlee : on ne
                         // signale l'attente que sur celles dont les mouvements sont passes.
                         if (rec.get('str_STATUT') === 'TRAITEE') {
                             m.style = 'color:#b06000;font-weight:bold;';
+                            me.bulleDonnee(m, 'À contrôler : confirmer que le déplacement a bien été réalisé (coche verte des actions)');
                             return 'A controler';
                         }
                         return '';
                     }
                 },
-                colOuvrir,
-                colInventaire,
-                colImprimer,
-                colControler,
-                colAnnuler,
+                colActions,
                 colSupprimer
             ],
             dockedItems: [
@@ -545,42 +581,72 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         });
     },
 
+    /**
+     * Plan du 21/11, point 13 : annulation des mouvements d'une suggestion traitee, confirmee sur l'icone elle-meme
+     * (fleche de retour rouge), sans fenetre. Premier clic : halo rouge et « Cliquez encore pour confirmer » pendant
+     * 5 s ; second clic : annulation (mouvement inverse). Un double clic accidentel (moins de 400 ms) est ignore,
+     * comme pour la suppression. Motif facultatif : celui saisi dans la barre (« Motif »). Le resultat s'affiche
+     * dans un message qui disparait seul.
+     */
     onAnnuler: function (rec) {
         var me = this;
         if (!rec) {
             return;
         }
-        Ext.MessageBox.show({
-            title: 'Annuler les mouvements',
-            msg: 'Motif de l\'annulation pour ' + Ext.String.htmlEncode(rec.get('str_REF') || '') + ' :',
-            buttons: Ext.MessageBox.OKCANCEL,
-            prompt: true,
-            width: 460,
-            fn: function (btn, texte) {
-                    if (btn !== 'ok') {
-                        return;
-                    }
-                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Annulation en cours');
-                    Ext.Ajax.request({
-                        method: 'PUT',
-                        url: '../api/v1/suggestion-reserve/'
-                                + encodeURIComponent(rec.get('lg_SUGGESTION_RESERVE_ID')) + '/annuler',
-                        jsonData: {motif: texte || ''},
-                        success: function (response) {
-                            progress.hide();
-                            var res = Ext.JSON.decode(response.responseText, true) || {};
-                            Ext.MessageBox.alert('Resultat de l\'annulation',
-                                    (res.message || '')
-                                    + (res.total_refuse > 0
-                                        ? '<br><br>Ouvrez la suggestion pour le detail des refus.' : ''));
-                            me.reloadGrid();
-                        },
-                        failure: function () {
-                            progress.hide();
-                            Ext.MessageBox.alert('Erreur', 'L\'annulation a echoue.');
-                        }
-                    });
+        var id = rec.get('lg_SUGGESTION_RESERVE_ID'), maintenant = Date.now();
+        if (!Ext.get('sugg-annuler-style')) {
+            Ext.util.CSS.createStyleSheet('.sugg-annuler-confirmer{background-color:#fde2e0 !important;border-radius:3px;'
+                    + 'box-shadow:0 0 0 3px #c0392b}', 'sugg-annuler-style');
+        }
+        var rafraichir = function () {
+            var i = me.getStore().indexOf(rec);
+            if (!me.isDestroyed && i >= 0) {
+                me.getView().refreshNode(i);
+            }
+        };
+        if (me.annulerAConfirmer !== id) {
+            me.annulerAConfirmer = id;
+            me.annulerDepuis = maintenant;
+            rafraichir();
+            clearTimeout(me.annulerMinuterie);
+            me.annulerMinuterie = setTimeout(function () {
+                if (me.annulerAConfirmer === id) {
+                    me.annulerAConfirmer = null;
+                    rafraichir();
                 }
+            }, 5000);
+            return;
+        }
+        if (maintenant - me.annulerDepuis < 400) {
+            return;
+        }
+        clearTimeout(me.annulerMinuterie);
+        me.annulerAConfirmer = null;
+        rafraichir();
+        var champ = me.down('#fMotifSuppression'), motif = Ext.String.trim((champ && champ.getValue()) || '');
+        var afficher = function (texte, alerte) {
+            me.dernierBilanAnnulation = texte;
+            if (window.PrestigeToast) {
+                PrestigeToast.afficher(texte, {niveau: alerte ? 'alerte' : 'ok', titre: 'Annulation ' + (rec.get('str_REF') || '')});
+            }
+        };
+        Ext.Ajax.request({
+            method: 'PUT',
+            url: '../api/v1/suggestion-reserve/' + encodeURIComponent(id) + '/annuler',
+            jsonData: {motif: motif},
+            success: function (response) {
+                var res = Ext.JSON.decode(response.responseText, true) || {};
+                afficher((res.message || (res.success === false ? 'Annulation impossible.' : 'Mouvements annulés.'))
+                        + (res.total_refuse > 0 ? ' Ouvrez la suggestion pour le détail des refus.' : ''),
+                        res.success === false || res.total_refuse > 0);
+                if (champ && res.success !== false) {
+                    champ.setValue('');
+                }
+                me.reloadGrid();
+            },
+            failure: function () {
+                afficher('L\'annulation a échoué.', true);
+            }
         });
     },
 

@@ -508,6 +508,11 @@ var PrestigeDroitsReserve = window.PrestigeDroitsReserve = (function () {
         return droits === null || typeof droits.voirSuggestions !== 'boolean' ? null : droits.voirSuggestions;
     }
 
+    /* plan du 21/11, point 13 : onglet LISTE RESERVE (droit P_RESERVE_LISTE). Meme convention : null tant que inconnu. */
+    function voirListe() {
+        return droits === null || typeof droits.voirListe !== 'boolean' ? null : droits.voirListe;
+    }
+
     /**
      * Apres la creation d'une suggestion : sans le droit de voir les suggestions, on ne l'ouvre pas, on dit qu'elle
      * sera traitee par une personne habilitee. Rend true si le message a ete affiche (l'appelant s'arrete alors).
@@ -521,8 +526,38 @@ var PrestigeDroitsReserve = window.PrestigeDroitsReserve = (function () {
         return true;
     }
 
-    return {charger: charger, voirSuggestions: voirSuggestions, demandeCreee: demandeCreee};
+    return {charger: charger, voirSuggestions: voirSuggestions, voirListe: voirListe, demandeCreee: demandeCreee};
 })();
+
+// ===================================================================
+//  MOTIF PAR DEFAUT D'UNE SUGGESTION DE RESERVE (plan du 21/11, point 13) : comme les deux boutons « Suggestion
+//  sur ... » depuis le 20/11, le motif « journalier » du sens est propose d'office (« Reappro rayon journalier » vers
+//  le rayon, « Reappro reserve journalier » vers la reserve) dans les autres facons de creer une suggestion (fleches
+//  par ligne, reappro, « Voir les suggestions »). Il reste modifiable ; sans motif « journalier » actif pour ce sens,
+//  rien n'est pose et le motif reste a choisir. Un motif deja choisi n'est jamais remplace.
+// ===================================================================
+var PrestigeMotifReserve = window.PrestigeMotifReserve = {
+    /** Index du motif « journalier » du sens dans le magasin des motifs, -1 sans lui. */
+    indexJournalier: function (store, categorie) {
+        return store.findBy(function (r) {
+            var cat = r.get('categorie') || (r.raw || {}).categorie || categorie;
+            return /journalier/i.test(r.get('libelle') || '') && String(cat || '').toUpperCase() === String(categorie || '').toUpperCase();
+        });
+    },
+    /** A chaque chargement des motifs, pose le motif « journalier » dans le combo s'il est vide. */
+    proposer: function (store, combo, categorie) {
+        store.on('load', function () {
+            var c = combo();
+            if (!c || c.isDestroyed || c.getValue()) {
+                return;
+            }
+            var i = PrestigeMotifReserve.indexJournalier(store, categorie);
+            if (i >= 0) {
+                c.setValue(store.getAt(i).get('id'));
+            }
+        });
+    }
+};
 
 // ===================================================================
 //  CENTRE DE NOTIFICATIONS - architecture extensible par categories
