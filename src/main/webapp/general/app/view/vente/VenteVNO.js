@@ -961,7 +961,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     xtype: 'button',
                                                     itemId: 'suiviConsoClient',
                                                     text: 'Suivi conso',
-                                                    icon: 'resources/images/icons/fam/chart_bar.png',
+                                                    iconCls: 'ic7 ic7-suivi', /* plan du 21/11, point 7.1 */
                                                     cls: 'vc-ouvrir',
                                                     height: 30,
                                                     tooltip: 'Suivi de consommation de ce client',
@@ -977,7 +977,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     xtype: 'button',
                                                     itemId: 'modifierClientStandard',
                                                     text: 'Modifier',
-                                                    icon: 'resources/images/icons/fam/user_edit.png',
+                                                    iconCls: 'ic7 ic7-client', /* plan du 21/11, point 7.1 */
                                                     cls: 'vc-ouvrir',
                                                     margin: '0 0 0 6',
                                                     height: 30,
@@ -1371,7 +1371,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     text: 'TERMINER LA VENTE',
                                                     itemId: 'btnCloture',
-                                                    iconCls: 'valider-vente',
+                                                    iconCls: 'ic7 ic7-terminer', /* plan du 21/11, point 7.1 */
                                                     scope: this,
                                                     height: 42,
                                                     cls: 'btn-primary'
@@ -1387,7 +1387,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 }, {
                                                     text: 'METTRE EN ATTENTE',
                                                     itemId: 'btnStandBy',
-                                                    iconCls: 'attente',
+                                                    iconCls: 'ic7 ic7-attente', /* plan du 21/11, point 7.1 */
                                                     scope: this,
                                                     height: 38,
                                                     cls: 'btn-primarya'

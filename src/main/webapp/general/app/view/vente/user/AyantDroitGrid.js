@@ -45,8 +45,8 @@ Ext.define('testextjs.view.vente.user.AyantDroitGrid', {
                             text: 'Nouvel ayant droit',
                             scope: this,
                             itemId: 'addBtnAyantDroit',
-                           
-                            iconCls: 'addicon'
+                            /* plan du 21/11, point 7.1 : icone dessinee (personne +) */
+                            iconCls: 'ic7 ic7-ayant'
 
                         }
                     ]

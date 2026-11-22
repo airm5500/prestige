@@ -36,6 +36,7 @@ Ext.define('testextjs.view.vente.endepot.VenteEnDepotView', {
             itemId: 'btnPointMobileMoney',
             text: 'POINT MOBILE MONEY',
             cls: 'btn-primarya',
+            iconCls: 'ic7 ic7-mobile', /* plan du 21/11, point 7.1 */
             tooltip: 'Point du jour des encaissements mobile money + carte bancaire de la caissi&egrave;re connect&eacute;e',
             hidden: true,
             margin: '0 5 0 0',
@@ -93,7 +94,8 @@ Ext.define('testextjs.view.vente.endepot.VenteEnDepotView', {
          scope: this,
          itemId: 'preventeSearchBtn',
          cls: 'btn-primarya vp-attente-bouton',
-         iconCls: 'searchicon'
+         /* plan du 21/11, point 7.1 : icone dessinee (horloge) */
+         iconCls: 'ic7 ic7-ventes-attente'
         }
     ]
     },
