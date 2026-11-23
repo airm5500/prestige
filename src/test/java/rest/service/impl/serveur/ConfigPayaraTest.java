@@ -68,7 +68,10 @@ class ConfigPayaraTest {
                         "Xms").niveau);
         assertTrue(r(l, "HeapDumpOnOutOfMemoryError").ligne.contains("-XX\\:HeapDumpPath=D\\:/prestige/support/dumps"),
                 r(l, "HeapDumpOnOutOfMemoryError").ligne);
-        assertTrue(r(l, "gc-log").ligne.contains("-Xlog\\:gc*\\:file=D\\:/payara5"), r(l, "gc-log").ligne);
+        assertTrue(
+                r(l, "gc-log").ligne
+                        .contains("-Xlog\\:gc*\\:file=/payara5/glassfish/domains/domain1/logs/gc.log\\:time"),
+                r(l, "gc-log").ligne);
         String script = ConfigPayara.script(l);
         assertTrue(script.contains("call asadmin set configs.config.server-config.thread-pools")
                 && script.endsWith("call asadmin restart-domain domain1\n"));

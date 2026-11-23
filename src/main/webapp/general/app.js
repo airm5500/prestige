@@ -13,6 +13,22 @@ if (Ext.repoDevMode) {
             Ext.themeName + '/resources/testextjs-all.css"/>');
 }
 
+/*
+ * Journal de leana (18/11, 09:13) : « valheight is not defined » a l'ouverture du menu principal et de la reserve.
+ * valheight et valwidth (hauteur et largeur des ecrans) sont definis par Navigation.js ; un ecran charge avant lui
+ * echouait. Meme calcul ici, avant tout ecran ; Navigation.js le refait a l'identique. De meme pour xtypeload
+ * (ecran d'accueil de l'utilisateur), lu par ContentPanel.js a la definition de sa classe.
+ */
+if (typeof window.valheight === 'undefined') {
+    window.valheight = screen.height >= 900 ? 595 : (screen.height >= 768 ? 580 : screen.height);
+}
+if (typeof window.valwidth === 'undefined') {
+    window.valwidth = screen.width >= 1600 ? 1300 : (screen.width >= 1366 ? 1050 : screen.width);
+}
+if (typeof window.xtypeload === 'undefined') {
+    window.xtypeload = localStorage.getItem('xtypeuser');
+}
+
 Ext.Loader.setConfig({
     enabled: true,
     disableCaching: false,

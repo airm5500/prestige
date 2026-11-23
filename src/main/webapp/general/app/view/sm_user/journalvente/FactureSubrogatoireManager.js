@@ -42,6 +42,9 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
     initComponent: function() {
 
         Me = this;
+        /* journal d'appaul du 21/11 (N3) : Me est une variable globale que d'autres fenetres reecrivent a leur ouverture
+           (« Detail des produits de la vente », detailProduct.js) ; les ecouteurs de cet ecran gardent leur propre reference. */
+        var vue = this;
 
         var linkUrl;
         var itemsPerPage = 20;
@@ -328,7 +331,7 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
                         'render': function(cmp) {
                             cmp.getEl().on('keypress', function(e) {
                                 if (e.getKey() === e.ENTER) {
-                                    Me.onRechClick();
+                                    vue.onRechClick();
 
                                 }
                             });
@@ -368,7 +371,7 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
                         },
                         select: function (cmp) {
 
-                            Me.onRechClick();
+                            vue.onRechClick();
                         }
 
                     }

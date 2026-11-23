@@ -1428,10 +1428,16 @@ Ext.define('testextjs.controller.DevisCtr', {
             }
         });
     },
+    /** Journal d'appaul du 21/11 (N2) : apres une recherche du client en echec, la fenetre de choix n'est pas ouverte ;
+     * la detruire levait une erreur qui empechait le message « La recherche du client a échoué ». */
     onBtnCancelClient: function () {
-        var me = this;
-        me.getAssuranceClient().destroy();
-        me.getClientSearchTextField().setValue('');
+        var me = this, fenetre = me.getAssuranceClient(), champ = me.getClientSearchTextField();
+        if (fenetre) {
+            fenetre.destroy();
+        }
+        if (champ) {
+            champ.setValue('');
+        }
     },
     onGridRowSelect: function (g, record) {
         var me = this;

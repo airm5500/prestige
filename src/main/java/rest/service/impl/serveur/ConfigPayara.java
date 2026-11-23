@@ -188,6 +188,14 @@ public final class ConfigPayara {
         return hote != null && hote.matches("\\d{1,3}(\\.\\d{1,3}){3}");
     }
 
+    /** « file=D:/... » sans guillemets dans une option -Xlog : refusee par Java (retour du 22/11). */
+    static final java.util.regex.Pattern GC_SANS_GUILLEMETS = java.util.regex.Pattern.compile("file=[A-Za-z]:[/\\\\]");
+
+    /** « D:/payara5/logs » -> « /payara5/logs » : chemin du meme disque, sans le « : » qu'une option -Xlog refuse. */
+    static String sansLecteur(String chemin) {
+        return chemin == null ? "" : chemin.replace('\\', '/').replaceFirst("^[A-Za-z]:", "");
+    }
+
     private static boolean option(List<String> options, String prefixe) {
         for (String o : options) {
             if (o.startsWith(prefixe)) {
@@ -354,11 +362,30 @@ public final class ConfigPayara {
                 option(options, "-XX:ErrorFile=") ? Niveau.OK : Niveau.A_AJUSTER,
                 "Le rapport hs_err est écrit là où le Centre de support le cherche.",
                 "asadmin create-jvm-options " + echapper("-XX:ErrorFile=" + dossierVidages + "/hs_err_pid%p.log"));
-        reglage(l, "gc-log", "Journal du ramasse-miettes", option(options, "-Xlog:gc") ? "activé" : "désactivé",
-                "activé", option(options, "-Xlog:gc") ? Niveau.OK : Niveau.A_AJUSTER,
-                "Montre si le serveur passait son temps à libérer de la mémoire avant de ralentir ou de tomber (5 fichiers de 20 Mo).",
-                "asadmin create-jvm-options "
-                        + echapper("-Xlog:gc*:file=" + dossierLogs + "/gc.log:time,uptime:filecount=5,filesize=20m"));
+        /*
+         * retour du 22/11 (caisses de 8 Go) : le « : » du lecteur (D:) coupe l'option -Xlog et Java refuse de demarrer
+         * (« Invalid -Xlog option »). Le chemin est donc donne sans lecteur (« /payara5/... ») : Payara tourne depuis
+         * le dossier de son domaine, sur le meme disque que ses journaux. Pas de guillemets : la liste des commandes
+         * admises (ApplicationPayara) et cmd les refusent. Une option deja posee sous l'ancienne forme est critique :
+         * Payara ne redemarrera pas tant qu'elle reste.
+         */
+        String gcBloquant = null;
+        for (String o : options) {
+            if (o.startsWith("-Xlog:gc") && GC_SANS_GUILLEMETS.matcher(o).find()) {
+                gcBloquant = o;
+            }
+        }
+        String gcConseille = "asadmin create-jvm-options " + echapper(
+                "-Xlog:gc*:file=" + sansLecteur(dossierLogs) + "/gc.log:time,uptime:filecount=5,filesize=20m");
+        reglage(l, "gc-log", "Journal du ramasse-miettes",
+                gcBloquant != null ? "option invalide (Java ne démarre pas)"
+                        : option(options, "-Xlog:gc") ? "activé" : "désactivé",
+                "activé",
+                gcBloquant != null ? Niveau.CRITIQUE : option(options, "-Xlog:gc") ? Niveau.OK : Niveau.A_AJUSTER,
+                gcBloquant != null
+                        ? "Le chemin du journal contient la lettre du disque (D:) : au prochain redémarrage, Java refusera de démarrer et Payara ne repartira pas. Retirer l'option et la reposer corrigée."
+                        : "Montre si le serveur passait son temps à libérer de la mémoire avant de ralentir ou de tomber (5 fichiers de 20 Mo).",
+                (gcBloquant != null ? "asadmin delete-jvm-options " + echapper(gcBloquant) + "\n" : "") + gcConseille);
         return l;
     }
 

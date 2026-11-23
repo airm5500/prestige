@@ -377,6 +377,9 @@ public class SupportWatchdog {
         x.redemarrage = demarrageJvm();
         x.memoirePct = dernier.pourcentageMemoire();
         x.disqueLibreMo = dernier.disqueLibreMo;
+        // journal d'appaul du 21/11 (N6) : version du dernier battement et version qui redemarre
+        x.versionAvant = dernier.version;
+        x.versionApres = util.VersionBuild.libelle();
         x.extraitLog = journalSessionTombee(dernier.horodatage, x.redemarrage);
         dernierExtrait = x.extraitLog;
         List<Path> dossiers = new ArrayList<>();
@@ -446,7 +449,7 @@ public class SupportWatchdog {
             LOG.log(Level.FINE, "releve requetes", e);
         }
         return new BoiteNoire.Instantane(now, memUtiliseeMo, memMaxMo, disqueLibreMo(), requetes, plusLongue,
-                plusLongueMs);
+                plusLongueMs, util.VersionBuild.libelle());
     }
 
     private long disqueLibreMo() {

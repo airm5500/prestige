@@ -714,8 +714,16 @@ public class SalesRessource {
     @POST
     @Path("update/item/vno")
     public Response updateItemVente(SalesParams params) {
-
-        JSONObject json = salesService.updateTPreenregistrementDetail(params);
+        JSONObject json;
+        try {
+            json = salesService.updateTPreenregistrementDetail(params);
+        } catch (RuntimeException e) {
+            // journal d'appaul du 21/11 (N1) : ligne retiree pendant sa modification
+            if (LigneVenteRetiree.estConflit(e)) {
+                return Response.ok().entity(ResultFactory.getFailResult(LigneVenteRetiree.MESSAGE)).build();
+            }
+            throw e;
+        }
         return Response.ok().entity(json.toString()).build();
     }
 

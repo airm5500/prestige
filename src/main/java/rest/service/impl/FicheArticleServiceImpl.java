@@ -810,44 +810,52 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         try {
             final String emId = u.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<ArticleDTO> cq = cb.createQuery(ArticleDTO.class);
+            /*
+             * mesures du 22/11 (point 8, LE5) : « new ArticleDTO(article, ...) » ne lisait que l'identifiant de
+             * l'article, puis Hibernate rechargeait chaque article par une requete a part (8 030 requetes pour l'export
+             * des articles en stock). Les colonnes sont lues d'abord, puis les articles par lots (articlesParId), et
+             * chaque ligne est construite comme avant, dans le meme ordre.
+             */
+            CriteriaQuery<javax.persistence.Tuple> cq = cb.createTupleQuery();
             Root<TFamille> root = cq.from(TFamille.class);
             CollectionJoin<TFamille, TFamilleStock> stock = root.join(TFamille_.tFamilleStockCollection,
                     JoinType.INNER);
 
+            Expression<String> filtreCode;
+            Expression<String> filtreLibelle;
             if (!StringUtils.isEmpty(codeFamile) || codeFamile.equals(DateConverter.ALL)) {
-                cq.select(cb.construct(ArticleDTO.class, root, stock.get(TFamilleStock_.intNUMBERAVAILABLE),
-                        root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.strCODEFAMILLE),
-                        root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.strLIBELLE)))
-                        .groupBy(root.get(TFamille_.lgFAMILLEID)).orderBy(cb.asc(root.get(TFamille_.strNAME)));
+                filtreCode = root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.strCODEFAMILLE);
+                filtreLibelle = root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.strLIBELLE);
             } else if (!StringUtils.isEmpty(codeGrossiste) || codeGrossiste.equals(DateConverter.ALL)) {
-                cq.select(cb.construct(ArticleDTO.class, root, stock.get(TFamilleStock_.intNUMBERAVAILABLE),
-                        root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.strCODE),
-                        root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.strLIBELLE)))
-                        .groupBy(root.get(TFamille_.lgFAMILLEID)).orderBy(cb.asc(root.get(TFamille_.strNAME)));
-            } else if (!StringUtils.isEmpty(codeRayon) || codeRayon.equals(DateConverter.ALL)) {
-                cq.select(cb.construct(ArticleDTO.class, root, stock.get(TFamilleStock_.intNUMBERAVAILABLE),
-                        root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.strCODE),
-                        root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.strLIBELLEE)))
-                        .groupBy(root.get(TFamille_.lgFAMILLEID)).orderBy(cb.asc(root.get(TFamille_.strNAME)));
+                filtreCode = root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.strCODE);
+                filtreLibelle = root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.strLIBELLE);
             } else {
-                cq.select(cb.construct(ArticleDTO.class, root, stock.get(TFamilleStock_.intNUMBERAVAILABLE),
-                        root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.strCODE),
-                        root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.strLIBELLEE)))
-                        .groupBy(root.get(TFamille_.lgFAMILLEID)).orderBy(cb.asc(root.get(TFamille_.strNAME)));
+                filtreCode = root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.strCODE);
+                filtreLibelle = root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.strLIBELLEE);
             }
+            cq.multiselect(root.get(TFamille_.lgFAMILLEID), stock.get(TFamilleStock_.intNUMBERAVAILABLE), filtreCode,
+                    filtreLibelle).groupBy(root.get(TFamille_.lgFAMILLEID))
+                    .orderBy(cb.asc(root.get(TFamille_.strNAME)));
 
             List<Predicate> predicates = comparaisonStock(cb, root, stock, filtreStock, filtreSeuil, query, codeFamile,
                     codeRayon, codeGrossiste, emId, qty, seuil);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            TypedQuery<ArticleDTO> typedQuery = getEntityManager().createQuery(cq);
+            TypedQuery<javax.persistence.Tuple> typedQuery = getEntityManager().createQuery(cq);
             if (!all) {
                 typedQuery.setFirstResult(start);
                 typedQuery.setMaxResults(limit);
             }
+            List<javax.persistence.Tuple> tuples = typedQuery.getResultList();
+            Map<String, TFamille> articles = articlesParId(
+                    tuples.stream().map(t -> t.get(0, String.class)).collect(Collectors.toList()));
+            List<ArticleDTO> lignes = new ArrayList<>(tuples.size());
+            for (javax.persistence.Tuple t : tuples) {
+                lignes.add(new ArticleDTO(articles.get(t.get(0, String.class)), t.get(1, Integer.class),
+                        t.get(2, String.class), t.get(3, String.class)));
+            }
             // avecStockReserve : une seule requete pour toute la page (ou tout l'export), plutot qu'une
             // lecture par ligne. Le stock deja porte par resultList est le stock RAYON.
-            List<ArticleDTO> resultList = avecStockReserve(typedQuery.getResultList(), emId);
+            List<ArticleDTO> resultList = avecStockReserve(lignes, emId);
             if (!enrichir) {
                 // Aucune lecture ligne a ligne : c'est tout l'objet de cette variante.
                 return resultList;
@@ -867,6 +875,22 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             return Collections.emptyList();
         }
 
+    }
+
+    /**
+     * Articles des identifiants donnes, par lots de 500 (une requete par lot au lieu d'une par article). Lecture seule,
+     * faite avant toute ecriture de la transaction.
+     */
+    private Map<String, TFamille> articlesParId(List<String> ids) {
+        Map<String, TFamille> articles = new HashMap<>();
+        List<String> distincts = ids.stream().filter(StringUtils::isNotBlank).distinct().collect(Collectors.toList());
+        for (int debut = 0; debut < distincts.size(); debut += TAILLE_LOT_IN) {
+            List<String> lot = distincts.subList(debut, Math.min(debut + TAILLE_LOT_IN, distincts.size()));
+            getEntityManager().createQuery("SELECT f FROM TFamille f WHERE f.lgFAMILLEID IN :ids", TFamille.class)
+                    .setParameter("ids", lot).setFlushMode(javax.persistence.FlushModeType.COMMIT).getResultList()
+                    .forEach(f -> articles.put(f.getLgFAMILLEID(), f));
+        }
+        return articles;
     }
 
     /** Type de stock « reserve » dans t_type_stock (1 = rayon, 2 = reserve, 3 = depot). */
@@ -901,7 +925,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                         .createNativeQuery("SELECT t.lg_FAMILLE_ID, t.int_NUMBER FROM t_type_stock_famille t"
                                 + " WHERE t.lg_TYPE_STOCK_ID = ?1 AND t.lg_EMPLACEMENT_ID = ?2"
                                 + " AND t.str_STATUT = 'enable' AND t.lg_FAMILLE_ID IN (" + places + ")")
-                        .setParameter(1, TYPE_STOCK_RESERVE).setParameter(2, emplacementId);
+                        .setParameter(1, TYPE_STOCK_RESERVE).setParameter(2, emplacementId)
+                        .setFlushMode(javax.persistence.FlushModeType.COMMIT);
                 for (int i = 0; i < lot.size(); i++) {
                     requete.setParameter(i + 3, lot.get(i));
                 }
@@ -968,7 +993,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             for (int i = 0; i < lot.size(); i++) {
                 places.append(i == 0 ? "" : ", ").append('?').append(params.size() + i + 1);
             }
-            javax.persistence.Query q = getEntityManager().createNativeQuery(avantIn + places + ")" + apresIn);
+            /*
+             * mesures du 22/11 (point 8, LE5) : lecture seule, faite avant toute ecriture de la transaction ; sans
+             * cela, Hibernate revérifie avant chaque lot tous les articles deja charges (8 000 et plus a l'export)
+             */
+            javax.persistence.Query q = getEntityManager().createNativeQuery(avantIn + places + ")" + apresIn)
+                    .setFlushMode(javax.persistence.FlushModeType.COMMIT);
             for (int i = 0; i < params.size(); i++) {
                 q.setParameter(i + 1, params.get(i));
             }

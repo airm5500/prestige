@@ -2937,14 +2937,23 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         me.toRecalculate = true;
         let record = grid.getStore().getAt(colIndex);
+        /* Journal d'appaul du 21/11 (N1) : la quantite tapee dans la ligne part a la validation de la cellule, au
+         * meme clic que « Supprimer le produit ». La ligne est notee retiree : sa modification n'est plus envoyee
+         * (voir updateventeOngrid). Si le retrait echoue, la ligne redevient modifiable. */
+        const idLigne = record.get('lgPREENREGISTREMENTDETAILID');
+        me.lignesRetirees = me.lignesRetirees || {};
+        me.lignesRetirees[idLigne] = true;
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/vente/remove/vno/item/' + record.get('lgPREENREGISTREMENTDETAILID'),
+            url: '../api/v1/vente/remove/vno/item/' + idLigne,
             success: function (response, options) {
                 progress.hide();
                 const result = Ext.JSON.decode(response.responseText, true);
+                if (!result || !result.success) {
+                    delete me.lignesRetirees[idLigne];
+                }
                 if (result.success) {
                     me.netAmountToPay = result.data;
                     me.getTotalField().setValue(me.getNetAmountToPay().montant);
@@ -2963,6 +2972,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             },
             failure: function (response, options) {
                 progress.hide();
+                delete me.lignesRetirees[idLigne];
                 Ext.Msg.alert('Retrait du produit',
                         'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
             }
@@ -4072,6 +4082,10 @@ Ext.define('testextjs.controller.VenteCtr', {
     updateventeOngrid: function (editor, e, url, params) {
         const me = this;
         let record = e.record;
+        if (params && me.lignesRetirees && me.lignesRetirees[params.itemId]) {
+            // ligne retiree au meme clic (N1, 21/11) : rien a modifier, le retrait relit la vente
+            return;
+        }
         let stock = parseInt(record.get('intNUMBERAVAILABLE'));
         let boolDECONDITIONNE = parseInt(record.get('boolDECONDITIONNE'));
         let lgFAMILLEID = record.get('lgFAMILLEPARENTID');
@@ -4271,6 +4285,29 @@ Ext.define('testextjs.controller.VenteCtr', {
             buttons: Ext.MessageBox.OK,
             icon: Ext.MessageBox.WARNING
         });
+        return false;
+    },
+
+    /**
+     * Journal de Pontmain (17/11) : un prix unitaire decimal tape dans la grille partait au serveur, qui le refusait
+     * (« itemPu : un nombre entier est attendu »). Le prix est en francs entiers : un texte qui n'est pas un entier est
+     * refuse des la saisie, avis discret sous forme de bandeau (pas de fenetre), le prix precedent reste en place et
+     * rien n'est envoye. « 1.500 » n'est pas transforme en 1500 ni en 1,5 : la caissiere retape le prix.
+     */
+    controlerPrixEntier: function (editor, e) {
+        if (e.field !== 'intPRICEUNITAIR') {
+            return true;
+        }
+        var champ = e.column && e.column.getEditor ? e.column.getEditor(e.record) : null;
+        var brut = String(champ && champ.getRawValue ? champ.getRawValue() : e.value).replace(/\s/g, '');
+        if (brut === '' || /^\d+$/.test(brut)) {
+            return true;
+        }
+        if (window.PrestigeToast) {
+            PrestigeToast.afficher('Le prix doit être un nombre entier de francs (« ' + Ext.String.htmlEncode(brut)
+                    + ' » refusé). Le prix précédent (' + e.originalValue + ') est conservé.',
+                    {titre: 'Prix', niveau: 'alerte', duree: 6000});
+        }
         return false;
     },
 
@@ -5292,10 +5329,16 @@ Ext.define('testextjs.controller.VenteCtr', {
 
 
     },
+    /** Journal d'appaul du 21/11 (N2) : apres une recherche du client en echec, la fenetre de choix n'est pas ouverte ;
+     * la detruire levait une erreur qui empechait le message « La recherche du client a échoué ». */
     onBtnCancelClient: function () {
-        const me = this;
-        me.getAssuranceClient().destroy();
-        me.getClientSearchTextField().setValue('');
+        const me = this, fenetre = me.getAssuranceClient(), champ = me.getClientSearchTextField();
+        if (fenetre) {
+            fenetre.destroy();
+        }
+        if (champ) {
+            champ.setValue('');
+        }
     },
     onGridRowSelect: function (g, record) {
         const me = this;
@@ -8726,6 +8769,9 @@ Ext.define('testextjs.controller.VenteCtr', {
             return false;
         }
         if (this.scanDansCellule(editor, e)) {
+            return false;
+        }
+        if (!this.controlerPrixEntier(editor, e)) {
             return false;
         }
         return this.controlerQuantiteEntiere(editor, e);
