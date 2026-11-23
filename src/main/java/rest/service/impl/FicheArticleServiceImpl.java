@@ -1397,6 +1397,11 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         if (simuler || ids.isEmpty()) {
             return new JSONObject().put("success", true).put("nombre", ids.size());
         }
+        // retours du 23/11 : une ligne de journal par article change
+        List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                .colonnes(rest.service.impl.journal.TraceLot.RETENU);
+        java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = rest.service.impl.journal.TraceLot
+                .lire(getEntityManager(), ids, suivies);
         int n = 0;
         for (int i = 0; i < ids.size(); i += 500) {
             n += getEntityManager()
@@ -1404,6 +1409,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     .setParameter(1, coche ? 0 : 1).setParameter(2, ids.subList(i, Math.min(ids.size(), i + 500)))
                     .executeUpdate();
         }
+        rest.service.impl.journal.TraceLot.ecrire(getEntityManager(), u, "Gestion des articles", avant,
+                rest.service.impl.journal.TraceLot.lire(getEntityManager(), ids, suivies));
         return new JSONObject().put("success", true).put("nombre", n);
     }
 
@@ -1515,6 +1522,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             return new JSONObject().put("success", true).put("nombre", ids.size());
         }
         String colonne = champSensible(champ) ? "is_sensible" : "is_scheduled";
+        // retours du 23/11 : une ligne de journal par article change, en plus de la ligne du lot
+        List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                .colonnes(champSensible(champ) ? rest.service.impl.journal.TraceLot.SENSIBLE
+                        : rest.service.impl.journal.TraceLot.ORDONNANCIER);
+        java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = rest.service.impl.journal.TraceLot
+                .lire(getEntityManager(), ids, suivies);
         int n = 0;
         for (int i = 0; i < ids.size(); i += 500) {
             n += getEntityManager()
@@ -1527,6 +1540,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                         + " en lot (recherche « " + StringUtils.defaultString(query).trim() + " », filtre "
                         + StringUtils.defaultString(filtre, "tous") + ")",
                 TypeLog.ORDONNANCIER_PRODUIT, new TFamille());
+        rest.service.impl.journal.TraceLot.ecrire(getEntityManager(), u, "Ordonnancier", avant,
+                rest.service.impl.journal.TraceLot.lire(getEntityManager(), ids, suivies));
         return new JSONObject().put("success", true).put("nombre", n);
     }
 
@@ -1768,6 +1783,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     @Override
     public JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search,
             String classeAbcId, List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2) {
+        return majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId, ids, uncheckedIds, q1, q2, null);
+    }
+
+    @Override
+    public JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search,
+            String classeAbcId, List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2, TUser u) {
         JSONObject res = new JSONObject();
         try {
             List<String> targets;
@@ -1787,6 +1808,11 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             } else {
                 targets = (ids != null) ? new java.util.ArrayList<>(ids) : new java.util.ArrayList<>();
             }
+            // retours du 23/11 : valeurs d'avant, pour la trace de chaque article change
+            List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                    .colonnes(rest.service.impl.journal.TraceLot.Q1, rest.service.impl.journal.TraceLot.Q2);
+            java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = u == null ? null
+                    : rest.service.impl.journal.TraceLot.lire(em, targets, suivies);
             int count = 0;
             int chunk = 1000;
             for (int i = 0; i < targets.size(); i += chunk) {
@@ -1798,6 +1824,10 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                         .createQuery("UPDATE TFamille f SET f.intQ1SEUILREAPPRO = :q1, "
                                 + "f.intQ2QTEREAPPRO = :q2 WHERE f.lgFAMILLEID IN :ids")
                         .setParameter("q1", q1).setParameter("q2", q2).setParameter("ids", sub).executeUpdate();
+            }
+            if (avant != null) {
+                res.put("traces", rest.service.impl.journal.TraceLot.ecrire(em, u, "MAJ seuil", avant,
+                        rest.service.impl.journal.TraceLot.lire(em, targets, suivies)));
             }
             res.put("success", true).put("count", count);
         } catch (Exception e) {
@@ -1991,6 +2021,38 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     public JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
             String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
             List<String> uncheckedIds, String champ, String valeur) {
+        return majSelectiveApply(mode, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, laboratoireId,
+                gammeId, search, ids, uncheckedIds, champ, valeur, null);
+    }
+
+    /** Colonne suivie par la trace pour chaque donnee de la MAJ selective. */
+    private static rest.service.impl.journal.TraceLot.Colonne colonneSelective(String champ) {
+        switch (champ) {
+        case CHAMP_GROSSISTE:
+            return rest.service.impl.journal.TraceLot.GROSSISTE;
+        case CHAMP_FAMILLE:
+            return rest.service.impl.journal.TraceLot.FAMILLE;
+        case CHAMP_TVA:
+            return rest.service.impl.journal.TraceLot.TVA;
+        case CHAMP_CODE_REMISE:
+            return rest.service.impl.journal.TraceLot.CODE_REMISE;
+        case CHAMP_CODE_TABLEAU:
+            return rest.service.impl.journal.TraceLot.TABLEAU;
+        case CHAMP_LABORATOIRE:
+            return rest.service.impl.journal.TraceLot.LABORATOIRE;
+        case CHAMP_GAMME:
+            return rest.service.impl.journal.TraceLot.GAMME;
+        case CHAMP_ORDONNANCIER:
+            return rest.service.impl.journal.TraceLot.ORDONNANCIER;
+        default:
+            return rest.service.impl.journal.TraceLot.REMISE;
+        }
+    }
+
+    @Override
+    public JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
+            String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
+            List<String> uncheckedIds, String champ, String valeur, TUser u) {
         JSONObject res = new JSONObject();
         try {
             String cible = StringUtils.trimToEmpty(champ).toUpperCase();
@@ -2052,12 +2114,21 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             if (cibles.isEmpty()) {
                 return res.put("success", false).put("count", 0).put("message", "Aucun produit retenu.");
             }
+            // retours du 23/11 : valeurs d'avant, pour la trace de chaque article change
+            List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                    .colonnes(colonneSelective(cible));
+            java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = u == null ? null
+                    : rest.service.impl.journal.TraceLot.lire(em, cibles, suivies);
             int count = 0;
             int chunk = 1000;
             for (int i = 0; i < cibles.size(); i += chunk) {
                 List<String> sub = cibles.subList(i, Math.min(cibles.size(), i + chunk));
                 count += em.createQuery(jpql).setParameter("valeur", valeurAffectee).setParameter("ids", sub)
                         .executeUpdate();
+            }
+            if (avant != null) {
+                res.put("traces", rest.service.impl.journal.TraceLot.ecrire(em, u, "Mise à jour des articles", avant,
+                        rest.service.impl.journal.TraceLot.lire(em, cibles, suivies)));
             }
             LOG.log(Level.INFO, "MAJ selective : {0} = {1} sur {2} produit(s)",
                     new Object[] { cible, valeurSaisie, count });

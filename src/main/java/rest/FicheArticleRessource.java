@@ -954,9 +954,8 @@ public class FicheArticleRessource {
         Integer q2 = (in.has("q2") && !in.isNull("q2")) ? in.getInt("q2") : null;
         List<String> ids = jsonArrToList(in.optJSONArray("ids"));
         List<String> unchecked = jsonArrToList(in.optJSONArray("uncheckedIds"));
-        return Response.ok().entity(ficheArticleService
-                .majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId, ids, unchecked, q1, q2).toString())
-                .build();
+        return Response.ok().entity(ficheArticleService.majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId,
+                ids, unchecked, q1, q2, (TUser) hs.getAttribute(commonparameter.AIRTIME_USER)).toString()).build();
     }
 
     // ----------------------- MAJ SELECTIVE (une donnee, plusieurs produits) -----------------------
@@ -993,14 +992,12 @@ public class FicheArticleRessource {
                     .build();
         }
         JSONObject in = new JSONObject(body);
-        return Response.ok()
-                .entity(ficheArticleService.majSelectiveApply(in.optString("mode", "SELECTED"),
-                        in.optString("zoneGeoId", ""), in.optString("codeFamille", ""), in.optString("codeTableau", ""),
-                        in.optString("codeTvaId", ""), in.optString("codeRemise", ""),
-                        in.optString("laboratoireId", ""), in.optString("gammeId", ""), in.optString("search", ""),
-                        jsonArrToList(in.optJSONArray("ids")), jsonArrToList(in.optJSONArray("uncheckedIds")),
-                        in.optString("champ", ""), in.optString("valeur", "")).toString())
-                .build();
+        return Response.ok().entity(ficheArticleService.majSelectiveApply(in.optString("mode", "SELECTED"),
+                in.optString("zoneGeoId", ""), in.optString("codeFamille", ""), in.optString("codeTableau", ""),
+                in.optString("codeTvaId", ""), in.optString("codeRemise", ""), in.optString("laboratoireId", ""),
+                in.optString("gammeId", ""), in.optString("search", ""), jsonArrToList(in.optJSONArray("ids")),
+                jsonArrToList(in.optJSONArray("uncheckedIds")), in.optString("champ", ""), in.optString("valeur", ""),
+                (TUser) hs.getAttribute(commonparameter.AIRTIME_USER)).toString()).build();
     }
 
     private static List<String> jsonArrToList(org.json.JSONArray a) {

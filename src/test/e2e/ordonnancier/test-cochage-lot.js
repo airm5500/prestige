@@ -25,6 +25,8 @@ const sensibles = () => C.q("SELECT COUNT(*) FROM t_famille WHERE lg_FAMILLE_ID 
 function nettoyer() {
   produits.forEach((x) => C.q("UPDATE t_famille SET is_sensible = " + x.sensible + " WHERE lg_FAMILLE_ID = '" + x.id + "'"));
   C.q("DELETE FROM t_event_log WHERE str_TYPE_LOG = 'lot' AND str_DESCRIPTION LIKE '%sensible en lot%' AND dt_CREATED >= '" + DEBUT + "'");
+  /* retours du 23/11 : la trace par produit du lot (« Modification en lot (Ordonnancier) ... ») */
+  C.q("DELETE FROM t_event_log WHERE str_TYPE_LOG IN " + ids + " AND str_DESCRIPTION LIKE 'Modification en lot%' AND dt_CREATED >= '" + DEBUT + "'");
 }
 
 /* un clic sur un bouton de lot, et la reponse du serveur qu'il provoque */

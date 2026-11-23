@@ -124,7 +124,7 @@
 <ul>
 <li>Le champ « Seuil.Reappro » de la fiche affiche <code>int_SEUIL_MIN</code>, et l'enregistrement le recopie dans <code>int_STOCK_REAPROVISONEMENT</code>. Les deux diffèrent pour 5 425 fiches actives sur 11 650 (copie) : chaque enregistrement les réaligne sans le dire. La trace suit la valeur affichée, donc ce réalignement n'y apparaît pas.</li>
 <li>Le prix TIPS suit le prix de vente à l'enregistrement : la trace le montre comme un changement.</li>
-<li>Les mises à jour en lot (« Mise à jour des articles » : grossiste, famille, TVA…) ne sont pas encore tracées champ par champ.</li>
+<li>Les mises à jour en lot n'étaient pas encore tracées champ par champ : c'est fait depuis, voir la section 7.</li>
 </ul>
 <h3>Contrôles</h3>
 <table>
@@ -142,6 +142,30 @@
 <li><code>journal/test-export-journal.js</code> : les 8 premiers contrôles passent ; le test s'arrête sur la taille du classeur (9,5 Mo pour 148 000 lignes), trop grande pour sa lecture. C'est une limite du test, sans lien avec ce travail.</li>
 </ul>
 <p>Temps de lecture : onglet Historique 20 à 33 ms pour le produit le plus mouvementé de la copie (1 115 lignes) ; avertissement 40 à 50 ms. Un index sur la référence du journal est créé au déploiement (<code>V7.6.41.2201</code>).</p>
+<h2>7. Les mises à jour en lot, tracées aussi (demande « trace aussi les mises à jour en lot »)</h2>
+<h3>Ce qui change pour l'utilisateur</h3>
+<p>Les quatre mises à jour en lot de la fiche article écrivent maintenant <b>une ligne de journal par article réellement changé</b>, au nom de l'utilisateur, avec l'ancienne et la nouvelle valeur :</p>
+<table>
+<tr><th>Écran</th><th>Donnée suivie</th><th>Exemple de ligne</th></tr>
+<tr><td>Fiche article, « MAJ SÉLECTIVE »</td><td>grossiste, famille, TVA, code remise, code tableau, laboratoire, gamme, soumis à ordonnance, remise autorisée</td><td>« Modification en lot (Mise à jour des articles) de la fiche 8014527 R-LUME par YAO BRIGITTE : grossiste » ; détail « Grossiste : avant LABOREX-CI YOP → après ACO PHARMA »</td></tr>
+<tr><td>Fiche article, « MAJ SEUIL »</td><td>Q1 et Q2</td><td>« Q1 : avant 0 → après 7 », « Q2 : avant (vide) → après 20 »</td></tr>
+<tr><td>Ordonnancier, « Cocher / Décocher tout le résultat »</td><td>sensible ou ordonnancier</td><td>« Sensible : avant non → après oui » ; la ligne globale du lot (« N produit(s) coché(s)… ») est gardée</td></tr>
+<tr><td>Produits, « Cocher / Décocher tout le résultat »</td><td>article retenu</td><td>« Article retenu : avant non → après oui »</td></tr>
+</table>
+<p>Un article déjà à la valeur voulue n'a pas de ligne. Dans l'onglet « Historique » de la fiche, ces lignes s'affichent « Modification en lot », champ par champ, comme une modification de fiche. Les valeurs sont lues avant et après la mise à jour, dans la même transaction ; les lignes sont écrites par paquets de 200.</p>
+<h3>Contrôles</h3>
+<table>
+<tr><th>Contrôle</th><th>Test</th><th>Ancien code</th><th>Nouveau code</th></tr>
+<tr><td>Rapprochement : base (valeurs), journal (une ligne par fiche changée, auteur, description, détail avant → après), onglet Historique, API, pour les 4 écrans, par les clics</td><td><code>stock/test-traces-lot-2311.js</code> (nouveau)</td><td>17 sur 31 (14 échecs : aucune trace par article, Historique sans « Modification en lot »)</td><td>31 sur 31</td></tr>
+<tr><td>Bilan : pour chaque opération, rien d'autre au journal (la seule ligne en plus est la ligne globale de l'ordonnancier) ; données d'essai retirées (0/0/0)</td><td>idem</td><td>inclus</td><td>inclus</td></tr>
+<tr><td>Bilan du cochage en lot de l'ordonnancier : la ligne globale plus une ligne par produit, au compte e2e</td><td><code>ordonnancier/test-bilan-cochage-cloture.js</code> (attente mise à jour)</td><td></td><td>42 sur 42</td></tr>
+<tr><td>Cohérence : une ligne si et seulement si une valeur affichée change, jamais pour un article déjà à la valeur ni pour un article disparu entre les deux lectures ; détail relu à l'identique ; description ≤ 255 caractères ; libellé « Modification en lot » dans l'historique ; mises en forme (oui / non, article retenu inversé, TVA en %, milliers) — 3 000 lots tirés au hasard, graine fixe</td><td><code>TraceLotCoherenceTest</code></td><td>(classe nouvelle)</td><td>4 sur 4</td></tr>
+</table>
+<p>Cas variés : 4 fiches aux valeurs différentes, dont une déjà à la valeur voulue pour chaque opération ; Q2 vide et Q1 à 0 ; deux données changées à la fois (Q1 et Q2) ; quatre écrans ; ligne globale gardée pour l'ordonnancier.</p>
+<p>Les tests existants qui passent par ces lots retirent maintenant aussi ces lignes à la fin (<code>ordonnancier/test-cochage-lot.js</code>, <code>etape1/test-menus-et-maj-article.js</code>).</p>
+<p>Non-régression (un test à la fois, <code>laborex_audit</code>) : cochage en lot de l'ordonnancier 16/16, bilan du cochage 42/42, menus et mise à jour en lot 23/23, traces de fiche 26/26, produits et analyse 20/20, ordonnancier de la fiche 29/29, journal complet 18/18, fiche sans JSP 20/20, unitaires des traces de fiche et d'historique 3/3 et 3/3. Aucune ligne « Modification en lot » ne reste en base après les tests.</p>
+<p>Le test des traces de fiche (section 6) tirait une fiche modèle au hasard, et deux attentes dépendaient de ce tirage. Elles sont corrigées : le prix TIPS est attendu dès que l'ancien TIPS diffère du nouveau prix, car le formulaire recopie le prix de vente à la frappe ; la fiche modèle est prise sans déconditionné, comme dans les vraies données (10 825 fiches ont 0 et 0, 419 ont 1 et 1, aucune n'a une quantité détail sans déconditionné). La copie forçait « pas de déconditionné » sur un modèle qui en avait un.</p>
+<p>Temps, « MAJ SEUIL » en lot sur 2 000 fiches d'essai, avec la trace : 208 à 276 ms quand toutes changent (2 000 lignes écrites), 142 ms quand aucune ne change. Les données de mesure ont été retirées (0 restante).</p>
 <p>Branche <code>plan/21112026</code>. Commit et push : voir le message de la session.</p>
 </body>
 </html>

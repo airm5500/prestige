@@ -102,6 +102,12 @@ public final class HistoriqueFiche {
         }
     }
 
+    /** Libelle de l'action ; une modification faite en lot (TraceLot) est dite « Modification en lot ». */
+    static String action(TypeLog t, String description) {
+        return t == TypeLog.MODIFICATION_FICHE_PRODUIT && description != null
+                && description.startsWith(TraceLot.PREFIXE) ? "Modification en lot" : action(t);
+    }
+
     /** Description sans le suffixe technique « référence [ ... ] ». */
     static String sansReference(String d) {
         String s = StringUtils.trimToEmpty(d);
@@ -144,7 +150,7 @@ public final class HistoriqueFiche {
             for (ModificationBl.Champ c : ModificationBl.lire(g.detail)) {
                 champs.put(new JSONObject().put("champ", c.libelle).put("avant", c.avant).put("apres", c.apres));
             }
-            a.put(new JSONObject().put("le", f.format(g.le)).put("action", action(g.type))
+            a.put(new JSONObject().put("le", f.format(g.le)).put("action", action(g.type, g.description))
                     .put("auteur", StringUtils.trimToEmpty(g.auteur)).put("quoi", sansReference(g.description))
                     .put("champs", champs).put("fiche", fiche(id, creeLe, fichesParCip, g)));
         }

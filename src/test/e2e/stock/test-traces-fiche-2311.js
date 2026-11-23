@@ -38,7 +38,7 @@ const AUTRE = q(`SELECT lg_USER_ID FROM t_user WHERE lg_USER_ID <> '${USER}' AND
 const nomDe = (u) => q(`SELECT TRIM(CONCAT(IFNULL(str_FIRST_NAME, ''), ' ', IFNULL(str_LAST_NAME, ''))) FROM t_user WHERE lg_USER_ID = '${u}'`);
 const NOM_E2E = nomDe(USER);
 const NOM_AUTRE = nomDe(AUTRE);
-const MODELE = q(`SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.bool_DECONDITIONNE = 0
+const MODELE = q(`SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.bool_DECONDITIONNE = 0 AND IFNULL(f.bool_DECONDITIONNE_EXIST, 0) = 0
   AND (f.lg_FAMILLE_PARENT_ID IS NULL OR f.lg_FAMILLE_PARENT_ID = '') AND f.int_PRICE > 0 AND f.lg_FAMILLEARTICLE_ID IS NOT NULL
   AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_CODE_TVA_ID IS NOT NULL AND f.lg_GROSSISTE_ID IS NOT NULL
   AND EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1')
@@ -252,15 +252,15 @@ async function enregistrerModification(p) {
     const m1 = modifications();
     const detail = m1.length ? m1[0][1].split('¶') : [];
     const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-    /* le prix TIPS suit le prix de vente a l'enregistrement (comportement de la fiche) */
+    /* le formulaire recopie le prix de vente dans le prix TIPS a la frappe (comportement de la fiche) : trace des que l'ancien TIPS differe */
     const attendus = ['Libellé : avant ' + NOM.C + ' → après ' + NOM.C + ' MODIF', 'Désignation : avant ' + NOM.C + ' → après ' + NOM.C + ' MODIF',
       'Prix de vente : avant ' + fmt(PRIX) + ' → après ' + fmt(nouveauPrix)];
-    if (PRIX_TIPS === PRIX) { attendus.splice(3, 0, 'Prix TIPS : avant ' + fmt(PRIX) + ' → après ' + fmt(nouveauPrix)); }
+    if (PRIX_TIPS !== nouveauPrix) { attendus.splice(3, 0, 'Prix TIPS : avant ' + fmt(PRIX_TIPS) + ' → après ' + fmt(nouveauPrix)); }
     attendus.push('Seuil de réapprovisionnement : avant ' + fmt(SEUIL) + ' → après ' + fmt(SEUIL + 1));
     ok('2. Une seule ligne de journal pour l\'enregistrement, au nom du compte e2e', m1.length === 1 && m1[0][0] === USER, JSON.stringify(m1));
     ok('2. Détail : libellé, désignation, prix de vente et seuil, avant → après', attendus.every((a) => detail.includes(a)), JSON.stringify(detail));
     ok('2. Détail : aucun autre champ (le formulaire ne réécrit pas la fiche en silence)', detail.length === attendus.length, JSON.stringify(detail.filter((d) => !attendus.includes(d))));
-    ok('2. Description lisible : CIP, nouveau nom, auteur, champs', m1.length === 1 && m1[0][2] === 'Modification de la fiche ' + CIP_C + ' ' + NOM.C + ' MODIF par ' + NOM_E2E + ' : libellé, désignation, prix de vente' + (PRIX_TIPS === PRIX ? ', prix tips' : '') + ', seuil de réapprovisionnement', m1.length && m1[0][2]);
+    ok('2. Description lisible : CIP, nouveau nom, auteur, champs', m1.length === 1 && m1[0][2] === 'Modification de la fiche ' + CIP_C + ' ' + NOM.C + ' MODIF par ' + NOM_E2E + ' : libellé, désignation, prix de vente' + (PRIX_TIPS !== PRIX + 250 ? ', prix tips' : '') + ', seuil de réapprovisionnement', m1.length && m1[0][2]);
     ok('2. Base : nom, prix et seuil enregistrés', q(`SELECT CONCAT(str_NAME, '|', int_PRICE, '|', int_SEUIL_MIN) FROM t_famille WHERE lg_FAMILLE_ID = '${ID.C}'`) === NOM.C + ' MODIF|' + nouveauPrix + '|' + (SEUIL + 1));
     await ouvrirModification(p);
     await enregistrerModification(p);

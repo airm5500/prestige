@@ -185,6 +185,10 @@ public interface FicheArticleService {
     JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search, String classeAbcId,
             List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2);
 
+    /** Retours du 23/11 : meme mise a jour, une ligne de journal par article change au nom de l'utilisateur. */
+    JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search, String classeAbcId,
+            List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2, TUser u);
+
     /**
      * Liste paginee des produits pour l'ecran MAJ SELECTIVE. Memes filtres que l'ecran : emplacement, famille, code
      * tableau, code TVA, code remise, laboratoire, gamme, recherche libre. Chaque ligne porte la valeur actuelle des
@@ -208,6 +212,11 @@ public interface FicheArticleService {
     JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
             String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
             List<String> uncheckedIds, String champ, String valeur);
+
+    /** Retours du 23/11 : meme mise a jour, une ligne de journal par article change au nom de l'utilisateur. */
+    JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
+            String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
+            List<String> uncheckedIds, String champ, String valeur, TUser u);
 
     byte[] buildComparaisonExcel(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil, String codeFamile,
             String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException;
