@@ -1196,8 +1196,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 predicates.add(cb.notEqual(fa.get(TFamilleStock_.intNUMBERAVAILABLE), stock));
                 break;
             case STOCK_LESS_THAN_SEUIL:
-                predicates.add(cb.lessThan(fa.get(TFamilleStock_.intNUMBERAVAILABLE),
-                        root.get(TFamille_.intSTOCKREAPROVISONEMENT)));
+                // retours du 23/11 : seuil de reference (celui de la fiche et des suggestions)
+                predicates.add(cb.lessThan(fa.get(TFamilleStock_.intNUMBERAVAILABLE), root.get(TFamille_.intSEUILMIN)));
                 break;
             default:
                 break;
@@ -1208,23 +1208,23 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             switch (filtreSeuil) {
 
             case EQUAL:
-                predicates.add(cb.equal(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.equal(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case GREATER:
-                predicates.add(cb.greaterThan(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.greaterThan(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case GREATER_EQUAL:
-                predicates.add(cb.greaterThanOrEqualTo(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case LESS:
-                predicates.add(cb.lessThan(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.lessThan(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
 
             case LESS_EQUAL:
-                predicates.add(cb.lessThanOrEqualTo(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.lessThanOrEqualTo(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case NOT:
-                predicates.add(cb.notEqual(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.notEqual(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
 
             default:

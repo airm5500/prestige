@@ -100,7 +100,8 @@ public class tellerManagement extends bll.bllBase {
             return false;
         }
 
-        valstockdispo = (OTProductItemStock.getIntNUMBERAVAILABLE() - OTProductItem.getIntSTOCKREAPROVISONEMENT());
+        valstockdispo = (OTProductItemStock.getIntNUMBERAVAILABLE()
+                - (OTProductItem.getIntSEUILMIN() == null ? 0 : OTProductItem.getIntSEUILMIN()));
 
         if (valstockdispo <= 0) {
             this.buildErrorTraceMessage("Stock produit limite", "Seuil de securite outrepassé ");

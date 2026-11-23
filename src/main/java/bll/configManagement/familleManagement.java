@@ -432,7 +432,7 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             OTFamille.setIntPRICE(int_PRICE);
             OTFamille.setIntCIP(int_CIP);
             OTFamille.setIntEAN13(int_EAN13);
-            OTFamille.setIntSTOCKREAPROVISONEMENT(int_STOCK_REAPROVISONEMENT);
+            OTFamille.setIntSEUILMIN(int_STOCK_REAPROVISONEMENT); // retours du 23/11 : reference et miroir
             OTFamille.setIntPAF(int_PAF);
             OTFamille.setIntPAT(int_PAT);
             OTFamille.setIntS(int_S);
@@ -2633,11 +2633,10 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                                     ? OTFamille.getLgCODEGESTIONID().getLgCODEGESTIONID() : ""),
                             tabString[10].trim(), OTFamille.getStrCODETAUXREMBOURSEMENT(), tabString[15].trim(),
                             OTFamille.getIntNUMBERDETAIL(), 0, tabString[9].trim(), "", tabString[17].trim(),
-                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(),
-                            OTFamille.getIntSTOCKREAPROVISONEMENT(), OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "",
-                            "", null, null, OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(),
-                            OTFamille.getBoolREMISE(), OTFamille.getIntQ1SEUILREAPPRO(),
-                            OTFamille.getIntQ2QTEREAPPRO())) {
+                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(), OTFamille.getIntSEUILMIN(),
+                            OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "", "", null, null,
+                            OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(), OTFamille.getBoolREMISE(),
+                            OTFamille.getIntQ1SEUILREAPPRO(), OTFamille.getIntQ2QTEREAPPRO())) {
                         count++;
                         if (updateStock) {
                             OTFamilleStock = OtellerManagement.getTProductItemStock(OTFamille.getLgFAMILLEID());
@@ -2667,7 +2666,7 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                                     tabString[13].trim(), tabString[14].trim(), tabString[8].trim(), "",
                                     tabString[10].trim(), "", tabString[15].trim(), 0, 1, "", "", bool_DECONDITIONNE,
                                     tabString[9].trim(), "", tabString[17].trim(), false, 0,
-                                    OTFamilleInit.getLgFAMILLEID(), OTFamilleInit.getIntSTOCKREAPROVISONEMENT(),
+                                    OTFamilleInit.getLgFAMILLEID(), OTFamilleInit.getIntSEUILMIN(),
                                     OTFamilleInit.getIntQTEREAPPROVISIONNEMENT(), 0, "");
                             if (OTFamille != null) {
                                 OTFamilleInit.setIntNUMBERDETAIL(OTFamilleInit.getIntNUMBERDETAIL() == 0 ? 1
@@ -2740,11 +2739,10 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                                     ? OTFamille.getLgTYPEETIQUETTEID().getLgTYPEETIQUETTEID()
                                     : Parameter.DEFAUL_TYPEETIQUETTE),
                             "", (OTFamille.getLgCODETVAID() != null ? OTFamille.getLgCODETVAID().getLgCODETVAID() : ""),
-                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(),
-                            OTFamille.getIntSTOCKREAPROVISONEMENT(), OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "",
-                            "", null, null, OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(),
-                            OTFamille.getBoolREMISE(), OTFamille.getIntQ1SEUILREAPPRO(),
-                            OTFamille.getIntQ2QTEREAPPRO())) {
+                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(), OTFamille.getIntSEUILMIN(),
+                            OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "", "", null, null,
+                            OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(), OTFamille.getBoolREMISE(),
+                            OTFamille.getIntQ1SEUILREAPPRO(), OTFamille.getIntQ2QTEREAPPRO())) {
 
                         OTFamilleStock = OtellerManagement.getTProductItemStock(OTFamille.getLgFAMILLEID());
                         OTTypeStockFamille = OStockManager.getTTypeStockFamilleByTypestock("1",
