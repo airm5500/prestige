@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 10 (avoirs, journal des messages, commandes, produits en avoir)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  h3 { color: #1E5FA8; font-size: 15px; margin-bottom: 4px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 10</h1>
+<p class="sous">Retours sur la liste des avoirs, les commandes et les produits en avoir. Branche <code>plan/21112026</code>, <b>rien n'est encore commité</b>, rien de fusionné. Essais sur la copie de travail <code>laborex_audit</code> (domain4, port 11090), délai mesuré sur la copie appaul (domain2).</p>
+
+<div class="ok">Tout est fait. Chaque nouveau test d'écran échoue sur l'ancien code (WAR d'avant le lot 10) et passe maintenant :
+<ul>
+<li>fenêtre des avoirs en cours (modale, période, ventes annulées exclues, « Rappeler avoir ») : 6 sur 14 avant, 14 sur 14 après ;</li>
+<li>renvoi d'un échec depuis le journal : 1 sur 3 avant (pas de colonne « Renvoyer »), 14 sur 14 après ;</li>
+<li>envoi des produits en avoir (bouton, choix SMS ou WhatsApp, envoi à la fermeture) : 2 sur 5 avant, 20 sur 20 après ;</li>
+<li>classe au survol du nom (suggestions, commandes en cours) : 5 sur 9 avant, 9 sur 9 après.</li>
+</ul>
+Tests unitaires : <code>AvoirsEnvoiCoherenceTest</code> 3 sur 3. Non-régression : voir en bas de page.</div>
+
+<h2>1. Liste des avoirs en cours</h2>
+<ul>
+<li><b>Délai</b> (1,39 s sur votre capture) : MariaDB partait des caissiers et relisait les ventes de chacun. La requête part maintenant des ventes, par leur index, puis cherche le caissier. Les ventes trouvées sont les mêmes. Sur la copie appaul : de 950 à 1 010 ms avant, de 76 à 105 ms après pour le mois ; 159 ms pour un an. Les 9 avoirs du mois sont les mêmes ; sur un an, 171 avoirs au lieu de 180, les 9 ventes annulées sortant de la liste.</li>
+<li><b>« Modifier » devient « Rappeler avoir »</b> : la vente s'ouvre pour servir les produits dus.</li>
+<li><b>Fenêtre modale</b> : depuis l'alerte « Avoirs » du tableau de bord, la liste (<code>venteavoirmanager</code>) s'ouvre dans une fenêtre au-dessus du tableau de bord, sur l'onglet « Avoir en cours ». La période part du plus ancien avoir en cours, pour que la fenêtre montre les mêmes ventes que l'alerte. Le menu « Liste des avoirs » garde son écran habituel.</li>
+<li><b>Ventes annulées</b> : elles sortent des avoirs en cours, comme dans l'alerte et l'analyse des avoirs. Une vente annulée ne doit plus de produit au client. Sur la copie appaul, 42 ventes étaient dans ce cas.</li>
+<li><b>Défaut corrigé au passage</b> : « Rappeler avoir » sur une vente au comptant sans client (70 % des ventes au comptant) provoquait une erreur JavaScript et l'écran restait incomplet. Le bloc client reste maintenant masqué (<code>AvoirCtr.js</code>).</li>
+</ul>
+
+<h3>Comment définir le canal des messages d'avoir</h3>
+<p>Menu PARAMÉTRAGES &gt; Paramétrage général, ligne « CANAL DES MESSAGES D'AVOIR » (<code>KEY_SMS_AVOIR_CANAL</code>) :</p>
+<ul>
+<li><b>SMS</b> : par SMS, comme avant ;</li>
+<li><b>WHATSAPP</b> : par WhatsApp seulement. Un client qui refuse WhatsApp n'est pas prévenu, et l'échec est noté ;</li>
+<li><b>SMS_WHATSAPP</b> : WhatsApp d'abord, puis SMS si WhatsApp échoue.</li>
+</ul>
+<p>Une valeur inconnue revient au SMS. La colonne « Message » de la liste des avoirs montre l'état et le canal de chaque vente. Le motif d'un échec s'affiche en infobulle.</p>
+
+<h3>Renvoyer un échec depuis le journal des messages</h3>
+<ul>
+<li>Nouvelle colonne « Renvoyer », avec deux boutons, SMS et WhatsApp, sur les seuls messages en échec envoyés à un client. Les SMS au numéro d'administration n'ont pas de bouton.</li>
+<li>Premier clic : le bouton demande « Confirmer SMS ? » ou « Confirmer WhatsApp ? ». Il n'y a pas de fenêtre. Pendant la confirmation, seul ce bouton reste affiché. Sans second clic dans les 5 s, il revient à son libellé.</li>
+<li>Second clic : le renvoi crée un nouveau message, avec le même texte, pour ce seul client, <b>au nom de l'utilisateur</b>. Il apparaît dans le journal comme une nouvelle ligne. La ligne en échec reste telle quelle. Un message d'avoir renvoyé reste lié à sa vente.</li>
+<li>Le résultat s'affiche dans la ligne (« Renvoyé par SMS » ou « Échec du renvoi par WhatsApp »), avec le motif en infobulle. Après un échec, les boutons restent pour réessayer, par l'autre canal par exemple.</li>
+</ul>
+<div class="note">Le passage des tests a fait apparaître trois défauts dans ce renvoi, tous corrigés :
+<ul>
+<li>le canal choisi n'arrivait pas au serveur : l'écran l'envoyait dans le corps de la requête, le serveur le lisait dans l'adresse ;</li>
+<li>« Confirmer WhatsApp ? » débordait de la colonne, à côté du bouton SMS, et le second clic tombait à côté ;</li>
+<li>la confirmation ne revenait jamais d'elle-même.</li>
+</ul>
+Sans fournisseur SMS « en vigueur », l'application envoie par Orange, en repli, comme pour tout SMS. C'est le cas sur appaul. Le renvoi fait donc pareil et ne refuse pas.</div>
+
+<h2>2. Gestion des commandes et suggestions : classe au survol</h2>
+<p>Au survol du nom du produit, l'infobulle donne le nom complet <b>et la classe</b> : « LIBELLÉ : nom (classe A) » dans les suggestions, « DÉSIGNATION : nom (classe B) » dans les commandes en cours. Un produit sans classe n'a que le nom. C'est utile pour les noms trop longs pour la colonne.</p>
+
+<h2>3. Gestion des entrées : produits en avoir</h2>
+<ul>
+<li>Nouveau bouton « Envoyer aux clients (n) » dans le pied de la fenêtre des produits en avoir. Au clic, le choix s'affiche dans le pied : SMS, WhatsApp ou Annuler, sans fenêtre. L'envoi est tracé au nom de l'utilisateur, avec la date et le canal. Le pied affiche ensuite « Envoyé par WhatsApp · utilisateur · date ».</li>
+<li><b>Sans envoi à la main</b>, la fermeture de la fenêtre envoie les messages selon le canal par défaut (paramètre ci-dessus) : WhatsApp, ou WhatsApp puis SMS. Pour le canal SMS, l'envoi à la fermeture suit le paramètre « envoi immédiat des SMS d'avoir » (<code>KEY_SMS_AVOIR_IMMEDIAT</code>), comme avant : s'il est actif, le SMS part à la fermeture ; sinon, au prochain passage planifié. L'infobulle du bouton annonce ce qui se passera à la fermeture.</li>
+<li><b>Déjà envoyé à la main</b> : rien ne repart à la fermeture.</li>
+<li>L'entrée en stock elle-même n'envoie plus rien : les messages sont seulement préparés, pour laisser le choix dans la fenêtre. Avant, avec l'envoi immédiat actif, ils partaient dès l'entrée en stock.</li>
+</ul>
+<p>Nouvelle table <code>avoir_envoi</code> (migration <code>V7.6.41.2200</code>) : une décision par bon, avec le canal, le mode (MANUEL ou AUTO), l'utilisateur et la date. Elle est relue par le pied de la fenêtre et par le test.</p>
+
+<h2>Contrôles</h2>
+<h3>Où la donnée apparaît, et le test de rapprochement qui compare</h3>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Avoirs en cours</td><td>alerte du tableau de bord, titre et total de la fenêtre, lignes (référence, montant, ordre), API, base</td><td><code>vente/test-avoirs-fenetre-2211.js</code></td></tr>
+<tr><td>Délai et total des avoirs</td><td>total affiché, API, base, délai de chaque réponse</td><td><code>perf/test-avoirs-en-cours-delai-2211.js</code> (appaul)</td></tr>
+<tr><td>État du message d'avoir</td><td>colonne Message, infobulle, API, base, avant et après accusés de réception</td><td><code>retours/test-avoir-message-canal-2211.js</code></td></tr>
+<tr><td>Envoi des produits en avoir</td><td>pied de la fenêtre, API, base (<code>avoir_envoi</code>, WhatsApp, SMS reçus par un faux fournisseur local)</td><td><code>retours/test-envoi-avoirs-bon-2211.js</code></td></tr>
+<tr><td>Renvoi depuis le journal</td><td>résultat affiché, réponse, nouvelles lignes du journal (canal, état, destinataire, utilisateur), base</td><td><code>campagnes/test-journal-renvoi-2211.js</code></td></tr>
+<tr><td>Classe au survol</td><td>infobulle, fiche article, ligne par ligne, suggestion et commande en cours</td><td><code>reappro/test-infobulle-classe-2211.js</code></td></tr>
+</table>
+<h3>Règles, et le test de cohérence qui les vérifie</h3>
+<ul>
+<li>Envoi des avoirs : un envoi manuel empêche l'envoi automatique ; le canal par défaut décide à la fermeture ; une valeur inconnue revient au SMS ; un client qui refuse WhatsApp n'en reçoit pas ; un message ne part qu'une fois. Seule une ligne d'un client en échec se renvoie depuis le journal. Vérifié sur 2 × 5 000 cas tirés au hasard (graine fixe) : <code>AvoirsEnvoiCoherenceTest</code>.</li>
+<li>Avoirs en cours : vente clôturée, avoir ouvert, non annulée. Même définition pour l'alerte, la fenêtre, l'API et la base (test de rapprochement ci-dessus).</li>
+</ul>
+<h3>Traces attendues (tests de bilan)</h3>
+<ul>
+<li>Produits en avoir, par bon (messages / WhatsApp / décisions) : 2/2/2, 1/1/1, 1/0/1, 1/0/0, 2/1/1, et 2 SMS au total. Ni plus, ni moins.</li>
+<li>Renvoi : exactement 3 nouveaux messages (1 SMS, 2 WhatsApp), 3 destinataires, 1 lien de vente copié. Les lignes d'origine restent en échec.</li>
+<li>Canal des avoirs : SMS 1/0/2, WhatsApp 2/2/2, repli 2/1/2, valeur inconnue 1/0/1, et 3 SMS.</li>
+<li>Fenêtre des avoirs : aucune écriture.</li>
+</ul>
+<h3>Cas variés couverts</h3>
+<ul>
+<li>4 avoirs en cours d'âges et de montants différents, plus une vente annulée et un avoir clôturé, qui doivent rester hors de la liste.</li>
+<li>Envoi manuel WhatsApp, puis manuel SMS, puis automatique WhatsApp avec un client qui refuse, puis repli SMS, puis aucun canal défini.</li>
+<li>Renvoi d'un WhatsApp par SMS, d'un SMS par WhatsApp, et d'un message à un client qui refuse WhatsApp. Confirmation abandonnée.</li>
+<li>Produits de classe A, B, C et sans classe ; trois tailles d'écran.</li>
+</ul>
+
+<h2>Non-régression</h2>
+<p>Tests passés un par un sur le WAR final (domain4, <code>laborex_audit</code>) : tous passent.</p>
+<table>
+<tr><th>Test</th><th>Résultat</th></tr>
+<tr><td><code>vente/test-avoirs-fenetre-2211.js</code> (nouveau)</td><td>14 sur 14</td></tr>
+<tr><td><code>campagnes/test-journal-renvoi-2211.js</code> (nouveau)</td><td>14 sur 14</td></tr>
+<tr><td><code>retours/test-envoi-avoirs-bon-2211.js</code> (nouveau)</td><td>20 sur 20</td></tr>
+<tr><td><code>reappro/test-infobulle-classe-2211.js</code> (nouveau)</td><td>9 sur 9</td></tr>
+<tr><td><code>retours/test-avoir-message-canal-2211.js</code> (existant, complété)</td><td>18 sur 18, et 18 sur 18 sur l'ancien code</td></tr>
+<tr><td><code>campagnes/test-journal-analyse-2211.js</code> (lot 9)</td><td>14 sur 14</td></tr>
+<tr><td><code>retours/test-tableau-bord.js</code></td><td>61 sur 61</td></tr>
+<tr><td><code>reappro/test-suggestion-dispo-abc-2111.js</code></td><td>18 sur 18</td></tr>
+<tr><td><code>retours/test-menus-casses-masques.js</code>, <code>retours/test-menu-vente.js</code>, <code>ergonomie/test-menu-au-dessus-1511.js</code></td><td>7 sur 7, 13 sur 13, 5 sur 5</td></tr>
+<tr><td><code>retours/test-saisie-ecrans.js</code> (écrans touchés : avoirs, journal, commandes, suggestions, tableau de bord, fiche article, périmés)</td><td>5 sur 5</td></tr>
+<tr><td><code>perf/test-avoirs-en-cours-delai-2211.js</code> (appaul, domain2)</td><td>3 sur 7 avant, 7 sur 7 après</td></tr>
+</table>
+
+<h2>Notes</h2>
+<ul>
+<li>Les SMS des essais partent vers un faux fournisseur local, jamais vers un vrai service. Les WhatsApp sont simulés.</li>
+<li><b>Commit et push</b> : en attente de votre accord, comme pour le lot 9.</li>
+</ul>
+</body>
+</html>

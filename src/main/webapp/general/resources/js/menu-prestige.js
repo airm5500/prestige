@@ -87,6 +87,11 @@
                 }
             });
             if (ents.length) {
+                /* retour du 22/11 (lot 9) : sous-menus par ordre alphabetique, comme le menu « Prestige Navigation » */
+                ents.sort(function (x, y) {
+                    return String(x.texte || '').replace(/\s+/g, ' ').trim()
+                            .localeCompare(String(y.texte || '').replace(/\s+/g, ' ').trim(), 'fr', {sensitivity: 'base', numeric: true});
+                });
                 var ic = icone(m.get('text'));
                 mods.push({id: 'm' + mods.length, nom: m.get('text'), ic: ic, ents: ents});
             }

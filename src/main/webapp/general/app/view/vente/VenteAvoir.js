@@ -74,16 +74,18 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
             {sortable: false, menuDisabled: true, header: 'Caissier', dataIndex: 'userCaissierName', flex: 1},
             this.messageColumn(),
             this.detailsColumn(),
+            /* retours du 22/11 (lot 10) : « Modifier » devient « Rappeler avoir » (la vente est rappelee pour servir l'avoir) */
             {
                 xtype: 'actioncolumn',
-                header: 'Modifier',
-                width: 55,
+                header: 'Rappeler avoir',
+                itemId: 'colRappelerAvoir',
+                width: 95,
                 align: 'center',
                 sortable: false,
                 menuDisabled: true,
                 items: [{
                         icon: 'resources/images/icons/fam/page_white_edit.png',
-                        tooltip: 'Modifier',
+                        tooltip: 'Rappeler l\'avoir pour servir les produits dus',
                         handler: function (view, rowIndex, colIndex, item, e, record) {
                             testextjs.app.getController('ListeAvoirCtr').onEdite(record);
                         }
@@ -161,7 +163,9 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
 
         // Periode par defaut : du 1er du mois courant a aujourd'hui
         var today = new Date();
-        var firstOfMonth = Ext.Date.getFirstDateOfMonth(today);
+        /* retours du 22/11 (lot 10) : ouverte depuis l'alerte « Avoirs » du tableau de bord, la liste part du plus
+           ancien avoir en cours (debutPeriode), pour montrer tous ceux que l'alerte compte */
+        var firstOfMonth = me.debutPeriode || Ext.Date.getFirstDateOfMonth(today);
 
         // Un store par onglet : meme endpoint, parametre avoirStatut different.
         var storeEnCours = Ext.create('Ext.data.Store', {

@@ -20,6 +20,12 @@ public interface ReglementFournisseurService {
     /** Du par grossiste, en tranches d'age (BL suivis seulement). */
     JSONObject aRegler();
 
+    /**
+     * Retour du 22/11 (lot 9) : du par grossiste, limite aux grossistes d'un groupe (groupeId vide : tous) ; chaque
+     * ligne porte son groupe (groupeId, groupe) et la reponse les totaux par groupe (groupes).
+     */
+    JSONObject aRegler(String groupeId);
+
     /** BL d'un grossiste qui restent a regler, les plus anciens d'abord. */
     JSONObject bls(String grossisteId);
 
@@ -34,6 +40,9 @@ public interface ReglementFournisseurService {
 
     /** Reglements de la periode (date du reglement), avec leur repartition. */
     JSONObject historique(String dtStart, String dtEnd, String grossisteId);
+
+    /** Retour du 22/11 (lot 9) : historique limite aux grossistes d'un groupe (groupeId vide : tous). */
+    JSONObject historique(String dtStart, String dtEnd, String grossisteId, String groupeId);
 
     /** Releve d'un grossiste : BL suivis de la periode et reglements de la periode, avec les totaux. */
     JSONObject releve(String grossisteId, String dtStart, String dtEnd);

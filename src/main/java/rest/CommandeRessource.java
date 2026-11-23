@@ -95,8 +95,14 @@ public class CommandeRessource {
     @Path("validerbl/{id}")
     public Response cloturerBonLivration(@PathParam("id") String id,
             @javax.ws.rs.QueryParam("avecEcart") boolean avecEcart, @javax.ws.rs.QueryParam("mode") String mode,
-            @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) throws JSONException {
+            @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef, @javax.ws.rs.QueryParam("avoirs") String avoirs)
+            throws JSONException {
         if (!MODE_RECU.equalsIgnoreCase(org.apache.commons.lang3.StringUtils.trimToEmpty(mode))) {
+            /* retours du 22/11 (lot 10, point 3) : avoirs=differe -> messages d'avoir envoyes depuis la fenetre */
+            if (AVOIRS_DIFFERES.equals(avoirs)) {
+                return Response.ok().entity(commandeService.cloturerBonLivraison(id, avecEcart, false, true).toString())
+                        .build();
+            }
             /* modes actuels (sans parametre, avecEcart=true) : strictement inchanges */
             return Response.ok().entity(commandeService.cloturerBonLivraison(id, avecEcart).toString()).build();
         }
@@ -114,6 +120,8 @@ public class CommandeRessource {
 
     /** Demande 59 : valeur du parametre {@code mode} de validerbl qui n'entre que le reçu. */
     public static final String MODE_RECU = "RECU";
+    /** Retours du 22/11 (lot 10, point 3) : valeur du parametre {@code avoirs} de validerbl. */
+    public static final String AVOIRS_DIFFERES = "differe";
     static final String TYPE_CLOTURE_BL_RECU = "CLOTURE_BL_RECU";
 
     @GET

@@ -1490,7 +1490,12 @@ onRemoveClick: function (grid, rowIndex) {
     
     /** Plan du 21/11, point 4.5 : classe ABC de la fiche apres le nom, ex. « DOLIPRANE 500 (A) » ; rien sans classe. */
     libelleRenderer: function (v, m, r, ligne, col, store, vue) {
-        var t = Me_Window.columnRenderer(v, m, r, ligne, col, store, vue), c = r.get('str_CLASSE_ABC');
+        var c = r.get('str_CLASSE_ABC');
+        /* retours du 22/11 (lot 10, point 2) : l'info-bulle du nom (trop long pour la colonne) porte aussi la classe */
+        if (m && v && c) {
+            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('LIBELLE : ' + v + ' (classe ' + c + ')')) + '"';
+        }
+        var t = Me_Window.columnRenderer(v, m, r, ligne, col, store, vue);
         return c ? t + ' <span class="classe-abc" data-classe-abc="' + Ext.String.htmlEncode(c)
                 + '" style="color:#2E75B6;font-weight:600">(' + Ext.String.htmlEncode(c) + ')</span>' : t;
     },

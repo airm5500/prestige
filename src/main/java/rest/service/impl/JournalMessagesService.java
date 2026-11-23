@@ -54,6 +54,11 @@ public class JournalMessagesService {
         }
     }
 
+    /** La periode effectivement lue pour ces bornes saisies (pour le titre des editions). */
+    public static LocalDate[] periodeLue(String du, String au) {
+        return periode(du, au);
+    }
+
     /** Periode lue : du debut du premier jour a la fin du dernier, bornee a JOURS_MAX jours ; vide = aujourd'hui. */
     static LocalDate[] periode(String du, String au) {
         LocalDate fin = lire(au, LocalDate.now());
@@ -165,6 +170,17 @@ public class JournalMessagesService {
             }
         }
         return l;
+    }
+
+    /** Nom de l'officine pour l'en-tete des editions (vide si absent). */
+    public String nomOfficine() {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object> r = em.createNativeQuery("SELECT str_NOM_COMPLET FROM t_officine LIMIT 1").getResultList();
+            return r.isEmpty() || r.get(0) == null ? "" : String.valueOf(r.get(0));
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     public List<JournalMessages.Ligne> selection(String du, String au, JournalMessages.Filtre f) {

@@ -14,25 +14,36 @@ Ext.define('testextjs.view.commun.PaginationNumerotee', {
     alias: 'plugin.paginationnumerotee',
     /** Nombre de numeros autour de la page courante. */
     autour: 2,
+    /**
+     * Retour du 22/11 (lot 9) : vrai = le champ « Page [ ] sur N » d'ExtJS reste a cote des numeros, pour aller
+     * directement a une page (saisie d'inventaire : on y arrivait avant). Ecrans declares dans correctifs-affichage.js
+     * (PrestigeAffichage.ECRANS_SAISIE_PAGE).
+     */
+    saisiePage: false,
 
     init: function (barre) {
         var me = this;
         me.barre = barre;
         barre.addCls('theme-pagination');
         barre.on('afterrender', me.monter, me, {single: true});
-        barre.on('change', me.dessiner, me);
+        /* priorite haute : un ecouteur 'change' de l'ecran qui renvoie false (saisie d'inventaire : relance de
+           l'edition de la cellule) arreterait l'evenement, et les numeros resteraient sur « 1 » (retour du 22/11) */
+        barre.on('change', me.dessiner, me, {priority: 1000});
     },
 
     monter: function () {
         var me = this, barre = me.barre;
-        Ext.each(['#inputItem', '#afterTextItem'], function (sel) {
+        if (me.saisiePage) {
+            barre.addCls('pg-saisie-page');
+        }
+        Ext.each(me.saisiePage ? [] : ['#inputItem', '#afterTextItem'], function (sel) {
             var c = barre.child(sel);
             if (c) {
                 c.hide();
             }
         });
         barre.items.each(function (c) {
-            if (c.isXType && c.isXType('tbtext') && c.text === barre.beforePageText) {
+            if (!me.saisiePage && c.isXType && c.isXType('tbtext') && c.text === barre.beforePageText) {
                 c.hide();
             }
         });

@@ -223,14 +223,27 @@ public class CommandeServiceImpl implements CommandeService {
      */
     @Override
     public JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu) throws JSONException {
+        return cloturerBonLivraison(id, avecEcart, modeRecu, false);
+    }
+
+    /**
+     * Retours du 22/11 (lot 10, point 3) : avec {@code differerAvoirs} (ecran d'entree en stock, qui affiche ensuite la
+     * fenetre des produits en avoir), les messages d'avoir sont prepares mais pas envoyes : ils partent depuis la
+     * fenetre (choix SMS / WhatsApp) ou a sa fermeture (canal par defaut), voir AvoirsEnvoiService. Sans ce drapeau,
+     * envoi strictement inchange.
+     */
+    @Override
+    public JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu, boolean differerAvoirs)
+            throws JSONException {
         try {
-            return cloturerBonLivraisonSuivi(id, avecEcart, modeRecu);
+            return cloturerBonLivraisonSuivi(id, avecEcart, modeRecu, differerAvoirs);
         } finally {
             stocksDuBon = null; // instance sans etat entre deux appels
         }
     }
 
-    private JSONObject cloturerBonLivraisonSuivi(String id, boolean avecEcart, boolean modeRecu) throws JSONException {
+    private JSONObject cloturerBonLivraisonSuivi(String id, boolean avecEcart, boolean modeRecu, boolean differerAvoirs)
+            throws JSONException {
         JSONObject json = new JSONObject();
         JSONArray ecarts = new JSONArray();
         int totalManquant = 0;
@@ -670,7 +683,9 @@ public class CommandeServiceImpl implements CommandeService {
              * plan du 21/11, point 11 : WHATSAPP ou SMS_WHATSAPP -> WhatsApp tout de suite (repli SMS pour
              * SMS_WHATSAPP) ; SMS -> comme avant.
              */
-            if (!AvoirMessage.SMS.equals(canalAvoir)) {
+            if (differerAvoirs) {
+                json.put("avoirsDifferes", avoirNotificationIds.size());
+            } else if (!AvoirMessage.SMS.equals(canalAvoir)) {
                 boolean repli = AvoirMessage.SMS_WHATSAPP.equals(canalAvoir);
                 for (String avoirNotificationId : avoirNotificationIds) {
                     try {

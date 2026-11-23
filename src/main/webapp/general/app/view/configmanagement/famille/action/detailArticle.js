@@ -722,6 +722,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             name: 'dt_LAST_INVENTAIRE',
                                             id: 'dt_LAST_INVENTAIRE',
                                             fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            /* retour du 22/11 (lot 9) : date de creation de la fiche et son auteur */
+                                            fieldLabel: 'Créé le',
+                                            name: 'dt_CREATION_FICHE',
+                                            id: 'dt_CREATION_FICHE',
+                                            fieldStyle: 'color:#14303a;font-weight:bold;font-size:13px'
                                         }
                                     ]
                                 },
@@ -1582,6 +1589,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
      * Date de derniere vente accompagnee d'une lecture immediate : « 01/08/2025 14:20 (non vendu depuis 32
      * jours) » en rouge, « vendu aujourd'hui » en vert, « jamais vendu » en rouge.
      */
+    /** « 12/03/2026 09:14 par Awa KONE » ; auteur inconnu (fiche ancienne ou importee) : la date seule. */
+    texteCreation: function (date, auteur) {
+        var d = Ext.String.htmlEncode(String(date || ''));
+        if (!d) {
+            return '<span style="color:#999;font-weight:normal">—</span>';
+        }
+        return auteur ? d + ' <span style="color:#6b8089;font-weight:normal">par</span> ' + Ext.String.htmlEncode(String(auteur)) : d;
+    },
     texteDerniereVente: function (valeur) {
         if (!valeur) {
             return '<span style="color:#c0392b;">Jamais vendu</span>';
@@ -1718,6 +1733,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('int_QTE_REAPPROVISIONNEMENT').setValue(rec.int_QTE_REAPPROVISIONNEMENT);
         Ext.getCmp('str_CODE_REMISE').setValue(rec.str_CODE_REMISE);
         Ext.getCmp('dt_LAST_INVENTAIRE').setValue(rec.dt_LAST_INVENTAIRE);
+        Ext.getCmp('dt_CREATION_FICHE').setValue(this.texteCreation(rec.dt_CREATED, rec.str_CREE_PAR));
         Ext.getCmp('dt_LAST_ENTREE').setValue(rec.dt_LAST_ENTREE);
         Ext.getCmp('dt_DATE_LIVRAISON').setValue(rec.dt_DATE_LIVRAISON);
         Ext.getCmp('dt_LAST_VENTE').setValue(this.texteDerniereVente(rec.dt_LAST_VENTE));

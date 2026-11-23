@@ -150,8 +150,27 @@ public class GestionPerimesResource {
     @DELETE
     @Path("{id}")
     public Response remove(@PathParam("id") String id) {
-        gestionPerimesService.removePerime(id);
-        return Response.ok().build();
+        /* retour du 22/11 (lot 11) : session exigee ; seule une ligne encore en attente est retiree */
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok(gestionPerimesService.retirerLigneEnCours(id).toString()).build();
+    }
+
+    /*
+     * Retour du 22/11 (lot 11) : recherche des produits de la saisie (remplace
+     * webservices/Report/saisieperimes/ws_article_list.jsp, gardee pour les anciens ecrans).
+     */
+    @GET
+    @Path("produits")
+    public Response produits(@QueryParam("query") String query, @QueryParam("start") int start,
+            @QueryParam("limit") int limit) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok(gestionPerimesService.rechercherProduits(query, start, limit, tu).toString()).build();
     }
 
     @PUT

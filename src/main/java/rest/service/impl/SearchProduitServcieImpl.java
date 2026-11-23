@@ -116,6 +116,30 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     /**
+     * Retour du 22/11 (lot 9) : auteur de la creation d'un article, lu sur la notification « Ajout de nouveau produit »
+     * (type 21, entity_ref = l'article) ecrite a chaque creation, par la fiche comme par les commandes. Vide pour un
+     * article cree avant ces notifications ou importe.
+     */
+    public String createurArticle(String familleId) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object[]> r = em.createNativeQuery("SELECT u.str_FIRST_NAME, u.str_LAST_NAME FROM notification n"
+                    + " JOIN t_user u ON u.lg_USER_ID = n.user_id WHERE n.type_notification = ?1 AND n.entity_ref = ?2"
+                    + " ORDER BY n.created_at LIMIT 1")
+                    .setParameter(1, dal.enumeration.TypeNotification.AJOUT_DE_NOUVEAU_PRODUIT.ordinal())
+                    .setParameter(2, familleId).getResultList();
+            if (r.isEmpty()) {
+                return "";
+            }
+            return StringUtils.trimToEmpty(StringUtils.defaultString((String) r.get(0)[0]) + " "
+                    + StringUtils.defaultString((String) r.get(0)[1]));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Auteur de la creation de l'article non lu", e);
+            return "";
+        }
+    }
+
+    /**
      * Apercu d'un article pour le bandeau de la fiche article : consommation mensuelle sur 13 mois (les douze
      * precedents plus le mois en cours, pour qu'un debut d'annee garde une annee complete de recul), lots dont la
      * peremption approche, et les reperes de gestion (derniere vente, derniere entree avec sa quantite et son
@@ -134,6 +158,10 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             o.put("cip", t.getIntCIP() != null ? t.getIntCIP() : "");
             o.put("nom", t.getStrNAME() != null ? t.getStrNAME() : "");
+            /* retour du 22/11 (lot 9) : date de creation de la fiche et son auteur, comme dans le detail */
+            o.put("creeLe", t.getDtCREATED() == null ? ""
+                    : new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(t.getDtCREATED()));
+            o.put("creePar", createurArticle(produitId));
             o.put("classe", abcLettre(t.getLgCLASSEABCID()));
             o.put("tva", t.getLgCODETVAID() != null && t.getLgCODETVAID().getStrNAME() != null
                     ? t.getLgCODETVAID().getStrNAME() : "");
@@ -1072,6 +1100,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             if (!complet) {
                 return json;
             }
+            /* retour du 22/11 (lot 9) : qui a cree l'article (notification « Ajout de nouveau produit ») */
+            json.put("str_CREE_PAR", createurArticle(t.getLgFAMILLEID()));
             /* plan du 19/11, point 6 b : une lecture pour les quatre dates, repli sur les lectures separees */
             datesGroupees = datesFiche(t.getLgFAMILLEID(), empl);
             if (datesGroupees != null) {

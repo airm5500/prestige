@@ -230,6 +230,73 @@ public final class JournalMessages {
         return c;
     }
 
+    /**
+     * Retour du 22/11 (lot 9) : taux d'une selection, en pourcentage a une decimale (0 si le denominateur est nul) :
+     * <ul>
+     * <li>envoi = envoyes / messages ;</li>
+     * <li>reception = distribues / envoyes ;</li>
+     * <li>lecture = lus / distribues, sur WhatsApp seulement (un SMS n'a pas d'accuse de lecture) ;</li>
+     * <li>echec = echecs / messages ; attente = en attente / messages.</li>
+     * </ul>
+     */
+    public static JSONObject taux(List<Ligne> lignes) {
+        Map<String, Integer> c = compteurs(lignes);
+        List<Ligne> wa = new ArrayList<>();
+        for (Ligne l : lignes) {
+            if (WHATSAPP.equals(l.canal)) {
+                wa.add(l);
+            }
+        }
+        Map<String, Integer> w = compteurs(wa);
+        JSONObject o = new JSONObject(c);
+        o.put("tauxEnvoi", pourcent(c.get("envoyes"), c.get("total")));
+        o.put("tauxReception", pourcent(c.get("distribues"), c.get("envoyes")));
+        o.put("distribuesWhatsApp", w.get("distribues"));
+        o.put("lusWhatsApp", w.get("lus"));
+        o.put("tauxLecture", pourcent(w.get("lus"), w.get("distribues")));
+        o.put("tauxEchec", pourcent(c.get("echecs"), c.get("total")));
+        o.put("tauxAttente", pourcent(c.get("attente"), c.get("total")));
+        return o;
+    }
+
+    /** a / b en pourcentage, une decimale ; 0 si b est nul. */
+    public static double pourcent(int a, int b) {
+        return b <= 0 ? 0d : Math.round(a * 1000d / b) / 10d;
+    }
+
+    /**
+     * Retour du 22/11 (lot 9) : analyse de la selection ; les taux de l'ensemble, puis la repartition par canal et par
+     * origine (chaque groupe avec ses compteurs et ses taux), du plus grand nombre de messages au plus petit.
+     */
+    public static JSONObject analyse(List<Ligne> lignes) {
+        return new JSONObject().put("ensemble", taux(lignes)).put("parCanal", repartition(lignes, true))
+                .put("parOrigine", repartition(lignes, false));
+    }
+
+    private static JSONArray repartition(List<Ligne> lignes, boolean parCanal) {
+        Map<String, List<Ligne>> g = new LinkedHashMap<>();
+        for (Ligne l : lignes) {
+            g.computeIfAbsent(parCanal ? l.canal : StringUtils.defaultString(l.origine), k -> new ArrayList<>()).add(l);
+        }
+        List<Map.Entry<String, List<Ligne>>> tri = new ArrayList<>(g.entrySet());
+        tri.sort((x, y) -> {
+            int c = Integer.compare(y.getValue().size(), x.getValue().size());
+            return c != 0 ? c : x.getKey().compareTo(y.getKey());
+        });
+        JSONArray a = new JSONArray();
+        for (Map.Entry<String, List<Ligne>> e : tri) {
+            a.put(taux(e.getValue()).put("code", e.getKey()).put("libelle",
+                    parCanal ? (WHATSAPP.equals(e.getKey()) ? "WhatsApp" : "SMS")
+                            : libelleOrigine(e.getKey().isEmpty() ? null : e.getKey())));
+        }
+        return a;
+    }
+
+    /** Pourcentage affiche : « 87,5 % ». */
+    public static String texteTaux(double t) {
+        return String.valueOf(t).replace('.', ',') + " %";
+    }
+
     private static String format(Date d) {
         return d == null ? "" : new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(d);
     }
@@ -252,8 +319,93 @@ public final class JournalMessages {
         for (int i = d; i < fin; i++) {
             data.put(json(filtrees.get(i)));
         }
-        return new JSONObject().put("success", true).put("total", filtrees.size()).put("data", data).put("compteurs",
-                new JSONObject(compteurs(filtrees)));
+        return new JSONObject().put("success", true).put("total", filtrees.size()).put("data", data)
+                .put("compteurs", new JSONObject(compteurs(filtrees))).put("analyse", analyse(filtrees));
+    }
+
+    /** Ligne d'un tableau d'analyse : libelle, messages, envoyes, distribues, lus, echecs, en attente, taux. */
+    static String[] ligneAnalyse(String libelle, JSONObject t) {
+        return new String[] { libelle, String.valueOf(t.getInt("total")), String.valueOf(t.getInt("envoyes")),
+                String.valueOf(t.getInt("distribues")), String.valueOf(t.getInt("lus")),
+                String.valueOf(t.getInt("echecs")), String.valueOf(t.getInt("attente")),
+                texteTaux(t.getDouble("tauxEnvoi")), texteTaux(t.getDouble("tauxReception")),
+                t.getInt("distribuesWhatsApp") > 0 ? texteTaux(t.getDouble("tauxLecture")) : "—",
+                texteTaux(t.getDouble("tauxEchec")), texteTaux(t.getDouble("tauxAttente")) };
+    }
+
+    static final String[] ENTETES_ANALYSE = { "", "Messages", "Envoyés", "Distribués", "Lus", "Échecs", "En attente",
+            "Taux d'envoi", "Taux de réception", "Taux de lecture (WhatsApp)", "Taux d'échec", "En attente (%)" };
+
+    /** Lignes de messages imprimees au plus. */
+    static final int PDF_MAX = 5000;
+
+    /** Edition PDF : analyse puis messages (au plus PDF_MAX lignes, le reste est signale). */
+    public static byte[] pdf(List<Ligne> filtrees, java.time.LocalDate du, java.time.LocalDate au, Filtre f,
+            String officine, String imprimePar) {
+        java.time.format.DateTimeFormatter jj = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        e.officine = StringUtils.defaultString(officine);
+        e.titre = "JOURNAL DES MESSAGES (SMS ET WHATSAPP)";
+        StringBuilder st = new StringBuilder("Du ").append(du.format(jj)).append(" au ").append(au.format(jj));
+        if (f.canal != null) {
+            st.append(" ; canal : ").append(WHATSAPP.equalsIgnoreCase(f.canal) ? "WhatsApp" : "SMS");
+        }
+        if (f.origine != null) {
+            st.append(" ; origine : ").append(libelleOrigine(f.origine));
+        }
+        if (f.etat != null) {
+            st.append(" ; état : ").append(f.etat);
+        }
+        if (f.recherche != null) {
+            st.append(" ; recherche : ").append(f.recherche);
+        }
+        e.sousTitre = st.append(" ; ").append(filtrees.size()).append(" message(s)").toString();
+        e.imprimePar = imprimePar;
+        float[] lA = { 16, 7, 7, 7, 6, 7, 7, 8, 9, 10, 8, 8 };
+        boolean[] dA = { false, true, true, true, true, true, true, true, true, true, true, true };
+        JSONObject a = analyse(filtrees);
+        List<rest.report.pdf.TableauPdf.Section> sections = new ArrayList<>();
+        rest.report.pdf.TableauPdf.Section s1 = new rest.report.pdf.TableauPdf.Section();
+        s1.titre = "Analyse : ensemble et répartition par canal";
+        s1.entetes = ENTETES_ANALYSE;
+        s1.largeurs = lA;
+        s1.droite = dA;
+        s1.lignes = new ArrayList<>();
+        s1.lignes.add(ligneAnalyse("Ensemble", a.getJSONObject("ensemble")));
+        JSONArray pc = a.getJSONArray("parCanal");
+        for (int i = 0; i < pc.length(); i++) {
+            s1.lignes.add(ligneAnalyse(pc.getJSONObject(i).getString("libelle"), pc.getJSONObject(i)));
+        }
+        sections.add(s1);
+        rest.report.pdf.TableauPdf.Section s2 = new rest.report.pdf.TableauPdf.Section();
+        s2.titre = "Répartition par origine";
+        s2.entetes = ENTETES_ANALYSE.clone();
+        s2.entetes[0] = "Origine";
+        s2.largeurs = lA;
+        s2.droite = dA;
+        s2.lignes = new ArrayList<>();
+        JSONArray po = a.getJSONArray("parOrigine");
+        for (int i = 0; i < po.length(); i++) {
+            s2.lignes.add(ligneAnalyse(po.getJSONObject(i).getString("libelle"), po.getJSONObject(i)));
+        }
+        sections.add(s2);
+        rest.report.pdf.TableauPdf.Section s3 = new rest.report.pdf.TableauPdf.Section();
+        int max = Math.min(filtrees.size(), PDF_MAX);
+        s3.titre = "Messages" + (filtrees.size() > max
+                ? " (les " + max + " plus récents sur " + filtrees.size() + " : l'export CSV donne tout)" : "");
+        s3.entetes = new String[] { "Date", "Canal", "Origine", "Destinataire", "Numéro", "État", "Motif d'échec",
+                "Utilisateur" };
+        s3.largeurs = new float[] { 11, 7, 11, 17, 9, 8, 21, 16 };
+        s3.droite = new boolean[8];
+        s3.lignes = new ArrayList<>();
+        for (int i = 0; i < max; i++) {
+            JSONObject j = json(filtrees.get(i));
+            s3.lignes.add(new String[] { j.getString("date"), j.getString("canal"), j.getString("origineLibelle"),
+                    j.getString("destinataire"), j.getString("numero"), j.getString("etat"), j.getString("motif"),
+                    j.getString("utilisateur").isEmpty() ? "Automatique" : j.getString("utilisateur") });
+        }
+        sections.add(s3);
+        return rest.report.pdf.TableauPdf.genererSections(e, sections);
     }
 
     static final String ENTETE_CSV = "Date;Canal;Origine;Destinataire;Numéro;État;Motif d'échec;Utilisateur";

@@ -256,13 +256,41 @@ public class ReglementFournisseurServiceImpl implements ReglementFournisseurServ
 
     @Override
     public JSONObject aRegler() {
+        return aRegler(null);
+    }
+
+    /** Groupe de chaque grossiste : identifiant (vide = sans groupe) et libelle (groupefournisseur). */
+    Map<String, Object[]> groupesGrossistes() {
+        Map<String, Object[]> m = new java.util.HashMap<>();
+        @SuppressWarnings("unchecked")
+        List<Object[]> r = em.createNativeQuery("SELECT t.lg_GROSSISTE_ID, g.id, g.libelle FROM t_grossiste t"
+                + " LEFT JOIN groupefournisseur g ON g.id = t.groupeId").getResultList();
+        for (Object[] x : r) {
+            m.put((String) x[0], new Object[] { x[1] == null ? "" : String.valueOf(((Number) x[1]).intValue()),
+                    x[2] == null ? "Sans groupe" : (String) x[2] });
+        }
+        return m;
+    }
+
+    static boolean dansGroupe(Map<String, Object[]> groupes, String grossisteId, String groupeId) {
+        if (groupeId == null) {
+            return true;
+        }
+        Object[] g = groupes.get(grossisteId);
+        return g != null && groupeId.equals(g[0]);
+    }
+
+    @Override
+    public JSONObject aRegler(String groupe) {
+        String groupeId = StringUtils.trimToNull(groupe);
+        Map<String, Object[]> groupes = groupesGrossistes();
         LocalDate depart = depart(em), aujourdhui = LocalDate.now();
         Map<String, long[]> parGrossiste = new LinkedHashMap<>(); /* 0-30, 31-60, 61-90, >90, total, nombre */
         Map<String, String> noms = new LinkedHashMap<>();
         long[] totaux = new long[6];
         for (Ligne x : lignes(null, depart, null, false)) {
             int r = x.restant();
-            if (r <= 0) {
+            if (r <= 0 || !dansGroupe(groupes, x.grossisteId, groupeId)) {
                 continue;
             }
             int t = java.util.Arrays.asList(ReglementFournisseurRegles.TRANCHES)
@@ -282,15 +310,36 @@ public class ReglementFournisseurServiceImpl implements ReglementFournisseurServ
             return c != 0 ? c : StringUtils.compare(noms.get(a.getKey()), noms.get(b.getKey()));
         });
         JSONArray data = new JSONArray();
+        /*
+         * retour du 22/11 (lot 9) : totaux par groupe (grossistes, BL, tranches, total), du plus gros du au plus petit
+         */
+        Map<String, long[]> parGroupe = new LinkedHashMap<>(); /* tranches, total, BL, grossistes */
+        Map<String, String> nomsGroupes = new LinkedHashMap<>();
         for (Map.Entry<String, long[]> e : tri) {
             long[] g = e.getValue();
+            Object[] gr = groupes.getOrDefault(e.getKey(), new Object[] { "", "Sans groupe" });
             data.put(new JSONObject().put("grossisteId", e.getKey())
                     .put("grossiste", StringUtils.defaultString(noms.get(e.getKey()))).put("nombre", g[5])
-                    .put("t0", g[0]).put("t1", g[1]).put("t2", g[2]).put("t3", g[3]).put("total", g[4]));
+                    .put("t0", g[0]).put("t1", g[1]).put("t2", g[2]).put("t3", g[3]).put("total", g[4])
+                    .put("groupeId", gr[0]).put("groupe", gr[1]));
+            long[] tg = parGroupe.computeIfAbsent((String) gr[0], k -> new long[7]);
+            nomsGroupes.put((String) gr[0], (String) gr[1]);
+            for (int i = 0; i < 6; i++) {
+                tg[i] += g[i];
+            }
+            tg[6]++;
         }
-        return new JSONObject().put("success", true).put("depart", depart.format(JJ))
-                .put("departIso", depart.toString()).put("total", totaux[4]).put("nombre", totaux[5])
-                .put("t0", totaux[0]).put("t1", totaux[1]).put("t2", totaux[2]).put("t3", totaux[3]).put("data", data);
+        JSONArray totauxGroupes = new JSONArray();
+        for (Map.Entry<String, long[]> e : parGroupe.entrySet()) {
+            long[] t = e.getValue();
+            totauxGroupes.put(new JSONObject().put("groupeId", e.getKey()).put("groupe", nomsGroupes.get(e.getKey()))
+                    .put("t0", t[0]).put("t1", t[1]).put("t2", t[2]).put("t3", t[3]).put("total", t[4])
+                    .put("nombre", t[5]).put("grossistes", t[6]));
+        }
+        return new JSONObject().put("success", true).put("groupeId", StringUtils.defaultString(groupeId))
+                .put("groupes", totauxGroupes).put("depart", depart.format(JJ)).put("departIso", depart.toString())
+                .put("total", totaux[4]).put("nombre", totaux[5]).put("t0", totaux[0]).put("t1", totaux[1])
+                .put("t2", totaux[2]).put("t3", totaux[3]).put("data", data);
     }
 
     @Override
@@ -689,9 +738,26 @@ public class ReglementFournisseurServiceImpl implements ReglementFournisseurServ
 
     @Override
     public JSONObject historique(String dtStart, String dtEnd, String grossisteId) {
+        return historique(dtStart, dtEnd, grossisteId, null);
+    }
+
+    @Override
+    public JSONObject historique(String dtStart, String dtEnd, String grossisteId, String groupe) {
         LocalDate fin = dateOu(dtEnd, LocalDate.now());
         LocalDate debut = dateOu(dtStart, fin.withDayOfMonth(1));
-        JSONArray data = reglements(StringUtils.trimToNull(grossisteId), debut, fin);
+        JSONArray tous = reglements(StringUtils.trimToNull(grossisteId), debut, fin);
+        String groupeId = StringUtils.trimToNull(groupe);
+        JSONArray data = tous;
+        if (groupeId != null) {
+            /* retour du 22/11 (lot 9) : seulement les reglements des grossistes du groupe */
+            Map<String, Object[]> groupes = groupesGrossistes();
+            data = new JSONArray();
+            for (int i = 0; i < tous.length(); i++) {
+                if (dansGroupe(groupes, tous.getJSONObject(i).optString("grossisteId"), groupeId)) {
+                    data.put(tous.getJSONObject(i));
+                }
+            }
+        }
         long total = 0;
         int actifs = 0;
         for (int i = 0; i < data.length(); i++) {

@@ -10,6 +10,9 @@
  *    (colonne « Part du règlement » : la répartition qui sera enregistrée) ; confirmation dans le bouton ;
  *  - Historique : règlements et leur répartition, annulation (confirmation dans le bouton), relevé Excel et PDF par
  *    grossiste.
+ * Retour du 22/11 (lot 9) : filtre par groupe de grossistes sur « À régler » et sur l'historique, renomme « Règlements
+ * effectués » ; « À régler » regroupe les grossistes par groupe (en-tete : nombre de grossistes, BL et total du ; un
+ * clic sur l'en-tete replie ou deplie le detail du groupe) ; mode de reglement propose par defaut : le cheque.
  */
 Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
     extend: 'Ext.panel.Panel',
@@ -25,9 +28,13 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
         var me = this;
         me.storeARegler = Ext.create('Ext.data.Store', {
             fields: ['grossisteId', 'grossiste', {name: 'nombre', type: 'int'}, {name: 't0', type: 'int'}, {name: 't1', type: 'int'},
-                {name: 't2', type: 'int'}, {name: 't3', type: 'int'}, {name: 'total', type: 'int'}],
+                {name: 't2', type: 'int'}, {name: 't3', type: 'int'}, {name: 'total', type: 'int'}, 'groupeId', 'groupe'],
+            groupField: 'groupe',
             proxy: {type: 'ajax', url: me.URL + 'a-regler', reader: {type: 'json', root: 'data'}},
-            listeners: {load: function (s, r, ok) {
+            listeners: {beforeload: function (s) {
+                    var g = me.down('#rfGroupeARegler');
+                    s.getProxy().extraParams = {groupeId: g ? (g.getValue() || '') : ''};
+                }, load: function (s, r, ok) {
                     var raw = s.getProxy().getReader().rawData || {};
                     me.majTotalARegler(ok === false ? null : raw);
                 }}
@@ -69,6 +76,18 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
         me.storeParts = Ext.create('Ext.data.Store', {
             fields: ['blId', 'numero', 'dateBl', {name: 'ttc', type: 'int'}, {name: 'montant', type: 'int'}]
         });
+        /* retour du 22/11 (lot 9) : groupes de grossistes (« Tous les groupes » en tete), un store par liste */
+        var groupes = function () {
+            return Ext.create('Ext.data.Store', {
+                fields: ['id', 'libelle'], autoLoad: true,
+                proxy: {type: 'ajax', url: '../api/v1/common/groupefournisseurs', reader: {type: 'json', root: 'data'}},
+                listeners: {load: function (st) {
+                        st.insert(0, {id: '', libelle: 'Tous les groupes'});
+                    }}
+            });
+        };
+        me.storeGroupesARegler = groupes();
+        me.storeGroupesHisto = groupes();
         me.storeGrossistes = Ext.create('Ext.data.Store', {
             fields: ['lg_GROSSISTE_ID', 'str_LIBELLE'], pageSize: 999,
             proxy: {type: 'ajax', url: '../api/v1/grossiste/all', reader: {type: 'json', root: 'results', totalProperty: 'total'}}
@@ -239,7 +258,25 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
         };
         return {xtype: 'grid', itemId: 'rfARegler', title: 'À régler', store: me.storeARegler, columnLines: true,
             viewConfig: {emptyText: 'Aucun BL à régler depuis la date de départ.', deferEmptyText: false},
+            /* retour du 22/11 (lot 9) : grossistes regroupes par groupe ; l'en-tete donne le du du groupe, un clic
+               sur lui replie ou deplie le detail */
+            features: [{ftype: 'grouping', itemId: 'rfGroupement', enableGroupingMenu: false, collapsible: true,
+                    groupHeaderTpl: ['{name} — {[this.resume(values.rows)]}', {
+                            resume: function (lignes) {
+                                var bl = 0, du = 0;
+                                Ext.each(lignes || [], function (r) {
+                                    bl += r.get('nombre') || 0;
+                                    du += r.get('total') || 0;
+                                });
+                                return (lignes || []).length + ' grossiste(s) · ' + bl + ' BL · total dû <b>' + me.montant(du) + '</b>';
+                            }
+                        }]}],
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'combobox', itemId: 'rfGroupeARegler', width: 210, store: me.storeGroupesARegler, valueField: 'id',
+                            displayField: 'libelle', queryMode: 'local', editable: false, value: '', emptyText: 'Tous les groupes',
+                            listeners: {select: function () {
+                                    me.storeARegler.load();
+                                }}},
                         {text: 'Actualiser', itemId: 'rfActualiser', iconCls: 'refresh', handler: function () {
                                 me.storeARegler.load();
                             }},
@@ -316,7 +353,8 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                 /* plan du 21/11, points 1.3 et 3 : la saisie tient sur deux lignes (plus de defilement sur petit ecran) */
                 {xtype: 'toolbar', dock: 'top', itemId: 'rfFormulaire2', items: [
                         {xtype: 'combobox', itemId: 'rfMode', fieldLabel: 'Mode', labelWidth: 36, width: 165, queryMode: 'local',
-                            store: me.MODES, value: 'ESPECES', forceSelection: true, editable: false},
+                            /* retour du 22/11 (lot 9) : le cheque est propose par defaut */
+                            store: me.MODES, value: 'CHEQUE', forceSelection: true, editable: false},
                         {xtype: 'textfield', itemId: 'rfReference', fieldLabel: 'Référence', labelWidth: 62, width: 210,
                             emptyText: 'N° chèque, virement…'},
                         {xtype: 'button', itemId: 'rfEnregistrer', text: 'Enregistrer le règlement', handler: function (b) {
@@ -470,7 +508,8 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                     }}
             ]
         });
-        return {xtype: 'panel', itemId: 'rfHistorique', title: 'Historique', layout: 'border', border: false,
+        /* retour du 22/11 (lot 9) : « Historique » devient « Règlements effectués » */
+        return {xtype: 'panel', itemId: 'rfHistorique', title: 'Règlements effectués', layout: 'border', border: false,
             dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'rfBarreHistorique', items: [
                         {xtype: 'datefield', itemId: 'rfDu', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y',
                             value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui, listeners: entree},
@@ -484,6 +523,11 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                                     /* plan du 21/11, point 1 : « Choisissez le grossiste du relevé » ne reste pas affiche */
                                     me.message('#rfHistoMessage', true, '');
                                 }}, entree)},
+                        {xtype: 'combobox', itemId: 'rfHistoGroupe', width: 190, store: me.storeGroupesHisto, valueField: 'id',
+                            displayField: 'libelle', queryMode: 'local', editable: false, value: '', emptyText: 'Tous les groupes',
+                            listeners: {select: function () {
+                                    me.storeReglements.load();
+                                }}},
                         {text: 'Rechercher', itemId: 'rfRechercher', iconCls: 'searchicon', handler: function () {
                                 me.storeReglements.load();
                             }}]},
@@ -507,7 +551,8 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
         var me = this, aujourdhui = new Date();
         return {dtStart: Ext.Date.format(me.down('#rfDu').getValue() || Ext.Date.getFirstDateOfMonth(aujourdhui), 'Y-m-d'),
             dtEnd: Ext.Date.format(me.down('#rfAu').getValue() || aujourdhui, 'Y-m-d'),
-            grossisteId: me.down('#rfHistoGrossiste').getValue() || ''};
+            grossisteId: me.down('#rfHistoGrossiste').getValue() || '',
+            groupeId: me.down('#rfHistoGroupe') ? (me.down('#rfHistoGroupe').getValue() || '') : ''};
     },
 
     majBoutonAnnuler: function () {

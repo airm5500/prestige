@@ -639,9 +639,14 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                                     + '" style="color:#2E75B6;font-weight:600">(' + Ext.String.htmlEncode(c) + ')</span>';
                                         }
                                         if (!s) {
+                                            /* retours du 22/11 (lot 10, point 2) : nom complet et classe en info-bulle (noms trop longs pour la colonne) */
+                                            if (v) {
+                                                meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('DESIGNATION : ' + v + (c ? ' (classe ' + c + ')' : ''))) + '"';
+                                            }
                                             return t;
                                         }
-                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode((s.type === 'RL' ? 'Remplaçant' : 'Équivalent')
+                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('DESIGNATION : ' + (v || '') + (c ? ' (classe ' + c + ')' : '') + '. '
+                                                + (s.type === 'RL' ? 'Remplaçant' : 'Équivalent')
                                                 + ' livré par ' + s.grossiste + ' à la place de ' + s.produitOrigine + ' (' + s.cipOrigine + ')'
                                                 + (s.retirable ? '. « Retirer » l\'enlève de la commande (avant réception).' : (s.raison ? '. Retrait impossible : ' + s.raison + '.' : '')))) + '"';
                                         /* seconde ligne de la cellule : le badge ne depend plus de la longueur du nom ; « Retirer » toujours visible */

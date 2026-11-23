@@ -180,6 +180,8 @@ const parametre = (cle, v) => q(`UPDATE t_parameters SET str_VALUE = '${v}' WHER
     const montantA = b1.ttc + Math.floor(b2.ttc / 2);
     await saisir(p, '#rfMontant', String(montantA));
     await saisir(p, '#rfReference', MARQUE + '-A');
+    /* retour du 22/11 (lot 9) : le mode par defaut est le cheque ; A se regle en especes, choisi a l'ecran */
+    await p.evaluate(() => { Ext.ComponentQuery.query('#rfMode')[0].setValue('ESPECES'); });
     const apercu = await p.evaluate(() => Ext.ComponentQuery.query('#rfSaisir')[0].getStore().getRange().filter((r) => r.get('part') > 0).map((r) => r.get('id') + '#' + r.get('part')));
     ok('Aperçu « Part du règlement » : BL1 en entier, BL2 en partie', JSON.stringify(apercu) === JSON.stringify([b1.id + '#' + b1.ttc, b2.id + '#' + (montantA - b1.ttc)]), JSON.stringify(apercu));
     const t0 = traces();

@@ -86,11 +86,11 @@ public class ReglementFournisseurRessource {
 
     @GET
     @Path("a-regler")
-    public Response aRegler() {
+    public Response aRegler(@QueryParam("groupeId") String groupeId) {
         if (utilisateur() == null) {
             return deconnecte();
         }
-        return json(service.aRegler());
+        return json(service.aRegler(groupeId));
     }
 
     @GET
@@ -125,11 +125,11 @@ public class ReglementFournisseurRessource {
     @GET
     @Path("historique")
     public Response historique(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
-            @QueryParam("grossisteId") String grossisteId) {
+            @QueryParam("grossisteId") String grossisteId, @QueryParam("groupeId") String groupeId) {
         if (utilisateur() == null) {
             return deconnecte();
         }
-        return json(service.historique(dtStart, dtEnd, grossisteId));
+        return json(service.historique(dtStart, dtEnd, grossisteId, groupeId));
     }
 
     @GET

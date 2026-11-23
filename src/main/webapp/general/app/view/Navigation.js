@@ -77,6 +77,22 @@ Ext.define('testextjs.view.Navigation', {
         if (this.slideOutTask) { this.slideOutTask.delay(delay || 500); }
     },
 
+    /*
+     * Non-regression du lot 9 (22/11) : un ecran vient d'etre choisi dans le sous-menu - le volet ouvert par-dessus
+     * l'ecran se referme tout de suite. Avant, sa fermeture dependait de la sortie de la souris ; depuis le tri
+     * alphabetique (longs volets qui defilent), il restait parfois ouvert sur le haut gauche de l'ecran choisi et
+     * prenait les clics destines a ses champs.
+     */
+    _fermerVolet: function () {
+        var me = this;
+        if (!me.el || me.isDestroyed || !me.el.hasCls(Ext.baseCSSPrefix + 'border-region-slide-in')
+                || typeof me.slideOutFloatedPanel !== 'function') {
+            return;
+        }
+        if (me.slideOutTask) { me.slideOutTask.cancel(); }
+        me.slideOutFloatedPanel();
+    },
+
     initComponent: function () {
         var me = this;
 
@@ -227,7 +243,15 @@ Ext.define('testextjs.view.Navigation', {
         });
         items.push({ xtype: 'menuseparator' });
 
-        Ext.Array.each(children, function (child) {
+        /* retour du 22/11 (lot 9) : sous-menus par ordre alphabetique (accents, casse et espaces en double ignores :
+           « Rapport  de Gestion » se range comme il s'affiche, apres « Rapport activite ») */
+        var cle = function (n) {
+            return String(n.data.text || '').replace(/\s+/g, ' ').trim();
+        };
+        var tries = Ext.Array.sort(Ext.Array.clone(children), function (a, b) {
+            return cle(a).localeCompare(cle(b), 'fr', {sensitivity: 'base', numeric: true});
+        });
+        Ext.Array.each(tries, function (child) {
             var childId   = child.data.id;
             var childText = child.data.text;
             var childAide = child.raw && child.raw.aide;
@@ -243,6 +267,7 @@ Ext.define('testextjs.view.Navigation', {
                 tooltip:     childAide ? Ext.String.htmlEncode(childAide) : undefined,
                 handler: function () {
                     if (me._flyoutMenu) { me._flyoutMenu.hide(); }
+                    me._fermerVolet();
                     if (typeof childId !== 'undefined') {
                         testextjs.app.getController('App').onLoadNewComponent(childId, childText, '');
                     }

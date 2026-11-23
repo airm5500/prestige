@@ -927,6 +927,8 @@ window.PrestigeAffichage.masquerMenus = function (racine) {
  * d'oeil lesquels sont concernes. App.onLoadNewComponent la consulte a l'ouverture d'un menu.
  */
 window.PrestigeAffichage.ECRANS_COLLES = [
+    // retour du 22/11 (lot 9) : menus « Liste des Reglements » (FACTURATION) et « Vente dépôt »
+    'reglementmanager', 'ventedepot',
     // menu « Activité des équipes » (ANALYSE DE GESTION, demande du 13/10)
     'activiteequipes',
     // menu « BFR » (ANALYSE DE GESTION, plan du 19/11)
@@ -1045,7 +1047,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
  * ceux qui ont deja leur propre dessin (liste ci-dessous). ECRANS_STYLE_VENTE reste la liste historique.
  */
 window.PrestigeAffichage.THEME_PARTOUT = true;
-window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager_new', 'doventeendepot', 'ventedepot',
+/* retour du 22/11 (lot 9) : 'ventedepot' (liste des ventes depot, menu « Vente dépôt ») sort de cette liste et prend le
+   theme (ECRANS_COLLES et ECRANS_STYLE_VENTE) ; l'ecran de saisie d'une vente depot (doventeendepot) garde son dessin */
+window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager_new', 'doventeendepot',
     'tableaubord', 'dashboard', 'mainmenumanager', 'ordonnanceclient', 'menuvente',
     // decision du 19/11 : « Nouvelle proforma » au dessin de l'ecran de vente (vp-shell / vp-vente, DoDevis.js)
     'doDevis'];
@@ -1053,6 +1057,8 @@ window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager
 window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // retours du 07/10
     'produitsxx', 'produitsonglets',
+    // retour du 22/11 (lot 9) : menus « Liste des Reglements » et « Vente dépôt »
+    'reglementmanager', 'ventedepot',
     // lot 1
     'preenregistrementmanager', 'devismanager',
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
@@ -1120,6 +1126,11 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
 window.PrestigeAffichage.ECRANS_FENETRES_THEME = [
     'famillemanager', 'articlevendurecapitulatif', 'i_sugg_manager', 'suggerercdemanager'
 ];
+/**
+ * Retour du 22/11 (lot 9) : ecrans dont la pagination numerotee garde le champ « Page [ ] sur N » pour aller
+ * directement a une page (saisie d'inventaire, des centaines de pages).
+ */
+window.PrestigeAffichage.ECRANS_SAISIE_PAGE = ['editinventaireManager'];
 /** Ecrans dont les cadres (fieldsets) prennent le dessin des sections du theme (retours du 06/10). */
 window.PrestigeAffichage.ECRANS_SECTIONS = ['suggerercdemanager'];
 /** Libelles des boutons de pied qui valident (bouton principal). */
@@ -1245,8 +1256,13 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
     Ext.each(ecran.query('toolbar'), function (barre) {
         if (barre.isXType('pagingtoolbar')) {
             barre.addCls('theme-pagination');
-            // Chargee a la demande (Ext.Loader) si aucun ecran ne l'a encore demandee.
-            Ext.create('testextjs.view.commun.PaginationNumerotee').init(barre);
+            // Chargee a la demande (Ext.Loader) si aucun ecran ne l'a encore demandee. Ecrans ou l'on tape le numero
+            // de page (retour du 22/11, lot 9) : le champ « Page [ ] sur N » reste a cote des numeros.
+            Ext.create('testextjs.view.commun.PaginationNumerotee', {
+                saisiePage: Ext.Array.some(window.PrestigeAffichage.ECRANS_SAISIE_PAGE || [], function (xtype) {
+                    return ecran.isXType(xtype) || !!barre.up(xtype);
+                })
+            }).init(barre);
             return;
         }
         if (barre.dock !== 'top') {

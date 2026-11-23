@@ -46,12 +46,13 @@ public class BatchUpdateRessource {
             return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter"))
                     .build();
         }
-        // Meme controle que le bouton 'Recalculer seuils' de l'ecran : privilege obligatoire cote serveur
+        // Meme controle que le bouton 'Recalculer seuils' de l'ecran : privilege obligatoire cote serveur. Retour du
+        // 22/11 (lot 9) : le recalcul releve de l'« Autorisation de mise a jour sur fiche article » (P_BTN_MAJ_SEUIL),
+        // comme MAJ SEUIL ; l'ancien privilege P_BTN_RECALCULER_SEUILS est retire.
         @SuppressWarnings("unchecked")
         java.util.List<dal.TPrivilege> privileges = (java.util.List<dal.TPrivilege>) hs
                 .getAttribute(util.Constant.USER_LIST_PRIVILEGE);
-        if (privileges == null
-                || !util.DateConverter.hasAuthorityByName(privileges, util.Constant.P_BTN_RECALCULER_SEUILS)) {
+        if (privileges == null || !util.DateConverter.hasAuthorityByName(privileges, util.Constant.P_BTN_MAJ_SEUIL)) {
             return Response.ok().entity(
                     "{\"success\":false,\"message\":\"Vous n'avez pas le privilège requis pour cette opération\"}")
                     .build();

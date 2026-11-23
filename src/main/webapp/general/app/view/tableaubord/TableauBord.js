@@ -178,7 +178,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
     },
 
     alertesPrefs: function () {
-        return Ext.apply({per: 6, rup: 7, ren: 7, sug: 2, nv: 30}, this.prefs.alertes || {});
+        /* retour du 22/11 (lot 9) : cr = periode des articles crees (jours) */
+        return Ext.apply({per: 6, rup: 7, ren: 7, sug: 2, nv: 30, cr: 30}, this.prefs.alertes || {});
     },
 
     /* ------------------------------------------------------------------ construction */
@@ -971,6 +972,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<label>Renouvellements sous <input type="number" min="0" max="60" value="' + a.ren + '" data-p="ren"> jours</label>'
                 + '<label>Suggestions de commande clôturées depuis <input type="number" min="0" max="60" value="' + a.sug + '" data-p="sug"> jours</label>'
                 + '<label>Articles entrés non vendus depuis <input type="number" min="1" max="365" value="' + a.nv + '" data-p="nv"> jours</label>'
+                + '<label>Articles créés ces <input type="number" min="1" max="365" value="' + a.cr + '" data-p="cr"> derniers jours</label>'
                 + '<div class="tb-note">Enregistré pour votre compte. La période des ruptures vaut aussi pour la tuile « Ruptures ».</div></div>'
                 + '<table>' + ligne('data-liste="ruptures"', 'Rupture', 'p-r', '<b>' + me.fmt(o.ruptures.produits) + '</b> produits à zéro, dont <b>' + me.fmt(o.ruptures.vendusRecemment)
                         + '</b> vendus ces <b>' + a.rup + '</b> derniers jours')
@@ -982,12 +984,16 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + ligne(menuOu('i_sugg_manager'), 'Sugg. commande', 'p-v', '<b>' + me.fmt(o.suggestionsCommande.cloturees) + '</b> suggestions de commande clôturées depuis <b>'
                         + a.sug + '</b> j, non commandées')
                 + ligne(menuOu('ordonnanceclient'), 'Renouvellement', 'p-g', '<b>' + me.fmt(o.renouvellements.patients) + '</b> ordonnances à renouveler sous <b>' + a.ren + '</b> j')
-                + ligne(menuOu('venteavoirmanager'), 'Avoirs', 'p-a', '<b>' + me.fmt(o.avoirs) + '</b> ventes en avoir en cours')
+                /* retours du 22/11 (lot 10) : les avoirs en cours s'ouvrent dans une fenetre, au-dessus du tableau de bord */
+                + ligne(me.menu('venteavoirmanager') ? 'data-avoirs="' + me.esc(o.avoirsDepuis || '') + '"' : '', 'Avoirs', 'p-a', '<b>' + me.fmt(o.avoirs) + '</b> ventes en avoir en cours')
                 + ligne('data-liste="negatifs"', 'Stock négatif', 'p-r', '<b>' + me.fmt(o.negatifs) + '</b> articles en stock négatif')
                 /* retours du 06/10 (4) : articles commandes (entres en stock) et jamais vendus depuis */
                 + ligne('data-liste="nonvendus"', 'Entrés non vendus', 'p-a', '<b>' + me.fmt((o.nonVendus || {}).produits || 0) + '</b> articles entrés depuis <b>'
-                        + a.nv + '</b> j et pas vendus depuis') + '</table>'
-                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif, entrés non vendus : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
+                        + a.nv + '</b> j et pas vendus depuis')
+                /* retour du 22/11 (lot 9) : articles crees sur la periode, liste et impression au clic */
+                + (o.crees === undefined ? '' : ligne('data-liste="crees"', 'Articles créés', 'p-v', '<b>' + me.fmt(o.crees.produits || 0) + '</b> articles créés ces <b>'
+                        + (o.crees.jours || a.cr) + '</b> derniers jours')) + '</table>'
+                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif, entrés non vendus, articles créés : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
     },
 
     /* --- carte d'affluence (retour du 24/10) : ventes par jour et par heure, semaine choisie avec ◀ ▶ */
@@ -1455,8 +1461,46 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         });
     },
 
+    /** Retour du 22/11 (lot 9) : articles crees sur la periode (fenetre, impression de la liste complete). */
+    listeCrees: function () {
+        var me = this, a = me.alertesPrefs();
+        me.lire('../api/v1/tableau-bord/alertes/crees', {cr: a.cr, limite: 500}, function (o) {
+            var l = o && o.success ? o.data || [] : [];
+            var t = '<tr><th style="width:36%">Produit</th><th>CIP</th><th>Créé le</th><th>Créé par</th><th>Grossiste</th><th class="tb-n">Prix</th></tr>'
+                    + l.map(function (x) {
+                        return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td>'
+                                + me.esc(x.creeLe) + '</td><td class="tb-nom1">' + (x.creePar ? me.esc(x.creePar) : '<span class="tb-note">—</span>')
+                                + '</td><td class="tb-nom1">' + me.esc(x.grossiste) + '</td><td class="tb-n">' + me.fmt(x.prix) + '</td></tr>';
+                    }).join('');
+            var total = o && o.success ? o.nombre || 0 : 0;
+            me.fenetre('Articles créés ces ' + a.cr + ' derniers jours (' + total + ')', '<table class="tb-fixe">' + t + '</table>'
+                    + (total > l.length ? '<div class="tb-note" style="margin-top:8px">Les ' + l.length + ' plus récents ; l\'impression donne la liste complète.</div>' : '')
+                    + (l.length ? '' : '<div class="tb-attente">Aucun produit.</div>'),
+                    {xtype: 'famillemanager', texte: 'Ouvrir la fiche article'}, '../api/v1/tableau-bord/alertes/crees/pdf?cr=' + encodeURIComponent(a.cr));
+        });
+    },
+
+    /*
+     * Retours du 22/11 (lot 10) : la liste des avoirs (venteavoirmanager) dans une fenetre modale, sur l'onglet des
+     * avoirs en cours, depuis le plus ancien d'entre eux (depuis : AAAA-MM-JJ) jusqu'a aujourd'hui : elle montre les
+     * ventes que l'alerte compte. « Rappeler avoir » ferme la fenetre et ouvre la vente.
+     */
+    ouvrirAvoirs: function (depuis) {
+        var debut = depuis ? Ext.Date.parse(depuis, 'Y-m-d') : null;
+        Ext.create('Ext.window.Window', {
+            title: 'Liste des avoirs en cours', itemId: 'tbAvoirsFenetre', modal: true, layout: 'fit', cls: 'tb-fenetre fen-theme',
+            width: Math.min(Ext.Element.getViewportWidth() - 40, 1300), height: Math.min(Ext.Element.getViewportHeight() - 40, 640),
+            maximizable: true, constrain: true,
+            items: [{xtype: 'venteavoirmanager', debutPeriode: debut, title: null, header: false, frame: false, width: null, minHeight: null}]
+        }).show();
+    },
+
     listeAlerte: function (type) {
         var me = this, a = me.alertesPrefs();
+        if (type === 'crees') {
+            me.listeCrees();
+            return;
+        }
         me.lire('../api/v1/tableau-bord/alertes/liste', {type: type, per: a.per, rup: a.rup, nv: a.nv, limite: 500}, function (o) {
             var l = o && o.success ? o.data : [], t;
             var date = function (d) {
@@ -1755,6 +1799,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             }
             if ((x = cible('[data-liste]'))) {
                 me.listeAlerte(x.getAttribute('data-liste'));
+                return;
+            }
+            if ((x = cible('[data-avoirs]'))) {
+                me.ouvrirAvoirs(x.getAttribute('data-avoirs'));
                 return;
             }
             if ((x = cible('[data-menu]'))) {

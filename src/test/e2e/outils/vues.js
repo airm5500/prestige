@@ -30,6 +30,9 @@ async function ouvrirMenu(p, parent, entree) {
   await visible('.prestige-nav .x-grid-row').filter({ has: p.getByText(exact(parent)) }).first().click();
   const item = visible('.prestige-flyout-menu .x-menu-item').filter({ has: p.getByText(exact(entree)) }).first();
   await item.waitFor({ timeout: 10000 });
+  /* retour du 22/11 (lot 9) : sous-menus tries par ordre alphabetique ; un long volet (ANALYSE DE GESTION, 43 entrees)
+     defile par ses fleches : l'entree est amenee dans le volet comme le ferait la molette, puis cliquee */
+  await item.evaluate((e) => e.scrollIntoView({ block: 'nearest' }));
   await item.click();
 }
 

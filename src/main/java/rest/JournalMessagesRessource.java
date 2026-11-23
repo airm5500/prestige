@@ -84,6 +84,50 @@ public class JournalMessagesRessource {
                 .toString()).build();
     }
 
+    /**
+     * Retour du 22/11 (lot 9) : impression (PDF) de la selection de l'ecran : analyse (taux de l'ensemble, repartition
+     * par canal et par origine) puis les messages, memes filtres et meme ordre que l'ecran. Jamais le texte des
+     * messages.
+     */
+    @GET
+    @Path("pdf")
+    @Produces("application/pdf")
+    public Response pdf(@QueryParam("dtStart") String du, @QueryParam("dtEnd") String au,
+            @QueryParam("canal") String canal, @QueryParam("origine") String origine, @QueryParam("etat") String etat,
+            @QueryParam("query") String query) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        JournalMessages.Filtre f = new JournalMessages.Filtre(canal, origine, etat, query);
+        List<JournalMessages.Ligne> l = service.selection(du, au, f);
+        LocalDate[] p = JournalMessagesService.periodeLue(du, au);
+        TUser u = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        String par = u == null ? "" : (org.apache.commons.lang3.StringUtils.defaultString(u.getStrFIRSTNAME()) + " "
+                + org.apache.commons.lang3.StringUtils.defaultString(u.getStrLASTNAME())).trim();
+        byte[] pdf = JournalMessages.pdf(l, p[0], p[1], f, service.nomOfficine(), par);
+        return Response.ok(pdf, "application/pdf")
+                .header("Content-Disposition", "inline; filename=journal-messages-" + LocalDate.now() + ".pdf").build();
+    }
+
+    @EJB
+    private rest.service.impl.JournalRenvoiService renvoiService;
+
+    /**
+     * Retours du 22/11 (lot 10, point 1) : renvoi d'un message en echec (ligne d'un client) par SMS ou WhatsApp, au nom
+     * de l'utilisateur connecte. Meme droit que le journal.
+     */
+    @javax.ws.rs.POST
+    @Path("renvoyer")
+    public Response renvoyer(@QueryParam("id") String id, @QueryParam("canal") String canal) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        TUser u = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        return Response.ok(renvoiService.renvoyer(id, canal, u).toString()).build();
+    }
+
     @GET
     @Path("csv")
     @Produces("text/csv")

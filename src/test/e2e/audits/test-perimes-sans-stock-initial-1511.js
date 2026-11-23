@@ -125,7 +125,7 @@ function poser() {
       JSON.stringify(r1).slice(0, 120) + ' ; écran « ' + g1 + ' » ; base « ' + b1 + ' »');
 
     const mvt0 = Number(q(`SELECT COUNT(*) FROM HMvtProduit WHERE pkey IN (${ids()})`));
-    await p.locator('#btn_create_perime').click();
+    await p.locator('#btn_create_perime').click(); await p.waitForTimeout(600); /* lot 11 : confirmation dans le bouton */ await p.locator('#btn_create_perime').click();
     await p.waitForFunction(() => Ext.Msg.isVisible(), null, { timeout: 60000 });
     const msg = await fermerMsg();
     await charge();

@@ -150,6 +150,18 @@ Ext.define('testextjs.view.vente.Removed', {
                             itemId: 'printPlus',
                             scope: this,
                             iconCls: 'printable'
+                        },
+                        '-',
+                        {
+                            /* retour du 22/11 (lot 9) : export de la liste (toutes pages, criteres de l'ecran) */
+                            text: 'Exporter',
+                            tooltip: 'Exporter la liste (toutes les pages, mêmes critères et même ordre que l\'écran)',
+                            itemId: 'exportAnnulees',
+                            iconCls: 'excel',
+                            menu: [
+                                {text: 'Excel (.xlsx)', itemId: 'exportAnnuleesExcel', iconCls: 'excel'},
+                                {text: 'CSV (.csv)', itemId: 'exportAnnuleesCsv', iconCls: 'excel'}
+                            ]
                         }
                     ]
                 },

@@ -88,6 +88,8 @@ function retirerBon(b) {
 }
 const NOTIFS = `SELECT n.id FROM notification n WHERE n.entity_ref LIKE '${PFX}-BL%'`;
 function remettre() {
+  /* retours du 22/11 (lot 10) : decisions d'envoi de la fenetre des avoirs */
+  if (q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'avoir_envoi'") === '1') { exec(`DELETE FROM avoir_envoi WHERE bon_id LIKE '${PFX}-BL%';`); }
   exec(`DELETE FROM whatsapp_message WHERE notification_id IN (${NOTIFS}) OR client_id LIKE '${PFX}-C%';`
     + `DELETE FROM notification_vente WHERE lg_PREENREGISTREMENT_ID IN (${LISTE_VENTES});`
     + `DELETE FROM notification_client WHERE notification_id IN (SELECT id FROM (${NOTIFS}) x) OR client_id LIKE '${PFX}-C%';`
