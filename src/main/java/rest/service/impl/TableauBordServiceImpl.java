@@ -535,23 +535,26 @@ public class TableauBordServiceImpl implements TableauBordService {
             Timestamp debut = debutCrees(jours);
             List<Object[]> n = lignes("SELECT COUNT(*), 0 FROM t_famille f WHERE f.dt_CREATED >= ?1", debut);
             o.put("nombre", n.isEmpty() ? 0 : n(n.get(0)[0]));
-            for (Object[] r : lignes("SELECT f.int_CIP, f.str_NAME, f.dt_CREATED, f.int_PRICE, g.str_LIBELLE,"
-                    /* meme nom que la fiche article (prenom ou nom absent : l'autre seul) */
-                    + " (SELECT TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, ''))) FROM notification nt"
-                    + " JOIN t_user u ON u.lg_USER_ID = nt.user_id WHERE nt.type_notification = "
-                    + dal.enumeration.TypeNotification.AJOUT_DE_NOUVEAU_PRODUIT.ordinal()
-                    + " AND nt.entity_ref = f.lg_FAMILLE_ID ORDER BY nt.created_at LIMIT 1) AS createur, f.str_STATUT"
+            List<Object[]> lus = lignes("SELECT f.int_CIP, f.str_NAME, f.dt_CREATED, f.int_PRICE, g.str_LIBELLE,"
+                    + " f.lg_FAMILLE_ID, f.str_STATUT"
                     + " FROM t_famille f LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID"
                     + " WHERE f.dt_CREATED >= ?1 ORDER BY f.dt_CREATED DESC, f.int_CIP LIMIT " + Math.max(1, limite),
-                    debut)) {
+                    debut);
+            /* meme auteur que la fiche article : notification, sinon journal (retours du 23/11) */
+            List<CreateurArticle.Fiche> fiches = new ArrayList<>();
+            for (Object[] r : lus) {
+                fiches.add(new CreateurArticle.Fiche(t(r[5]), t(r[0]), t(r[1]), (Timestamp) r[2]));
+            }
+            java.util.Map<String, String> auteurs = CreateurArticle.auteurs(em, fiches);
+            for (Object[] r : lus) {
                 Timestamp c = (Timestamp) r[2];
                 a.put(new JSONObject().put("cip", t(r[0])).put("libelle", t(r[1]))
                         .put("creeLe",
                                 c == null ? ""
                                         : c.toLocalDateTime().format(
                                                 java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
-                        .put("prix", n(r[3])).put("grossiste", t(r[4])).put("creePar", t(r[5]))
-                        .put("actif", "enable".equals(t(r[6]))));
+                        .put("prix", n(r[3])).put("grossiste", t(r[4]))
+                        .put("creePar", auteurs.getOrDefault(t(r[5]), "")).put("actif", "enable".equals(t(r[6]))));
             }
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Articles crees non lus", e);

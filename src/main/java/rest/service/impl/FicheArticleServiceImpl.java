@@ -1658,7 +1658,13 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
     @Override
     public void updateProduitLiteInfo(UpdateProduit updateProduit) {
+        updateProduitLiteInfo(updateProduit, null);
+    }
+
+    @Override
+    public void updateProduitLiteInfo(UpdateProduit updateProduit, TUser user) {
         TFamille famille = em.find(TFamille.class, updateProduit.getId());
+        java.util.Map<String, String> avant = rest.service.impl.journal.ModificationFiche.photo(famille);
         if (StringUtils.isNotEmpty(updateProduit.getCodeEanFabriquant())) {
             famille.setCodeEanFabriquant(updateProduit.getCodeEanFabriquant());
         }
@@ -1681,6 +1687,15 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             famille.setIntCOLISAGE(updateProduit.getColisage() > 0 ? updateProduit.getColisage() : null);
         }
         em.merge(famille);
+        java.util.List<rest.service.impl.achats.ModificationBl.Champ> champs = rest.service.impl.journal.ModificationFiche
+                .ecarts(avant, rest.service.impl.journal.ModificationFiche.photo(famille));
+        if (user != null && !champs.isEmpty()) {
+            logService.journaliser(user, famille.getLgFAMILLEID(),
+                    rest.service.impl.journal.ModificationFiche.description(famille.getIntCIP(), famille.getStrNAME(),
+                            user.getStrFIRSTNAME() + " " + user.getStrLASTNAME(), champs),
+                    TypeLog.MODIFICATION_FICHE_PRODUIT, famille,
+                    rest.service.impl.achats.ModificationBl.detail(champs));
+        }
     }
 
     // ----------------------- MAJ SEUIL groupee (Q1/Q2 par produit) -----------------------

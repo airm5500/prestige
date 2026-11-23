@@ -20,7 +20,8 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 1 << 26 }).replace(/\r/g, '').trim();
 const lignes = (s) => q(s).split('\n').filter(Boolean).map((l) => l.split('\t'));
-const LOURDS = ['dt_LAST_ENTREE', 'dt_LAST_VENTE', 'dt_LAST_INVENTAIRE', 'dt_PEREMPTION_PROCHE', 'lot_PEREMPTION_PROCHE', 'qte_PEREMPTION_PROCHE', 'dt_DATE_LIVRAISON', 'produitState'];
+/* str_CREE_PAR : « créé par », fenêtre Détail seulement (lot 9 du 22/11), lu dans le journal */
+const LOURDS = ['str_CREE_PAR', 'dt_LAST_ENTREE', 'dt_LAST_VENTE', 'dt_LAST_INVENTAIRE', 'dt_PEREMPTION_PROCHE', 'lot_PEREMPTION_PROCHE', 'qte_PEREMPTION_PROCHE', 'dt_DATE_LIVRAISON', 'produitState'];
 
 const articles = [];
 const ajouter = (l, quoi) => { if (l && l[0] && !articles.some((a) => a.id === l[0])) { articles.push({ id: l[0], cip: l[1], quoi }); } };

@@ -174,6 +174,9 @@ public interface FicheArticleService {
 
     void updateProduitLiteInfo(UpdateProduit updateProduit);
 
+    /** Retours du 23/11 : meme mise a jour, tracee dans le journal au nom de l'utilisateur (null : sans trace). */
+    void updateProduitLiteInfo(UpdateProduit updateProduit, dal.TUser user);
+
     /** Liste paginee des produits pour l'ecran MAJ SEUIL (filtres famille, emplacement, classe ABC + recherche). */
     JSONObject majSeuilList(String codeFamille, String zoneGeoId, String search, String classeAbcId, int start,
             int limit);

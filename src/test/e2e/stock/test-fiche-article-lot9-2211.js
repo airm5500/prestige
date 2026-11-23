@@ -45,9 +45,21 @@ function remettreDroits() {
 const [avecAuteur] = lignes(`SELECT f.lg_FAMILLE_ID, f.int_CIP, DATE_FORMAT(f.dt_CREATED, '%d/%m/%Y %H:%i'), TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, '')))
   FROM notification n JOIN t_famille f ON f.lg_FAMILLE_ID = n.entity_ref JOIN t_user u ON u.lg_USER_ID = n.user_id
   WHERE n.type_notification = 21 AND f.str_STATUT = 'enable' AND f.dt_CREATED IS NOT NULL ORDER BY n.created_at DESC LIMIT 1`);
+/* retours du 23/11 : sans notification, l'auteur est lu dans la ligne de creation du journal (de 5 s avant a 60 s apres
+ * la creation, « cip [CIP ») ; « sans auteur » = ni notification ni ligne de journal */
+const JOURNAL = (f) => `SELECT u.lg_USER_ID FROM t_event_log e FORCE INDEX (idx_event_log_date) JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID
+  WHERE e.dt_CREATED >= ${f}.dt_CREATED - INTERVAL 5 SECOND AND e.dt_CREATED <= ${f}.dt_CREATED + INTERVAL 60 SECOND AND e.typeLog IN (34, 35)
+  AND e.str_TABLE_CONCERN = 'dal.TFamille' AND LOCATE(CONCAT('cip [', ${f}.int_CIP, ' '), e.str_DESCRIPTION) > 0`;
 const [sansAuteur] = lignes(`SELECT f.lg_FAMILLE_ID, f.int_CIP, DATE_FORMAT(f.dt_CREATED, '%d/%m/%Y %H:%i') FROM t_famille f
-  WHERE f.str_STATUT = 'enable' AND f.dt_CREATED IS NOT NULL AND LENGTH(f.int_CIP) = 7 AND NOT EXISTS (SELECT 1 FROM notification n WHERE n.type_notification = 21 AND n.entity_ref = f.lg_FAMILLE_ID)
+  WHERE f.str_STATUT = 'enable' AND f.dt_CREATED IS NOT NULL AND LENGTH(f.int_CIP) = 7 AND NOT EXISTS (SELECT 1 FROM notification n WHERE n.type_notification IN (21, 22) AND n.entity_ref = f.lg_FAMILLE_ID)
+  AND NOT EXISTS (${JOURNAL('f')})
   AND NOT EXISTS (SELECT 1 FROM t_famille g WHERE g.int_CIP = f.int_CIP AND g.lg_FAMILLE_ID <> f.lg_FAMILLE_ID) ORDER BY f.dt_CREATED DESC LIMIT 1`);
+const [parJournal] = lignes(`SELECT f.lg_FAMILLE_ID, f.int_CIP, DATE_FORMAT(f.dt_CREATED, '%d/%m/%Y %H:%i'),
+  (SELECT TRIM(CONCAT(IFNULL(u2.str_FIRST_NAME, ''), ' ', IFNULL(u2.str_LAST_NAME, ''))) FROM t_user u2 WHERE u2.lg_USER_ID = (${JOURNAL('f')} ORDER BY e.dt_CREATED LIMIT 1))
+  FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.dt_CREATED >= CURDATE() - INTERVAL 400 DAY AND LENGTH(f.int_CIP) = 7
+  AND NOT EXISTS (SELECT 1 FROM notification n WHERE n.type_notification IN (21, 22) AND n.entity_ref = f.lg_FAMILLE_ID)
+  AND NOT EXISTS (SELECT 1 FROM t_famille g WHERE g.int_CIP = f.int_CIP AND g.lg_FAMILLE_ID <> f.lg_FAMILLE_ID)
+  AND EXISTS (${JOURNAL('f')}) ORDER BY f.dt_CREATED DESC LIMIT 1`);
 const seuilsAvant = {};
 
 async function ouvrirFiche(p) {
@@ -131,7 +143,7 @@ const valeurApercu = (p, libelle) => p.evaluate((l) => { const ls = Array.from(d
     await p.unroute('**/api/v1/update/compute-reappro*');
 
     /* ---------- 3 et 4. « Créé le » : apercu (double clic) et detail ---------- */
-    for (const [art, auteur] of [[avecAuteur, avecAuteur && avecAuteur[3]], [sansAuteur, '']]) {
+    for (const [art, auteur] of [[avecAuteur, avecAuteur && avecAuteur[3]], [parJournal, parJournal && parJournal[3]], [sansAuteur, '']]) {
       if (!art) { ok('3. Article d\'essai trouvé', false); continue; }
       await rechercher(p, art[1]);
       const idLigne = await p.evaluate((id) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; const r = g.getStore().findRecord('lg_FAMILLE_ID', id, 0, false, true, true); const n = r && g.getView().getNode(r);

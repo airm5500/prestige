@@ -1466,11 +1466,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var me = this, a = me.alertesPrefs();
         me.lire('../api/v1/tableau-bord/alertes/crees', {cr: a.cr, limite: 500}, function (o) {
             var l = o && o.success ? o.data || [] : [];
-            var t = '<tr><th style="width:36%">Produit</th><th>CIP</th><th>Créé le</th><th>Créé par</th><th>Grossiste</th><th class="tb-n">Prix</th></tr>'
+            /* retours du 23/11 : date et heure sur une seule ligne, nom de l'auteur entier en infobulle */
+            var t = '<tr><th style="width:31%">Produit</th><th style="width:13%">CIP</th><th style="width:17%;white-space:nowrap">Créé le</th><th>Créé par</th><th>Grossiste</th><th class="tb-n" style="width:9%">Prix</th></tr>'
                     + l.map(function (x) {
-                        return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td>'
-                                + me.esc(x.creeLe) + '</td><td class="tb-nom1">' + (x.creePar ? me.esc(x.creePar) : '<span class="tb-note">—</span>')
-                                + '</td><td class="tb-nom1">' + me.esc(x.grossiste) + '</td><td class="tb-n">' + me.fmt(x.prix) + '</td></tr>';
+                        return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td class="tb-nom1" title="' + me.esc(x.cip) + '">' + me.esc(x.cip) + '</td><td class="tb-cree-le" style="white-space:nowrap">'
+                                + me.esc(x.creeLe) + '</td><td class="tb-nom1"' + (x.creePar ? ' title="' + me.esc(x.creePar) + '">' + me.esc(x.creePar) : '><span class="tb-note">—</span>')
+                                + '</td><td class="tb-nom1" title="' + me.esc(x.grossiste) + '">' + me.esc(x.grossiste) + '</td><td class="tb-n">' + me.fmt(x.prix) + '</td></tr>';
                     }).join('');
             var total = o && o.success ? o.nombre || 0 : 0;
             me.fenetre('Articles créés ces ' + a.cr + ' derniers jours (' + total + ')', '<table class="tb-fixe">' + t + '</table>'

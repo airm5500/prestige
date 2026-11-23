@@ -56,7 +56,9 @@ public enum TypeLog {
     // rang
     REGLEMENT_FOURNISSEUR("Règlement fournisseur", true),
     ANNULATION_REGLEMENT_FOURNISSEUR("Annulation de règlement fournisseur", true),
-    DATE_DEPART_REGLEMENTS_FRS("Date de départ des règlements fournisseurs", true);
+    DATE_DEPART_REGLEMENTS_FRS("Date de départ des règlements fournisseurs", true),
+    // retours du 23/11 : modification de la fiche article (champ, avant, apres) ; ajoute a la fin : rang
+    MODIFICATION_FICHE_PRODUIT("Modification de fiche article", true);
 
     private final String value;
     private final boolean checked;

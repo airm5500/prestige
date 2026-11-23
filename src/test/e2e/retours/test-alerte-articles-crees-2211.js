@@ -5,7 +5,8 @@
  *  (aucun article), 30, 40 et 365 jours (plus de 500 articles : liste ecourtee, impression complete) :
  *   - nombre de l'alerte = nombre en base (t_famille.dt_CREATED depuis le debut du jour n-1 jours avant) ;
  *   - clic sur l'alerte : titre de la fenetre = meme nombre ; lignes de la fenetre (500 au plus, les plus recentes)
- *     = base, ligne par ligne (CIP, creee le, cree par : utilisateur de la notification de creation) ;
+ *     = base, ligne par ligne (CIP, creee le, cree par : utilisateur de la notification de creation, sinon de la ligne
+ *     de creation du journal : retours du 23/11) ;
  *   - « Imprimer » : PDF de la liste complete, TOTAL = nombre, CIP du PDF = base, dans le meme ordre ; delai plafonne ;
  *  bilan : preferences du tableau de bord de l'utilisateur remises a l'identique ; aucune erreur JS.
  */
@@ -27,9 +28,25 @@ const PDF_MAX_MS = 15000;
 const USER = q(`SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '${ENV_E2E.LOGIN}'`);
 const prefsAvant = q(`SELECT IFNULL((SELECT CONCAT('=', txt_VALEUR) FROM t_preference_utilisateur WHERE lg_USER_ID = '${USER}' AND str_CLE = 'tableau-bord'), '∅')`);
 const debut = (j) => q(`SELECT CURDATE() - INTERVAL ${j - 1} DAY`);
-const base = (j) => lignes(`SELECT f.int_CIP, DATE_FORMAT(f.dt_CREATED, '%d/%m/%Y %H:%i'), IFNULL((SELECT TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, '')))
-  FROM notification nt JOIN t_user u ON u.lg_USER_ID = nt.user_id WHERE nt.type_notification = 21 AND nt.entity_ref = f.lg_FAMILLE_ID ORDER BY nt.created_at LIMIT 1), '')
-  FROM t_famille f WHERE f.dt_CREATED >= '${debut(j)}' ORDER BY f.dt_CREATED DESC, f.int_CIP`).map((r) => [r[0].replace(/[\s\u00a0]+/g, ''), r[1], r[2]]);
+/* Auteur attendu (retours du 23/11) : notification de creation (21 ou 22), sinon ligne de creation du journal (34 ou 35)
+ * ecrite de 5 s avant a 60 s apres la creation, pour le meme CIP (\u00ab cip [CIP \u00bb) ou a defaut le meme nom (\u00ab NOM par \u00bb). */
+const NOM_U = "NULLIF(TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, ''))), '')";
+const base = (j) => {
+  const fiches = lignes(`SELECT f.lg_FAMILLE_ID, f.int_CIP, DATE_FORMAT(f.dt_CREATED, '%d/%m/%Y %H:%i'), UNIX_TIMESTAMP(f.dt_CREATED), f.str_NAME
+    FROM t_famille f WHERE f.dt_CREATED >= '${debut(j)}' ORDER BY f.dt_CREATED DESC, f.int_CIP`);
+  const notif = new Map();
+  lignes(`SELECT nt.entity_ref, ${NOM_U} FROM notification nt JOIN t_user u ON u.lg_USER_ID = nt.user_id
+    WHERE nt.type_notification IN (21, 22) AND nt.created_at >= '${debut(j)}' - INTERVAL 1 DAY ORDER BY nt.created_at`).forEach((r) => { if (!notif.has(r[0]) && r[1] !== 'NULL') { notif.set(r[0], r[1]); } });
+  const journal = lignes(`SELECT UNIX_TIMESTAMP(e.dt_CREATED), e.str_DESCRIPTION, ${NOM_U} FROM t_event_log e JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID
+    WHERE e.dt_CREATED >= '${debut(j)}' - INTERVAL 5 SECOND AND e.typeLog IN (34, 35) AND e.str_TABLE_CONCERN = 'dal.TFamille' ORDER BY e.dt_CREATED`).filter((r) => r[2] !== 'NULL');
+  const dans = (e, f) => { const d = Number(e[0]) - Number(f[3]); return d >= -5 && d <= 60 && e[1].includes('cip ['); };
+  const reste = (e) => e[1].slice(e[1].indexOf('cip [') + 5);
+  return fiches.map((f) => {
+    let a = notif.get(f[0]);
+    if (!a) { const e = journal.find((x) => dans(x, f) && reste(x).startsWith(f[1].trim() + ' ')) || journal.find((x) => dans(x, f) && reste(x).includes(' ' + f[4].trim() + ' par ')); a = e ? e[2] : ''; }
+    return [f[1].replace(/[\s\u00a0]+/g, ''), f[2], a];
+  });
+};
 
 (async () => {
   const b = await ENV_E2E.lancer(chromium);

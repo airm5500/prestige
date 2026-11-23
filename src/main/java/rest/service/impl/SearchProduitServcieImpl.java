@@ -117,22 +117,28 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
     /**
      * Retour du 22/11 (lot 9) : auteur de la creation d'un article, lu sur la notification « Ajout de nouveau produit »
-     * (type 21, entity_ref = l'article) ecrite a chaque creation, par la fiche comme par les commandes. Vide pour un
-     * article cree avant ces notifications ou importe.
+     * (type 21, entity_ref = l'article) ecrite a chaque creation, par la fiche comme par les commandes ; a defaut (les
+     * notifications ne sont pas gardees), la ligne du journal de la creation (voir {@link CreateurArticle}). Vide pour
+     * un article importe ou cree avant le journal.
      */
     public String createurArticle(String familleId) {
         try {
+            /* retours du 23/11 : notification, sinon journal (les notifications ne sont pas gardees) */
             @SuppressWarnings("unchecked")
-            List<Object[]> r = em.createNativeQuery("SELECT u.str_FIRST_NAME, u.str_LAST_NAME FROM notification n"
-                    + " JOIN t_user u ON u.lg_USER_ID = n.user_id WHERE n.type_notification = ?1 AND n.entity_ref = ?2"
-                    + " ORDER BY n.created_at LIMIT 1")
-                    .setParameter(1, dal.enumeration.TypeNotification.AJOUT_DE_NOUVEAU_PRODUIT.ordinal())
-                    .setParameter(2, familleId).getResultList();
+            List<Object[]> r = em.createNativeQuery(
+                    "SELECT f.int_CIP, f.str_NAME, f.dt_CREATED FROM t_famille f" + " WHERE f.lg_FAMILLE_ID = ?1")
+                    .setParameter(1, familleId).getResultList();
             if (r.isEmpty()) {
                 return "";
             }
-            return StringUtils.trimToEmpty(StringUtils.defaultString((String) r.get(0)[0]) + " "
-                    + StringUtils.defaultString((String) r.get(0)[1]));
+            Object[] l = r.get(0);
+            return StringUtils
+                    .trimToEmpty(
+                            CreateurArticle
+                                    .auteurs(em,
+                                            java.util.Collections.singletonList(new CreateurArticle.Fiche(familleId,
+                                                    (String) l[0], (String) l[1], (java.util.Date) l[2])))
+                                    .get(familleId));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Auteur de la creation de l'article non lu", e);
             return "";
