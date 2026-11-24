@@ -59,12 +59,28 @@ code { background: #f3f4f6; padding: 0 3px; } table { border-collapse: collapse;
 <tr><td>Mise à jour</td><td>Les ventes déjà en attente restent en attente, marquées « avant la mise à jour ».</td></tr>
 </table>
 
-<h2>3. Tests attendus</h2>
+<h2>3. Sécurité et preuve (demande du 24/11 : « que les caissières ne puissent pas accuser un bug »)</h2>
 <ul>
-<li>Rapprochement : écran = journal = base (états des ventes, liste en attente, ventes abandonnées, traces de l'horloge, bandeau de connexion).</li>
-<li>Cohérence : règles de blocage et de régularisation sur des milliers de cas tirés au hasard (graine fixe) ; états de vente et droits.</li>
-<li>Bilan avant / après : chaque geste laisse exactement ses traces (journal, statut, lignes gardées), ni plus ni moins.</li>
-<li>Chaque test échoue d'abord sur le code actuel.</li>
+<li><b>Contrôles côté serveur</b> : chaque droit (mettre en attente, reprendre, voir les ventes en cours, reprendre une saisie d'un autre) est vérifié par l'API, pas seulement par l'écran. Un appel direct sans le droit est refusé et tracé.</li>
+<li><b>Journal infalsifiable</b> : aucune modification ni suppression possible par l'application ; chaque ligne porte l'empreinte de la précédente (chaîne), un trou ou une retouche en base est détecté et signalé.</li>
+<li><b>Preuve lisible</b> : pour chaque vente, l'écran du journal montre la suite complète des gestes (qui, poste, heure, quoi), y compris la cause d'une interruption ; exportable pour être montré.</li>
+<li><b>Aucun état ambigu</b> : une vente est toujours dans un seul état (en cours, en attente, interrompue, abandonnée, clôturée) ; tout passage d'un état à l'autre passe par une seule méthode du serveur, journalisée dans la même transaction.</li>
+<li><b>Horloge</b> : aucun moyen de lever le blocage sans remettre l'heure ; le paramètre de régularisation n'est modifiable que par le super administrateur, et chaque modification est tracée.</li>
 </ul>
+
+<h2>4. Tests attendus</h2>
+<p>Un chantier n'est terminé que si tous ces tests passent, que chacun a d'abord échoué sur le code actuel, et que la non-régression complète est verte.</p>
+<table>
+<tr><th>Famille</th><th>Ce qui est vérifié</th></tr>
+<tr><td>Rapprochement (e2e, par les clics)</td><td>Écran de vente = liste « Ventes en attente » = écran des ventes en cours = « Produits retirés et ventes abandonnées » = journal de preuve = base, ligne par ligne. Horloge : fenêtre de blocage = bandeau de connexion = API = traces en base.</td></tr>
+<tr><td>Cohérence (unitaires, milliers de cas, graine fixe)</td><td>Machine d'états des ventes : toutes les transitions admises et refusées, pour chaque combinaison de droits (avec / sans chacun des 4 droits), auteur ou non, même jour ou lendemain. Horloge : décision de blocage pour tous les écarts, reculs, sauts dans le futur, paramètres à 0 et à 1, délai expiré ou non, recul dans et hors bornes, sans Internet.</td></tr>
+<tr><td>Bilan avant / après (e2e)</td><td>Chaque geste (mettre en attente, retour et chaque choix, reprise, suppression, interruption, blocage, levée, régularisation) laisse exactement ses traces : statut, journal, lignes gardées, stock inchangé, caisse inchangée, ni plus ni moins.</td></tr>
+<tr><td>Tous les cas</td><td>Vente au comptant, assurance, carnet, vente en dépôt, prévente, modification d'une vente clôturée ; 1 et plusieurs produits, quantité supérieure à 1, remise, client ou non ; double clic, touche Entrée, raccourcis clavier ; changement de menu, fermeture d'onglet, fermeture du navigateur, session expirée, poste éteint (plus de signal), coupure réseau puis retour.</td></tr>
+<tr><td>Fiabilité et plusieurs postes</td><td>Deux à cinq postes en même temps : un poste ne voit jamais comme « en attente » une vente en cours ailleurs ; deux postes ne reprennent jamais la même vente ; reprise pendant une coupure réseau ; serveur redémarré au milieu d'une vente ; signal de vie perdu puis retrouvé ; 1 000 ventes de suite sans état ambigu.</td></tr>
+<tr><td>Sécurité</td><td>Chaque API appelée sans le droit : refus et trace. Journal modifié en base : détecté. Paramètre de régularisation modifié par un autre profil : refusé. Aucun mot de passe, aucun nom de patient dans les traces.</td></tr>
+<tr><td>Garde-fous de production (aucun blocage injustifié)</td><td>Internet coupé ou serveur de temps injoignable : pas de blocage sur l'écart, seulement sur recul ou saut ; changement d'heure, fuseau, redémarrage du serveur, première installation (aucune heure notée), base restaurée d'une sauvegarde : pas de faux blocage ; la tâche Windows absente : message clair, chemin de sortie par l'administrateur ; mise à jour avec des ventes déjà en attente : rien ne disparaît.</td></tr>
+<tr><td>Ergonomie</td><td>Fenêtre de blocage lisible, sans moyen de la fermer ; confirmation dans le bouton ; choix de « Retour » au clavier ; bandeau de connexion visible ; temps d'affichage de chaque écran sous plafond.</td></tr>
+<tr><td>Non-régression</td><td>Toute la suite unitaire, les tests d'écran de la vente, de la vente en dépôt, de la caisse, du ticket Z, des ventes modifiées et des suppressions de vente, avant et après.</td></tr>
+</table>
 </body>
 </html>
