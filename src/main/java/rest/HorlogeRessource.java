@@ -11,6 +11,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 import org.json.JSONObject;
 import rest.service.impl.HorlogeService;
+import rest.service.impl.HorlogeVeille;
+import util.ContexteRequete;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -26,6 +28,8 @@ public class HorlogeRessource {
     private HttpServletRequest servletRequest;
     @EJB
     private HorlogeService service;
+    @EJB
+    private HorlogeVeille veille;
 
     private boolean connecte() {
         HttpSession s = servletRequest.getSession(false);
@@ -46,12 +50,48 @@ public class HorlogeRessource {
         return Response.ok(service.etat().toString()).build();
     }
 
+    /**
+     * Cahier du 24/11 : bandeau de la page de connexion, SANS session (liste blanche de AuthenticationFilter). Ne rend
+     * que la date du serveur et l'état (OK, BLOQUE, REGULARISATION) : ni cause, ni écart, ni nom.
+     */
+    @GET
+    @Path("public")
+    public Response etatPublic() {
+        return Response.ok(service.etatPublic().toString()).build();
+    }
+
+    private String utilisateur() {
+        dal.TUser u = Droits.utilisateur(servletRequest);
+        return u == null ? null : u.getLgUSERID();
+    }
+
+    /** Fenêtre de blocage affichée sur un poste (une fois par apparition) : tracée avec le poste et l'utilisateur. */
+    @POST
+    @Path("affichage")
+    public Response affichage() {
+        if (!connecte()) {
+            return deconnecte();
+        }
+        HorlogeVeille.Instantane inst = veille.etatActuel();
+        veille.tracer("FENETRE_AFFICHEE", inst.resultat, inst.resultat.estimationRetenueMs,
+                ContexteRequete.poste(servletRequest), utilisateur(), null);
+        return Response.ok(new JSONObject().put("success", true).toString()).build();
+    }
+
     @POST
     @Path("synchroniser")
     public Response synchroniser() {
         if (!connecte()) {
             return deconnecte();
         }
-        return Response.ok(service.synchroniser().toString()).build();
+        String poste = ContexteRequete.poste(servletRequest), qui = utilisateur();
+        HorlogeVeille.Instantane avant = veille.etatActuel();
+        veille.tracer("MISE_A_JOUR_DEMANDEE", avant.resultat, avant.resultat.estimationRetenueMs, poste, qui, null);
+        JSONObject r = service.synchroniser();
+        HorlogeVeille.Instantane apres = veille.etatActuel();
+        veille.tracer(r.optBoolean("success") ? "MISE_A_JOUR_FAITE" : "MISE_A_JOUR_REFUSEE", apres.resultat,
+                apres.resultat.estimationRetenueMs, poste, qui, r.optString("msg", null));
+        r.put("bloque", apres.resultat.bloque);
+        return Response.ok(r.toString()).build();
     }
 }

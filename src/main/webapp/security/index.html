@@ -669,6 +669,37 @@
 })();
 </script>
 
+  <!-- Cahier des charges du 24/11 : bandeau tant que l'heure du serveur est fausse ou qu'une regularisation a date
+       passee est en cours, donc aussi apres une deconnexion. API sans connexion v1/horloge/public : date du serveur et
+       etat seulement. Verifie toutes les 30 s ; disparait seul quand l'heure est juste. Aucune fenetre. -->
+  <div id="pl-horloge" role="alert" hidden
+       style="position:fixed;top:0;left:0;right:0;z-index:10000;padding:8px 14px;text-align:center;font:600 14px 'Segoe UI',Arial,sans-serif;color:#fff"></div>
+  <script>
+  (function () {
+    var b = document.getElementById('pl-horloge');
+    function lire() {
+      fetch('../api/v1/horloge/public', { cache: 'no-store', credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (h) {
+          if (!h || h.etat === 'OK') { b.hidden = true; b.removeAttribute('data-etat'); return; }
+          b.setAttribute('data-etat', h.etat);
+          if (h.etat === 'BLOQUE') {
+            b.style.background = '#c0392b';
+            b.textContent = 'La date ou l\'heure du serveur est fausse (' + h.serveur + ') : Prestige est bloqué. '
+              + 'Connectez-vous et faites « Mettre à jour », ou appelez l\'administrateur.';
+          } else {
+            b.style.background = '#b45309';
+            b.textContent = 'Régularisation à date passée en cours (date du serveur : ' + h.serveur + ').';
+          }
+          b.hidden = false;
+        })
+        .catch(function () { /* serveur injoignable : la page le dira a la connexion */ });
+    }
+    lire();
+    setInterval(lire, 30000);
+  })();
+  </script>
+
   <!-- Nom et version de l'application, et poste deja connecte : API v1/app/info (la page n'est plus une JSP, 13/10). -->
   <script>
   (function () {

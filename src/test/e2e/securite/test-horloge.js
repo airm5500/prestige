@@ -1,8 +1,11 @@
 /* RAPPEL « DATE ET HEURE FAUSSES » (retours du 25/10, point 2).
  *  - horloge juste : aucun rappel ;
- *  - horloge du serveur fausse d'une heure (ecart a l'heure d'Internet simule par KEY_HORLOGE_ESSAI_DECALAGE) : toast
- *    « en avance de 1 h », avec « Mettre a jour » et « Masquer » ;
- *  - date reculee : une operation de caisse datee de dans 2 jours est signalee (sans Internet) ;
+ *  - horloge du serveur fausse de 10 minutes (ecart a l'heure d'Internet simule par KEY_HORLOGE_ESSAI_DECALAGE) :
+ *    toast « en avance de 10 min », avec « Mettre a jour » et « Masquer ». Cahier du 24/11 : au-dela de 30 minutes,
+ *    c'est la fenetre de blocage (test-horloge-blocage-2411.js) ; le decalage d'essai n'est lu que sur un domaine
+ *    lance avec -Dprestige.essais.horloge=true ;
+ *  - operation de caisse datee de dans 2 jours : signalee comme donnee a corriger (cahier du 24/11 : elle ne sert plus
+ *    a decider d'un recul de l'horloge) ;
  *  - retour du 02/11 : le controle porte sur le poste qui a le serveur Payara. Un poste relie a ce serveur en depend :
  *    son horloge fausse (navigateur avance de 3 h) ne change rien aux operations, aucun rappel n'est affiche ;
  *  - « Mettre a jour » (heure du serveur) : appel de synchronisation (intercepte : Windows n'est pas touche par le
@@ -47,12 +50,12 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     await verifier(p);
     ok('Horloge juste : aucun rappel', (await toast(p)) === null);
 
-    /* serveur en avance d'une heure (ecart simule) */
-    q("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('KEY_HORLOGE_ESSAI_DECALAGE', '3600', 'essai e2e', 'CUSTOMER', 'enable', NOW())");
+    /* serveur en avance de 10 minutes (ecart simule, sous le seuil de blocage de 30 minutes) */
+    q("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('KEY_HORLOGE_ESSAI_DECALAGE', '600', 'essai e2e', 'CUSTOMER', 'enable', NOW())");
     await verifier(p);
     let t = await toast(p);
-    ok('Serveur en avance d\'une heure : toast « en avance de 1 h », Mettre à jour et Masquer', t && /date ou l'heure n'est pas bonne/i.test(t.texte)
-      && /en avance de 1 h/.test(t.texte) && /Mettre à jour/.test(t.texte) && /Masquer/.test(t.texte), t && t.texte);
+    ok('Serveur en avance de 10 minutes : toast « en avance de 10 min », Mettre à jour et Masquer, sans blocage', t && /date ou l'heure n'est pas bonne/i.test(t.texte)
+      && !(await p.$('#phb-voile')) && /en avance de 10 min/.test(t.texte) && /Mettre à jour/.test(t.texte) && /Masquer/.test(t.texte), t && t.texte);
 
     /* Mettre a jour : synchronisation demandee au serveur (interceptee) */
     let appels = 0;
@@ -78,7 +81,8 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     await p2.waitForFunction(() => !!window.PrestigeAlerteHorloge && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await verifier(p2);
     t = await toast(p2);
-    ok('Date reculée (opération datée de dans 2 jours) : signalée', t && /a reculé/.test(t.texte), t && t.texte);
+    ok('Opération datée de dans 2 jours : signalée comme donnée à corriger, sans blocage', t && /datée après aujourd'hui/.test(t.texte)
+      && !(await p2.$('#phb-voile')), t && t.texte);
     await p2.close();
     q(`DELETE FROM mvttransaction WHERE uuid = '${M}'`);
 
@@ -100,7 +104,7 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     ok('Poste relié au serveur, horloge en avance de 3 h : aucun rappel (seul le serveur date les opérations)', t === null && appels3 === 0, t && t.texte);
 
     /* au-dessus du toast WhatsApp (toast du serveur, ecart simule) */
-    q("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('KEY_HORLOGE_ESSAI_DECALAGE', '3600', 'essai e2e', 'CUSTOMER', 'enable', NOW())");
+    q("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('KEY_HORLOGE_ESSAI_DECALAGE', '600', 'essai e2e', 'CUSTOMER', 'enable', NOW())");
     /* premiere verification WhatsApp passee (sans droit : elle retire la banniere puis s'arrete), avant de poser celle du test */
     for (let i = 0; i < 60 && appelsWa === 0; i++) { await p3.waitForTimeout(500); }
     await p3.evaluate(() => { const w = document.createElement('div'); w.id = 'pwa-banniere'; w.style.cssText = 'position:fixed;right:16px;bottom:16px;height:90px;width:400px';

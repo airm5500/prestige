@@ -43,10 +43,14 @@ public class HorlogeService {
     /** Essais d'ecran seulement : secondes ajoutees a l'ecart mesure (simule une horloge fausse). */
     static final String CLE_ESSAI = "KEY_HORLOGE_ESSAI_DECALAGE";
     static final long TOLERANCE_MS = 120_000L;
+    /** Tâche Windows de mise à l'heure, créée par outils/officine/9-tache-heure.ps1. */
+    public static final String TACHE_HEURE = "Prestige - Heure";
     private static final DateTimeFormatter FR = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @javax.ejb.EJB
+    private HorlogeVeille veille;
 
     private String parametre(String cle, String defaut) {
         try {
@@ -93,11 +97,17 @@ public class HorlogeService {
                 .put("serveur", maintenant.format(FR)).put("fuseau", ZoneId.systemDefault().getId())
                 .put("decalage", decalage.getId()).put("fuseauAttendu", attendu.getId());
 
+        /*
+         * cahier du 24/11 : le décalage d'essai n'est lu que sur un domaine d'essai (sinon il masquerait une heure
+         * fausse)
+         */
         long essai = 0;
-        try {
-            essai = Long.parseLong(parametre(CLE_ESSAI, "0")) * 1000L;
-        } catch (NumberFormatException e) {
-            essai = 0;
+        if (HorlogeVeille.essais()) {
+            try {
+                essai = Long.parseLong(parametre(CLE_ESSAI, "0")) * 1000L;
+            } catch (NumberFormatException e) {
+                essai = 0;
+            }
         }
         ReferenceTemps.Mesure m = ReferenceTemps.mesurer();
         if (m != null) {
@@ -112,22 +122,28 @@ public class HorlogeService {
             r.put("reference", JSONObject.NULL);
         }
 
-        /* une operation de caisse datee apres maintenant : la date a ete reculee (ou la pile CMOS l'a perdue) */
-        try {
-            Object max = em.createNativeQuery("SELECT MAX(createdAt) FROM mvttransaction").getSingleResult();
-            LocalDateTime derniere = max instanceof java.sql.Timestamp ? ((java.sql.Timestamp) max).toLocalDateTime()
-                    : max instanceof LocalDateTime ? (LocalDateTime) max : null;
-            if (derniere != null) {
-                r.put("derniereOperation", derniere.format(FR));
-                if (derniere.isAfter(maintenant.plusMinutes(5))) {
-                    anomalies.put(new JSONObject().put("code", "RECUL").put("serveur", true).put("message",
-                            "La date du serveur a reculé : la dernière opération de caisse est datée du "
-                                    + derniere.format(FR) + ", après la date actuelle (" + maintenant.format(FR)
-                                    + ")."));
+        /*
+         * Cahier du 24/11 : le blocage se décide sur l'heure réelle suivie par le serveur (HorlogeVeille), plus sur la
+         * date de la dernière opération de caisse, qu'une date saisie à la main pouvait fausser. Les opérations datées
+         * après l'heure réelle sont seulement signalées : données à corriger par le Centre de support.
+         */
+        HorlogeVeille.Instantane inst = veille.etatActuel();
+        r.put("blocage", blocage(inst));
+        Long reelle = inst.resultat.estimationRetenueMs;
+        if (reelle != null) {
+            try {
+                Object n = em.createNativeQuery("SELECT COUNT(*) FROM mvttransaction WHERE createdAt > ?1")
+                        .setParameter(1, new java.sql.Timestamp(reelle + 5 * 60_000L)).getSingleResult();
+                long futures = n instanceof Number ? ((Number) n).longValue() : 0;
+                r.put("operationsFutures", futures);
+                if (futures > 0) {
+                    anomalies.put(new JSONObject().put("code", "FUTUR").put("serveur", true).put("message", futures
+                            + (futures > 1 ? " opérations de caisse sont datées" : " opération de caisse est datée")
+                            + " après aujourd'hui : données à corriger par le Centre de support."));
                 }
+            } catch (RuntimeException e) {
+                LOG.log(Level.FINE, "operations futures", e);
             }
-        } catch (RuntimeException e) {
-            LOG.log(Level.FINE, "derniere operation", e);
         }
 
         if (!decalage.equals(decalageAttendu)) {
@@ -137,6 +153,50 @@ public class HorlogeService {
                             + duree((decalage.getTotalSeconds() - decalageAttendu.getTotalSeconds()) * 1000L) + "."));
         }
         return r.put("anomalies", anomalies);
+    }
+
+    /** Blocage de l'application : état, causes et messages, heure réelle, régularisation. */
+    static JSONObject blocage(HorlogeVeille.Instantane inst) {
+        util.horloge.DecisionHorloge.Resultat res = inst.resultat;
+        JSONArray causes = new JSONArray(), messages = new JSONArray();
+        Long reelle = res.estimationRetenueMs;
+        LocalDateTime serveur = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(inst.serveurMs),
+                ZoneId.systemDefault());
+        for (util.horloge.DecisionHorloge.Cause c : res.causes) {
+            causes.put(c.name());
+            long d = reelle == null ? 0 : inst.serveurMs - reelle;
+            String sens = d > 0 ? "en avance de " + duree(d) : "en retard de " + duree(d);
+            switch (c) {
+            case ECART:
+                messages.put("L'horloge du serveur est " + sens + " sur l'heure d'Internet.");
+                break;
+            case RECUL:
+                messages.put("L'horloge du serveur a été reculée : elle est " + sens + " sur l'heure réelle.");
+                break;
+            case SAUT:
+                messages.put("L'horloge du serveur a sauté dans le futur : elle est " + sens + " sur l'heure réelle.");
+                break;
+            default:
+                messages.put("La date du serveur (" + serveur.format(FR) + ") n'est pas plausible.");
+            }
+        }
+        JSONObject b = new JSONObject().put("bloque", res.bloque).put("causes", causes).put("messages", messages)
+                .put("serveur", serveur.format(FR)).put("regularisation", res.regularisationEnCours);
+        if (reelle != null) {
+            b.put("heureReelle",
+                    LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(reelle), ZoneId.systemDefault()).format(FR));
+        }
+        return b;
+    }
+
+    /** Page de connexion (sans session) : la date du serveur et l'état, rien d'autre. */
+    public JSONObject etatPublic() {
+        HorlogeVeille.Instantane inst = veille.etatActuel();
+        String etat = inst.resultat.bloque ? "BLOQUE" : inst.resultat.regularisationEnCours ? "REGULARISATION" : "OK";
+        return new JSONObject()
+                .put("serveur", LocalDateTime
+                        .ofInstant(java.time.Instant.ofEpochMilli(inst.serveurMs), ZoneId.systemDefault()).format(FR))
+                .put("etat", etat);
     }
 
     private static String libelle(ZoneOffset o) {
@@ -169,6 +229,23 @@ public class HorlogeService {
             TimeZone.setDefault(TimeZone.getTimeZone(attendu));
             compteRendu.append("Fuseau de Prestige : ").append(attendu.getId()).append(". ");
         }
+        /*
+         * Cahier du 24/11 : Prestige n'a pas les droits d'administrateur ; il déclenche la tâche Windows créée une fois
+         * par le script d'installation (outils/officine/9-tache-heure.ps1), exécutée avec les droits du système.
+         */
+        String[] tache = executer("schtasks", "/run", "/tn", TACHE_HEURE);
+        if ("0".equals(tache[0])) {
+            try {
+                Thread.sleep(5000); // le temps que w32tm se resynchronise
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            compteRendu.append("Mise à jour de l'heure demandée à Windows (tâche « ").append(TACHE_HEURE)
+                    .append(" »).");
+            LOG.log(Level.INFO, "Synchronisation de l''horloge : {0}", compteRendu);
+            return r.put("success", ok).put("tache", true).put("msg", compteRendu.toString().trim());
+        }
+        r.put("tache", false);
         String[] sync = executer("w32tm", "/resync", "/force");
         if (!"0".equals(sync[0])) {
             /* service de temps arrete : il est demarre, puis la synchronisation relancee */
@@ -177,8 +254,9 @@ public class HorlogeService {
         }
         ok &= "0".equals(sync[0]);
         compteRendu.append("0".equals(sync[0]) ? "Heure synchronisée avec le serveur de temps de Windows."
-                : "Synchronisation de l'heure refusée par Windows (" + sync[1].trim()
-                        + ") : lancez Prestige avec les droits d'administrateur, ou synchronisez l'heure dans Windows.");
+                : "La tâche Windows « " + TACHE_HEURE + " » n'est pas installée et Windows refuse la mise à jour ("
+                        + sync[1].trim() + ") : l'administrateur doit remettre l'heure dans Windows, puis lancer une "
+                        + "fois outils/officine/9-tache-heure.ps1 en administrateur.");
         LOG.log(Level.INFO, "Synchronisation de l''horloge : {0}", compteRendu);
         return r.put("success", ok).put("msg", compteRendu.toString().trim());
     }

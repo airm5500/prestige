@@ -76,7 +76,10 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             // Demande mobile 56 : nom de l'appareil retrouve par son empreinte avant la connexion (premier lancement
             // apres une reinstallation). Lecture seule, debit limite, empreinte de 64 caracteres hexadecimaux ;
             // l'enregistrement (PUT) exige la session - voir rest.AppareilRessource.
-            "v1/appareil/nom");
+            "v1/appareil/nom",
+            // Cahier du 24/11 : bandeau de la page de connexion quand l'heure du serveur est fausse ou en
+            // régularisation. Rend la date du serveur et l'état seulement - voir rest.HorlogeRessource#etatPublic.
+            "v1/horloge/public");
 
     private static final String CHEMIN_MOBILE = "v1/mobile/";
     private static final String CONNEXION_MOBILE = "v1/mobile/connexion";

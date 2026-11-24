@@ -22,6 +22,7 @@ Règles communes :
 | 7 | `6-essai-restauration.ps1 -Base laborex_v1_db -OptionsCible <instance d'essai>` | chaque mois | aucun (autre serveur) |
 | 8 | `7-service-payara.ps1 -Installer`, sur le serveur **et sur chaque caisse qui a son propre Payara** | hors des heures d'ouverture | Payara redémarre en service Windows, puis démarre avec le PC |
 | 9 | `8-lanceur-caisse.ps1 -CreerRaccourci`, sur chaque caisse (`-Url http://serveur:8080/prestige` si Prestige est sur un autre poste) | une fois | le raccourci « Prestige » remplace l'ancien |
+| 10 | `9-tache-heure.ps1`, sur le serveur qui a Payara (en administrateur) | une fois | aucun : le bouton « Mettre à jour » de la fenêtre de blocage de l'heure fonctionne ensuite sans droits d'administrateur |
 
 **`7-service-payara.ps1`** (rapport d'exploitation du 13/11, point 4) : sans option, il affiche seulement l'état
 (service, démarrage automatique, relance si arrêt). `-Installer` crée le service (`asadmin create-service`), le règle en
@@ -35,6 +36,8 @@ démarre » avec l'étape en cours et ouvre la caisse dès que `api/v1/app/info`
 Prestige tourne sur ce poste, il démarre le service, ou lance Payara lui-même (`asadmin start-domain`) quand il n'y a
 pas de service ou que Windows refuse ; il ne démarre jamais le serveur d'un autre poste. Au bout de 10 min, il propose
 « Réessayer ». Essai : `essais/essai-lanceur-caisse.py` (faux serveur, 10 cas, aucun vrai Payara lancé).
+
+**`9-tache-heure.ps1`** (cahier des charges du 24/11) : Prestige se bloque quand l'heure du serveur est fausse. Le bouton « Mettre à jour » ne peut pas remettre l'heure lui-même (Payara n'a pas les droits d'administrateur) : il déclenche la tâche Windows « Prestige - Heure », créée une fois par ce script et exécutée par SYSTEM (`w32tm /resync /force`). Les utilisateurs du poste peuvent seulement la lancer, ni la modifier ni la supprimer. Le script règle aussi le service de temps en démarrage automatique et lève ses limites de correction (sinon Windows refuse de corriger une horloge partie en 2189). `-Lire` affiche l'état sans rien changer, `-Retirer` supprime la tâche, `-Annuler -MaxPos 54000 -MaxNeg 54000` remet les limites relevées par `-Lire`. Si la tâche est absente, la fenêtre de blocage le dit et renvoie à l'administrateur.
 
 `E:\` désigne ici un **autre disque** que celui de la base (second disque, clé USB, NAS) : une panne du disque de la
 base ne doit pas emporter ses sauvegardes.

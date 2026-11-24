@@ -12,6 +12,14 @@
  *    s'affiche dans le toast, puis la verification est relancee ;
  *  - « Masquer » : jusqu'a la verification suivante (5 minutes).
  * Aucune fenetre.
+ *
+ * Cahier des charges du 24/11 : si le serveur decide le blocage (o.blocage.bloque : ecart avec Internet, horloge
+ * reculee ou partie dans le futur, date pas plausible), une fenetre couvre toute l'application. Elle ne se ferme pas :
+ * ni croix, ni Echap, ni clic a cote ; les touches ne vont plus a l'application. Elle porte les causes, l'heure du
+ * serveur et l'heure reelle, « Mettre a jour » (tache Windows declenchee par le serveur) et la conduite a tenir sans
+ * Internet. Elle se retire seule des que l'heure est juste (verification toutes les 15 s pendant le blocage). Son
+ * affichage est trace (poste, utilisateur). Le serveur refuse de son cote toute ecriture (423) pendant le blocage :
+ * une reponse 423 relance aussitot la verification. Pendant une regularisation a date passee, bandeau permanent.
  */
 (function () {
     'use strict';
@@ -19,6 +27,8 @@
     var URL = '../api/v1/horloge/etat';
     var REGLAGE = {periode: 300000};
     var minuteur = null, arrete = false, masqueeJusqua = 0;
+    var BLOCAGE = {periode: 15000};
+    var minuteurBlocage = null, blocageTrace = false;
     /* dernier compte rendu de « Mettre a jour » : garde quand le toast est redessine (verification suivante) */
     var compteRendu = null;
 
@@ -146,6 +156,13 @@
                     retirer();
                     return;
                 }
+                var b = o.blocage || {};
+                bandeauRegularisation(!!b.regularisation);
+                if (b.bloque) {
+                    afficherBlocage(b);
+                    return;
+                }
+                retirerBlocage();
                 var messages = (o.anomalies || []).map(function (a) {
                     return a.message;
                 }), serveur = messages.length > 0;
@@ -161,7 +178,160 @@
         });
     }
 
-    window.PrestigeAlerteHorloge = {verifier: verifier, reglage: REGLAGE};
+    /* ------------------------------------------------------------------ blocage (cahier du 24/11) */
+
+    function stylesBlocage() {
+        if (document.getElementById('phb-styles')) {
+            return;
+        }
+        var st = document.createElement('style');
+        st.id = 'phb-styles';
+        st.textContent = '#phb-voile{position:fixed;inset:0;z-index:2147483000;background:rgba(15,23,42,.72);display:grid;place-items:center;font:14px "Segoe UI",Arial,sans-serif}'
+                + '#phb-voile .phb-cadre{width:560px;max-width:calc(100vw - 32px);background:#fff;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.35);overflow:hidden}'
+                + '#phb-voile .phb-titre{background:#c0392b;color:#fff;padding:14px 18px;font-size:17px;font-weight:600;display:flex;gap:10px;align-items:center}'
+                + '#phb-voile .phb-corps{padding:16px 18px;color:#1f2937;line-height:1.45}'
+                + '#phb-voile .phb-corps ul{margin:6px 0 10px 18px;padding:0}'
+                + '#phb-voile .phb-heures{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:8px 0;padding:8px 10px;background:#f3f4f6;border-radius:8px}'
+                + '#phb-voile .phb-heures b{font-variant-numeric:tabular-nums}'
+                + '#phb-voile .phb-aide{font-size:13px;color:#4b5563}'
+                + '#phb-voile .phb-raison{display:block;min-height:18px;margin-top:8px;font-size:13px;color:#8a1c1c}'
+                + '#phb-voile .phb-actions{padding:0 18px 16px;display:flex;justify-content:flex-end}'
+                + '#phb-voile button{font:inherit;font-weight:600;border-radius:8px;padding:8px 16px;cursor:pointer;background:#1e3a5f;color:#fff;border:1px solid #1e3a5f}'
+                + '#phb-voile button[disabled]{opacity:.7;cursor:default}'
+                + '#phb-voile button:focus-visible{outline:3px solid #f2b84b;outline-offset:2px}'
+                + '#phb-bandeau{position:fixed;top:0;left:0;right:0;z-index:2147482000;background:#b45309;color:#fff;text-align:center;padding:4px 12px;font:600 13px "Segoe UI",Arial,sans-serif;pointer-events:none}';
+        document.head.appendChild(st);
+    }
+
+    /* touches gardees dans la fenetre : Tab et Entree sur son bouton ; rien ne va a l'application */
+    function clavier(ev) {
+        var v = document.getElementById('phb-voile');
+        if (!v) {
+            return;
+        }
+        var bouton = v.querySelector('button');
+        if (ev.key === 'Tab') {
+            ev.preventDefault();
+            bouton.focus();
+        } else if ((ev.key === 'Enter' || ev.key === ' ') && document.activeElement === bouton) {
+            return;
+        } else {
+            ev.preventDefault();
+        }
+        ev.stopPropagation();
+    }
+
+    function afficherBlocage(b) {
+        stylesBlocage();
+        var v = document.getElementById('phb-voile');
+        var contenu = '<div class="phb-cadre" role="alertdialog" aria-modal="true" aria-labelledby="phb-titre">'
+                + '<div class="phb-titre" id="phb-titre"><i class="fa fa-clock-o"></i>Prestige est bloqué : la date ou l\'heure du serveur est fausse</div>'
+                + '<div class="phb-corps"><ul>' + (b.messages || []).map(function (m) {
+                    return '<li>' + esc(m) + '</li>';
+                }).join('') + '</ul>'
+                + '<div class="phb-heures"><span>Heure du serveur</span><b data-phb="serveur">' + esc(b.serveur) + '</b>'
+                + (b.heureReelle ? '<span>Heure réelle</span><b data-phb="reelle">' + esc(b.heureReelle) + '</b>' : '') + '</div>'
+                + '<div class="phb-aide">Aucune opération n\'est possible tant que l\'heure n\'est pas juste. Faites « Mettre à jour ». '
+                + 'Sans Internet, appelez l\'administrateur : il remet la date et l\'heure dans Windows. '
+                + 'Prestige se débloque seul dès que l\'heure est juste.</div>'
+                + '<span class="phb-raison" data-phb="raison"></span></div>'
+                + '<div class="phb-actions"><button type="button" data-phb="mettre-a-jour">Mettre à jour</button></div></div>';
+        if (!v) {
+            v = document.createElement('div');
+            v.id = 'phb-voile';
+            document.body.appendChild(v);
+            v.addEventListener('click', function (ev) {
+                var a = ev.target.closest ? ev.target.closest('[data-phb="mettre-a-jour"]') : null;
+                if (a && !a.disabled) {
+                    mettreAJourBlocage(a);
+                }
+                ev.stopPropagation();
+            });
+            document.addEventListener('keydown', clavier, true);
+            document.addEventListener('keypress', clavier, true);
+        } else if (v.querySelector('[data-phb="mettre-a-jour"][disabled]')) {
+            return; /* mise a jour en cours */
+        }
+        var avant = v.querySelector('[data-phb="raison"]');
+        avant = avant ? avant.textContent : '';
+        v.innerHTML = contenu;
+        v.querySelector('[data-phb="raison"]').textContent = avant;
+        v.querySelector('button').focus();
+        retirer(); /* le toast n'a plus lieu d'etre */
+        if (!blocageTrace) {
+            blocageTrace = true;
+            Ext.Ajax.request({url: '../api/v1/horloge/affichage', method: 'POST'});
+        }
+        if (!minuteurBlocage) {
+            minuteurBlocage = setInterval(verifier, BLOCAGE.periode);
+        }
+    }
+
+    function retirerBlocage() {
+        var v = document.getElementById('phb-voile');
+        if (v) {
+            v.parentNode.removeChild(v);
+            document.removeEventListener('keydown', clavier, true);
+            document.removeEventListener('keypress', clavier, true);
+        }
+        blocageTrace = false;
+        if (minuteurBlocage) {
+            clearInterval(minuteurBlocage);
+            minuteurBlocage = null;
+        }
+    }
+
+    function mettreAJourBlocage(bouton) {
+        var raisonEl = document.querySelector('#phb-voile [data-phb="raison"]');
+        bouton.disabled = true;
+        bouton.textContent = 'Mise à jour…';
+        Ext.Ajax.request({url: '../api/v1/horloge/synchroniser', method: 'POST', timeout: 90000,
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                bouton.disabled = false;
+                bouton.textContent = 'Mettre à jour';
+                if (raisonEl) {
+                    raisonEl.textContent = o.msg || (o.success ? 'Mise à jour demandée.' : 'Mise à jour impossible.');
+                }
+                setTimeout(verifier, 1500);
+            },
+            failure: function () {
+                bouton.disabled = false;
+                bouton.textContent = 'Mettre à jour';
+                if (raisonEl) {
+                    raisonEl.textContent = 'Mise à jour impossible (serveur injoignable).';
+                }
+            }});
+    }
+
+    function bandeauRegularisation(actif) {
+        var d = document.getElementById('phb-bandeau');
+        if (actif && !d) {
+            stylesBlocage();
+            d = document.createElement('div');
+            d.id = 'phb-bandeau';
+            d.setAttribute('role', 'status');
+            d.textContent = 'Régularisation à date passée en cours : chaque opération saisie est marquée « saisie en régularisation ».';
+            document.body.appendChild(d);
+        } else if (!actif && d) {
+            d.parentNode.removeChild(d);
+        }
+    }
+
+    /* toute ecriture refusee par le serveur pour l'heure (423) : la fenetre s'affiche aussitot */
+    (function ecouter() {
+        if (window.Ext && Ext.Ajax && Ext.Ajax.on) {
+            Ext.Ajax.on('requestexception', function (conn, response) {
+                if (response && response.status === 423) {
+                    verifier();
+                }
+            });
+        } else {
+            setTimeout(ecouter, 500);
+        }
+    })();
+
+    window.PrestigeAlerteHorloge = {verifier: verifier, reglage: REGLAGE, blocage: BLOCAGE};
 
     /* apres l'ouverture de l'application, puis toutes les 5 minutes */
     (function attendre() {
