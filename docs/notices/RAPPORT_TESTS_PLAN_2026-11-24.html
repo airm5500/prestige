@@ -14,12 +14,12 @@ td, th { border: 1px solid #d1d5db; padding: 4px 8px; text-align: left; vertical
 <body>
 <h1>Rapport de tests du plan du 24/11/2026</h1>
 <p>Branche <code>plan/24112026</code>. Besoins : <code>CAHIER_DES_CHARGES_2026-11-24.html</code> (date et heure du serveur ; mise en attente des ventes). Ce rapport est tenu à jour à chaque étape : pour chaque test, son fichier, son résultat sur l'ancien code (il doit échouer), son résultat sur le nouveau code, le serveur et la base utilisés, le commit.</p>
-<p>État au 24/11 : <b>rien n'est encore réalisé</b> ; la grille ci-dessous est le plan de tests convenu.</p>
+<p>État au 24/11 : étape 1 faite, la décision de blocage de l'horloge (fonction pure, testée) ; le reste de la grille est le plan de tests convenu.</p>
 
 <h2>1. Date et heure du serveur</h2>
 <table>
 <tr><th>Famille</th><th>Cas couverts</th><th>Test</th><th>Ancien code</th><th>Nouveau code</th></tr>
-<tr><td>Cohérence (unitaire)</td><td>Décision de blocage : écarts, reculs, sauts dans le futur, sans Internet ; régularisation à 0 et à 1, délai expiré ou non, recul dans et hors bornes ; milliers de cas, graine fixe</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Cohérence (unitaire)</td><td>Décision de blocage : écarts, reculs, sauts dans le futur, sans Internet ; régularisation à 0 et à 1, délai expiré ou non, recul dans et hors bornes ; milliers de cas, graine fixe</td><td><code>util/horloge/DecisionHorlogeCoherenceTest</code> : 21 tests, 20 000 cas tirés (graine 20261124) et les cas du terrain (2189 et 2174 au démarrage, avec et sans Internet ; week-end ; première installation ; base restaurée ; fuseau ; régularisation de 3 et 8 jours, expirée, sans ouverture, avance jamais excusée)</td><td>échec (décision absente : ne compile pas)</td><td>21 / 21 (décision <code>util/horloge/DecisionHorloge</code>)</td></tr>
 <tr><td>Rapprochement (e2e)</td><td>Fenêtre de blocage = bandeau de connexion = API = traces en base</td><td class="afaire">à écrire</td><td></td><td></td></tr>
 <tr><td>Bilan (e2e)</td><td>Blocage, tentative de mise à jour, levée, régularisation ouverte puis refermée : traces exactes</td><td class="afaire">à écrire</td><td></td><td></td></tr>
 <tr><td>Dates futures refusées</td><td>Date de règlement d'un différé, modification de la date d'une vente : écran et serveur</td><td class="afaire">à écrire</td><td></td><td></td></tr>
