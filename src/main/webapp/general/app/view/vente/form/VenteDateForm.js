@@ -230,7 +230,9 @@ Ext.define('testextjs.view.vente.form.VenteDateForm', {
                 },
                 failure: function (response, options) {
                     progress.hide();
-                    Ext.Msg.alert("Message", 'Un problème avec le serveur');
+                    /* cahier du 24/11 : le serveur dit pourquoi (date dans le futur refusee) */
+                    const r = Ext.JSON.decode(response.responseText || '', true);
+                    Ext.Msg.alert("Message", r && r.msg ? r.msg : 'Un problème avec le serveur');
                 }
             });
         }

@@ -672,6 +672,27 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     ],
     init: function () {
         const me = this;
+        /* cahier du 24/11, point 2 : la vente ouverte sur cet ecran est signalee au serveur (saisie-vente.js) ; la
+         * prevente n'est pas une saisie de caisse et n'est pas suivie */
+        if (window.PrestigeSaisieVente) {
+            window.PrestigeSaisieVente.suivre('depot', function () {
+                const ecran = Ext.ComponentQuery.query('doventeendepot')[0];
+                if (!ecran || ecran.isDestroyed || !ecran.isVisible(true) || me.getCategorie() === 'PREVENTE') {
+                    return null;
+                }
+                return me.current && me.current.lgPREENREGISTREMENTID ? me.current.lgPREENREGISTREMENTID : null;
+            }, function () {
+                /* l'ecran n'est « ouvert » qu'une fois le depot choisi : la reprise proposee est celle de CE depot */
+                const ecran = Ext.ComponentQuery.query('doventeendepot')[0];
+                return !!ecran && !ecran.isDestroyed && ecran.isVisible(true) && me.getCategorie() !== 'PREVENTE'
+                        ? me.depotIdDeVente() : null;
+            }, function (id) {
+                /* « Reprendre la vente interrompue » depuis le bandeau : le serveur a deja admis la reprise */
+                me.loadExistantSale(id);
+            }, function (vente) {
+                return vente.depotId === me.depotIdDeVente();
+            });
+        }
         // Recalcul de la hauteur de la grille au redimensionnement de la
         // fenêtre (portable <-> écran externe). Bufferisé, sans effet hors
         // vente comptant plein écran.
@@ -4124,6 +4145,42 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     },
 
     goBack: function () {
+        const me = this, vente = me.current, btn = me.getVnobtnGoBack && me.getVnobtnGoBack();
+        /*
+         * cahier du 24/11, point 2 : Retour sur une vente en saisie -> choix dans la barre de boutons (aucune
+         * fenetre) : mettre en attente et quitter, ou supprimer la vente (confirmee dans le bouton). Modification
+         * d'une vente cloturee (copie) et prevente : comportement d'avant.
+         */
+        if (window.PrestigeSaisieVente && btn && vente && vente.lgPREENREGISTREMENTID
+                && me.getCategorie() !== 'COPY' && me.getCategorie() !== 'PREVENTE') {
+            const id = vente.lgPREENREGISTREMENTID;
+            window.PrestigeSaisieVente.choixRetour(btn, {
+                attente: function (ok, ko) {
+                    window.PrestigeSaisieVente.attente(id, function () {
+                        ok();
+                        me.rememberPreventeMode();
+                        me.saveModeReglementAttente();
+                        me.quitterVente();
+                    }, ko);
+                },
+                supprimer: function (ok, ko) {
+                    window.PrestigeSaisieVente.supprimer(id, function () {
+                        Ext.Ajax.request({
+                            method: 'POST',
+                            url: '../api/v1/ventestats/remove/' + encodeURIComponent(id),
+                            callback: function () {
+                                ok();
+                                me.quitterVente();
+                            }
+                        });
+                    }, ko);
+                }
+            });
+            return;
+        }
+        me.quitterVente();
+    },
+    quitterVente: function () {
         const me = this;
         // Sortie d'ecran : la vente rappelee redevient disponible pour les autres caisses
         me.libererRappelVente();
@@ -8100,6 +8157,19 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         });
     },
     putToStandBy: function () {
+        const me = this, vente = me.current;
+        /* cahier du 24/11, point 2 : la mise en attente est decidee par le serveur (droit, etat) et journalisee */
+        if (window.PrestigeSaisieVente && vente && vente.lgPREENREGISTREMENTID && me.getCategorie() !== 'PREVENTE') {
+            window.PrestigeSaisieVente.attente(vente.lgPREENREGISTREMENTID, function () {
+                me.mettreEnAttenteApresServeur();
+            }, function (msg) {
+                window.PrestigeSaisieVente.bandeau(msg);
+            });
+            return;
+        }
+        me.mettreEnAttenteApresServeur();
+    },
+    mettreEnAttenteApresServeur: function () {
         const me = this;
         me.rememberPreventeMode();
         me.saveModeReglementAttente();
@@ -8855,7 +8925,27 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         const fenetre = Ext.create('testextjs.view.vente.VentesAttenteFenetre', {
             filtreInitial: filtre || '',
             surRappel: function (id) {
-                me.loadExistantSale(id);
+                /* cahier du 24/11, point 2 : rappel verifie au serveur (droit, vente en attente et non en cours de
+                 * saisie ailleurs) ; la vente ouverte ici, s'il y en a une, est d'abord mise en attente, comme avant */
+                if (!window.PrestigeSaisieVente) {
+                    me.loadExistantSale(id);
+                    return;
+                }
+                const ouvrir = function () {
+                    window.PrestigeSaisieVente.rappeler(id, function () {
+                        me.loadExistantSale(id);
+                    }, function (msg) {
+                        window.PrestigeSaisieVente.bandeau(msg);
+                    });
+                };
+                const courante = me.current && me.current.lgPREENREGISTREMENTID;
+                if (courante && courante !== id && me.getCategorie() !== 'PREVENTE') {
+                    window.PrestigeSaisieVente.attente(courante, ouvrir, function (msg) {
+                        window.PrestigeSaisieVente.bandeau(msg);
+                    });
+                    return;
+                }
+                ouvrir();
             }
         });
         fenetre.show();

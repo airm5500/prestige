@@ -39,6 +39,8 @@ window.PrestigeMetroIcones = {
     "vendeurcaissiermanager": "contact-round", // Vendeurs et caissiers
     "corbeillevente": "trash-2", // Corbeille des ventes
     "suppressionsvente": "log-out", // Retraits et abandons
+    "ventesencourssaisie": "hourglass", // Ventes en cours de saisie (cahier du 24/11)
+    "journalsaisievente": "shield-check", // Journal des ventes en saisie (cahier du 24/11)
     "ticketzmanager": "ticket", // Ticket Z
     "facturesubrogatoireother": "building-2", // Bons par organisme
     "mvtcaissemanager": "arrow-left-right", // Mouvements de Caisse

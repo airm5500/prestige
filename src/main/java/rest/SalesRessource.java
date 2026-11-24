@@ -61,6 +61,8 @@ public class SalesRessource {
     @EJB
     private rest.service.SearchProduitServcie searchProduitServcie;
     @EJB
+    private rest.service.impl.VenteSaisieService venteSaisie;
+    @EJB
     GenerateTicketService generateTicketService;
     @EJB
     SmsService smsService;
@@ -417,6 +419,18 @@ public class SalesRessource {
     public Response rappelerVenteEnAttente(@PathParam("id") String id) {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        /*
+         * cahier du 24/11 : droit de reprendre une vente en attente, vérifié ici ; une vente en cours de saisie sur un
+         * poste, ou interrompue, ne se rappelle jamais depuis la liste. Le geste est journalisé, admis ou refusé.
+         */
+        rest.service.impl.VenteSaisieService.Acteur acteur = VenteSaisieRessource.acteur(servletRequest);
+        if (acteur != null) {
+            rest.service.impl.VenteSaisieService.Reponse r = venteSaisie.reprendreAttente(id, acteur);
+            if (!r.admis) {
+                return Response.ok().entity(VenteSaisieRessource.json(r).put("verrouillee", "EN_COURS".equals(r.etat))
+                        .put("cloturee", "CLOTUREE".equals(r.etat)).toString()).build();
+            }
+        }
         return Response.ok().entity(salesService.rappelerVenteEnAttente(id, tu).toString()).build();
     }
 
@@ -1150,6 +1164,9 @@ public class SalesRessource {
         return Response.ok().entity(salesService.clonerDevis(tu, id).toString()).build();
     }
 
+    @javax.ejb.EJB
+    private rest.service.impl.HorlogeVeille horlogeVeille;
+
     @POST
     @Path("update-created-date")
     public Response test(UpdateVenteParamDTO param) throws JSONException {
@@ -1160,6 +1177,15 @@ public class SalesRessource {
                 Constant.P_BTN_UPDATE_VENTE_CLIENT_DATE);
         if (!hasPrivilege) {
             return Response.status(Response.Status.UNAUTHORIZED.ordinal(), "Vous avez pas l' autorisation").build();
+        }
+        /* cahier du 24/11 : date de vente dans le futur refusée au serveur (heure réelle suivie par le serveur) */
+        java.time.LocalDateTime saisi = util.horloge.DatesFutures.instant(param.getDate(), param.getHeure());
+        /* date illisible : le service la traite comme avant (aucun nouveau refus) */
+        String refus = saisi == null ? null
+                : util.horloge.DatesFutures.refusInstant(saisi, horlogeVeille.maintenantReel(), "vente");
+        if (refus != null) {
+            return Response.status(Response.Status.BAD_REQUEST).type("application/json")
+                    .entity(new JSONObject().put("success", false).put("msg", refus).toString()).build();
         }
         salesService.updateVenteDate(param);
         return Response.ok().build();

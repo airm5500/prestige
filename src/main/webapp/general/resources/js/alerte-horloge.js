@@ -331,6 +331,21 @@
         }
     })();
 
+    /* essai du 24/11 : les ecrans qui appellent fetch (et non Ext.Ajax) doivent aussi reafficher la fenetre */
+    if (window.fetch && !window.fetch.phbEcoute) {
+        var fetchAvant = window.fetch;
+        var fetchEcoute = function () {
+            return fetchAvant.apply(this, arguments).then(function (rep) {
+                if (rep && rep.status === 423) {
+                    setTimeout(verifier, 0);
+                }
+                return rep;
+            });
+        };
+        fetchEcoute.phbEcoute = true;
+        window.fetch = fetchEcoute;
+    }
+
     window.PrestigeAlerteHorloge = {verifier: verifier, reglage: REGLAGE, blocage: BLOCAGE};
 
     /* apres l'ouverture de l'application, puis toutes les 5 minutes */

@@ -35,6 +35,9 @@ public class HorlogeBlocageFilter implements ContainerRequestFilter {
     @EJB
     private HorlogeVeille veille;
 
+    @javax.ws.rs.core.Context
+    private javax.servlet.http.HttpServletRequest servletRequest;
+
     static boolean permis(String methode, String chemin) {
         if (methode == null || LECTURES.contains(methode.toUpperCase(Locale.ROOT))) {
             return true;
@@ -70,6 +73,24 @@ public class HorlogeBlocageFilter implements ContainerRequestFilter {
         String r = refus(bloque, methode, chemin);
         if (r != null) {
             requete.abortWith(Response.status(VERROUILLE).type("application/json").entity(r).build());
+            return;
+        }
+        /*
+         * cahier du 24/11 : pendant une régularisation, chaque écriture est marquée « saisie en régularisation » dans
+         * les traces de l'horloge (route, poste, utilisateur, heure du serveur et heure réelle) ; jamais le corps.
+         */
+        try {
+            HorlogeVeille.Instantane i = veille.etatActuel();
+            if (i.resultat.regularisationEnCours) {
+                javax.servlet.http.HttpSession s = servletRequest == null ? null : servletRequest.getSession(false);
+                Object u = s == null ? null : s.getAttribute(util.Constant.AIRTIME_USER);
+                veille.tracer("SAISIE_EN_REGULARISATION", i.resultat, i.resultat.estimationRetenueMs,
+                        servletRequest == null ? null : util.ContexteRequete.poste(servletRequest),
+                        u instanceof dal.TUser ? ((dal.TUser) u).getLgUSERID() : null,
+                        methode + " " + (chemin.length() > 200 ? chemin.substring(0, 200) : chemin));
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "marque de saisie en regularisation", e);
         }
     }
 }

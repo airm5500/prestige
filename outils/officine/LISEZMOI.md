@@ -106,3 +106,12 @@ Non essayé ici :
 - l'enregistrement des tâches de `5-planifier.ps1`, qui demande les droits d'administrateur. Seule la construction des
   déclencheurs a été vérifiée ;
 - la compression zstd, absente du poste : c'est la voie RAR qui a été essayée.
+
+## Opérations datées dans le futur (support, lecture seule)
+
+`operations-datees-futur.sql` liste, après une horloge partie dans le futur puis remise, les opérations restées datées
+après l'heure du serveur de base (marge 5 minutes) : résumé par table (ventes, caisse, règlements, recettes, stock,
+bons de livraison, commandes, ajustements, inventaires, dossiers de règlement), puis le détail des ventes et des
+mouvements de caisse (200 au plus). Il ne modifie rien ; la correction se décide au cas par cas avec le pharmacien.
+Contrôler d'abord `SELECT NOW();` sur le serveur. Essayé le 24/11 sur la copie `laborex_v1_db` : aucune erreur, 0
+opération.

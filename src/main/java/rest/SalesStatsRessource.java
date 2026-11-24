@@ -65,6 +65,9 @@ import util.FunctionUtils;
 @Consumes("application/json")
 public class SalesStatsRessource {
 
+    @EJB
+    private rest.service.impl.VenteSaisieService venteSaisie;
+
     @Inject
     private HttpServletRequest servletRequest;
 
@@ -190,6 +193,14 @@ public class SalesStatsRessource {
     @POST
     @Path("remove/{id}")
     public Response delete(@PathParam("id") String id) throws JSONException {
+        /* cahier du 24/11 : une vente en cours de saisie sur un poste ne se supprime pas ; l'abandon est journalisé */
+        rest.service.impl.VenteSaisieService.Acteur acteur = VenteSaisieRessource.acteur(servletRequest);
+        if (acteur != null) {
+            rest.service.impl.VenteSaisieService.Reponse r = venteSaisie.supprimerAttente(id, acteur);
+            if (!r.admis) {
+                return Response.ok().entity(VenteSaisieRessource.json(r).toString()).build();
+            }
+        }
 
         JSONObject json = salesService.delete(id);
         return Response.ok().entity(json.toString()).build();
@@ -317,6 +328,14 @@ public class SalesStatsRessource {
     @Path("update/{venteId}/{statut}")
     public Response update(@PathParam("venteId") String venteId, @PathParam("statut") String statut)
             throws JSONException {
+        /* cahier du 24/11 : même garde que la suppression quand la vente part à la corbeille */
+        rest.service.impl.VenteSaisieService.Acteur acteur = VenteSaisieRessource.acteur(servletRequest);
+        if (acteur != null && "is_Trash".equals(statut)) {
+            rest.service.impl.VenteSaisieService.Reponse r = venteSaisie.supprimerAttente(venteId, acteur);
+            if (!r.admis) {
+                return Response.ok().entity(VenteSaisieRessource.json(r).toString()).build();
+            }
+        }
         JSONObject json = salesService.trash(venteId, statut);
         return Response.ok().entity(json.toString()).build();
     }

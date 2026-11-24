@@ -125,6 +125,17 @@ public final class SuiviHorloge {
         return DecisionHorloge.decider(e);
     }
 
+    /**
+     * Vrai si cette décision, vue par un poste, n'est pas encore celle du dernier passage (apparition, changement de
+     * cause ou levée à tracer) : le passage doit être fait tout de suite, sans attendre la minute suivante.
+     */
+    public synchronized boolean changeraitLaTrace(DecisionHorloge.Resultat r) {
+        if (precedent == null) {
+            return r.bloque;
+        }
+        return r.bloque != precedent.bloque || r.bloque && !r.causes.equals(precedent.causes);
+    }
+
     /** Vrai après le premier passage. */
     public synchronized boolean demarre() {
         return nanosPrecedent != null;

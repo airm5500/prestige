@@ -129,9 +129,18 @@ public class HorlogeVeille {
         }
     }
 
-    private static Long long_(Object o) {
-        return o instanceof Number ? ((Number) o).longValue()
-                : o instanceof BigInteger ? ((BigInteger) o).longValue() : null;
+    /**
+     * Valeur numérique lue en base, ou null. Pas d'opérateur « ? : » ici : mêlant long et null, il convertissait la
+     * valeur vide en nombre (NullPointerException au déploiement du 24/11).
+     */
+    static Long long_(Object o) {
+        if (o instanceof Number) {
+            return Long.valueOf(((Number) o).longValue());
+        }
+        if (o instanceof Boolean) {
+            return Long.valueOf(((Boolean) o) ? 1 : 0); // TINYINT(1) lu comme booléen
+        }
+        return null;
     }
 
     /** Entrée de la décision : horloge du serveur, écart avec Internet, paramètres bornés, régularisation. */
@@ -205,7 +214,53 @@ public class HorlogeVeille {
         long serveur = e.maintenantMs;
         DecisionHorloge.Resultat res = suivi.demarre() ? suivi.apercu(e, System.nanoTime())
                 : suivi.apercuInitial(e, long_(r[0]));
+        /*
+         * Essai du 24/11 : un blocage plus court qu'une minute tombait entre deux passages de la veille et n'était
+         * jamais tracé. Un poste qui constate un changement (apparition, cause, levée) fait passer la veille tout de
+         * suite : la trace est écrite une fois (le suivi est synchronisé), au moment où le changement est vu.
+         */
+        if (suivi.changeraitLaTrace(res)) {
+            veiller();
+        }
         return new Instantane(res, serveur);
+    }
+
+    /**
+     * Date et heure réelles (heure suivie par le serveur), pour refuser une date saisie dans le futur ; l'horloge du
+     * serveur si aucune n'est connue.
+     */
+    public java.time.LocalDateTime maintenantReel() {
+        Long r;
+        try {
+            r = etatActuel().resultat.estimationRetenueMs;
+        } catch (RuntimeException e) {
+            r = null;
+        }
+        return java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(r == null ? System.currentTimeMillis() : r),
+                java.time.ZoneId.systemDefault());
+    }
+
+    /**
+     * Cahier du 24/11 : régularisation à date passée, ouverte ou refermée par le super administrateur (la ressource le
+     * vérifie). L'ouverture est datée de l'heure réelle suivie par le serveur, jamais de l'horloge de Windows : le
+     * délai (24 h au plus) court en temps réel, même si l'horloge a été reculée pour saisir. Tracée.
+     */
+    public void regulariser(boolean ouvrir, String utilisateur, String poste) {
+        Long reel;
+        try {
+            reel = etatActuel().resultat.estimationRetenueMs;
+        } catch (RuntimeException e) {
+            reel = null;
+        }
+        long ouverture = reel == null ? System.currentTimeMillis() : reel;
+        em.createNativeQuery("UPDATE horloge_repere SET regularisation = ?1, regularisation_ouverture_ms = ?2,"
+                + " regularisation_par = ?3 WHERE id = 1").setParameter(1, ouvrir ? 1 : 0)
+                .setParameter(2, ouvrir ? ouverture : null).setParameter(3, ouvrir ? utilisateur : null)
+                .executeUpdate();
+        oublier();
+        tracer(ouvrir ? "REGULARISATION_OUVERTE" : "REGULARISATION_FERMEE_MANUELLEMENT", null, ouverture, poste,
+                utilisateur, null);
     }
 
     /** Une ligne de trace ; jamais de texte saisi par un utilisateur. */

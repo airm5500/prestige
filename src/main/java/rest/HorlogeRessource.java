@@ -78,6 +78,31 @@ public class HorlogeRessource {
         return Response.ok(new JSONObject().put("success", true).toString()).build();
     }
 
+    /**
+     * Cahier du 24/11 : ouverture (ouvrir = 1) ou fermeture (ouvrir = 0) de la régularisation à date passée. Super
+     * administrateur seulement ; tout autre profil est refusé (403) et le refus est tracé avec le poste et
+     * l'utilisateur.
+     */
+    @POST
+    @Path("regularisation/{ouvrir}")
+    public Response regularisation(@javax.ws.rs.PathParam("ouvrir") String ouvrir) {
+        if (!connecte()) {
+            return deconnecte();
+        }
+        String poste = ContexteRequete.poste(servletRequest), qui = utilisateur();
+        boolean o = "1".equals(ouvrir);
+        if (!bll.userManagement.user.estSuperAdmin(Droits.utilisateur(servletRequest))) {
+            veille.tracer("REGULARISATION_REFUSEE", null, null, poste, qui,
+                    o ? "ouverture demandée sans le profil super administrateur"
+                            : "fermeture demandée sans le profil super administrateur");
+            return Droits.interdit("Régularisation à date passée (super administrateur)");
+        }
+        veille.regulariser(o, qui, poste);
+        HorlogeVeille.Instantane apres = veille.etatActuel();
+        return Response.ok(new JSONObject().put("success", true).put("regularisation", o)
+                .put("bloque", apres.resultat.bloque).toString()).build();
+    }
+
     @POST
     @Path("synchroniser")
     public Response synchroniser() {

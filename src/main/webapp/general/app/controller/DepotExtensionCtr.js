@@ -70,6 +70,47 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         // Des l'affichage : la saisie de vente part d'un depot vide et d'un titre sans nom de depot.
         me.imposerLeDepotALaVente();
         me.appliquerPrivilegesOnglets();
+        var ecran = me.getEcran();
+        if (ecran && ecran.data && ecran.data.repriseVente) {
+            me.reprendreVente(ecran.data.repriseVente, ecran.data.depot);
+        }
+    },
+
+    /**
+     * Cahier du 24/11, point 2 : « Reprendre la vente interrompue » depuis « Ventes en cours de saisie ». Le serveur
+     * a déjà admis la reprise ; l'écran se place sur le dépôt de la vente, ouvre l'onglet de vente et charge la vente.
+     */
+    reprendreVente: function (venteId, depotId) {
+        var me = this, combo = me.getDepotEcran();
+        if (!combo || !depotId) {
+            return;
+        }
+        var poser = function () {
+            if (combo.isDestroyed) {
+                return;
+            }
+            var rec = combo.getStore().findRecord('id', depotId, 0, false, false, true);
+            if (!rec) {
+                me.rappeler('Dépôt de la vente introuvable : choisissez-le en haut de l’écran.');
+                return;
+            }
+            combo.setValue(depotId);
+            combo.fireEvent('select', combo, [rec]);
+            var onglets = me.getOnglets(), vente = onglets && onglets.down('#ongletVente');
+            if (vente) {
+                onglets.setActiveTab(vente);
+            }
+            me.imposerLeDepotALaVente();
+            Ext.defer(function () {
+                me.application.getController('VenteEnDepotCtr').loadExistantSale(venteId);
+            }, 300);
+        };
+        if (combo.getStore().getCount() === 0) {
+            combo.getStore().on('load', poser, me, {single: true});
+            combo.getStore().load();
+        } else {
+            poser();
+        }
     },
 
     /**

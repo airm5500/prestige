@@ -98,6 +98,25 @@ class SuiviHorlogeTest {
         assertEquals(Long.valueOf(T0 + MIN), p.estimationMs);
     }
 
+    /** Essai du 24/11 : un blocage de moins d'une minute doit être tracé dès qu'un poste le voit. */
+    @Test
+    void unChangementVuParUnPosteDemandeLePassageToutDeSuite() {
+        SuiviHorloge s = new SuiviHorloge();
+        assertTrue(s.changeraitLaTrace(s.apercuInitial(entree(T0 - 2 * H, null), T0)), "bloqué avant le 1er passage");
+        assertFalse(s.changeraitLaTrace(s.apercuInitial(entree(T0, null), T0)));
+        s.passer(entree(T0, null), 0, T0);
+        assertFalse(s.changeraitLaTrace(s.apercu(entree(T0 + 10_000, null), 10_000 * NS)), "rien de neuf");
+        DecisionHorloge.Resultat recul = s.apercu(entree(T0 + 10_000 - 2 * H, null), 10_000 * NS);
+        assertTrue(s.changeraitLaTrace(recul), "apparition vue entre deux passages");
+        assertEquals(List.of(Evenement.APPARITION),
+                s.passer(entree(T0 + 11_000 - 2 * H, null), 11_000 * NS, null).evenements);
+        assertFalse(s.changeraitLaTrace(s.apercu(entree(T0 + 12_000 - 2 * H, null), 12_000 * NS)), "déjà tracée");
+        assertTrue(s.changeraitLaTrace(s.apercu(entree(T0 + 13_000 + 2 * H, null), 13_000 * NS)), "cause changée");
+        assertFalse(s.changeraitLaTrace(s.apercu(entree(T0 + 14_000 - 2 * H, null), 14_000 * NS)), "même cause");
+        assertTrue(s.changeraitLaTrace(s.apercu(entree(T0 + 15_000, null), 15_000 * NS)),
+                "levée vue entre deux passages");
+    }
+
     @Test
     void lApercuAvantLePremierPassageUtiliseLEstimationStockee() {
         SuiviHorloge s = new SuiviHorloge();

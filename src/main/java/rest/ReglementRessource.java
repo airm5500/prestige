@@ -70,10 +70,27 @@ public class ReglementRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    @javax.ejb.EJB
+    private rest.service.impl.HorlogeVeille horlogeVeille;
+
+    /**
+     * Cahier du 24/11 : date de règlement dans le futur refusée au serveur (heure réelle suivie par le serveur), pas
+     * seulement par le calendrier de l'écran. Message de refus, ou null.
+     */
+    private String refusDateFuture(ClotureVenteParams p) {
+        java.time.LocalDate jour = util.horloge.DatesFutures.jour(p.getNatureVenteId());
+        /* date absente ou dans un autre format : le service la traite comme avant (aucun nouveau refus) */
+        return jour == null ? null
+                : util.horloge.DatesFutures.refusJour(jour, horlogeVeille.maintenantReel().toLocalDate(), "règlement");
+    }
+
     @POST
     @Path("reglementdiffere")
     public Response faireReglementDiffere(ClotureVenteParams clotureVenteParams) throws JSONException {
-
+        String refus = refusDateFuture(clotureVenteParams);
+        if (refus != null) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("msg", refus).toString()).build();
+        }
         JSONObject json = reglementService.reglerDiffereV2(clotureVenteParams);
         return Response.ok().entity(json.toString()).build();
     }
@@ -81,7 +98,10 @@ public class ReglementRessource {
     @POST
     @Path("reglementdiffere-all")
     public Response faireReglementDiffereAll(ClotureVenteParams clotureVenteParams) throws JSONException {
-
+        String refus = refusDateFuture(clotureVenteParams);
+        if (refus != null) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("msg", refus).toString()).build();
+        }
         JSONObject json = reglementService.reglerDiffereAllV2(clotureVenteParams);
         return Response.ok().entity(json.toString()).build();
     }

@@ -999,6 +999,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // ventes
     'ventemanager', 'venteannuler', 'venteavoirmanager', 'venteproduitannules',
     'suppressionsvente', 'delayed', 'tpventes', 'ordonnancier', 'suiviremise',
+    // cahier du 24/11, point 2 : « Ventes en cours de saisie et saisies interrompues », « Journal des ventes en saisie »
+    'ventesencourssaisie', 'journalsaisievente',
     // menu « Historique ordonnancier » (SERVICE CLIENT, retour du 05/11)
     'historiqueordonnancier',
     // retours des tests du 12/09 : ruptures PharmaML, cautions tiers payant
@@ -1063,6 +1065,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'preenregistrementmanager', 'devismanager',
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
     'ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier',
+    // cahier du 24/11, point 2 : ventes en saisie (suivi des postes, journal de preuve)
+    'ventesencourssaisie', 'journalsaisievente',
     // menu « Historique ordonnancier » (retour du 05/11)
     'historiqueordonnancier',
     // lot 3 : Posos, articles vendus (recapitulatif), gestion de caisse, mouvements de caisse

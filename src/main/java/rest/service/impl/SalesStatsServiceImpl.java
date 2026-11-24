@@ -146,6 +146,11 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
     private static final String PREVENTE_SQL = "SELECT p.lg_PREENREGISTREMENT_ID AS id, p.str_REF AS ref,p.int_PRICE AS montant,DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y') AS dateVente,DATE_FORMAT(p.dt_UPDATED, '%H:%i:%s') AS heureVente, p.str_TYPE_VENTE AS typeVente,CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeur,p.int_PRICE_REMISE AS  discount,p.remise AS remiseId,p.str_REF_TICKET AS transactionNumber,p.lg_TYPE_VENTE_ID AS typeVenteId,p.str_STATUT AS statut FROM  t_preenregistrement p JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID {user_join} WHERE p.str_STATUT IN(?1)"
             + VENTE_ATTENTE_CONDITIONS
+            /*
+             * cahier du 24/11 : une vente en cours de saisie sur un poste, ou interrompue, n'est pas « en attente » ;
+             * une vente sans état (d'avant la mise à jour, ou d'un autre chemin) reste visible comme avant
+             */
+            + " AND (p.etat_saisie IS NULL OR p.etat_saisie = 'EN_ATTENTE')"
             + " AND p.dt_UPDATED >= CURDATE() AND p.dt_UPDATED < CURDATE() + INTERVAL 1 DAY ";
     private static final String VENTE_SQL = "SELECT {distinct} p.lg_PREENREGISTREMENT_ID as lgPREENREGISTREMENTID,p.str_REF as strREF,p.str_REF_TICKET as strREFTICKET,p.int_PRICE as intPRICE,p.int_CUST_PART as intCUSTPART,p.int_PRICE_REMISE as intPRICEREMISE,p.str_STATUT as strSTATUT,p.dt_CREATED as dtCREATED, p.dt_UPDATED as dtUPDATED,p.str_TYPE_VENTE as strTYPEVENTE,p.b_IS_AVOIR as avoir,p.b_IS_CANCEL as cancel,p.b_WITHOUT_BON as sansbon, p.lg_TYPE_VENTE_ID as lgTYPEVENTEID,p.copy as copy,"
             /*
@@ -211,6 +216,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     private SessionHelperService sessionHelperService;
     @EJB
     private rest.service.VenteSuppressionService venteSuppressionService;
+    @EJB
+    private VenteSaisieService venteSaisie;
     @EJB
     private CsvExportService csvExportService;
 
@@ -743,6 +750,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                         continue;
                     }
                     venteSuppressionService.logVenteSuppressionSysteme(tp);
+                    /* cahier du 24/11 : l'abandon au changement de jour est inscrit au journal de preuve */
+                    venteSaisie.expirer(venteId);
                     supprimerVenteEtDependances(tp, venteId);
                     traitees++;
                 } catch (Exception e) {

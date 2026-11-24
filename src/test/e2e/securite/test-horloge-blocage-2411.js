@@ -31,7 +31,7 @@ const poser = (cle, valeur) => q("INSERT INTO t_parameters (str_KEY, str_VALUE, 
   + cle + "', '" + valeur + "', 'essai e2e horloge', 'CUSTOMER', 'enable', NOW()) ON DUPLICATE KEY UPDATE str_VALUE = '" + valeur + "'");
 const traceMax = () => Number(q('SELECT COALESCE(MAX(id), 0) FROM horloge_trace'));
 const traces = (depuis) => q('SELECT evenement, COALESCE(causes, \'\'), COALESCE(poste, \'\'), COALESCE(utilisateur_id, \'\') FROM horloge_trace WHERE id > ' + depuis + ' ORDER BY id')
-  .split('\n').filter(Boolean).map((l) => { const c = l.split('\t'); return { ev: c[0], causes: c[1], poste: c[2], user: c[3] }; });
+  .split(/\r?\n/).filter(Boolean).map((l) => { const c = l.split('\t').map((x) => x.trim()); return { ev: c[0], causes: c[1], poste: c[2], user: c[3] }; });
 const compteurs = () => q("SELECT CONCAT((SELECT COUNT(*) FROM t_preenregistrement), '/', (SELECT COUNT(*) FROM mvttransaction))");
 
 const etat = (p) => p.evaluate(async () => (await fetch('../api/v1/horloge/etat')).json());
@@ -111,6 +111,21 @@ async function cas(b, p, nom, reglages, attendu) {
     await p.waitForFunction(() => { const r = document.querySelector('#phb-voile [data-phb="raison"]'); return r && r.textContent.length > 0; }, null, { timeout: 95000 }).catch(() => {});
     v = await voile(p);
     ok(nom + ' : « Mettre à jour » : compte rendu dans la fenêtre', v && v.raison.length > 10, v && v.raison);
+    /* tâche Windows « Prestige - Heure » absente (script d'installation non passé) et Prestige sans droit
+     * d'administrateur : le compte rendu nomme la tâche et le remède, le refus est tracé, rien ne se débloque */
+    let tacheAbsente = true;
+    try { execFileSync('schtasks', ['/query', '/tn', 'Prestige - Heure'], { stdio: 'ignore' }); tacheAbsente = false; } catch (x) { tacheAbsente = true; }
+    if (tacheAbsente && v && !/synchronisée/.test(v.raison)) {
+      ok(nom + ' : tâche Windows absente : le compte rendu nomme la tâche et le remède (9-tache-heure.ps1 en administrateur)',
+        /Prestige - Heure/.test(v.raison) && /9-tache-heure\.ps1/.test(v.raison) && /administrateur/.test(v.raison), v.raison);
+      const refus = q("SELECT COUNT(*) FROM horloge_trace WHERE id > " + debut + " AND evenement = 'MISE_A_JOUR_REFUSEE' AND detail LIKE '%9-tache-heure%'"
+        + " AND utilisateur_id = '" + ADMIN + "' AND poste IS NOT NULL AND poste <> ''");
+      ok(nom + ' : tâche absente : refus tracé avec le compte rendu, l\'utilisateur et le poste', refus === '1', refus);
+      const w2 = await ecrire(p);
+      ok(nom + ' : tâche absente : la fenêtre reste et l\'écriture est toujours refusée (423) : aucun contournement', (await voile(p)) !== null && w2.statut === 423, String(w2.statut));
+    } else {
+      console.log('NOTE  ' + nom + ' : tâche « Prestige - Heure » installée ou heure synchronisée sur ce poste : cas « tâche absente » non joué');
+    }
   }
 
   /* levee */
@@ -123,11 +138,12 @@ async function cas(b, p, nom, reglages, attendu) {
   ok(nom + ' : l\'écriture n\'est plus refusée pour l\'heure', w.statut !== 423, String(w.statut));
 
   /* bilan : traces exactes */
-  const leve = await attendreTrace(debut, 'BLOCAGE_LEVEE');
+  /* la levee est tracee des qu'un poste la constate (plus d'attente de la veille de la minute) */
+  const leve = await attendreTrace(debut, 'BLOCAGE_LEVEE', 10000);
   const tr = traces(debut);
   const evs = tr.map((t) => t.ev);
-  const attendus = ['BLOCAGE_APPARITION', 'FENETRE_AFFICHEE'].concat(attendu.mettreAJour ? ['MISE_A_JOUR_DEMANDEE', 'MISE_A_JOUR_*'] : []).concat(['BLOCAGE_LEVEE']);
-  const egal = (a, x) => x.endsWith('*') ? a.startsWith(x.slice(0, -1)) : a === x;
+  const attendus = ['BLOCAGE_APPARITION', 'FENETRE_AFFICHEE'].concat(attendu.mettreAJour ? ['MISE_A_JOUR_DEMANDEE', 'MISE_A_JOUR_FAITE|MISE_A_JOUR_REFUSEE'] : []).concat(['BLOCAGE_LEVEE']);
+  const egal = (a, x) => x.split('|').includes(a);
   const tries = evs.filter((x) => x !== 'BLOCAGE_CHANGEMENT');
   ok(nom + ' : traces exactes ' + attendus.join(', '), leve && tries.length === attendus.length && attendus.every((x) => tries.filter((a) => egal(a, x)).length === 1),
     evs.join(', '));
@@ -164,14 +180,14 @@ async function cas(b, p, nom, reglages, attendu) {
     ok('Heure juste : API publique « OK »', pub.etat === 'OK', JSON.stringify(pub));
 
     await cas(b, p, 'Horloge reculée de 2 h, sans Internet', [['KEY_HORLOGE_ESSAI_SANS_INTERNET', '1'], ['KEY_HORLOGE_ESSAI_MURALE_MIN', '-120']],
-      { cause: 'RECUL', message: /reculée.*en retard de 2 h/, mettreAJour: true });
+      { cause: 'RECUL', message: /reculée.*en retard de (2 h|1 h 59 min|2 h 1 min)/, mettreAJour: true });
     await cas(b, p, 'Horloge partie 2 h dans le futur, sans Internet', [['KEY_HORLOGE_ESSAI_SANS_INTERNET', '1'], ['KEY_HORLOGE_ESSAI_MURALE_MIN', '120']],
-      { cause: 'SAUT', message: /futur.*en avance de 2 h/ });
+      { cause: 'SAUT', message: /futur.*en avance de (2 h|1 h 59 min|2 h 1 min)/ });
     await cas(b, p, 'Horloge en 2189, sans Internet', [['KEY_HORLOGE_ESSAI_SANS_INTERNET', '1'], ['KEY_HORLOGE_ESSAI_MURALE_MIN', String(163 * 365 * 24 * 60)]],
       { cause: 'PLAFOND', message: /n'est pas plausible/ });
     const net = await etat(p);
     if (net.reference) {
-      await cas(b, p, 'Écart d\'une heure avec Internet', [['KEY_HORLOGE_ESSAI_DECALAGE', '3600']], { cause: 'ECART', message: /en avance de 1 h sur l'heure d'Internet/ });
+      await cas(b, p, 'Écart d\'une heure avec Internet', [['KEY_HORLOGE_ESSAI_DECALAGE', '3600']], { cause: 'ECART', message: /en avance de 1 h( [0-9] min)? sur l'heure d'Internet/ });
     } else {
       ok('Écart avec Internet : non joué, Internet injoignable depuis le serveur', true);
     }

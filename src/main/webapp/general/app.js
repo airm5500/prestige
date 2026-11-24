@@ -797,6 +797,8 @@ Ext.application({
         'testextjs.view.activiteequipes.ActiviteEquipes',
         'testextjs.view.analyse.Bfr',
         'testextjs.view.notification.JournalMessages',
+        'testextjs.view.vente.VentesEnCoursSaisie',
+        'testextjs.view.vente.JournalSaisieVente',
         'testextjs.view.receptionmobile.PeremptionsCourtes',
         'testextjs.view.vente.HistoriqueOrdonnancier',
         'testextjs.view.commandemanagement.extranet.ExtranetsGrossistes',

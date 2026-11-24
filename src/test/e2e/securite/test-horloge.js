@@ -55,7 +55,7 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     await verifier(p);
     let t = await toast(p);
     ok('Serveur en avance de 10 minutes : toast « en avance de 10 min », Mettre à jour et Masquer, sans blocage', t && /date ou l'heure n'est pas bonne/i.test(t.texte)
-      && !(await p.$('#phb-voile')) && /en avance de 10 min/.test(t.texte) && /Mettre à jour/.test(t.texte) && /Masquer/.test(t.texte), t && t.texte);
+      && !(await p.$('#phb-voile')) && /en avance de (9|10|11) min/.test(t.texte) /* + l'ecart reel du serveur */ && /Mettre à jour/.test(t.texte) && /Masquer/.test(t.texte), t && t.texte);
 
     /* Mettre a jour : synchronisation demandee au serveur (interceptee) */
     let appels = 0;

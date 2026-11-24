@@ -111,6 +111,8 @@
         <script src="resources/js/alerte-whatsapp.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Rappel « date et heure du systeme fausses » (tous les utilisateurs, toutes les 5 minutes) -->
         <script src="resources/js/alerte-horloge.js?v=<%= JetonDeploiement.JETON %>"></script>
+        <!-- Ventes en saisie : signal de l'ecran, interruption, choix du Retour (cahier du 24/11, point 2) -->
+        <script src="resources/js/saisie-vente.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->
         <script src="resources/js/code-cip.js?v=<%= JetonDeploiement.JETON %>"></script>
 
