@@ -151,3 +151,26 @@ jour, le défaut peut se reproduire.
   chiffres.
 - La journée du 21/11 s'arrête à 12:41 sur la copie.
 - Aucune colonne nominative lue.
+
+## Suite du 24/11 : rapprochement avec le relevé de l'officine du 21/11
+
+L'officine a transmis son relevé manuscrit et son ticket Z du samedi 21/11. Ses chiffres sont ceux de la base :
+espèces du ticket Z 625 008 (354 628 + 270 380), Wave 84 830, balance espèces à la clôture 598 763, UG 22 145. La
+copie arrêtée à 12:41 couvre donc toute la journée.
+
+| Élément | Montant |
+|---|---:|
+| Versements physiques des deux caisses | 626 325 |
+| Moins les UG | 604 180 |
+| Balance espèces éditée à la clôture | 598 763 |
+| Écart relevé par l'officine | 5 417 |
+| dont vente `261121_00113` absente de la balance (remise « en cours ») | 4 100 |
+| dont excédent physique des deux caisses (372 + 945) | 1 317 |
+
+Après correctif, la balance espèces du 21/11 vaut 602 863, soit 4 100 de plus qu'à la clôture. L'écart restant est
+de 1 317, identique à celui du ticket Z (626 325 − 625 008) : les deux écrans sont alors cohérents.
+
+L'excédent de 1 317 est un excédent de comptage : aucune vente ni aucun mouvement de la base ne l'explique.
+
+Le ticket joint (vente à crédit, part du client 405 réglée par Wave) est bien enregistré en Wave : il est dans le
+total Wave du ticket Z et n'entre pas dans les espèces.
