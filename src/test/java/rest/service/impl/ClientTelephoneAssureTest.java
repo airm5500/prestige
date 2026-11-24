@@ -52,7 +52,11 @@ public class ClientTelephoneAssureTest {
         String[] prefixes = { "01", "05", "07" };
         String[] indicatifs = { "", "225", "+225", "00225", "+225 " };
         String[] separateurs = { "", " ", ".", "-" };
-        String[] fauxPrefixes = { "02", "03", "04", "06", "08", "09", "00", "10" };
+        /*
+         * « 00 » n'est plus un faux prefixe depuis le 22/11 (point 8.3) : il annonce un indicatif etranger
+         * (TelephonePaysCoherenceTest couvre les numeros etrangers)
+         */
+        String[] fauxPrefixes = { "02", "03", "04", "06", "08", "09", "10" };
         for (int i = 0; i < 5000; i++) {
             boolean valide = r.nextInt(3) > 0;
             StringBuilder chiffres = new StringBuilder(

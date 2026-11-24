@@ -51,7 +51,7 @@ public class SmsTelephoneClientTest {
     @Test
     public void sansNumeroMobileLeClientResteRefuse() {
         for (String[] cas : new String[][] { { null, null }, { "", "" }, { "2721345678", "Cocody" },
-                { "0033612345678", null }, { "07 08 47", "08473750" } }) {
+                { "+33 61 23", null }, { "07 08 47", "08473750" } }) {
             SmsSendResult r = SmsImpl.refusAvantEnvoi(client(cas[0], cas[1]));
             assertTrue(r != null && !r.isAccepted(), String.join("|", String.valueOf(cas[0]), String.valueOf(cas[1])));
             assertEquals("NUMERO_INVALIDE", r.getErrorCode());
@@ -113,7 +113,12 @@ public class SmsTelephoneClientTest {
             assertEquals(retenu, r == null, "tel=" + tel + " adresse=" + adr);
             if (r == null) {
                 envoyes++;
-                assertEquals(10, TelephoneClient.controler(c).getLocal().length(), "numero local a 10 chiffres");
+                /*
+                 * depuis le 22/11 (point 8.3) : numero ivoirien a 10 chiffres, ou etranger « +indicatif » de 8 a 15
+                 * chiffres
+                 */
+                String local = TelephoneClient.controler(c).getLocal();
+                assertTrue(local.matches("\\d{10}|\\+\\d{8,15}"), "numero retenu : " + local);
             } else {
                 refuses++;
                 assertEquals("NUMERO_INVALIDE", r.getErrorCode());
