@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cahier des charges du 24/11/2026 : date et heure, mise en attente des ventes</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 980px; margin: 24px auto; color: #1f2937; line-height: 1.5; }
+h1 { font-size: 22px; } h2 { font-size: 18px; margin-top: 28px; border-bottom: 1px solid #d1d5db; } h3 { font-size: 15px; }
+code { background: #f3f4f6; padding: 0 3px; } table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #d1d5db; padding: 4px 8px; text-align: left; vertical-align: top; }
+</style>
+</head>
+<body>
+<h1>Cahier des charges du 24/11/2026</h1>
+<p>Branche <code>plan/24112026</code>, partie de l'intégration (commit 7ba943326). Décisions prises avec l'utilisateur le 24/11 ; rien n'est encore réalisé.</p>
+
+<h2>1. Date et heure du serveur</h2>
+<h3>Constat</h3>
+<ul>
+<li>Alerte « La date du serveur a reculé : la dernière opération de caisse est datée du 01/01/2189 ». Le contrôle prend la date la plus récente de <code>mvttransaction</code>.</li>
+<li>Sur le poste concerné, 28 opérations de caisse (ventes au comptant et à crédit) sont datées du 1er janvier 2174, 2181, 2185 et 2189, avec des heures qui se suivent : l'horloge du serveur est partie dans le futur à plusieurs démarrages (pile de carte mère probable). Ces ventes manquent au ticket Z, au journal et aux relevés du jour réel.</li>
+<li>Le bouton « Mettre à jour » lance <code>w32tm /resync</code>, refusé sans droits d'administrateur.</li>
+</ul>
+<h3>Règles décidées</h3>
+<ul>
+<li><b>Blocage de toute l'application</b>, par une fenêtre qui ne se ferme pas, si : l'écart avec l'heure d'Internet dépasse X minutes (paramètre, 30 par défaut) ; l'horloge recule au-delà du seuil (paramètre, 30 minutes par défaut) ; l'horloge part dans le futur par rapport à la dernière heure notée par le serveur.</li>
+<li><b>Personne ne passe outre.</b> Sans Internet, le poste appelle l'administrateur, qui remet l'heure dans Windows. Le blocage se lève seul quand l'heure redevient juste.</li>
+<li><b>Tout est tracé</b> : apparition, tentatives de mise à jour et résultat, levée ; poste, utilisateur, heure du serveur, heure de référence.</li>
+<li><b>Détection sans Internet</b> : le serveur note lui-même, chaque minute, le dernier instant vu ; une date saisie à la main n'intervient plus dans le contrôle.</li>
+<li><b>« Mettre à jour » sans droits d'administrateur</b> : tâche Windows créée une fois par le script d'installation (en administrateur), exécutée avec les droits système ; Prestige ne fait que la déclencher.</li>
+<li><b>Dates futures refusées</b> dans les champs de date (date de règlement d'un différé, modification de la date d'une vente), à l'écran et au serveur.</li>
+<li><b>Opérations datées dans le futur</b> : signalées et listées comme données à corriger ; remise en ordre par un outil du Centre de support, tracé, sur accord, jamais par écriture directe en base.</li>
+<li><b>Bandeau sur la page de connexion</b> (donc aussi après déconnexion) tant que l'heure est fausse ou qu'une régularisation est en cours. Lu par une API sans connexion qui ne rend que la date du serveur et l'état.</li>
+</ul>
+<h3>Régularisation à date passée</h3>
+<ul>
+<li>Paramètre d'autorisation à 0 par défaut : reculer l'horloge est interdit.</li>
+<li>Seul le super administrateur peut le passer à 1 ; chaque changement est tracé (qui, quand, avant, après).</li>
+<li>Ouverture limitée : retour automatique à 0 après 24 h (paramètre). Recul maximal admis : 7 jours (paramètre).</li>
+<li>Pendant la régularisation, les contrôles de recul (30 minutes) et d'écart avec Internet sont suspendus dans ces bornes ; au-delà, ou après le délai, le blocage reprend jusqu'à la remise à l'heure.</li>
+<li>Bandeau permanent sur tous les postes pendant la régularisation ; chaque opération saisie est marquée « saisie en régularisation ».</li>
+<li>La voie normale reste la saisie à date passée dans Prestige (date de règlement, date de vente), avec droit et trace.</li>
+</ul>
+
+<h2>2. Mise en attente des ventes (vente et vente en dépôt)</h2>
+<h3>Constat</h3>
+<p>La vente est enregistrée dès le premier produit, avec le même statut qu'une vente mise en attente. La liste « Ventes en attente » montre donc les ventes en cours de saisie sur les autres postes, et « Retour » laisse la vente dans cette liste : des ventes semblent se mettre en attente seules.</p>
+<h3>Règles décidées</h3>
+<table>
+<tr><th>Sujet</th><th>Règle</th></tr>
+<tr><td>États</td><td>« En cours de saisie » (produit ajouté) et « En attente » (mise en attente volontaire) sont distincts. La liste « Ventes en attente » ne montre que le second.</td></tr>
+<tr><td>Vente en cours de saisie</td><td>Jamais rappelable, depuis aucun poste.</td></tr>
+<tr><td>Bouton « Mettre en attente »</td><td>Droit dédié ; confirmation dans le bouton lui-même.</td></tr>
+<tr><td>Bouton « Retour » (vente avec produits)</td><td>Choix : « Mettre en attente » (avec le droit) ou « Supprimer les produits et vider l'écran ». La vente supprimée est marquée abandonnée, lignes gardées, visible dans « Produits retirés et ventes abandonnées ».</td></tr>
+<tr><td>Reprise d'une vente en attente</td><td>Droit séparé.</td></tr>
+<tr><td>Voir les ventes en cours de saisie</td><td>Droit dédié ; écran en lecture seule « Ventes en cours de saisie et saisies interrompues » (poste, utilisateur, début, lignes, montant ; cause de l'interruption).</td></tr>
+<tr><td>Saisie interrompue</td><td>Interruption établie : fermeture du navigateur signalée par la page, changement de menu, session expirée, ou plus de signal de l'écran de vente depuis 2 minutes (« plus de signe du poste depuis HH:MM »).</td></tr>
+<tr><td>« Reprendre la vente interrompue »</td><td>Même vente, même numéro ; par son auteur depuis n'importe quel poste, par un autre utilisateur avec le droit « Reprendre une saisie interrompue d'un autre utilisateur ». Verrou de rappel existant (un seul poste). Le jour même seulement ; le lendemain, la saisie passe en vente abandonnée.</td></tr>
+<tr><td>Journal de preuve</td><td>Chaque mise en attente, retour et choix fait, reprise, suppression, interruption : utilisateur, poste, heure, numéro de vente, nombre de lignes, montant. Nouveau menu déclaré dans <code>correctifs-affichage.js</code>, consultation et export.</td></tr>
+<tr><td>Mise à jour</td><td>Les ventes déjà en attente restent en attente, marquées « avant la mise à jour ».</td></tr>
+</table>
+
+<h2>3. Tests attendus</h2>
+<ul>
+<li>Rapprochement : écran = journal = base (états des ventes, liste en attente, ventes abandonnées, traces de l'horloge, bandeau de connexion).</li>
+<li>Cohérence : règles de blocage et de régularisation sur des milliers de cas tirés au hasard (graine fixe) ; états de vente et droits.</li>
+<li>Bilan avant / après : chaque geste laisse exactement ses traces (journal, statut, lignes gardées), ni plus ni moins.</li>
+<li>Chaque test échoue d'abord sur le code actuel.</li>
+</ul>
+</body>
+</html>
