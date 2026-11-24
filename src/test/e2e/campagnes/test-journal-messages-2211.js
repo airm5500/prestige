@@ -233,7 +233,9 @@ function lireCsv(t) {
       if (texte) { await p.keyboard.type(texte, { delay: 15 }); }
     };
     const lireEcran = () => p.evaluate(() => {
-      const e = Ext.ComponentQuery.query('journalmessages')[0], g = e.down('#jmJournal'), v = g.getView(), cols = g.columns;
+      const e = Ext.ComponentQuery.query('journalmessages')[0], g = e.down('#jmJournal'), v = g.getView();
+      /* lot 11 (22/11) : la colonne « Renvoyer » porte des boutons, pas une donnee du journal */
+      const tout = g.columns, cols = tout.filter((c) => c.itemId !== 'jmColRenvoyer');
       const lignes = [];
       e.journal.each((r) => {
         const n = v.getNode(r);
@@ -242,7 +244,7 @@ function lireCsv(t) {
       });
       const comp = {};
       document.querySelectorAll('.jm-compteurs [data-jm]').forEach((x) => { comp[x.getAttribute('data-jm')] = Number(x.querySelector('b').textContent.replace(/\s/g, '')); });
-      return { lignes, comp, entetes: cols.map((c) => c.text) };
+      return { lignes, comp, entetes: tout.map((c) => c.text) };
     });
     const versEcran = (x) => [x.date, x.canal, x.origine, x.destinataire, x.numero, x.etat, x.motif, x.utilisateur || 'Automatique'];
     const comparer = async (titre, filtre) => {
@@ -270,8 +272,8 @@ function lireCsv(t) {
       tous.ref.length === 10 && tous.ref.filter((x) => x.canal === 'SMS').length === 5
       && Object.entries({ total: 10, attente: 1, envoyes: 6, distribues: 3, lus: 1, echecs: 3 }).every(([k, v]) => tous.j.compteurs[k] === v)
       && !tous.ref.some((x) => x.id === 'S' + PFX + '-NC50'), JSON.stringify(tous.j.compteurs));
-    ok('Colonnes : Date, Canal, Origine, Destinataire, Numéro, État, Motif d\'échec, Utilisateur',
-      tous.e.entetes.join('|') === "Date|Canal|Origine|Destinataire|Numéro|État|Motif d'échec|Utilisateur", tous.e.entetes.join('|'));
+    ok('Colonnes : Date, Canal, Origine, Destinataire, Numéro, État, Motif d\'échec, Utilisateur, puis Renvoyer (lot 11)',
+      tous.e.entetes.join('|') === "Date|Canal|Origine|Destinataire|Numéro|État|Motif d'échec|Utilisateur|Renvoyer", tous.e.entetes.join('|'));
 
     /* 3. export CSV par le bouton : memes lignes, meme ordre ; delai */
     const t0 = Date.now();
