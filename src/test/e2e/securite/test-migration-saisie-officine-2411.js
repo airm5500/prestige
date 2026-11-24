@@ -4,7 +4,9 @@
  * « appaul » (2,1 millions de ventes, arrêtée à la version 2201), puis :
  *  - durée de chaque script (Flyway les joue AU DÉMARRAGE : un script long retarde l'ouverture de l'application) ;
  *  - colonnes, index, tables, paramètres, droits et sous-menus créés, ni plus ni moins ;
- *  - droits donnés exactement aux profils prévus (écran de vente ou de vente en dépôt ; administrateur, super
+ *  - V7.6.41.2204 (rattrapage) jouée ensuite : les profils qui vendent seulement par l'onglet de vente de « Gestion
+ *    dépôts extensions » gardent la mise en attente ;
+ *  - droits donnés exactement aux profils prévus (écran de vente, de vente en dépôt ou onglet de vente du dépôt ; administrateur, super
  *    administrateur, pharmacien, compte admin) ;
  *  - ventes déjà en attente du jour (au moins une ligne) marquées EN_ATTENTE « avant la mise à jour » ; vente sans
  *    ligne, vente de la veille, vente clôturée : intactes ; aucune vente ni ligne ajoutée, retirée ou changée de statut ;
@@ -25,6 +27,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const DOSSIER = path.join(__dirname, '..', '..', '..', 'main', 'resources', 'db', 'migration');
 const M2202 = path.join(DOSSIER, 'V7.6.41.2202__horloge_controle.sql');
 const M2203 = path.join(DOSSIER, 'V7.6.41.2203__ventes_saisie_attente.sql');
+const M2204 = path.join(DOSSIER, 'V7.6.41.2204__ventes_saisie_droits_attente_depot.sql');
 const PLAFOND_S = 120;
 const PRIVS = ['P_VENTE_METTRE_EN_ATTENTE', 'P_VENTE_REPRENDRE_ATTENTE', 'P_VENTE_VOIR_EN_COURS', 'P_VENTE_REPRENDRE_INTERROMPUE_AUTRUI', 'P_SM_JOURNAL_SAISIE_VENTE'];
 const PLISTE = PRIVS.map((x) => "'" + x + "'").join(',');
@@ -94,7 +97,7 @@ function retirer(avecSchema) {
     const attenteDuJour = q("SELECT COUNT(*) FROM t_preenregistrement p WHERE p.str_STATUT IN ('is_Process', 'pending') AND p.dt_UPDATED >= CURDATE()"
       + ' AND EXISTS (SELECT 1 FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID)');
     const roles1 = q("SELECT GROUP_CONCAT(DISTINCT rp.lg_ROLE_ID ORDER BY rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege m ON m.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
-      + " WHERE m.str_NAME IN ('P_SM_CLOTURER_CAISSE', 'P_SM_VENTEDEPOT')");
+      + " WHERE m.str_NAME IN ('P_SM_CLOTURER_CAISSE', 'P_SM_VENTEDEPOT', 'P_VENTE_DEPOT_EXTENSION')");
     const roles2 = q("SELECT GROUP_CONCAT(DISTINCT r ORDER BY r) FROM (SELECT rp.lg_ROLE_ID r FROM t_role_privelege rp JOIN t_privilege m ON m.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
       + " WHERE m.str_NAME IN ('P_PROFIL_SUPER_ADMIN', 'P_PROFIL_ADMIN', 'P_PROFIL_PHARMACIEN') UNION SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin') x");
     const menu = q("SELECT lg_MENU_ID FROM t_sous_menu WHERE str_COMPOSANT = 'suppressionsvente' LIMIT 1");
@@ -103,6 +106,8 @@ function retirer(avecSchema) {
 
     const d1 = jouer(M2202);
     const d2 = jouer(M2203);
+    const d3 = jouer(M2204);
+    ok('Durée de V2204 (rattrapage des droits) : ' + d3 + ' s', d3 < 10, d3);
     ok('Durée au démarrage : V2202 ' + d1 + ' s, V2203 ' + d2 + ' s (plafond ' + PLAFOND_S + ' s chacune, 2,1 millions de ventes)', d1 < PLAFOND_S && d2 < PLAFOND_S, d1 + ' / ' + d2);
 
     ok('Colonnes et index ajoutés à t_preenregistrement, rien d\'autre',
@@ -117,7 +122,7 @@ function retirer(avecSchema) {
       === 'KEY_HORLOGE_REGULARISATION_DUREE_H=24,KEY_HORLOGE_REGULARISATION_RECUL_J=7,KEY_HORLOGE_SEUIL_ECART_MIN=30,KEY_HORLOGE_SEUIL_RECUL_MIN=30');
     ok('Droits : les 5 créés, une seule fois chacun', q('SELECT GROUP_CONCAT(str_NAME ORDER BY str_NAME) FROM t_privilege WHERE str_NAME IN (' + PLISTE + ')') === [...PRIVS].sort().join(','));
     const donne = (nom) => q("SELECT IFNULL(GROUP_CONCAT(rp.lg_ROLE_ID ORDER BY rp.lg_ROLE_ID), '') FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE p.str_NAME = '" + nom + "'");
-    ok('« Mettre en attente » et « reprendre une vente en attente » : exactement les profils qui ont l\'écran de vente ou de vente en dépôt (' + roles1.split(',').length + ' profils) : rien ne change pour eux',
+    ok('« Mettre en attente » et « reprendre une vente en attente » : exactement les profils qui ont l\'écran de vente, de vente en dépôt ou l\'onglet de vente du dépôt (' + roles1.split(',').length + ' profils) : rien ne change pour eux',
       donne('P_VENTE_METTRE_EN_ATTENTE') === roles1 && donne('P_VENTE_REPRENDRE_ATTENTE') === roles1, roles1);
     ok('« Voir », « reprendre celle d\'un autre », « journal » : exactement administrateur, super administrateur, pharmacien, compte admin (' + roles2.split(',').length + ' profils)',
       ['P_VENTE_VOIR_EN_COURS', 'P_VENTE_REPRENDRE_INTERROMPUE_AUTRUI', 'P_SM_JOURNAL_SAISIE_VENTE'].every((x) => donne(x) === roles2), roles2);
@@ -137,7 +142,7 @@ function retirer(avecSchema) {
     /* rejouees : aucune erreur, aucun doublon */
     const apres1 = comptes() + statuts() + schema() + marques;
     let erreur = '';
-    try { jouer(M2202); jouer(M2203); } catch (e) { erreur = String(e.stderr || e.message).slice(0, 300); }
+    try { jouer(M2202); jouer(M2203); jouer(M2204); } catch (e) { erreur = String(e.stderr || e.message).slice(0, 300); }
     ok('Rejouées une seconde fois : aucune erreur, aucun doublon, rien ne change', !erreur && comptes() + statuts() + schema()
       + q("SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', IFNULL(etat_saisie, '-'), '/', saisie_avant_maj) ORDER BY lg_PREENREGISTREMENT_ID) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE 'E2E-MIG-%'") === apres1, erreur);
   } catch (e) {
