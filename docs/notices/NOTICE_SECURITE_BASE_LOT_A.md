@@ -30,7 +30,7 @@ Quelles que soient les valeurs du paramètre :
 
 | Clé (`t_parameters`) | Défaut | Rôle |
 |---|---|---|
-| `KEY_SECURITE_BASE` | `0` | `0` : tout comme avant (sauvegarde par `domain.xml`, anciens écrans par la configuration XML). `1` : compte dédié et pool JNDI. Posé par la migration `V7.2.38__securite_base.sql`, rejouable. |
+| `KEY_SECURITE_BASE` | `0` | `0` : tout comme avant (sauvegarde par `domain.xml`, anciens écrans par la configuration XML). `1` : compte dédié et pool JNDI. Posé par la migration `V7.2.106__securite_base.sql`, rejouable. |
 | `KEY_SECURITE_FICHIER_IDENTIFIANTS` | absent | Chemin du fichier d'identifiants chiffré. Absent : `C:\ProgramData\Prestige\sauvegarde.cnf` (Windows) ou `/etc/prestige/sauvegarde.cnf`. |
 
 Les anciens écrans relisent `KEY_SECURITE_BASE` au plus toutes les 15 s (par le pool) ; la sauvegarde le lit à chaque

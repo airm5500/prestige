@@ -38,10 +38,10 @@ plus de 6 mois ou n'a jamais été faite.
 | Clé (`t_parameters`) | Défaut | Rôle |
 |---|---|---|
 | `KEY_SECURITE_BASE` | `0` | lot 4.A ; à `1`, l'onglet existe pour le super administrateur. |
-| `KEY_SECURITE_DERNIERE_ROTATION` | vide | date de la dernière rotation réussie (`AAAA-MM-JJ HH:MM`), posée par la rotation. Migration `V7.2.39`. |
+| `KEY_SECURITE_DERNIERE_ROTATION` | vide | date de la dernière rotation réussie (`AAAA-MM-JJ HH:MM`), posée par la rotation. Migration `V7.2.107`. |
 | `KEY_SECURITE_DOSSIER_COPIES` | absent | dossier où chercher et purger les copies `domain.xml.avant-prestige-*` ; absent : `config` du domaine en cours. Sert au diagnostic et aux essais. |
 
-Table `t_securite_journal` (`V7.2.39`, rejouable) : `dt_DATE`, `str_LOGIN`, `str_ACTION` (`ROTATION`, `ALIAS`,
+Table `t_securite_journal` (`V7.2.107`, rejouable) : `dt_DATE`, `str_LOGIN`, `str_ACTION` (`ROTATION`, `ALIAS`,
 `PURGE_COPIES`), `str_RESULTAT` (`OK`, `ECHEC`, `RETOUR_ARRIERE`, `REFUSE`), `str_DETAIL` (étapes, sans valeur).
 
 API `v1/support/serveur/securite/…` (droit `P_SM_SUPPORT_SERVEUR` et super administrateur) :

@@ -37,8 +37,9 @@ const DOSSIER = path.join(TMP, 'sauvegardes');
 const FICHIER = path.join(TMP, 'sauvegarde.cnf');
 const COMPTE = 'prestige_sauvegarde_e2e';
 const CLES = ['KEY_SECURITE_BASE', 'KEY_SECURITE_FICHIER_IDENTIFIANTS', 'KEY_SAUVEGARDE_DOSSIER', 'KEY_SAUVEGARDE_COPIE', 'KEY_SAUVEGARDE_ACTIVE', 'KEY_SAUVEGARDE_GARDER_HEURES', 'KEY_SAUVEGARDE_GARDER_JOURS'];
-/* tables que le serveur ecrit entre deux sauvegardes (historique, journaux, sessions) : lignes non comparees */
-const VIVANTES = /^(t_sauvegarde|t_support_|t_session|t_parameters$|t_application_event|t_serveur_|t_rum|t_journal|t_poste|t_mobile|t_audit|t_log|t_prestige|t_connexion|t_user$|t_statistique|t_alerte|t_notification|t_sms|t_whatsapp|t_veille|t_pointage|t_anomalie|t_tache|t_incident|t_maintenance)/;
+/* tables que le serveur ecrit entre deux sauvegardes (historique, journaux, sessions) : lignes non comparees ;
+   pilotage_agregat_* : agregats du tableau de bord recalcules en tache de fond (dt_CALCUL), venus apres le 09/11 */
+const VIVANTES = /^(pilotage_agregat_|t_sauvegarde|t_support_|t_session|t_parameters$|t_application_event|t_serveur_|t_rum|t_journal|t_poste|t_mobile|t_audit|t_log|t_prestige|t_connexion|t_user$|t_statistique|t_alerte|t_notification|t_sms|t_whatsapp|t_veille|t_pointage|t_anomalie|t_tache|t_incident|t_maintenance)/;
 const DOSSIER_PRIVE = ENV_E2E.PAYARA_DOMAINE + '/prestige-prive';
 const LOG = ENV_E2E.JOURNAL_SERVEUR;
 /* mot de passe du pool : ne doit apparaitre nulle part (lu ici pour le chercher, jamais affiche) */

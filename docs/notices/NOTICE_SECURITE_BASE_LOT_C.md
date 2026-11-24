@@ -59,7 +59,7 @@ une archive altérée ou une mauvaise clé sont refusées sans qu'un octet soit 
 | `KEY_SECURITE_DERNIER_ESSAI_RESULTAT` | vide | script 6 : `CONFORME`, `ECART`, `ECHEC` | onglet Sécurité |
 | `KEY_SECURITE_FICHIER_CLE_ARCHIVE` | absent | à la main | serveur et onglet : chemin du fichier de la clé |
 
-Migration `V7.2.40__securite_archives.sql` (rejouable, aucune table). Journal `t_securite_journal` : actions
+Migration `V7.2.108__securite_archives.sql` (rejouable, aucune table). Journal `t_securite_journal` : actions
 `CLE_ARCHIVE` (script 7, création ou vérification) et `ESSAI_RESTAURATION` (script 6 : archive, chiffrée ou non,
 durées, résultat ; jamais une valeur ni une donnée). Pour que les scripts écrivent ces lignes, le compte de sauvegarde
 reçoit `INSERT, UPDATE` sur `t_parameters` et `INSERT` sur `t_securite_journal` de la base (`-Base`) :
