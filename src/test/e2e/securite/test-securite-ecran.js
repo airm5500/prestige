@@ -58,6 +58,8 @@ const CLES = ['KEY_SECURITE_BASE', 'KEY_SECURITE_DERNIERE_ROTATION', 'KEY_SECURI
 /* mots de passe d'essai (comptes crees par le test) : jamais affiches, cherches dans le journal du serveur */
 const P0 = 'E2eDepart-2026#app', PA = 'E2eRotation-2026#adm', P2 = 'E2eSaisi-2026#deux', P3 = 'E2eAlias-2026#trois', P4 = 'E2eEchec-2026#quatre';
 const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
+/* texte de server.log et de ses fichiers tournes modifies depuis un instant (le journal de Payara change de fichier tous les 2 Mo) */
+const texteServeurDepuis = (depuisMs) => { const d = path.dirname(LOG); return fs.readdirSync(d).filter((x) => /^server\.log/.test(x) && fs.statSync(path.join(d, x)).mtimeMs >= depuisMs - 1000).map((x) => fs.readFileSync(path.join(d, x), 'latin1')).join('\n'); };
 const journalDepuis = (depuis) => { const n = fs.statSync(LOG).size - depuis; if (n <= 0) { return ''; } const fd = fs.openSync(LOG, 'r'); const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, depuis); fs.closeSync(fd); return b.toString('utf8'); };
 const parametre = (cle, valeur) => exec(valeur === null ? "DELETE FROM t_parameters WHERE str_KEY = '" + cle + "'"
   : "INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('" + cle + "', '" + valeur.replace(/\\/g, '\\\\').replace(/'/g, "''") + "', 'essai e2e', 'SYSTEME', 'enable', NOW()) ON DUPLICATE KEY UPDATE str_VALUE = VALUES(str_VALUE)");
@@ -230,14 +232,16 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
 
     /* 5. echec simule : compte verrouille avant la rotation (les connexions ouvertes du pool survivent, les nouvelles non) */
     exec("ALTER USER '" + APP + "'@'localhost' ACCOUNT LOCK");
-    const depuisEchec = fs.statSync(LOG).size;
+    const depuisEchecMs = Date.now();
     r = await rotation(p, { session: 'e2etest', compte: ADMIN, mdp: PA, mode: 'SAISIR', nouveau: P4, confirmation: P4 });
     exec("ALTER USER '" + APP + "'@'localhost' ACCOUNT UNLOCK");
     flush();
-    const jEchec = journalDepuis(depuisEchec);
+    /* server.log tourne vite (environ 2 Mo par minute sur domain4) : la ligne peut etre dans un fichier deja tourne */
+    const jEchec = texteServeurDepuis(depuisEchecMs);
+    const criteres = { message: /revenu à l'ancien/.test(r.message), payaraRetabli: /Payara rétabli/.test(r.etapes), ancienRemis: /ancien mot de passe remis/.test(r.etapes),
+      domainXml: pool().password === P2, ancienSeConnecte: connecte(APP, P2), nouveauRefuse: !connecte(APP, P4), journalServeur: /ROTATION par .* : RETOUR_ARRIERE/.test(jEchec) };
     ok('Échec simulé : connexion par le pool en échec, retour arrière (Payara rétabli, ancien mot de passe remis), MariaDB et domain.xml à l\'ancienne valeur, ligne RETOUR_ARRIERE dans server.log',
-      /revenu à l'ancien/.test(r.message) && /Payara rétabli/.test(r.etapes) && /ancien mot de passe remis/.test(r.etapes) && pool().password === P2 && connecte(APP, P2) && !connecte(APP, P4)
-      && /ROTATION par .* : RETOUR_ARRIERE/.test(jEchec), sanitize(r.message + ' | ' + r.etapes));
+      Object.values(criteres).every((x) => x), 'en échec : ' + (Object.keys(criteres).filter((k) => !criteres[k]).join(', ') || 'aucun') + ' | ' + sanitize(r.message + ' | ' + r.etapes));
     await p.waitForTimeout(2000);
     const apiApres = await etatApi(p);
     ok('… après déverrouillage, l\'écran et l\'API répondent sans redémarrage (pool revenu aux valeurs du démarrage)', apiApres.success && apiApres.pool && apiApres.pool.forme === 'CLAIR' && pidPayara() === r.pid && !/redémarre/.test(r.message), JSON.stringify(apiApres).slice(0, 300));

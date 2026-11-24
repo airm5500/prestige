@@ -92,7 +92,7 @@ public class SecuriteBaseService {
     }
 
     String parametre(String cle) {
-        try (Connection c = ds.getConnection();
+        try (Connection c = IdentifiantsBaseService.connexion(ds);
                 PreparedStatement ps = c.prepareStatement("SELECT str_VALUE FROM t_parameters WHERE str_KEY = ?")) {
             ps.setString(1, cle);
             try (ResultSet rs = ps.executeQuery()) {
@@ -105,7 +105,7 @@ public class SecuriteBaseService {
     }
 
     void parametre(String cle, String valeur, String description) {
-        try (Connection c = ds.getConnection(); PreparedStatement ps = c
+        try (Connection c = IdentifiantsBaseService.connexion(ds); PreparedStatement ps = c
                 .prepareStatement("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION,"
                         + " str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED) VALUES (?, ?, ?, 'SYSTEME', 'enable', NOW(), NOW())"
                         + " ON DUPLICATE KEY UPDATE str_VALUE = VALUES(str_VALUE), dt_UPDATED = NOW()")) {
@@ -125,7 +125,7 @@ public class SecuriteBaseService {
     public void journaliser(String login, String action, String resultat, String detail) {
         String d = StringUtils.abbreviate(StringUtils.defaultString(detail), 1000);
         LOG.log(Level.INFO, "Sécurité de la base : {0} par {1} : {2}", new Object[] { action, login, resultat });
-        try (Connection c = ds.getConnection();
+        try (Connection c = IdentifiantsBaseService.connexion(ds);
                 PreparedStatement ps = c
                         .prepareStatement("INSERT INTO t_securite_journal (dt_DATE, str_LOGIN, str_ACTION,"
                                 + " str_RESULTAT, str_DETAIL) VALUES (NOW(), ?, ?, ?, ?)")) {
@@ -141,7 +141,7 @@ public class SecuriteBaseService {
 
     JSONArray journal(int n) {
         JSONArray a = new JSONArray();
-        try (Connection c = ds.getConnection();
+        try (Connection c = IdentifiantsBaseService.connexion(ds);
                 PreparedStatement ps = c
                         .prepareStatement("SELECT dt_DATE, str_LOGIN, str_ACTION, str_RESULTAT, str_DETAIL"
                                 + " FROM t_securite_journal ORDER BY id DESC LIMIT ?")) {
@@ -227,7 +227,7 @@ public class SecuriteBaseService {
         Path fc = ArchiveChiffree.fichierCle(parametre(ArchiveChiffree.CLE_FICHIER_CLE));
         boolean clePresente = Files.isRegularFile(fc);
         String derniereArchive = "";
-        try (Connection c = ds.getConnection(); Statement s = c.createStatement(); ResultSet rs = s
+        try (Connection c = IdentifiantsBaseService.connexion(ds); Statement s = c.createStatement(); ResultSet rs = s
                 .executeQuery("SELECT fichier FROM t_sauvegarde WHERE statut = 'REUSSIE' ORDER BY id DESC LIMIT 1")) {
             if (rs.next()) {
                 derniereArchive = StringUtils.defaultString(rs.getString(1));
@@ -602,7 +602,7 @@ public class SecuriteBaseService {
 
     /** Hote du compte applicatif : CURRENT_USER() par le pool, sinon mysql.user par le compte de rotation. */
     String hoteCompte(PoolMariaDb p, String compteRotation, String motDePasseRotation) {
-        try (Connection c = ds.getConnection(); Statement s = c.createStatement();
+        try (Connection c = IdentifiantsBaseService.connexion(ds); Statement s = c.createStatement();
                 ResultSet rs = s.executeQuery("SELECT CURRENT_USER()")) {
             if (rs.next()) {
                 String u = rs.getString(1);

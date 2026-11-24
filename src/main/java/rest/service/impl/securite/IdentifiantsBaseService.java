@@ -91,8 +91,42 @@ public final class IdentifiantsBaseService {
         }
     }
 
+    /** Essais de {@link #connexion(DataSource)} avant d'abandonner. */
+    static final int ESSAIS_CONNEXION = 3;
+
+    /**
+     * Une connexion du pool qui repond. Essai du cas 4 sur plan/21112026 (24/11) : sur un pool sans verification des
+     * connexions (is-connection-validation-required=false, cas d'un poste ou les reglages conseilles ne sont pas
+     * passes), la premiere connexion demandee apres un changement du mot de passe ou un compte verrouille est morte («
+     * physical connection is not usable ») : la date de rotation n'etait pas enregistree et l'onglet Securite se
+     * croyait inactif. Une connexion morte est rendue au pool (qui la detruit) et la demande recommence.
+     */
+    public static Connection connexion(DataSource ds) throws java.sql.SQLException {
+        java.sql.SQLException derniere = null;
+        for (int i = 0; i < ESSAIS_CONNEXION; i++) {
+            Connection c = null;
+            try {
+                c = ds.getConnection();
+                if (c.isValid(5)) {
+                    return c;
+                }
+                derniere = new java.sql.SQLException("Connexion du pool inutilisable");
+            } catch (java.sql.SQLException e) {
+                derniere = e;
+            }
+            if (c != null) {
+                try {
+                    c.close();
+                } catch (Exception e) {
+                    LOG.log(Level.FINE, "fermeture d'une connexion morte", e);
+                }
+            }
+        }
+        throw derniere;
+    }
+
     private static String parametre(DataSource ds, String cle) {
-        try (Connection c = ds.getConnection();
+        try (Connection c = connexion(ds);
                 PreparedStatement ps = c.prepareStatement("SELECT str_VALUE FROM t_parameters WHERE str_KEY = ?")) {
             ps.setString(1, cle);
             try (ResultSet rs = ps.executeQuery()) {
