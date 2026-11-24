@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rapport de tests du plan du 24/11/2026</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; color: #1f2937; line-height: 1.5; }
+h1 { font-size: 22px; } h2 { font-size: 18px; margin-top: 28px; border-bottom: 1px solid #d1d5db; }
+code { background: #f3f4f6; padding: 0 3px; } table { border-collapse: collapse; width: 100%; font-size: 14px; }
+td, th { border: 1px solid #d1d5db; padding: 4px 8px; text-align: left; vertical-align: top; } th { background: #f3f4f6; }
+.afaire { color: #6b7280; }
+</style>
+</head>
+<body>
+<h1>Rapport de tests du plan du 24/11/2026</h1>
+<p>Branche <code>plan/24112026</code>. Besoins : <code>CAHIER_DES_CHARGES_2026-11-24.html</code> (date et heure du serveur ; mise en attente des ventes). Ce rapport est tenu à jour à chaque étape : pour chaque test, son fichier, son résultat sur l'ancien code (il doit échouer), son résultat sur le nouveau code, le serveur et la base utilisés, le commit.</p>
+<p>État au 24/11 : <b>rien n'est encore réalisé</b> ; la grille ci-dessous est le plan de tests convenu.</p>
+
+<h2>1. Date et heure du serveur</h2>
+<table>
+<tr><th>Famille</th><th>Cas couverts</th><th>Test</th><th>Ancien code</th><th>Nouveau code</th></tr>
+<tr><td>Cohérence (unitaire)</td><td>Décision de blocage : écarts, reculs, sauts dans le futur, sans Internet ; régularisation à 0 et à 1, délai expiré ou non, recul dans et hors bornes ; milliers de cas, graine fixe</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Rapprochement (e2e)</td><td>Fenêtre de blocage = bandeau de connexion = API = traces en base</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Bilan (e2e)</td><td>Blocage, tentative de mise à jour, levée, régularisation ouverte puis refermée : traces exactes</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Dates futures refusées</td><td>Date de règlement d'un différé, modification de la date d'une vente : écran et serveur</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Garde-fous de production</td><td>Internet coupé, serveur de temps injoignable, changement d'heure, fuseau, redémarrage, première installation, base restaurée, tâche Windows absente : aucun faux blocage, sortie toujours possible</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Sécurité</td><td>Paramètre de régularisation modifié par un autre profil que le super administrateur : refus et trace ; aucun moyen de lever le blocage sans remettre l'heure</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Ergonomie</td><td>Fenêtre lisible et impossible à fermer ; bandeau de connexion ; temps d'affichage sous plafond</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+</table>
+
+<h2>2. Mise en attente des ventes</h2>
+<table>
+<tr><th>Famille</th><th>Cas couverts</th><th>Test</th><th>Ancien code</th><th>Nouveau code</th></tr>
+<tr><td>Cohérence (unitaire)</td><td>Machine d'états : toutes les transitions admises et refusées, pour chaque combinaison des 4 droits, auteur ou non, même jour ou lendemain ; milliers de cas, graine fixe</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Rapprochement (e2e)</td><td>Écran de vente = « Ventes en attente » = ventes en cours = « Produits retirés et ventes abandonnées » = journal de preuve = base</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Bilan (e2e)</td><td>Mettre en attente, Retour et chacun de ses choix, reprise, suppression, interruption : statut, journal, lignes gardées, stock et caisse inchangés</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Tous les cas</td><td>Comptant, assurance, carnet, vente en dépôt, prévente, modification d'une vente clôturée ; 1 et plusieurs produits, quantité &gt; 1, remise, client ou non ; double clic, Entrée, raccourcis ; changement de menu, onglet ou navigateur fermé, session expirée, poste éteint, coupure réseau</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Plusieurs postes</td><td>2 à 5 postes : jamais une vente en cours vue « en attente » ailleurs, jamais deux reprises de la même vente ; serveur redémarré au milieu ; 1 000 ventes de suite</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Sécurité et preuve</td><td>Chaque API sans le droit : refus et trace ; journal chaîné, retouche en base détectée ; aucun nom de patient dans les traces</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Mise à jour</td><td>Ventes déjà en attente : toutes gardées, marquées « avant la mise à jour »</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+<tr><td>Ergonomie</td><td>Confirmation dans le bouton, choix de « Retour » au clavier, écrans lisibles, temps d'affichage sous plafond</td><td class="afaire">à écrire</td><td></td><td></td></tr>
+</table>
+
+<h2>3. Non-régression</h2>
+<table>
+<tr><th>Suite</th><th>Avant</th><th>Après</th></tr>
+<tr><td>Tests unitaires complets (<code>mvn -o test</code>)</td><td>2 666 / 2 666 (intégration 7ba943326, 24/11)</td><td></td></tr>
+<tr><td>Tests d'écran : vente, vente en dépôt, caisse, ticket Z, ventes modifiées, suppressions de vente</td><td class="afaire">à mesurer avant le premier changement</td><td></td></tr>
+</table>
+</body>
+</html>
