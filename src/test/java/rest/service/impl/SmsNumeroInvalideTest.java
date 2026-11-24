@@ -23,9 +23,16 @@ public class SmsNumeroInvalideTest {
         assertNull(SmsImpl.refusAvantEnvoi("002250508473750"));
     }
 
+    /** Depuis le 22/11 (plan du 21/11, point 8.3) : un numero etranger ecrit avec son indicatif part au fournisseur. */
     @Test
-    public void unNumeroEtrangerOuFixeEstRefuseSansLeFournisseur() {
-        for (String numero : new String[] { "0033612345678", "2721345678", "08473750", "07 08 47" }) {
+    public void unNumeroEtrangerAvecSonIndicatifPartAuFournisseur() {
+        assertNull(SmsImpl.refusAvantEnvoi("0033612345678"));
+        assertNull(SmsImpl.refusAvantEnvoi("+32 470 12 34 56"));
+    }
+
+    @Test
+    public void unNumeroEtrangerTropCourtOuFixeEstRefuseSansLeFournisseur() {
+        for (String numero : new String[] { "+33 61 23", "2721345678", "08473750", "07 08 47" }) {
             SmsSendResult r = SmsImpl.refusAvantEnvoi(numero);
             assertTrue(r != null && !r.isAccepted(), numero);
             assertEquals("NUMERO_INVALIDE", r.getErrorCode(), numero);

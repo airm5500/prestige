@@ -125,6 +125,14 @@ class EnvoiFactureWhatsAppCoherenceTest {
         assertTrue(m.find(), "numeroWhatsAppValide absente de add.js");
         ScriptEngine js = new ScriptEngineManager().getEngineByName("nashorn");
         assertNotNull(js, "moteur JavaScript");
+        /*
+         * depuis le 22/11 (point 8.3), la regle de la fiche passe par view/commun/TelephoneSaisie.js, charge ici comme
+         * dans l'application (testextjs.view.commun.TelephoneSaisie)
+         */
+        js.eval("var module = {exports: {}};");
+        js.eval(new String(Files.readAllBytes(Paths.get("src/main/webapp/general/app/view/commun/TelephoneSaisie.js")),
+                StandardCharsets.UTF_8));
+        js.eval("var testextjs = {view: {commun: {TelephoneSaisie: module.exports}}};");
         js.eval(m.group());
         Invocable f = (Invocable) js;
         Random r = new Random(GRAINE + 1);
