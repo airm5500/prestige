@@ -59,32 +59,48 @@ public final class Prevision {
 
     /** Prevision du mois suivant la serie par une methode donnee ; NaN si la methode n'est pas applicable. */
     public static double prevoir(double[] serie, String methode) {
+        double[] t = termes(serie, methode);
+        return t == null ? Double.NaN : t[t.length - 1];
+    }
+
+    /**
+     * Plan du 21/11, point 15 : valeurs intermediaires de la methode, la derniere etant la prevision ; null si la
+     * methode n'est pas applicable. La prevision et son explication viennent de ce seul calcul.
+     * <ul>
+     * <li>MOYENNE : {nombre de mois, somme, prevision} ;</li>
+     * <li>SAISON : {meme mois l'an dernier, 12 derniers mois, 12 precedents (NaN si moins de 24 mois), tendance bornee,
+     * prevision} ;</li>
+     * <li>HOLT : {niveau, pente, prevision} ;</li>
+     * <li>HOLT_WINTERS : {niveau, pente, effet saisonnier du mois prevu, prevision}.</li>
+     * </ul>
+     */
+    static double[] termes(double[] serie, String methode) {
         int n = serie.length;
         switch (methode) {
         case MOYENNE:
             if (n == 0) {
-                return Double.NaN;
+                return null;
             }
             double s = 0;
             int k = Math.min(3, n);
             for (int i = n - k; i < n; i++) {
                 s += serie[i];
             }
-            return s / k;
+            return new double[] { k, s, s / k };
         case SAISON:
             if (n < 12) {
-                return Double.NaN;
+                return null;
             }
             double base = serie[n - 12];
             if (n >= 24) {
                 double recent = somme(serie, n - 12, n), ancien = somme(serie, n - 24, n - 12);
                 double tendance = ancien > 0 ? Math.max(0.5, Math.min(2, recent / ancien)) : 1;
-                return base * tendance;
+                return new double[] { base, recent, ancien, tendance, base * tendance };
             }
-            return base;
+            return new double[] { base, Double.NaN, Double.NaN, 1, base };
         case HOLT:
             if (n < 4) {
-                return Double.NaN;
+                return null;
             }
             double niveau = serie[0], pente = serie[1] - serie[0];
             for (int i = 1; i < n; i++) {
@@ -92,10 +108,10 @@ public final class Prevision {
                 niveau = ALPHA * serie[i] + (1 - ALPHA) * (niveau + pente);
                 pente = BETA * (niveau - ancienNiveau) + (1 - BETA) * pente;
             }
-            return Math.max(0, niveau + pente);
+            return new double[] { niveau, pente, Math.max(0, niveau + pente) };
         case HOLT_WINTERS:
             if (n < 24) {
-                return Double.NaN;
+                return null;
             }
             double moyenne1 = somme(serie, 0, 12) / 12, moyenne2 = somme(serie, 12, 24) / 12;
             double niv = moyenne1, tend = (moyenne2 - moyenne1) / 12;
@@ -110,9 +126,9 @@ public final class Prevision {
                 tend = BETA * (niv - ancien) + (1 - BETA) * tend;
                 saison[m] = GAMMA * (serie[i] - niv) + (1 - GAMMA) * saison[m];
             }
-            return Math.max(0, niv + tend + saison[n % 12]);
+            return new double[] { niv, tend, saison[n % 12], Math.max(0, niv + tend + saison[n % 12]) };
         default:
-            return Double.NaN;
+            return null;
         }
     }
 

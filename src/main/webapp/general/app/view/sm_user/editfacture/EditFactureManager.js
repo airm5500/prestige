@@ -90,6 +90,24 @@ function decoderEntitesHtml(texte) {
  * @param {String} libelle libelle de la colonne, repris en tete de l'info-bulle
  * @param {Function} formateur formatage optionnel de la valeur (ex : amountformat)
  */
+/**
+ * Retour du 22/11 : groupe de tiers payant choisi dans la barre des factures ('' : tous). Lu par la liste, la
+ * pagination, l'impression du releve et l'export Excel : les quatre donnent les memes factures.
+ */
+function groupeFactureChoisi() {
+    var c = Ext.getCmp('groupeFacture'), v = c ? c.getValue() : null;
+    return typeof v === 'number' && v > 0 ? v : '';
+}
+
+/** Retour du 22/11 : valeur de la cellule en gras (et en couleur si demandee). */
+function enGras(couleur, formateur) {
+    return function (value, meta, rec) {
+        var affiche = formateur ? formateur(value, meta, rec) : value;
+        affiche = (affiche === null || affiche === undefined) ? '' : affiche;
+        return '<span class="facture-gras" style="font-weight:bold' + (couleur ? ';color:' + couleur : '') + '">' + affiche + '</span>';
+    };
+}
+
 function renduAvecInfobulle(libelle, formateur) {
     return function (value, meta, rec) {
         var affiche = formateur ? formateur(value, meta, rec) : value;
@@ -108,7 +126,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'facturemanager',
     id: 'facturemanagerID',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         'Ext.selection.CellModel',
         'Ext.selection.CheckboxModel',
         'Ext.grid.*',
@@ -395,19 +413,6 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 //                padding: '8',
                 items: [
                     {
-                        text: 'Cr&eacute;er',
-                        scope: this,
-                        iconCls: 'addicon',
-                        handler: this.onAddCreate
-                    }, '-', {
-                        text: 'Supprimer la s&eacute;lection',
-                        id: 'btnSupprimerSelectionFacture',
-                        hidden: true, // affiche au chargement si l'utilisateur a le privilege de suppression
-                        tooltip: 'Supprimer les factures coch&eacute;es',
-                        iconCls: 'cancelicon',
-                        scope: this,
-                        handler: this.onDeleteSelection
-                    }, '-', {
                         xtype: 'datefield',
                         id: 'datedebut',
                         name: 'datedebut',
@@ -429,6 +434,9 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     }, {
                         xtype: 'datefield',
                         id: 'datefin',
+                        /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                        /* retour du 22/11 : champ unique trop long (souple = place des deux anciens champs) : largeur fixe */
+                        plugins: [{ptype: 'champperiode', largeur: 205, debut: 'datedebut', declencher: 'btnRechercherFactures'}],
                         name: 'datefin',
                         emptyText: 'Date fin',
                         maxValue: new Date(),
@@ -457,7 +465,49 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                                 }
                             }
                         }
+                    },
+                    /* retour du 22/11 : le bouton Rechercher suit le champ de recherche */
+                    {
+                        text: 'rechercher', /* libelle d'origine garde (le bouton a seulement change de place) */
+                        itemId: 'btnRechercherFactures',
+                        tooltip: 'Rechercher',
+                        iconCls: 'searchicon',
+
+                        scope: this,
+                        handler: this.onRechClick
                     }, '-',
+                    /* retour du 22/11 : selecteur de groupe de tiers payant. Il se combine aux autres filtres : la liste
+                       des tiers payants ne propose plus que ceux du groupe, et un tiers payant hors du groupe est retire. */
+                    {
+                        xtype: 'combobox',
+                        id: 'groupeFacture',
+                        itemId: 'groupeFacture',
+                        flex: 1.3,
+                        minWidth: 150,
+                        store: Ext.create('Ext.data.Store', {
+                            fields: [{name: 'lg_GROUPE_ID', type: 'int'}, 'str_LIBELLE'],
+                            pageSize: 10,
+                            proxy: {type: 'ajax', url: '../api/v1/groupe-tierspayant/list',
+                                reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+                        }),
+                        pageSize: 10,
+                        valueField: 'lg_GROUPE_ID',
+                        displayField: 'str_LIBELLE',
+                        queryMode: 'remote',
+                        minChars: 1,
+                        emptyText: 'Groupe de tiers payant...',
+                        listConfig: {loadingText: 'Recherche...', emptyText: 'Aucun groupe.'},
+                        listeners: {
+                            select: function (c) {
+                                _this.changerGroupe(groupeFactureChoisi() || null);
+                            },
+                            change: function (c, v) {
+                                if (!v && _this.groupeActif) {
+                                    _this.changerGroupe(null);
+                                }
+                            }
+                        }
+                    },
                     {
                         xtype: 'combobox',
                         id: 'lg_TIERS_PAYANT_ID',
@@ -527,20 +577,38 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     },
                     {
                         xtype: 'tbseparator'
-                    }
-
-
-                    , {
-                        text: 'rechercher',
-                        tooltip: 'rechercher',
-                        iconCls: 'searchicon',
-
-                        scope: this,
-                        handler: this.onRechClick
                     },
+                    /* plan du 21/11, point 9 : « Déjà facturé ? » (toutes les factures, sans limite de periode) */
                     {
-                        xtype: 'tbseparator'
+                        text: '\uD83D\uDD0D D\u00e9j\u00e0 factur\u00e9 ?',
+                        itemId: 'btnDejaFacture',
+                        enableToggle: true,
+                        tooltip: 'Retrouver un bon par le nom du client, son matricule ou le num\u00e9ro de bon, sur toutes les factures',
+                        scope: this,
+                        toggleHandler: this.onDejaFacture
                     },
+                ]
+            },
+            /* plan du 21/11, point 7.2 (retour du 22/11) : a 1366 et 1280, la barre unique debordait deja (1 384 px pour
+               1 301). Filtres et recherche sur la premiere ligne, actions sur la seconde. */
+            {xtype: 'toolbar',
+                dock: 'top',
+                itemId: 'facturesActions',
+                items: [
+                    {
+                        text: 'Cr&eacute;er',
+                        scope: this,
+                        iconCls: 'addicon',
+                        handler: this.onAddCreate
+                    }, '-', {
+                        text: 'Supprimer la s&eacute;lection',
+                        id: 'btnSupprimerSelectionFacture',
+                        hidden: true, // affiche au chargement si l'utilisateur a le privilege de suppression
+                        tooltip: 'Supprimer les factures coch&eacute;es',
+                        iconCls: 'ic7 ic7-supprimer', /* retour du 22/11 */
+                        scope: this,
+                        handler: this.onDeleteSelection
+                    }, '-',
                     {
                         text: 'Imprimer',
                         tooltip: 'Imprimer',
@@ -567,11 +635,13 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     {
                         text: 'Relev&eacute; FNE',
                         tooltip: 'Relev&eacute; des factures certifi&eacute;es et avoirs FNE du tiers payant',
+                        iconCls: 'ic7 ic7-fne', /* retour du 22/11 */
                         scope: this,
                         handler: this.onReleveFne
                     }
                 ]
             },
+            this.panneauDejaFacture(),
             {
                 dock: 'bottom',
                 xtype: 'pagingtoolbar',
@@ -610,6 +680,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         myProxy.setExtraParam('dt_debut', dt_debut);
                         myProxy.setExtraParam('dt_fin', dt_fin);
                         myProxy.setExtraParam('impayes', filtreImpayes);
+                        myProxy.setExtraParam('groupe', groupeFactureChoisi());
 
                     }
 
@@ -632,39 +703,39 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 hidden: true,
                 width: 20
             }, {
-                header: 'Code Facture',
+                header: 'NUMERO', /* retour du 22/11 */
                 dataIndex: 'str_CODE_FACTURE',
                 flex: 0.5,
-                renderer: renduAvecInfobulle('Code facture', function (value, meta, rec) {
+                renderer: renduAvecInfobulle('Numéro', function (value, meta, rec) {
                     if (rec.get('str_STATUT') === 'avoir') {
                         return '<span style="color:#c0392b;font-weight:bold;">' + value + ' (Annul&eacute;e - avoir)</span>';
                     }
-                    return value;
+                    return enGras()(value);
                 })
 
             }, {
                 header: 'Organisme',
                 dataIndex: 'str_CUSTOMER_NAME',
                 flex: 1,
-                renderer: renduAvecInfobulle('Organisme')
+                renderer: renduAvecInfobulle('Organisme', enGras())
             }, {
                 header: 'P&eacute;riode',
                 dataIndex: 'str_PERIODE',
                 flex: 1.5,
-                renderer: renduAvecInfobulle('Période')
+                renderer: renduAvecInfobulle('Période', enGras())
 
             }, {
-                header: 'Nombre de Dossiers',
+                header: 'BONS', /* retour du 22/11 */
                 dataIndex: 'int_NB_DOSSIER',
                 flex: 0.5,
                 align: 'right',
-                renderer: renduAvecInfobulle('Nombre de dossiers')
+                renderer: renduAvecInfobulle('Bons')
             }
             , {
                 header: 'Montant Brut',
                 dataIndex: 'MONTANTBRUT',
                 flex: 1,
-                renderer: renduAvecInfobulle('Montant brut', amountformat),
+                renderer: renduAvecInfobulle('Montant brut', enGras('#1565c0', amountformat)),
                 align: 'right'
             }
             , {
@@ -694,13 +765,13 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 header: 'Montant Pay&eacute;',
                 dataIndex: 'dbl_MONTANT_PAYE',
                 flex: 1,
-                renderer: renduAvecInfobulle('Montant payé', amountformat),
+                renderer: renduAvecInfobulle('Montant payé', enGras('#2e7d32', amountformat)),
                 align: 'right'
             }, {
                 header: 'Montant Restant',
                 dataIndex: 'dbl_MONTANT_RESTANT',
                 flex: 1,
-                renderer: renduAvecInfobulle('Montant restant', amountformat),
+                renderer: renduAvecInfobulle('Montant restant', enGras('#c62828', amountformat)),
                 align: 'right'
             },
             {
@@ -717,7 +788,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 header: 'Date',
                 dataIndex: 'dt_CREATED',
                 flex: 1,
-                renderer: renduAvecInfobulle('Date de facture')
+                renderer: renduAvecInfobulle('Date de facture', enGras())
 
             }, {
                 xtype: 'actioncolumn',
@@ -1487,6 +1558,145 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
 
     },
+    /**
+     * Plan du 21/11, point 9 : panneau « Déjà facturé ? ». Champ (nom, matricule ou numero de bon ; Entree = chercher),
+     * puis un bon par ligne : bon, ticket, client, matricule, date de vente, montant du tiers payant, organisme, et la
+     * facture qui le contient (un clic l'ouvre) ou « Non facturé » (avec les factures annulees qui l'ont porte).
+     */
+    panneauDejaFacture: function () {
+        var me = this;
+        var statuts = {enable: '\u00e0 r\u00e9gler', paid: 'r\u00e9gl\u00e9e', is_Process: 'en cours de r\u00e8glement', avoir: 'annul\u00e9e (avoir)', 'delete': 'supprim\u00e9e'};
+        var html = Ext.String.htmlEncode;
+        var store = Ext.create('Ext.data.Store', {fields: ['id', 'bon', 'ticket', 'client', 'matricule', 'dateVente', {name: 'montant', type: 'int'},
+                'organisme', 'etat', 'statutFacture', 'facture', 'annulees'], data: []});
+        return {
+            xtype: 'panel', dock: 'top', itemId: 'panneauDejaFacture', hidden: true, height: 270, layout: {type: 'vbox', align: 'stretch'},
+            bodyStyle: 'border-top:2px solid #2e86c1', statuts: statuts,
+            items: [{xtype: 'container', layout: {type: 'hbox', align: 'middle'}, padding: '6 8', defaults: {margin: '0 8 0 0'}, items: [
+                        {xtype: 'textfield', itemId: 'dfRecherche', width: 380, emptyText: '\uD83D\uDD0D Nom du client, matricule ou num\u00e9ro de bon (ou une partie)\u2026',
+                            listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        e.stopEvent();
+                                        me.chercherDejaFacture();
+                                    }
+                                }}},
+                        {xtype: 'button', itemId: 'dfChercher', text: 'Chercher', iconCls: 'searchicon', handler: function () {
+                                me.chercherDejaFacture();
+                            }},
+                        {xtype: 'component', itemId: 'dfEtat', flex: 1, style: 'color:#5d6d7e', html: 'Toutes les factures, sans limite de p\u00e9riode.'},
+                        {xtype: 'button', itemId: 'dfFermer', text: 'Fermer', handler: function () {
+                                me.down('#btnDejaFacture').toggle(false);
+                            }}]},
+                {xtype: 'gridpanel', itemId: 'dfResultats', flex: 1, store: store, columnLines: true, margin: '0 8 6 8',
+                    viewConfig: {emptyText: '<div style="padding:12px;color:#7f8c8d">Saisissez un nom, un matricule ou un num\u00e9ro de bon, puis Entr\u00e9e.</div>',
+                        deferEmptyText: false, markDirty: false},
+                    columns: [{text: 'N\u00b0 bon', dataIndex: 'bon', width: 110},
+                        {text: 'Ticket', dataIndex: 'ticket', width: 110},
+                        {text: 'Client', dataIndex: 'client', flex: 1, minWidth: 150},
+                        {text: 'Matricule', dataIndex: 'matricule', width: 110},
+                        {text: 'Date vente', dataIndex: 'dateVente', width: 85},
+                        {text: 'Montant', dataIndex: 'montant', width: 85, align: 'right', renderer: amountformat},
+                        {text: 'Organisme', dataIndex: 'organisme', width: 150},
+                        {text: 'Facture', dataIndex: 'etat', flex: 1, minWidth: 230, renderer: function (v, m, rec) {
+                                var f = rec.get('facture'), a = rec.get('annulees') || [];
+                                var annulees = a.length ? '<div style="color:#7f8c8d;font-size:11px">' + Ext.Array.map(a, function (x) {
+                                    return 'facture ' + html(x.code) + ' du ' + html(x.date) + ' ' + (statuts[x.statut] || html(x.statut));
+                                }).join(' ; ') + '</div>' : '';
+                                if (v === 'FACTURE' && f) {
+                                    m.tdAttr = 'data-qtip="Ouvrir la facture"';
+                                    return '<a href="#" class="df-ouvrir" style="font-weight:bold">Facture ' + html(f.code) + '</a> du ' + html(f.date)
+                                            + ' \u2014 ' + html(f.organisme) + ' (' + (statuts[f.statut] || html(f.statut)) + ')' + annulees;
+                                }
+                                return '<span class="df-non" style="color:#c0392b;font-weight:bold">Non factur\u00e9</span>' + annulees;
+                            }}],
+                    listeners: {cellclick: function (v, td, col, rec, tr, row, e) {
+                            if (e.getTarget('.df-ouvrir')) {
+                                e.preventDefault();
+                                me.ouvrirFactureDejaFacture(rec);
+                            }
+                        }}}]
+        };
+    },
+    onDejaFacture: function (b, actif) {
+        var p = this.down('#panneauDejaFacture');
+        p.setVisible(actif);
+        if (!actif) {
+            /* retour du 22/11 : Fermer (ou « Déjà facturé ? » a nouveau) vide la recherche faite */
+            p.down('#dfRecherche').setValue('');
+            p.down('#dfResultats').getStore().removeAll();
+            p.down('#dfEtat').update('Toutes les factures, sans limite de p\u00e9riode.');
+        }
+        if (actif) {
+            var f = p.down('#dfRecherche');
+            Ext.defer(function () {
+                if (!f.isDestroyed && f.isVisible(true)) {
+                    f.focus();
+                }
+            }, 150);
+        }
+    },
+    chercherDejaFacture: function () {
+        var me = this, p = me.down('#panneauDejaFacture'), g = p.down('#dfResultats'), etat = p.down('#dfEtat');
+        var texte = Ext.String.trim(p.down('#dfRecherche').getValue() || '');
+        if (texte.length < 2) {
+            etat.update('<span style="color:#c0392b">Saisissez au moins 2 caract\u00e8res.</span>');
+            return;
+        }
+        g.setLoading('Recherche\u2026');
+        Ext.Ajax.request({url: '../api/v1/facture-tiers-payant/deja-facture', method: 'GET', params: {q: texte}, timeout: 120000,
+            success: function (r) {
+                g.setLoading(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    g.getStore().removeAll();
+                    etat.update('<span style="color:#c0392b">' + Ext.String.htmlEncode(o.message || 'Recherche impossible.') + '</span>');
+                    return;
+                }
+                g.getStore().loadData(o.data || []);
+                etat.update(o.total === 0 ? 'Aucun bon trouv\u00e9.' : o.total + ' bon(s) : ' + o.factures + ' factur\u00e9(s), ' + (o.total - o.factures)
+                        + ' non factur\u00e9(s)' + (o.tronque ? ' \u2014 les ' + o.limite + ' plus r\u00e9cents ; pr\u00e9cisez la recherche.' : '.'));
+            },
+            failure: function () {
+                g.setLoading(false);
+                etat.update('<span style="color:#c0392b">Le serveur ne r\u00e9pond pas.</span>');
+            }});
+    },
+    ouvrirFactureDejaFacture: function (rec) {
+        var f = rec.get('facture');
+        if (!f) {
+            return;
+        }
+        new testextjs.view.sm_user.editfacture.action.detailTransactionTiersPayant({
+            odatasource: {lg_FACTURE_ID: f.id, str_CUSTOMER_NAME: f.organisme, str_CODE_FACTURE: f.code},
+            parentview: this,
+            mode: "detail_transaction",
+            titre: "Detail Bordereau [" + f.organisme + "]"
+        });
+    },
+    /**
+     * Retour du 22/11 : groupe choisi (null : tous). La liste des tiers payants ne propose plus que ceux du groupe ; le
+     * tiers payant deja choisi reste s'il est du groupe, sinon il est retire ; puis la recherche est relancee.
+     */
+    changerGroupe: function (groupe) {
+        var me = this, tp = Ext.getCmp('lg_TIERS_PAYANT_ID'), st = tp.getStore(), proxy = st.getProxy();
+        if ((me.groupeActif || null) === (groupe || null)) {
+            return;
+        }
+        me.groupeActif = groupe || null;
+        if (groupe) {
+            proxy.setExtraParam('groupe', groupe);
+        } else {
+            delete proxy.extraParams.groupe;
+        }
+        tp.lastQuery = null;
+        st.load({params: {query: ''}, callback: function () {
+                var choisi = tp.getValue();
+                if (groupe && choisi && st.findExact('lg_TIERS_PAYANT_ID', choisi) < 0) {
+                    tp.clearValue();
+                }
+                me.onRechClick();
+            }});
+    },
     onRechClick: function () {
         var val = Ext.getCmp('rechecherFacture').getValue();
         var lg_customer_id = "";
@@ -1505,7 +1715,8 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 lg_customer_id: lg_customer_id,
                 dt_fin: Ext.getCmp('datefin').getSubmitValue(),
                 dt_debut: Ext.getCmp('datedebut').getSubmitValue(),
-                'impayes': filtreImpayes
+                'impayes': filtreImpayes,
+                groupe: groupeFactureChoisi()
             }});
         sessionStorage.setItem('impayes', filtreImpayes);
         sessionStorage.setItem('customer', lg_customer_id);
@@ -1566,7 +1777,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         }
         const search_value = Ext.getCmp('rechecherFacture').getValue();
 
-        window.open("../releveFactureServlet" + "?lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes + '&codeFacture=');
+        window.open("../releveFactureServlet" + "?lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes + '&codeFacture=' + '&groupe=' + groupeFactureChoisi());
     },
     exportToExcel: function () {
         var lg_customer_id = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),
@@ -1580,7 +1791,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             filtreImpayes = '';
         }
         var search_value = Ext.getCmp('rechecherFacture').getValue();
-        window.location = "../FactureDataExport?action=facture&lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes;
+        window.location = "../FactureDataExport?action=facture&lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes + '&groupe=' + groupeFactureChoisi();
 
     }
 

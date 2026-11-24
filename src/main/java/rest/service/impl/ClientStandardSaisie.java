@@ -48,8 +48,7 @@ public final class ClientStandardSaisie {
         }
         TelephoneCi.Resultat numero = TelephoneCi.controler(retablirZeroDeTete(telephoneSaisi));
         if (!numero.isValide()) {
-            erreurs.add("Numéro de téléphone invalide : " + numero.getMotif()
-                    + ". Un numéro ivoirien compte dix chiffres et commence par 01, 05 ou 07.");
+            erreurs.add("Numéro de téléphone invalide : " + numero.getMotif() + ". " + TelephoneCi.aide());
         }
         return new ClientStandardSaisie(erreurs, nom, prenoms, numero.isValide() ? numero.getLocal() : "");
     }
@@ -67,6 +66,10 @@ public final class ClientStandardSaisie {
      */
     static String retablirZeroDeTete(String saisie) {
         String brut = StringUtils.trimToEmpty(saisie);
+        /* regle ivoirienne : hors de Cote d'Ivoire, neuf chiffres peuvent etre un vrai numero (retour du 22/11) */
+        if (!TelephoneCi.paysCoteDIvoire()) {
+            return brut;
+        }
         String nettoye = brut.replaceAll("[\\s.\\-()]", "");
         if (nettoye.matches("[157][0-9]{8}")) {
             return "0" + nettoye;

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Retours du 23/11/2026 : qui a fait quoi sur un produit, et l'alerte « Articles créés »</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  h3 { color: #1E5FA8; font-size: 15px; margin-bottom: 4px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+  .question { background: #eef3f9; border-left: 4px solid #1E5FA8; padding: 8px 12px; margin: 10px 0; }
+  .non { color: #b3261e; font-weight: 600; }
+  .oui { color: #2e7d32; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Retours du 23/11/2026 : traces des actions sur un produit</h1>
+<p class="sous">Analyse faite en lecture seule sur la copie locale d'appaul. Correction de l'alerte « Articles créés » sur la branche <code>plan/21112026</code>, essayée sur <code>laborex_audit</code> (domain4).</p>
+
+<h2>1. L'application peut-elle dire qui a fait quoi sur un produit ?</h2>
+<p><b>En partie.</b> Il existe un journal, <code>t_event_log</code>, qui garde pour chaque action la date, l'utilisateur et une description. Il est conservé depuis octobre 2024 sur appaul (468 000 lignes). Il n'est purgé que si le réglage <code>KEY_JOURNAL_CONSERVATION_MOIS</code> est renseigné ; par défaut, il ne l'est pas. Mais toutes les actions n'y sont pas écrites.</p>
+<table>
+<tr><th>Action sur le produit</th><th>Tracée avec l'utilisateur ?</th><th>Où</th></tr>
+<tr><td>Création d'un article, création d'un détail</td><td class="oui">oui</td><td>journal, et notification (effacée au bout de quelques jours)</td></tr>
+<tr><td>Désactivation, réactivation, suppression</td><td class="oui">oui</td><td>journal</td></tr>
+<tr><td>Ajustement de stock</td><td class="oui">oui</td><td>journal, mouvements de stock</td></tr>
+<tr><td>Prix de vente changé à la vente ou à la commande</td><td class="oui">oui</td><td>journal, <code>t_mouvementprice</code></td></tr>
+<tr><td>Déconditionnement, saisie de périmés, retour fournisseur</td><td class="oui">oui</td><td>journal</td></tr>
+<tr><td><b>Modification de la fiche</b> : nom, CIP, EAN, grossiste, emplacement, famille, TVA, seuils, prix depuis la fiche, etc.</td><td class="non">non</td><td>rien. <code>t_famille_history</code> garde les prix et le grossiste, mais sans utilisateur.</td></tr>
+<tr><td>Calculs automatiques (seuils, classe ABC…)</td><td class="non">non</td><td>seule la colonne <code>dt_UPDATED</code> change</td></tr>
+</table>
+<div class="note"><b><code>dt_UPDATED</code> n'est pas une trace.</b> Elle change à chaque enregistrement de la fiche, quelle qu'en soit l'origine : calcul de seuil, classe ABC, mise à jour en masse. Elle ne dit ni qui, ni quoi. Exemple : le 20/11 à 01:15, 4 292 fiches ont changé de <code>dt_UPDATED</code> d'un coup, dont 1 990 fiches supprimées. Le 22/11 à 01:34, 3 296 de plus. Aucune tâche planifiée du code ne tourne à ces heures, et aucune migration n'a eu lieu : l'origine de ces mises à jour reste <b>suspectée</b> (opération manuelle ou script), pas confirmée.</div>
+
+<h2>2. Le cas R-LUME : pourquoi un produit existant a été recréé</h2>
+<p>Le journal donne toute l'histoire, avec l'utilisateur à chaque étape :</p>
+<table>
+<tr><th>Date</th><th>Action</th><th>Par</th></tr>
+<tr><td>25/02/2020</td><td>Création de la fiche « R-LUME 40/240MG CP B/6 » (CIP 8014527)</td><td>(avant le journal)</td></tr>
+<tr><td>03/12/2024</td><td>Saisie de périmés : 5 boîtes, stock à 0</td><td>YAO AMOIN REBECCA</td></tr>
+<tr><td>08/01/2026</td><td><b>Désactivation</b> de la fiche (stock 0)</td><td>Dr OROU AIDATOU</td></tr>
+<tr><td>23/02/2026</td><td><b>Suppression</b> de la fiche</td><td>Dr OROU AIDATOU</td></tr>
+<tr><td>11/11/2026 11:08</td><td><b>Création d'une nouvelle fiche</b> « R-LUME 40/240MG CPR B/6 », même CIP, autre grossiste</td><td>YAO BRIGITTE</td></tr>
+</table>
+<p>L'ancienne fiche étant supprimée, la recherche par CIP ne la trouvait plus. L'application a donc laissé créer une nouvelle fiche avec le même CIP, sans prévenir. Son historique (ventes, prix, périmés) reste attaché à l'ancienne fiche.</p>
+<p>Le <code>dt_UPDATED</code> du 20/11/2026 01:15 sur l'ancienne fiche ne vient pas d'une action de l'équipe : c'est la mise à jour en masse signalée plus haut.</p>
+<p>Autre cas trouvé : le FINSTAM a été créé le 18/11 avec le CIP <code>3000001239734</code>, puis son CIP a été changé en <code>1239734</code>. Ce changement n'est tracé nulle part.</p>
+
+<h2>3. Alerte « Articles créés » : auteur manquant, date sur deux lignes</h2>
+<h3>Pourquoi certaines lignes n'avaient pas d'auteur</h3>
+<p>« Créé par » ne se lisait que dans la notification de création. Or les notifications sont effacées au bout de quelques jours : sur la copie d'appaul, aucune n'est antérieure au 12/11. Résultat : <b>32 des 50 articles créés sur 30 jours</b> n'avaient pas d'auteur, alors que le journal le donnait pour 49 d'entre eux. La fiche article (« Créé le … par … ») avait le même défaut.</p>
+<h3>Correction</h3>
+<ul>
+<li>L'auteur est lu dans la notification, sinon dans la ligne de création du journal. Cette ligne doit avoir été écrite entre 5 s avant et 60 s après la création, avec le même CIP, ou le même nom si le CIP a été changé depuis. Sur la copie d'appaul : <b>50 auteurs sur 50</b>.</li>
+<li>Le journal est lu en une seule requête pour toute la période : environ 50 ms sur appaul. Une sous-requête par article prenait de 3 à 44 s pour 50 articles.</li>
+<li>Même lecture pour la fenêtre de l'alerte, son impression PDF et le bandeau de la fiche article.</li>
+<li>« Créé le » tient sur une seule ligne. Les colonnes sont réparties à nouveau, et le nom entier de l'auteur, du grossiste et du produit s'affiche en infobulle.</li>
+</ul>
+
+<h2>4. Contrôles</h2>
+<h3>Où la donnée apparaît, et le test de rapprochement qui compare</h3>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Auteur de la création</td><td>fenêtre de l'alerte (deux tailles d'écran), PDF « Imprimer », bandeau de la fiche article, base (notification, journal)</td><td><code>retours/test-articles-crees-auteur-2311.js</code> (nouveau)</td></tr>
+<tr><td>Liste des articles créés (CIP, date, auteur)</td><td>alerte, fenêtre ligne par ligne, PDF, base, sur 1, 30, 40 et 365 jours</td><td><code>retours/test-alerte-articles-crees-2211.js</code> (attendu mis à jour : notification, sinon journal)</td></tr>
+<tr><td>« Créé le … par … » de la fiche</td><td>aperçu (double clic), détail de l'article, base</td><td><code>stock/test-fiche-article-lot9-2211.js</code> (3e cas ajouté : auteur trouvé dans le journal seul)</td></tr>
+</table>
+<h3>Règles, et le test de cohérence qui les vérifie</h3>
+<ul>
+<li>Une ligne de journal est celle de la création si et seulement si elle est écrite de 5 s avant à 60 s après la création, et porte le CIP de l'article suivi d'une espace, ou son nom suivi de « par ». Les caractères « % », « _ » et « [ » sont pris à la lettre. Un CIP qui ne fait que commencer comme celui de l'article ne compte pas.</li>
+<li>Le CIP l'emporte sur le nom. Parmi plusieurs lignes, c'est la première qui compte. Si aucune ne correspond, l'article n'a pas d'auteur.</li>
+<li>Vérifié sur 22 000 cas tirés au hasard (graines 20261123 et 20261124) : <code>CreateurArticleCoherenceTest</code>, 2 sur 2. Sur l'ancien code, ce test ne compile pas.</li>
+</ul>
+<h3>Traces attendues (test de bilan)</h3>
+<ul>
+<li>L'affichage n'écrit rien en base.</li>
+<li>Le test retire ses 6 articles, 6 lignes de journal et sa notification (0/0/0 après), et remet les préférences du tableau de bord à l'identique.</li>
+</ul>
+<h3>Cas variés couverts</h3>
+<ul>
+<li>A : notification et journal d'un autre utilisateur, la notification l'emporte.</li>
+<li>B : journal seul, avec le même CIP.</li>
+<li>C : journal avec l'ancien CIP (CIP changé depuis), même nom.</li>
+<li>D : journal écrit 2 minutes après la création, hors fenêtre : pas d'auteur.</li>
+<li>E : CIP qui commence comme celui de l'article, autre nom : pas d'auteur.</li>
+<li>F : article détail, avec une ligne « création de détail » au journal.</li>
+<li>Sur les vraies données de <code>laborex_audit</code> : jusqu'à 500 lignes, avec et sans auteur, sur 4 périodes. Les détails n'avaient pas d'auteur avant la correction, car la notification de création de détail n'était pas lue.</li>
+<li>Écrans de 1366×768 et 1280×720.</li>
+</ul>
+
+<h2>5. Non-régression</h2>
+<p>Tests passés un par un sur <code>laborex_audit</code> (domain4). Chaque nouveau test a d'abord échoué sur l'ancien WAR, celui du lot 11.</p>
+<table>
+<tr><th>Test</th><th>Ancien code</th><th>Code corrigé</th></tr>
+<tr><td><code>retours/test-articles-crees-auteur-2311.js</code> (nouveau)</td><td>4 sur 12</td><td>12 sur 12</td></tr>
+<tr><td><code>retours/test-alerte-articles-crees-2211.js</code> (attendu mis à jour)</td><td>17 sur 21</td><td>21 sur 21</td></tr>
+<tr><td><code>stock/test-fiche-article-lot9-2211.js</code> (3e cas ajouté)</td><td>—</td><td>20 sur 20</td></tr>
+<tr><td><code>retours/test-moyennes-apercu.js</code>, <code>retours/test-derniere-entree.js</code></td><td></td><td>4 sur 4, 13 sur 13</td></tr>
+<tr><td><code>retours/test-tableau-bord-impression.js</code>, <code>retours/test-tableau-bord-lot3-2111.js</code>, <code>retours/test-blv-alertes.js</code></td><td></td><td>11 sur 11, 47 sur 47, 22 sur 22</td></tr>
+<tr><td>Tests unitaires <code>CreateurArticleCoherenceTest</code>, <code>TableauBordAvoirsCoherenceTest</code></td><td></td><td>2 sur 2, 5 sur 5</td></tr>
+</table>
+<div class="note">Notes :
+<ul>
+<li>Sur le code corrigé, un premier passage du test du lot 9 avait échoué à 1 et 30 jours. Le compteur de l'alerte venait du cache d'une minute du serveur, encore rempli par le test précédent. Le second passage a donné 21 sur 21.</li>
+<li>Le test de la fiche article prend maintenant 7 minutes : la recherche de ses articles d'essai dans le journal est lente.</li>
+</ul></div>
+
+<h2>6. Les trois propositions, réalisées (choix « Les trois »)</h2>
+<h3>Ce qui change pour l'utilisateur</h3>
+<ol>
+<li><b>Chaque modification de fiche est tracée.</b> Une ligne de journal par enregistrement qui change au moins un champ : auteur, date, et pour chaque champ l'ancienne et la nouvelle valeur (« Prix de vente : avant 3 270 → après 3 520 »). 43 champs suivis : libellé, CIP, EAN, EAN fabricant, PSCODE, prix, grossiste, famille, TVA, emplacement, code géo, colisage, seuils, réserve, péremption, laboratoire, gamme, statut… Un enregistrement sans changement n'écrit rien. La ligne porte l'identifiant de la fiche : elle reste rattachée même si le CIP change ensuite. Les créations d'articles portent aussi cet identifiant désormais.</li>
+<li><b>Onglet « Historique »</b> dans la fenêtre « Modifier » de la fiche article : création, modifications (champ par champ), désactivation, suppression, réactivation, prix, ajustements, déconditionnement, périmés, retours, ordonnancier ; de la plus récente à la plus ancienne, avec l'auteur. Les lignes anciennes (repérées par le CIP) sont marquées « fiche précédente (même CIP) » quand elles datent d'avant la création de la fiche (cas R-LUME), ou « CIP partagé » quand plusieurs fiches ont ce CIP. 500 lignes au plus ; au-delà, le titre de l'onglet le dit.</li>
+<li><b>Avertissement à la création</b> : dès que le CIP ou l'EAN saisi appartient à une fiche désactivée ou supprimée, un bandeau orange le dit au-dessus du formulaire (« Une fiche supprimée a déjà ce CIP : 8014527 R-LUME… (supprimée le 23/02/2026 par Dr OROU AIDATOU) »). Le bouton « Réactiver cette fiche » demande confirmation dans le bouton lui-même (« Confirmer la réactivation ») ; le second clic réactive la fiche (même opération et même trace que l'écran des produits désactivés), ferme la création et affiche la fiche dans la liste. La création reste possible si on le veut vraiment.</li>
+</ol>
+<h3>Défaut trouvé en chemin, corrigé</h3>
+<p>Une fiche dont le « Tableau » est vide en base (NULL) ne pouvait plus être modifiée : « Echec de mise à jour de l'article » (erreur Java). 9 fiches actives sur la copie <code>laborex_audit</code>, 12 sur <code>laborex_v1_db</code>. La valeur vide est maintenant traitée comme « pas de tableau ».</p>
+<h3>Constaté, non modifié</h3>
+<ul>
+<li>Le champ « Seuil.Reappro » de la fiche affiche <code>int_SEUIL_MIN</code>, et l'enregistrement le recopie dans <code>int_STOCK_REAPROVISONEMENT</code>. Les deux diffèrent pour 5 425 fiches actives sur 11 650 (copie) : chaque enregistrement les réaligne sans le dire. La trace suit la valeur affichée, donc ce réalignement n'y apparaît pas. Corrigé depuis : voir la section 8.</li>
+<li>Le prix TIPS suit le prix de vente à l'enregistrement : la trace le montre comme un changement.</li>
+<li>Les mises à jour en lot n'étaient pas encore tracées champ par champ : c'est fait depuis, voir la section 7.</li>
+</ul>
+<h3>Contrôles</h3>
+<table>
+<tr><th>Contrôle</th><th>Test</th><th>Ancien code</th><th>Nouveau code</th></tr>
+<tr><td>Rapprochement : détail de la modification en base = onglet Historique = API ; avertissement = base (CIP, nom, date, auteur)</td><td><code>stock/test-traces-fiche-2311.js</code> (nouveau, par les clics)</td><td>5 sur 20 (15 échecs : pas de bandeau, de trace, d'onglet ; fiche au Tableau vide refusée)</td><td>26 sur 26</td></tr>
+<tr><td>Bilan : une seule trace par enregistrement, aucune sans changement ; réactivation = 1 ligne, aucune fiche créée ; données d'essai retirées de toutes les tables (0/0/0/0)</td><td>idem</td><td></td><td>inclus</td></tr>
+<tr><td>Cohérence : champs tracés = champs dont la valeur affichée change, relecture du détail à l'identique, description ≤ 255 caractères (5 000 fiches)</td><td><code>ModificationFicheCoherenceTest</code></td><td>(classe nouvelle)</td><td>3 sur 3</td></tr>
+<tr><td>Cohérence : historique (types, ordre, 500 lignes au plus, création une seule fois, rattachement fiche / fiche précédente / CIP partagé) sur 3 000 journaux ; clé du CIP à 6 chiffres sur 5 000 cas</td><td><code>HistoriqueFicheCoherenceTest</code></td><td>(classe nouvelle)</td><td>3 sur 3</td></tr>
+</table>
+<p>Cas variés : fiche supprimée (par CIP) et désactivée (par EAN), deux auteurs, codes sans fiche inactive, plusieurs champs changés à la fois (libellé, désignation, prix, seuil), enregistrement sans changement, Tableau vide en base, ligne antérieure à la création (fiche précédente), confirmation abandonnée puis donnée.</p>
+<p>Non-régression (un test à la fois, <code>laborex_audit</code>) :</p>
+<ul>
+<li>tous OK : EAN fabricant 20/20, PSCODE 15/15, fiche sans JSP 20/20, saisie des enregistrements 27/27, présentation de la fiche 16/16, menus et mise à jour en lot 23/23, ordonnancier 29/29, quantité restante par lot 4/4, fiche du lot 9 20/20, auteur des articles créés 12/12, alerte des articles créés 21/21 (au second passage, à cause du cache d'une minute), journal complet 18/18, modification de BL au journal 20/20, auteur et unitaires précédents ;</li>
+<li><code>perf/test-fiche-modifier-legere-entree.js</code> : 63/64. Son attente datait d'avant le lot 9 (« créé par », affiché au seul Détail) et a été mise à jour. Le dernier échec vient du jeu d'essai : la copie n'a pas d'articles « sans mouvement » ;</li>
+<li><code>journal/test-export-journal.js</code> : les 8 premiers contrôles passent ; le test s'arrête sur la taille du classeur (9,5 Mo pour 148 000 lignes), trop grande pour sa lecture. C'est une limite du test, sans lien avec ce travail.</li>
+</ul>
+<p>Temps de lecture : onglet Historique 20 à 33 ms pour le produit le plus mouvementé de la copie (1 115 lignes) ; avertissement 40 à 50 ms. Un index sur la référence du journal est créé au déploiement (<code>V7.6.41.2201</code>).</p>
+<h2>7. Les mises à jour en lot, tracées aussi (demande « trace aussi les mises à jour en lot »)</h2>
+<h3>Ce qui change pour l'utilisateur</h3>
+<p>Les quatre mises à jour en lot de la fiche article écrivent maintenant <b>une ligne de journal par article réellement changé</b>, au nom de l'utilisateur, avec l'ancienne et la nouvelle valeur :</p>
+<table>
+<tr><th>Écran</th><th>Donnée suivie</th><th>Exemple de ligne</th></tr>
+<tr><td>Fiche article, « MAJ SÉLECTIVE »</td><td>grossiste, famille, TVA, code remise, code tableau, laboratoire, gamme, soumis à ordonnance, remise autorisée</td><td>« Modification en lot (Mise à jour des articles) de la fiche 8014527 R-LUME par YAO BRIGITTE : grossiste » ; détail « Grossiste : avant LABOREX-CI YOP → après ACO PHARMA »</td></tr>
+<tr><td>Fiche article, « MAJ SEUIL »</td><td>Q1 et Q2</td><td>« Q1 : avant 0 → après 7 », « Q2 : avant (vide) → après 20 »</td></tr>
+<tr><td>Ordonnancier, « Cocher / Décocher tout le résultat »</td><td>sensible ou ordonnancier</td><td>« Sensible : avant non → après oui » ; la ligne globale du lot (« N produit(s) coché(s)… ») est gardée</td></tr>
+<tr><td>Produits, « Cocher / Décocher tout le résultat »</td><td>article retenu</td><td>« Article retenu : avant non → après oui »</td></tr>
+</table>
+<p>Un article déjà à la valeur voulue n'a pas de ligne. Dans l'onglet « Historique » de la fiche, ces lignes s'affichent « Modification en lot », champ par champ, comme une modification de fiche. Les valeurs sont lues avant et après la mise à jour, dans la même transaction ; les lignes sont écrites par paquets de 200.</p>
+<h3>Contrôles</h3>
+<table>
+<tr><th>Contrôle</th><th>Test</th><th>Ancien code</th><th>Nouveau code</th></tr>
+<tr><td>Rapprochement : base (valeurs), journal (une ligne par fiche changée, auteur, description, détail avant → après), onglet Historique, API, pour les 4 écrans, par les clics</td><td><code>stock/test-traces-lot-2311.js</code> (nouveau)</td><td>17 sur 31 (14 échecs : aucune trace par article, Historique sans « Modification en lot »)</td><td>31 sur 31</td></tr>
+<tr><td>Bilan : pour chaque opération, rien d'autre au journal (la seule ligne en plus est la ligne globale de l'ordonnancier) ; données d'essai retirées (0/0/0)</td><td>idem</td><td>inclus</td><td>inclus</td></tr>
+<tr><td>Bilan du cochage en lot de l'ordonnancier : la ligne globale plus une ligne par produit, au compte e2e</td><td><code>ordonnancier/test-bilan-cochage-cloture.js</code> (attente mise à jour)</td><td></td><td>42 sur 42</td></tr>
+<tr><td>Cohérence : une ligne si et seulement si une valeur affichée change, jamais pour un article déjà à la valeur ni pour un article disparu entre les deux lectures ; détail relu à l'identique ; description ≤ 255 caractères ; libellé « Modification en lot » dans l'historique ; mises en forme (oui / non, article retenu inversé, TVA en %, milliers) — 3 000 lots tirés au hasard, graine fixe</td><td><code>TraceLotCoherenceTest</code></td><td>(classe nouvelle)</td><td>4 sur 4</td></tr>
+</table>
+<p>Cas variés : 4 fiches aux valeurs différentes, dont une déjà à la valeur voulue pour chaque opération ; Q2 vide et Q1 à 0 ; deux données changées à la fois (Q1 et Q2) ; quatre écrans ; ligne globale gardée pour l'ordonnancier.</p>
+<p>Les tests existants qui passent par ces lots retirent maintenant aussi ces lignes à la fin (<code>ordonnancier/test-cochage-lot.js</code>, <code>etape1/test-menus-et-maj-article.js</code>).</p>
+<p>Non-régression (un test à la fois, <code>laborex_audit</code>) : cochage en lot de l'ordonnancier 16/16, bilan du cochage 42/42, menus et mise à jour en lot 23/23, traces de fiche 26/26, produits et analyse 20/20, ordonnancier de la fiche 29/29, journal complet 18/18, fiche sans JSP 20/20, unitaires des traces de fiche et d'historique 3/3 et 3/3. Aucune ligne « Modification en lot » ne reste en base après les tests.</p>
+<p>Le test des traces de fiche (section 6) tirait une fiche modèle au hasard, et deux attentes dépendaient de ce tirage. Elles sont corrigées : le prix TIPS est attendu dès que l'ancien TIPS diffère du nouveau prix, car le formulaire recopie le prix de vente à la frappe ; la fiche modèle est prise sans déconditionné, comme dans les vraies données (10 825 fiches ont 0 et 0, 419 ont 1 et 1, aucune n'a une quantité détail sans déconditionné). La copie forçait « pas de déconditionné » sur un modèle qui en avait un.</p>
+<p>Temps, « MAJ SEUIL » en lot sur 2 000 fiches d'essai, avec la trace : 208 à 276 ms quand toutes changent (2 000 lignes écrites), 142 ms quand aucune ne change. Les données de mesure ont été retirées (0 restante).</p>
+<h2>8. Seuil de réapprovisionnement : une seule valeur partout (demande « corrige le seuil réaligné en silence »)</h2>
+<h3>Le défaut</h3>
+<p>Le seuil est gardé dans deux colonnes de la fiche. La fiche article, les suggestions, les ruptures et le tableau de bord lisent <code>int_SEUIL_MIN</code>. L'écran « Comparaison stock » lisait <code>int_STOCK_REAPROVISONEMENT</code>, et avec lui tout ce qui en dépend : la colonne « Seuil.Reappro », le filtre « Inférieur au seuil de reappro », les exports CSV, Excel et PDF, et la suggestion créée depuis l'écran.</p>
+<p>La modification du seuil dans une suggestion n'écrivait que la première colonne, comme le calcul des seuils et l'entrepôt. Les deux colonnes divergeaient donc : 5 424 fiches actives sur 11 650 sur la copie. Le simple enregistrement d'une fiche, sans rien changer, modifiait ensuite la valeur montrée par « Comparaison stock », sans trace : dans le test, B est passé de 2 à 8.</p>
+<h3>Correction</h3>
+<ul>
+<li><code>int_SEUIL_MIN</code> est la référence. Chaque écriture du seuil recopie la valeur dans l'autre colonne (<code>TFamille.setIntSEUILMIN</code>). Cela couvre la suggestion, le calcul des seuils, l'entrepôt, la fiche, la création et les copies.</li>
+<li>« Comparaison stock » lit la référence : colonne, filtres, exports, suggestion créée depuis l'écran. Les copies d'une fiche (déconditionné, import) et la création depuis l'inventaire reprennent aussi la référence.</li>
+<li>Les anciennes données ne sont pas réalignées en masse. Le déclencheur de mise à jour de <code>t_famille</code> changerait la date de mise à jour de chaque fiche et ajouterait une ligne à l'historique des prix : 5 480 fiches sur la copie, toutes fiches confondues. Plus aucun écran ne lit la colonne miroir ; elle se réaligne d'elle-même à la prochaine écriture du seuil. Le seul lecteur restant est un ancien service JSP (<code>ws_data_initial_last_goodversion.jsp</code>), appelé par aucun écran.</li>
+</ul>
+<h3>Contrôles</h3>
+<table>
+<tr><th>Contrôle</th><th>Test</th><th>Ancien code</th><th>Nouveau code</th></tr>
+<tr><td>Rapprochement : fiche article = « Comparaison stock » = export CSV = base, ligne par ligne ; filtre « Inférieur au seuil » = règle stock &lt; seuil de la fiche ; seuil modifié dans une suggestion : les deux colonnes en base et l'écran de comparaison</td><td><code>stock/test-seuil-reappro-2311.js</code> (nouveau, par les clics)</td><td>10 sur 15 (comparaison 30, 2, 5 au lieu de 12, 8, 0 ; filtre A, C, D au lieu de B, D ; suggestion : 25 et 30 en base)</td><td>15 sur 15</td></tr>
+<tr><td>Bilan : fiche enregistrée sans changement, aucune ligne de journal et aucune valeur qui change à l'écran ; données d'essai retirées (0/0/0/0)</td><td>idem</td><td>« Comparaison stock » passe de 2 à 8</td><td>inclus</td></tr>
+<tr><td>Cohérence : après toute écriture du seuil, les deux colonnes sont égales ; la fiche garde la valeur saisie ; « Comparaison stock » montre la référence (0 si vide). 20 000 suites d'écritures tirées au hasard, graine fixe, dont plus de 10 000 partent de colonnes divergentes</td><td><code>dal.SeuilReapproCoherenceTest</code></td><td>2 échecs</td><td>2 sur 2</td></tr>
+</table>
+<p>Cas variés : seuil plus petit, plus grand et égal à la colonne miroir, seuil à 0, stock sous le seuil et au-dessus, modification par la suggestion, enregistrement sans changement.</p>
+<p>Non-régression (un test à la fois, <code>laborex_audit</code>) : filtres de plusieurs menus 62/62, colonne Tableau 21/21, stock réserve 39/39, journal de la suggestion 8/8, bandeau et nettoyage de la suggestion 22/22, traces de fiche 26/26, traces des lots 31/31, fiche sans JSP 20/20.</p>
+<p>Deux tests échouent, de la même façon sur l'ancien code :</p>
+<ul>
+<li><code>filtres/test-impressions-filtres.js</code> : 15/17 avant comme après. Les 2 échecs portent sur « Évaluation des ventes » et « Feuille de match », sans lien avec le seuil ;</li>
+<li><code>perf/test-comparaison-stock-export.js</code> : l'impression PDF est lue vide (0 ligne), avant comme après. Les exports CSV et Excel prennent 19 à 21,6 s pour 8 031 articles, contre 18,9 à 20,7 s sur l'ancien code, avec un plafond de 20 s. Trois passages sur le nouveau code donnent 20,1, 21,3 puis 19,0 s pour le CSV : la mesure oscille autour du plafond dans les deux versions.</li>
+</ul>
+<p>Branche <code>plan/21112026</code>. Commit et push : voir le message de la session.</p>
+</body>
+</html>

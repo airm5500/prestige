@@ -105,6 +105,8 @@ const TMP = ENV_E2E.TMP + '/claude-0/lot-l';
     const ids = await p.evaluate(() => {
       const vue = Ext.ComponentQuery.query('balancesalecahs')[0];
       return { du: vue.down('#dtStart').inputEl.id, au: vue.down('#dtEnd').inputEl.id, rechercher: vue.down('#rechercher').el.id,
+        /* plan du 21/11, point 7.2 : un seul selecteur de periode sur l'onglet Balance */
+        periode: vue.down('#dtEnd').champPeriode ? vue.down('#dtEnd').champPeriode.inputEl.id : null,
         ventilation: !!vue.down('#ventilationBalance'), ongletModes: !!vue.down('#ongletModesBalance'),
         onglets: vue.down('#ongletsBalance').items.getRange().map(t => t.title) };
     });
@@ -112,8 +114,12 @@ const TMP = ENV_E2E.TMP + '/claude-0/lot-l';
       // lot P : un quatrieme onglet cache, « Balance (ancienne) », sous privilege
       ids.ventilation && ids.ongletModes && ids.onglets.length === 4, ids.onglets.join(' | '));
     // parcours reel : saisie des dates puis clic sur Rechercher
-    await p.fill('#' + ids.du, fr(MOIS_A)); await p.keyboard.press('Tab');
-    await p.fill('#' + ids.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    if (ids.periode) {
+      await p.fill('#' + ids.periode, fr(MOIS_A) + ' → ' + fr(FIN_B)); await p.keyboard.press('Tab');
+    } else {
+      await p.fill('#' + ids.du, fr(MOIS_A)); await p.keyboard.press('Tab');
+      await p.fill('#' + ids.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    }
     await p.click('#' + ids.rechercher);
     // Retour des tests du 09/09 (lot N) : la synthese modernisee porte la meme classe ; on lit le
     // document de ventilation par son composant.

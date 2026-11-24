@@ -42,8 +42,36 @@ public class OrdreLectureVentes implements StatementInspector {
         ACTIF.remove();
     }
 
+    /*
+     * Plan du 21/11, point 17 : recherche des perimes. Sur une base ou la plupart des lots n'ont pas de date de
+     * peremption, MariaDB partait des fiches de stock de l'emplacement et relisait tous les lots de chaque produit
+     * (copie d'appaul : 2 s a froid, 0,8 s a chaud, pour aucun lot). Partir des lots, par l'index (dt_PEREMPTION,
+     * current_stock) de la migration V6.5.10, rend le meme resultat en quelques millisecondes. STRAIGHT_JOIN garde
+     * l'ordre ecrit par Hibernate, lots en tete ; seules les requetes marquees par le service sont touchees.
+     */
+    private static final ThreadLocal<Boolean> LOTS = new ThreadLocal<>();
+
+    /** Debut de requete d'Hibernate : lots, puis produits joints sur le produit du lot. */
+    private static final Pattern DEBUT_LOTS = Pattern
+            .compile("^select (distinct )?(.*?) from t_lot (\\w+) inner join t_famille ", Pattern.DOTALL);
+
+    public static void activerLots() {
+        LOTS.set(Boolean.TRUE);
+    }
+
+    public static void desactiverLots() {
+        LOTS.remove();
+    }
+
     @Override
     public String inspect(String sql) {
+        if (sql != null && Boolean.TRUE.equals(LOTS.get())) {
+            Matcher l = DEBUT_LOTS.matcher(sql);
+            if (l.find()) {
+                return "select " + (l.group(1) == null ? "" : l.group(1)) + "STRAIGHT_JOIN " + l.group(2)
+                        + " from t_lot " + l.group(3) + " inner join t_famille " + sql.substring(l.end());
+            }
+        }
         if (!Boolean.TRUE.equals(ACTIF.get()) || sql == null) {
             return sql;
         }

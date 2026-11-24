@@ -73,23 +73,24 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
     /* L'edition PDF est produite cote serveur puis ouverte : le service repond par l'URL du fichier.
      * Meme enchainement que l'impression du dictionnaire des pannes (SupportTicketsCtr). */
     imprimer: function (params) {
-        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+        // Plan du 21/11, point 14 : l'onglet est ouvert DANS le clic. Ouvert a l'arrivee de la reponse, Firefox le
+        // prenait pour une fenetre surgissante et demandait l'autorisation. Il affiche « Édition en cours... »,
+        // recoit le PDF, et se ferme si l'edition echoue.
+        const onglet = window.PrestigeEditions.ouvrirOnglet();
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/analyse-tierspayant/print',
             params: params,
-            success: function (response) {
-                progress.hide();
-                var result = Ext.JSON.decode(response.responseText, true) || {};
-                if (result.success && result.msg) {
-                    window.open('..' + result.msg, '_blank');
+            timeout: 600000,
+            callback: function (opts, success, response) {
+                const result = (response && Ext.JSON.decode(response.responseText, true)) || {};
+                if (success && result.success && result.msg) {
+                    window.PrestigeEditions.afficher(onglet, '..' + result.msg);
                 } else {
-                    Ext.Msg.alert('Message', result.msg || 'Impossible de générer le PDF');
+                    window.PrestigeEditions.fermer(onglet);
+                    Ext.Msg.alert('Message', result.msg || (success ? 'Impossible de générer le PDF'
+                            : 'Un problème avec le serveur'));
                 }
-            },
-            failure: function () {
-                progress.hide();
-                Ext.Msg.alert('Message', 'Un problème avec le serveur');
             }
         });
     },

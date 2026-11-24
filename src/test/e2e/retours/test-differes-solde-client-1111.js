@@ -268,13 +268,20 @@ const traces = () => q("SELECT CONCAT_WS('|', (SELECT COUNT(*) FROM t_preenregis
       filtre.filter((x) => /^CLIENT:/.test(x)).length === 1 && filtre.every((x) => x.endsWith(':' + CLIENTS.A.id) || /^MOIS:/.test(x)) && R2.soldeFinal === attendu.A.solde,
       filtre.join(', '));
 
-    /* ---------------------------------------------------------------- dates inversees */
+    /* ---------------------------------------------------------------- dates inversees
+       plan du 21/11, point 7.2 : un seul champ « période » ; une période tapée à l'envers y est remise dans l'ordre
+       (comme sur les autres écrans), le message « début après fin » n'a plus lieu d'apparaître */
     await vues.saisir(p, 'delayed #soldeDu', '31/12/2030');
     const avantInv = demandes.length;
     await vues.cliquer(p, 'delayed #soldeRechercher');
-    await p.waitForTimeout(800);
-    const msg = await p.evaluate(() => Ext.ComponentQuery.query('delayed #soldeMessage')[0].getEl().dom.textContent);
-    ok('Dates inversées : message, aucune demande au serveur', /début est après/.test(msg) && demandes.length === avantInv, msg);
+    await p.waitForTimeout(1500);
+    const inv = await p.evaluate(() => { const o = Ext.ComponentQuery.query('delayed')[0];
+      return { msg: o.down('#soldeMessage').getEl().dom.textContent, du: o.down('#soldeDu').getRawValue(), au: o.down('#soldeAu').getRawValue(), champ: o.down('#soldeDu').champPeriode.getValue() }; });
+    const jourIso = jour.split('/').reverse().join('-');
+    const urlInv = demandes.slice(avantInv).pop() || '';
+    ok('Dates tapées à l\'envers dans le champ période : remises dans l\'ordre (champ = Du/Au = requête), pas de message', !/début est après/.test(inv.msg)
+      && inv.du === jour && inv.au === '31/12/2030' && inv.champ === jour + ' → 31/12/2030'
+      && urlInv.indexOf('dtStart=' + jourIso) >= 0 && urlInv.indexOf('dtEnd=2030-12-31') >= 0, JSON.stringify({ inv, urlInv }));
 
     /* ---------------------------------------------------------------- coherence sur les donnees du poste */
     const debutMois = q("SELECT DATE_FORMAT(CURDATE() - INTERVAL 2 MONTH, '%Y-%m-01')"), auj = q('SELECT CURDATE()');

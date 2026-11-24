@@ -52,6 +52,9 @@ import util.sms.SmsSendResult;
 public class SmsImpl implements SmsService {
 
     private static final Logger LOG = Logger.getLogger(SmsImpl.class.getName());
+    /* plan du 21/11, point 8.1 : trace des SMS au numero d'administration */
+    @EJB
+    private JournalMessagesService journalMessages;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     private final AppParameters sp = AppParameters.getInstance();
@@ -290,12 +293,12 @@ public class SmsImpl implements SmsService {
                 // Rapport du 26/10, M4 : un numero qui n'est pas un mobile ivoirien partait tel quel et le fournisseur
                 // le refusait (« No valid addresses »). Il est refuse ici, sans appel ni evenement du support, et
                 // n'est pas compte : il ne bloque pas la notification des autres destinataires.
-                SmsSendResult refus = refusAvantEnvoi(tc.getStrADRESSE());
+                SmsSendResult refus = refusAvantEnvoi(tc);
                 if (refus != null) {
                     applyResultToClient(toClient, refus, provider.getCode());
                     LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, numero={2} ecarte : {3}",
-                            new Object[] { notification.getId(), toClient.getId(),
-                                    util.TelephoneCi.masquer(tc.getStrADRESSE()), refus.getErrorMessage() });
+                            new Object[] { notification.getId(), toClient.getId(), util.TelephoneCi.masquer(brut),
+                                    refus.getErrorMessage() });
                     continue;
                 }
                 total++;
@@ -348,6 +351,17 @@ public class SmsImpl implements SmsService {
 
     /** Reporte le résultat du fournisseur sur le destinataire (statut, id de suivi, erreur). */
     /** Refus local d'un numero qui n'est pas un mobile ivoirien (aucun appel HTTP), ou null s'il peut partir. */
+    /**
+     * Controle avant envoi du numero d'un client, selon la regle de TelephoneClient : str_TELEPHONE d'abord, l'ancien
+     * champ adresse a defaut (plan du 21/11 : seul l'adresse etait lue, et un client dont le numero est dans «
+     * Téléphone » etait refuse).
+     */
+    static SmsSendResult refusAvantEnvoi(dal.TClient client) {
+        util.TelephoneCi.Resultat controle = util.TelephoneClient.controler(client);
+        return controle.isValide() ? null
+                : SmsSendResult.rejected(0, "NUMERO_INVALIDE", "Numéro non mobile ivoirien : " + controle.getMotif());
+    }
+
     static SmsSendResult refusAvantEnvoi(String adresse) {
         util.TelephoneCi.Resultat controle = util.TelephoneCi.controler(adresse);
         return controle.isValide() ? null
@@ -661,6 +675,11 @@ public class SmsImpl implements SmsService {
         if (a.startsWith("tel:")) {
             a = a.substring(4);
         }
+        /* retour du 22/11 : un numero etranger est range tel que TelephoneCi le garde (« +32470123456 ») */
+        util.TelephoneCi.Resultat r = util.TelephoneCi.controler(a.startsWith("+") || a.startsWith("00") ? a : "+" + a);
+        if (r.isValide() && r.getLocal().startsWith("+")) {
+            return r.getLocal();
+        }
         if (a.startsWith("+225")) {
             a = a.substring(4);
         } else if (a.startsWith("225")) {
@@ -675,35 +694,75 @@ public class SmsImpl implements SmsService {
     }
 
     @Override
+    public void sendSMS(String message, String origine, String utilisateurId) {
+        sendSMSStatut(message, origine, utilisateurId);
+    }
+
+    @Override
     public String sendSMSStatut(String message) {
+        return sendSMSStatut(message, JournalMessages.ADMINISTRATION, null);
+    }
+
+    /**
+     * Plan du 21/11, point 8.1 : chaque envoi au numero d'administration laisse une ligne dans le journal des messages
+     * (origine, numero, statut, motif, fournisseur ; jamais le texte), y compris un envoi qui n'a pas pu partir.
+     */
+    @Override
+    public String sendSMSStatut(String message, String origine, String utilisateurId) {
         if (StringUtils.isEmpty(sp.mobile)) {
-            return "Non envoyé : aucun numéro d'administration";
+            return tracer(origine, null, "NON_ENVOYE", "Non envoyé : aucun numéro d'administration", null, null,
+                    utilisateurId, "Non envoyé : aucun numéro d'administration");
         }
+        String numero = administration(sp.mobile);
+        String fournisseur = null;
         try {
             SmsProvider provider = smsProviderFactory.current();
             if (provider == null) {
                 LOG.log(Level.WARNING, "Envoi SMS ignore : aucun fournisseur SMS en vigueur pris en charge");
-                return "Non envoyé : aucun fournisseur SMS";
+                return tracer(origine, numero, "NON_ENVOYE", "Non envoyé : aucun fournisseur SMS", null, null,
+                        utilisateurId, "Non envoyé : aucun fournisseur SMS");
             }
+            fournisseur = provider.getCode();
             if (envoisSuspendus()) {
-                return "Non envoyé : envois suspendus";
+                return tracer(origine, numero, "NON_ENVOYE", "Non envoyé : envois suspendus", fournisseur, null,
+                        utilisateurId, "Non envoyé : envois suspendus");
             }
             SmsSendResult result = provider.send(sp.mobile, message, null);
             LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
                     new Object[] { util.TelephoneCi.masquer(sp.mobile), provider.getCode(), result.toLog() });
             if (result.isAccepted()) {
                 coupeCircuit.enregistrerSucces();
-                return "Envoyé";
+                return tracer(origine, numero, "ENVOYE", null, fournisseur, result.getMessageId(), utilisateurId,
+                        "Envoyé");
             }
             signalerRefus(result, provider.getCode(),
                     "Envoi SMS admin refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
                     detailAdministration(sp.mobile, result.getErrorMessage()));
-            return "Échec";
+            return tracer(origine, numero, "ECHEC",
+                    StringUtils.defaultIfBlank(result.getErrorMessage(), result.getErrorCode()), fournisseur, null,
+                    utilisateurId, "Échec");
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
             reportSupport("ERROR", "Exception lors de l'envoi SMS admin : " + ex.getMessage(), null, ex);
-            return "Échec";
+            return tracer(origine, numero, "ECHEC", "Erreur technique à l'envoi", fournisseur, null, utilisateurId,
+                    "Échec");
         }
+    }
+
+    /** Numero d'administration sous la forme locale (tel quel s'il n'est pas reconnu). */
+    static String administration(String mobile) {
+        util.TelephoneCi.Resultat r = util.TelephoneCi.controler(mobile);
+        return r.isValide() ? r.getLocal() : StringUtils.trimToNull(mobile);
+    }
+
+    private String tracer(String origine, String numero, String statut, String motif, String fournisseur,
+            String messageId, String utilisateurId, String retour) {
+        try {
+            journalMessages.tracerAdministration(origine, numero, statut, motif, fournisseur, messageId, utilisateurId);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Trace du SMS d'administration non enregistree", e);
+        }
+        return retour;
     }
 
     /**

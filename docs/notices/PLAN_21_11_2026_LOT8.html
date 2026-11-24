@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 8 (facturation, période unique, prévisions à l'ouverture, icônes)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  h3 { color: #1E5FA8; font-size: 15px; margin-bottom: 4px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 8</h1>
+<p class="sous">Retours du 22/11 (5 points, plus « aucun relief » sur les boutons-icônes). Branche <code>plan/21112026</code>, commits <code>edc470574</code> et <code>87146cf2f</code>, rien de fusionné. Version déployée sur domain2 (copie <code>appaul</code>, envois coupés). Tests d'écran sur domain4 (base de test <code>laborex_audit</code>), un par un.</p>
+
+<div class="ok">Tout est fait. Chaque nouveau test échouait sur l'ancien code et passe maintenant :
+<ul>
+<li>icônes et relief de la vente : 2 sur 10 avant, 13 sur 13 après ;</li>
+<li>facture, groupe de tiers payant : 0 sur 9 avant, 23 sur 23 après ;</li>
+<li>« Déjà facturé ? » par « contient » : 4 sur 9 avant, 9 sur 9 après ;</li>
+<li>période unique sur 7 écrans : 0 sur 2 avant, 51 sur 51 après ;</li>
+<li>prévisions à l'ouverture : 5 sur 10 avant, 20 sur 20 après.</li>
+</ul>
+Tests unitaires : 16 sur 16. Non-régression : 38 tests d'écran rejoués un par un, tous verts, sauf deux échecs qui existaient déjà le 19/11, avant ce lot (détail en fin de page).</div>
+
+<h2>1. Facturation &gt; Factures</h2>
+<ul>
+<li><b>Icônes</b> : « Supprimer la sélection » (corbeille rouge ; l'ancienne classe <code>cancelicon</code> n'existait nulle part) et « Relevé FNE » (document à sceau).</li>
+<li><b>Groupe de tiers payant</b> : nouvelle liste « Groupe » avant le tiers payant. Elle s'accorde avec les autres champs :
+  <ul>
+  <li>le groupe choisi restreint la liste des tiers payants à ceux du groupe ;</li>
+  <li>un tiers payant du groupe déjà choisi est gardé, un tiers payant d'un autre groupe est retiré ;</li>
+  <li>groupe effacé : la liste des tiers payants redevient complète, le tiers payant reste ;</li>
+  <li>le groupe s'applique à la liste, à la pagination, au relevé imprimé et à l'export Excel.</li>
+  </ul></li>
+<li><b>Rechercher</b> vient juste après le champ de recherche.</li>
+<li><b>Période</b> : 205 px au lieu de 411.</li>
+<li><b>Colonnes</b> : « Code facture » devient <b>NUMERO</b>, « Nombre de dossiers » devient <b>BONS</b>. Numéro, organisme, période et date en gras ; montant brut en bleu gras, payé en vert gras, restant en rouge gras.</li>
+</ul>
+
+<h2>2. Sélecteur de période unique sur 7 écrans</h2>
+<table>
+<tr><th>Menu</th><th>Écran</th><th>Fichier</th></tr>
+<tr><td>Service client</td><td>Ventes terminées</td><td><code>vente/VentesFinis.js</code></td></tr>
+<tr><td>Gestion courante</td><td>Bons par organisme, onglet Pointage (l'onglet Bons l'avait déjà)</td><td><code>sm_user/journalvente/PointageBons.js</code></td></tr>
+<tr><td>Gestion courante</td><td>Articles vendus récap</td><td><code>configmanagement/famille/ArticleVenduBis.js</code></td></tr>
+<tr><td>Gestion courante</td><td>Liste des articles vendus</td><td><code>configmanagement/famille/ArticleVendu.js</code></td></tr>
+<tr><td>Analyse de gestion</td><td>Statistique sur TVA2</td><td><code>Dashboard/TvaStat.js</code></td></tr>
+<tr><td>Analyse de gestion</td><td>Tableau de bord du pharmacien 2</td><td><code>Dashboard/TableauPhama.js</code></td></tr>
+<tr><td>Analyse de gestion</td><td>Récapitulatif activité (rapport d'activité)</td><td><code>Report/activities/rapportactivite.js</code></td></tr>
+</table>
+<p>Même largeur partout (205 px, comme en facturation), mêmes cases « Du » / « Au » dans le calendrier. À 1280×720, la barre de « Ventes terminées » débordait avec un champ de 274 px : à 205 px, elle tient.</p>
+
+<h2>3. Prévisions calculées à l'ouverture</h2>
+<p><b>Réponse à la question : oui, c'est fait.</b></p>
+<ul>
+<li>À l'ouverture d'une <b>commande en cours</b> ou d'une <b>suggestion</b>, ses produits sans prévision du jour, ou sans le détail du calcul, sont recalculés tout de suite (pour eux seuls, environ 1 s pour 3 produits). Rien à faire dans le menu « Recalculer ».</li>
+<li>La <b>fenêtre d'un produit</b> recalcule aussi le produit avant de l'afficher s'il n'a pas son détail. Le message « disponible au prochain recalcul » ne paraît plus.</li>
+<li>Défaut trouvé en chemin et corrigé : la fenêtre relisait l'ancienne ligne, parce que sa lecture était faite avant le recalcul, dans la même transaction (lecture répétable de MariaDB). Désormais le besoin est lu hors transaction, le recalcul est fait, puis la fiche est lue.</li>
+<li>Un recalcul complet lancé en même temps ne bloque rien : le recalcul des produits se fait dans sa propre transaction, et un échec est ignoré.</li>
+</ul>
+
+<h2>4. Icônes et relief de la vente</h2>
+<ul>
+<li>Icônes dessinées sur les boutons restants : FICHE CLIENT, AFFICHER NET A PAYER, RETOUR, les deux boutons de la carte INFOS ASSURE, le bouton de la carte INFOS AYANT DROIT, « Générer » et « Retirer » du numéro de bon (vente au comptant et vente en dépôt).</li>
+<li><b>Relief</b> des boutons-icônes des cartes assuré et ayant droit :
+  <ul>
+  <li>un vrai cadre de bouton : fond légèrement dégradé, bord bleu clair, coins arrondis, ombre portée ;</li>
+  <li>au survol, le bord fonce et l'ombre grandit ;</li>
+  <li>au clic, le bouton s'enfonce.</li>
+  </ul></li>
+</ul>
+
+<h2>5. « Déjà facturé ? »</h2>
+<ul>
+<li>Le numéro de bon est cherché par <b>« contient »</b> (avant : à l'identique) : environ 0,1 s sur la copie <code>appaul</code>.</li>
+<li>« Fermer », ou un nouveau clic sur « Déjà facturé ? », vide la recherche : champ, liste et message reviennent à l'état d'origine.</li>
+</ul>
+
+<h2>Endroits où la donnée apparaît et tests de rapprochement</h2>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Factures d'un groupe</td><td>liste à l'écran (total et organisme de chaque ligne), base, export Excel (lignes de facture), relevé PDF (numéros)</td><td><code>facturation/test-facture-groupe-2211.js</code></td></tr>
+<tr><td>Tiers payants d'un groupe</td><td>liste déroulante = tiers payants actifs du groupe en base ; groupe + tiers payant : total = base</td><td>idem</td></tr>
+<tr><td>Bons « déjà facturés »</td><td>bons affichés = bons de la base dont le numéro contient le morceau (ventes closes, non annulées)</td><td><code>facturation/test-deja-facture-contient-2211.js</code></td></tr>
+<tr><td>Période</td><td>champ affiché = champs Du / Au = dates de la requête envoyée, sur les 7 écrans, par saisie et par calendrier</td><td><code>ergonomie/test-champ-periode-7-ecrans-2211.js</code></td></tr>
+<tr><td>Prévision d'un produit</td><td>ligne recalculée à l'ouverture = ligne du calcul complet (méthode, prévu, écart type, fiabilité, historique, stock, en cours, équivalents, couverture, recommandé, détail), pour la commande et la suggestion ; fenêtre = base</td><td><code>reappro/test-prevision-ouverture-2211.js</code></td></tr>
+</table>
+
+<h2>Règles de calcul et tests de cohérence</h2>
+<table>
+<tr><th>Règle</th><th>Test (graine fixe)</th></tr>
+<tr><td>Recherche « contient » : motif échappé (<code>%</code>, <code>_</code>, <code>\</code>), aucun faux positif ni oubli face à une recherche directe</td><td><code>DejaFactureTest</code>, 20 000 cas</td></tr>
+<tr><td>Paramètre « groupe » lu de la même façon partout (identifiant, ou tous les groupes si vide ou illisible)</td><td><code>FiltreGroupeCoherenceTest</code>, 20 000 cas</td></tr>
+<tr><td>Calcul restreint à quelques produits : une marque par produit, numérotée à la suite, paramètres dans le même ordre</td><td><code>PrevisionProduitsRestreintsTest</code>, 5 000 cas</td></tr>
+</table>
+
+<h2>Traces attendues (bilan)</h2>
+<ul>
+<li>Facturation, « Déjà facturé ? », période : lecture seule ; nombre de factures et de détails inchangé.</li>
+<li>Prévisions :
+  <ul>
+  <li>seules les lignes des produits ouverts sont réécrites, une ligne par produit, jamais en double ;</li>
+  <li>le produit témoin et toutes les autres lignes sont intacts ;</li>
+  <li>commande, suggestion et stocks inchangés ;</li>
+  <li>à la réouverture, rien n'est recalculé (0 produit).</li>
+  </ul></li>
+<li>Vente : l'ouverture de l'écran n'écrit aucune vente.</li>
+</ul>
+
+<h2>Cas variés couverts</h2>
+<ul>
+<li>Groupe le plus fourni (889 factures, plusieurs tiers payants), tiers payant du groupe et hors groupe, groupe effacé.</li>
+<li>Morceau du milieu d'un numéro (ni le début, ni le numéro entier).</li>
+<li>Prévisions : méthodes moyenne, saison, Holt et Holt-Winters ; quantités 1, 2, 3, 4 et 5 ; commande et suggestion.</li>
+<li>Écrans en 1366×768, 1280×720 et 1920×1080.</li>
+</ul>
+
+<h2>Non-régression</h2>
+<p>Rejoués un par un sur domain4 après le déploiement :</p>
+<table>
+<tr><th>Domaine</th><th>Tests</th><th>Résultat</th></tr>
+<tr><td>Facturation</td><td>en-tête de facture, relevé de groupe Excel, déjà facturé, sortie de « créer facture », bons organisme, champ période (facturation et 7.2)</td><td>20, 45, 16, 29, 21, 152, 39 : tous verts</td></tr>
+<tr><td>Pointage des bons</td><td>pointage, corriger, délais, par groupe</td><td>47, 19, 9, 19 : tous verts</td></tr>
+<tr><td>Tiers payants</td><td>changer de tiers payant en vente, tiers payants désactivés, nouveau tiers payant principal, recherche client sans tiers payant</td><td>7, 5, 10, 5 : tous verts</td></tr>
+<tr><td>Écrans à période</td><td>articles vendus, ventes terminées (colonnes, icônes, postes), filtres de plusieurs menus, hauteur des écrans</td><td>tous verts</td></tr>
+<tr><td>Vente</td><td>style de la vente, vente en dépôt, roue des boutons</td><td>64, 31, 14 : tous verts</td></tr>
+<tr><td>Prévisions</td><td>explication, dernière vente, onglet, analyse, relecture de l'en-cours, analyse de commande, paramètres, risque de rupture</td><td>tous verts</td></tr>
+<tr><td>Commandes et suggestions</td><td>boutons de la commande, bandeau de nettoyage, dispo ABC, commande en cours</td><td>11, 22, 18, 5 : tous verts</td></tr>
+<tr><td>Analyse de gestion</td><td>Statistique TVA 2, Tableau de bord 2</td><td>18 sur 21 et 11 sur 13 : mêmes échecs que le 19/11 (voir note)</td></tr>
+</table>
+<div class="note">
+<ul>
+<li><b>En-tête de facture</b> : il cherchait le bouton « rechercher » par son texte. En le déplaçant, je l'avais renommé « Rechercher ». Le libellé d'origine est remis : 20 sur 20.</li>
+<li><b>Pointage par groupe</b> : le contrôle « période inversée, message » ne peut plus se produire, car le champ unique remet la période dans l'ordre, comme pour le solde des différés au lot 7. Le test vérifie maintenant la remise en ordre : 19 sur 19.</li>
+<li><b>TVA 2 et Tableau de bord 2</b> : ces deux tests tapaient dans les anciens champs Du et Au, désormais masqués. Ils passent maintenant par le champ unique.
+  <ul>
+  <li>Les échecs restants sont identiques au journal du 19/11, d'avant ce lot.</li>
+  <li>TVA 2 : pas de vente le 12/11 dans la base de test ; délai dépassé dans la partie « motifs d'annulation ».</li>
+  <li>Tableau de bord 2 : jeu d'essai incomplet dans cette base (pas de jour « DPCI sans LABOREX-CI ») ; PDF au-delà de 120 s.</li>
+  </ul></li>
+</ul>
+</div>
+
+<div class="note">
+<ul>
+<li>Les contrôles du relief ont été ajoutés au test des icônes après le passage sur l'ancien code ; ils échouaient tant que le style n'était pas appliqué (ombre absente). Le relief est vérifié sur un bouton témoin de la même classe, posé dans l'écran de vente, que la vraie souris survole puis enfonce. Les boutons des cartes n'apparaissent qu'avec un client assuré choisi, ce qui ouvrirait une vente.</li>
+<li>« Bons par organisme » : la liste de l'onglet Pointage ne se recharge qu'avec un organisme ou un groupe choisi, comme avant. Le test en choisit un.</li>
+</ul>
+</div>
+</body>
+</html>

@@ -96,6 +96,13 @@ public class ClientServiceImpl implements ClientService {
     @javax.annotation.Resource
     private javax.ejb.SessionContext sessionContext;
 
+    /** Code interne d'un nouveau client, jamais déjà porté (21/11 : l'ancien, tiré de l'heure, se répétait). */
+    private String codeInterneLibre() {
+        return util.CodeInterneClient.libre(code -> !em
+                .createQuery("SELECT t.lgCLIENTID FROM TClient t WHERE t.strCODEINTERNE = :code", String.class)
+                .setParameter("code", code).setMaxResults(1).getResultList().isEmpty());
+    }
+
     public EntityManager getEmg() {
         return em;
 
@@ -116,7 +123,7 @@ public class ClientServiceImpl implements ClientService {
             tc.setDtCREATED(tc.getDtUPDATED());
             tc.setEmail(clientLambda.getEmail());
             tc.setBoolCONSENTSMS(clientLambda.consentSmsValeur());
-            tc.setStrCODEINTERNE(DateConverter.getShortId(6));
+            tc.setStrCODEINTERNE(codeInterneLibre());
             getEmg().persist(tc);
             createCompteClient(tc);
             tp.setClient(tc);
@@ -177,7 +184,7 @@ public class ClientServiceImpl implements ClientService {
             tc.setStrSTATUT(Constant.STATUT_ENABLE);
             tc.setDtUPDATED(new Date());
             tc.setDtCREATED(tc.getDtUPDATED());
-            tc.setStrCODEINTERNE(DateConverter.getShortId(6));
+            tc.setStrCODEINTERNE(codeInterneLibre());
             tc.setEmail(clientLambda.getEmail());
             tc.setBoolCONSENTSMS(clientLambda.consentSmsValeur());
             /* Date de naissance facultative (30/09) : retenue seulement si elle est possible. */
@@ -477,6 +484,11 @@ public class ClientServiceImpl implements ClientService {
      */
     @Override
     public List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot) {
+        return findTiersPayants(query, type, carnetDepot, null);
+    }
+
+    @Override
+    public List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot, Integer groupeId) {
         try {
             EntityManager emg = this.getEmg();
             List<Predicate> predicates = new ArrayList<>();
@@ -496,6 +508,11 @@ public class ClientServiceImpl implements ClientService {
             } else if (Boolean.FALSE.equals(carnetDepot)) {
                 predicates.add(
                         cb.or(cb.isNull(root.get(TTiersPayant_.isDepot)), cb.isFalse(root.get(TTiersPayant_.isDepot))));
+            }
+            if (groupeId != null) {
+                /* retour du 22/11 : selecteur de groupe de la liste des factures */
+                predicates.add(
+                        cb.equal(root.get(TTiersPayant_.lgGROUPEID).get(TGroupeTierspayant_.lgGROUPEID), groupeId));
             }
 
             if (query != null && !query.trim().isEmpty()) {
@@ -756,6 +773,10 @@ public class ClientServiceImpl implements ClientService {
         client.setDtUPDATED(new Date());
         client.setStrCODEPOSTAL(clientDTO.getStrCODEPOSTAL());
         client.setStrADRESSE(clientDTO.getStrADRESSE());
+        /* plan du 21/11, point 7 : telephone seulement s'il fait partie de l'envoi */
+        if (clientDTO.getStrTELEPHONE() != null) {
+            client.setStrTELEPHONE(StringUtils.trimToNull(clientDTO.getStrTELEPHONE()));
+        }
         client.setLgVILLEID(findVilleById(clientDTO.getLgVILLEID()));
         client.setRemise(findRemiseById(clientDTO.getRemiseId()));
         try {
@@ -778,9 +799,11 @@ public class ClientServiceImpl implements ClientService {
         client.setDtUPDATED(new Date());
         client.setStrCODEPOSTAL(clientDTO.getStrCODEPOSTAL());
         client.setStrADRESSE(clientDTO.getStrADRESSE());
+        /* plan du 21/11, point 7 */
+        client.setStrTELEPHONE(StringUtils.trimToNull(clientDTO.getStrTELEPHONE()));
         client.setLgTYPECLIENTID(findTypeClientById(clientDTO.getLgTYPECLIENTID()));
         client.setLgVILLEID(findVilleById(clientDTO.getLgVILLEID()));
-        client.setStrCODEINTERNE(DateConverter.getShortId(6));
+        client.setStrCODEINTERNE(codeInterneLibre());
         client.setRemise(findRemiseById(clientDTO.getRemiseId()));
 
         try {
@@ -1444,6 +1467,11 @@ public class ClientServiceImpl implements ClientService {
             if (tauxInvalide != null) {
                 return json.put("success", false).put("msg", tauxInvalide);
             }
+            // plan du 21/11, point 7 : telephone controle (numero ivoirien) et normalise avant l'enregistrement
+            String telephoneInvalide = controleTelephone(client);
+            if (telephoneInvalide != null) {
+                return json.put("success", false).put("msg", telephoneInvalide);
+            }
             // Espaces de fin retires cote serveur, avant tout controle : sans cela « KONAN »
             // et « KONAN » restaient deux clients distincts pour le controle d'unicite.
             normaliserIdentite(client);
@@ -1522,6 +1550,30 @@ public class ClientServiceImpl implements ClientService {
             return json;
 
         }
+    }
+
+    /**
+     * Plan du 21/11, point 7 : telephone du client assure (fenetre « Modifier infos client »). Absent de l'envoi : rien
+     * ne change ; vide : efface ; sinon numero ivoirien exige, enregistre au format local a dix chiffres (meme regle
+     * que le client standard, util.TelephoneCi). Rend le message a afficher, ou null si tout est correct.
+     */
+    static String controleTelephone(ClientDTO client) {
+        String saisie = client.getStrTELEPHONE();
+        if (saisie == null) {
+            /* champ absent de l'envoi (autres ecrans) : le telephone de la fiche n'est pas touche */
+            return null;
+        }
+        if (saisie.trim().isEmpty()) {
+            client.setStrTELEPHONE("");
+            return null;
+        }
+        util.TelephoneCi.Resultat t = util.TelephoneCi.controler(saisie);
+        if (!t.isValide()) {
+            /* le numero saisi n'est ni journalise ni repris dans le message */
+            return "Téléphone : numéro invalide. " + util.TelephoneCi.aide();
+        }
+        client.setStrTELEPHONE(t.getLocal());
+        return null;
     }
 
     /**

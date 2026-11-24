@@ -956,6 +956,26 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             this.toggle(val === true);
                                             return this;
                                         }
+                                    }, {
+                                        /* plan du 21/11, point 12 : stock reserve sur la liste des ecarts, lu au
+                                         * moment de l'impression (edition servie par l'API REST) */
+                                        xtype: 'button',
+                                        id: 'chk_show_reserve_print',
+                                        enableToggle: true,
+                                        pressed: false,
+                                        icon: 'resources/images/icons/fam/cross.gif',
+                                        text: '<span style="color:#0000CC;font-weight:bold;">Afficher réserve : NON</span>',
+                                        tooltip: 'Ajoute la colonne « Stock réserve » à la liste des écarts : le stock en réserve '
+                                                + 'au moment de l\'impression.',
+                                        toggleHandler: function (btn, pressed) {
+                                            btn.setIcon(pressed ? 'resources/images/icons/fam/accept.png'
+                                                    : 'resources/images/icons/fam/cross.gif');
+                                            btn.setText('<span style="color:#0000CC;font-weight:bold;">Afficher réserve : '
+                                                    + (pressed ? 'OUI' : 'NON') + '</span>');
+                                        },
+                                        getValue: function () {
+                                            return this.pressed === true;
+                                        }
                                     }, '-'],
                                 listeners: {
                                     /* 'Cloturer l'inventaire' est place DANS la barre de
@@ -1742,6 +1762,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         var chkShowStock = Ext.getCmp('chk_show_stock_print');
         var showStock = (chkShowStock && chkShowStock.getValue()) ? 'true' : 'false';
         var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + ref + "&str_NAME_FILE=" + str_NAME_FILE + '&P_ZONE_ID=' + P_ZONE_ID + '&P_FAMILLEARTICLE_ID=' + P_FAMILLEARTICLE_ID + '&P_GROSSISTE_ID=' + P_GROSSISTE_ID + "&str_FILTER=" + str_FILTER + "&lg_USER_ID=" + lg_USER_ID + "&showStock=" + showStock;
+        /* plan du 21/11, point 12 : « Afficher réserve : OUI » -> liste des ecarts par l'API REST, avec la colonne du
+         * stock reserve au moment de l'impression ; sans la reserve, l'edition reste celle d'avant */
+        var chkShowReserve = Ext.getCmp('chk_show_reserve_print');
+        if (str_NAME_FILE === "ecart" && chkShowReserve && chkShowReserve.getValue()) {
+            linkUrl = '../api/v1/inventaire/ecarts/pdf?' + Ext.Object.toQueryString({lg_INVENTAIRE_ID: ref,
+                P_ZONE_ID: P_ZONE_ID || '', P_FAMILLEARTICLE_ID: P_FAMILLEARTICLE_ID || '', P_GROSSISTE_ID: P_GROSSISTE_ID || '',
+                str_FILTER: str_FILTER || '', lg_USER_ID: lg_USER_ID || '', showStock: showStock, showReserve: 'true'});
+        }
         if (str_NAME_FILE === "alerte") {
 
             linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + ref + "&str_NAME_FILE=" + str_NAME_FILE + "&P_ALERTE=" + KEY_MAX_VALUE_INVENTAIRE + '&P_ZONE_ID=' + P_ZONE_ID + '&P_FAMILLEARTICLE_ID=' + P_FAMILLEARTICLE_ID + '&P_GROSSISTE_ID=' + P_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID + "&showStock=" + showStock;

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plan du 21/11/2026 : compte rendu du lot 9 (fiche article, inventaire, règlements fournisseurs, journal des messages, alertes, ventes annulées)</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2d3d; max-width: 1100px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 14px; }
+  h1 { color: #1E5FA8; font-size: 24px; margin-bottom: 4px; }
+  h2 { color: #fff; background: #1E5FA8; padding: 6px 12px; border-radius: 4px; font-size: 17px; margin-top: 30px; }
+  h3 { color: #1E5FA8; font-size: 15px; margin-bottom: 4px; }
+  .sous { color: #5a6b7d; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+  th, td { border: 1px solid #d5dde6; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef3f9; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .ok { background: #eaf7ee; border-left: 4px solid #2e9d57; padding: 8px 12px; margin: 10px 0; }
+  .note { background: #fff8e6; border-left: 4px solid #d99a00; padding: 8px 12px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>Plan du 21/11/2026 : compte rendu du lot 9</h1>
+<p class="sous">Retours du 22/11 (sélecteur de date et 8 points). Branche <code>plan/21112026</code>, <b>rien n'est encore commité</b> (voir la note en fin de page), rien de fusionné. Essais sur la copie de travail <code>laborex_audit</code> (domain4, port 11090).</p>
+
+<div class="ok">Tout est fait. Chaque nouveau test d'écran échouait sur l'ancien code et passe maintenant :
+<ul>
+<li>sélecteur de date, saisie de page de l'inventaire, habillage, menus triés : 4 sur 10 avant, 15 sur 15 après ;</li>
+<li>fiche article (droits, « OK » du recalcul, « Créé le », aperçu sur une ligne) : 5 sur 13 avant, 17 sur 17 après ;</li>
+<li>règlements fournisseurs par groupe : 4 sur 7 avant, 28 sur 28 après ;</li>
+<li>analyse du journal des messages : 2 sur 3 avant, 14 sur 14 après ;</li>
+<li>alerte « Articles créés » : 1 sur 2 avant, 22 sur 22 après ;</li>
+<li>export des ventes annulées : 1 sur 2 avant, 20 sur 20 après.</li>
+</ul>
+Tests unitaires : 12 sur 12, dont 2 nouveaux tests de cohérence. Non-régression : 43 tests d'écran existants repassés. <b>Une régression trouvée et corrigée</b> : le volet de navigation restait ouvert après le choix d'un écran (détail en bas de page). Les autres échecs existaient déjà sur l'ancien code.</div>
+
+<h2>0. Nouveau sélecteur de date</h2>
+<p>Les raccourcis du calendrier (Aujourd'hui, Hier, Ce mois, Mois précédent) ne sont plus des boutons bleus ExtJS : fond transparent, sans dégradé ni bordure, texte sombre. Au survol, gris clair. Le changement vaut pour tous les écrans qui ont ce sélecteur (<code>vente-theme.css</code>).</p>
+
+<h2>1. Fiche article</h2>
+<ul>
+<li><b>Après le recalcul des seuils</b>, « OK » relit la liste, avec la même recherche et la même page. L'aperçu ouvert est relu aussi.</li>
+<li><b>Droits</b> :
+  <ul>
+  <li>« Importation » : « Autorisation d'importation fiche article » ;</li>
+  <li>« Recalculer seuils », « MAJ SEUIL » et « MAJ SÉLECTIVE » : « Autorisation de mise à jour sur fiche article » ;</li>
+  <li>« Créer un Article » : « Autorisation de création article ».</li>
+  </ul>
+  Ce sont les trois droits qui existaient déjà, renommés (migration <code>V7.6.41.2199</code>). Le droit à part « recalculer seuils » est retiré de la liste. Sans le droit, le bouton est masqué et le serveur refuse l'opération.</li>
+<li><b>Créé le</b> : la date de création et l'utilisateur qui a créé l'article, dans le détail de l'article et dans l'aperçu du double clic. Si aucun créateur n'est enregistré, seule la date s'affiche.</li>
+<li><b>Aperçu du double clic</b> : chaque repère tient sur une ligne. La colonne de droite prend la place libre entre le graphe et les données.</li>
+</ul>
+<div class="note">Dans <code>laborex_audit</code> comme chez appaul, ces trois droits sont donnés à <b>tous les rôles</b>, y compris Vendeur et Caissière. Pour réserver ces boutons à certains rôles, il faut retirer les droits aux autres rôles dans la gestion des rôles.</div>
+
+<h2>2. Saisie d'inventaire : numéro de page</h2>
+<ul>
+<li>La case « Page [ ] sur N » revient dans la barre de pagination de la saisie d'inventaire. On tape le numéro, puis Entrée. Les numéros restent à côté.</li>
+<li><b>Cause trouvée</b> : un écouteur de cet écran stoppait l'événement de changement de page. Les numéros ne se mettaient donc jamais à jour, et la barre affichait seulement « 1 », comme sur la capture. Le redessin des numéros passe maintenant en premier. La correction vaut pour tout écran qui aurait le même écouteur.</li>
+<li>Seule la saisie d'inventaire garde la case de saisie (liste <code>ECRANS_SAISIE_PAGE</code> dans <code>correctifs-affichage.js</code>). Les autres écrans gardent les numéros seuls.</li>
+</ul>
+
+<h2>3. État de contrôle des achats, règlements fournisseurs</h2>
+<ul>
+<li><b>À régler</b> :
+  <ul>
+  <li>nouveau filtre « groupe grossiste » ;</li>
+  <li>les grossistes sont regroupés par groupe. L'en-tête de chaque groupe donne le nombre de grossistes, le nombre de BL et le total dû ;</li>
+  <li>un clic sur l'en-tête replie ou déplie le détail du groupe.</li>
+  </ul></li>
+<li><b>Historique</b> devient « Règlements effectués », avec un filtre « groupe grossiste ».</li>
+<li><b>Mode de règlement par défaut</b> : chèque.</li>
+</ul>
+<div class="note">J'ai compris « au clic sur un groupe, régler, on aura les détails du groupe » comme le dépliage du groupe par son en-tête. Le règlement se fait toujours grossiste par grossiste. Dites-le si vous voulez régler un groupe entier d'un coup.</div>
+
+<h2>4. correctifs-affichage</h2>
+<p><code>reglementmanager</code> (Liste des règlements) et <code>ventedepot</code> (Vente dépôt) sont déclarés : ils prennent l'habillage des listes et collent à leur conteneur, sans titre en double. L'écran de saisie d'une vente dépôt garde son propre dessin.</p>
+
+<h2>5. Prestige Navigation : sous-menus par ordre alphabétique</h2>
+<p>Oui. Les sous-menus du volet sont triés par ordre alphabétique, sans tenir compte des accents, des majuscules ni des espaces en double. Exemple : « Rapport  de Gestion » se range après « Rapport activité ». Le tri vaut aussi pour les thèmes de menu A, C et D. Les volets longs (Analyse de gestion, 43 entrées) défilent par leurs flèches, comme avant.</p>
+
+<h2>6. Journal des messages</h2>
+<ul>
+<li><b>Analyse</b>, sur la sélection entière (toutes pages) :
+  <ul>
+  <li>taux d'envoi = envoyés / messages ;</li>
+  <li>taux de réception = distribués / envoyés ;</li>
+  <li>taux de lecture = lus / distribués, WhatsApp seulement (le SMS ne donne pas la lecture) ;</li>
+  <li>échecs et messages en attente, en nombre et en pourcentage.</li>
+  </ul>
+  Le lien « Voir la répartition » ouvre la distribution par canal et par origine.</li>
+<li><b>Imprimer</b> : un PDF avec l'analyse, la répartition et la liste des messages (5 000 au plus, l'export CSV donne tout).</li>
+<li><b>Nouveau sélecteur de période</b>.</li>
+</ul>
+
+<h2>7. Tableau de bord, alertes : articles créés</h2>
+<p>Nouvelle alerte « n articles créés ces N derniers jours » (30 jours par défaut, réglable dans « Périodes »). Un clic ouvre la liste : produit, CIP, date de création, créateur, grossiste, prix. La liste montre les 500 plus récents ; « Imprimer » donne la liste complète en PDF. « Ouvrir la fiche article » mène à la fiche.</p>
+
+<h2>8. Ventes annulées : export Excel et CSV</h2>
+<p>Bouton « Exporter » &gt; « Excel (.xlsx) » ou « CSV (.csv) ». L'export reprend toutes les pages, avec les mêmes critères et le même ordre que l'écran, plus une ligne TOTAL (nombre de ventes et somme). Le CSV est en UTF-8 avec « ; », lisible directement par Excel.</p>
+
+<h2>Contrôles</h2>
+<h3>Où la donnée apparaît, et le test de rapprochement qui compare</h3>
+<table>
+<tr><th>Donnée</th><th>Endroits comparés</th><th>Test</th></tr>
+<tr><td>Date et auteur de création d'un article</td><td>aperçu (double clic), détail de l'article, alerte, liste et PDF de l'alerte, base (<code>t_famille.dt_CREATED</code>, notification de création)</td><td><code>stock/test-fiche-article-lot9-2211.js</code>, <code>retours/test-alerte-articles-crees-2211.js</code></td></tr>
+<tr><td>Seuil et quantité de réappro après « OK »</td><td>liste de la fiche article, base</td><td><code>stock/test-fiche-article-lot9-2211.js</code></td></tr>
+<tr><td>Dû par grossiste et par groupe</td><td>lignes, en-têtes de groupe, barre du total, vue filtrée par groupe, base</td><td><code>achats/test-reglements-groupes-2211.js</code></td></tr>
+<tr><td>Règlements effectués par groupe</td><td>écran filtré, base</td><td><code>achats/test-reglements-groupes-2211.js</code></td></tr>
+<tr><td>Analyse du journal</td><td>tuiles, tableaux de répartition, export CSV recompté, PDF, calcul fait à part sur le jeu d'essai</td><td><code>campagnes/test-journal-analyse-2211.js</code></td></tr>
+<tr><td>Nombre d'articles créés</td><td>alerte, titre de la fenêtre, lignes, TOTAL du PDF, base, pour 1, 30, 40 et 365 jours</td><td><code>retours/test-alerte-articles-crees-2211.js</code></td></tr>
+<tr><td>Ventes annulées</td><td>écran (première page et total), Excel, CSV, base</td><td><code>vente/test-export-ventes-annulees-2211.js</code></td></tr>
+<tr><td>Page de l'inventaire</td><td>case « Page », numéro actif, requête envoyée (start = 2 × 30)</td><td><code>ergonomie/test-lot9-affichage-2211.js</code></td></tr>
+</table>
+<h3>Règles de calcul, et le test de cohérence qui les vérifie</h3>
+<ul>
+<li>Analyse du journal : envoyés + échecs + attente = messages ; lus ≤ distribués ≤ envoyés ; taux à une décimale, 0 si le dénominateur est nul ; lecture sur WhatsApp seulement ; somme des groupes = ensemble. Vérifié sur 4 000 sélections tirées au hasard (graine fixe) : <code>JournalMessagesAnalyseCoherenceTest</code>.</li>
+<li>Export des ventes annulées : une ligne par vente, TOTAL = somme des montants, montant numérique dans Excel, CSV identique au classeur, formules neutralisées. Vérifié sur 300 listes tirées au hasard : <code>VentesAnnuleesExportCoherenceTest</code>.</li>
+<li>Groupes de règlement : somme des groupes = total, chaque grossiste dans un seul groupe. Vérifié à l'écran sur les 5 groupes de la copie.</li>
+</ul>
+<h3>Traces attendues (tests de bilan)</h3>
+<ul>
+<li>Fiche article : droits du rôle et seuils des articles remis à l'identique.</li>
+<li>Règlements fournisseurs : aucune écriture (BL, règlements, journal des règlements, caisse) ; date de départ remise.</li>
+<li>Journal : 19 messages d'essai retirés, tables à leur compte d'avant.</li>
+<li>Alerte : préférences du tableau de bord de l'utilisateur remises à l'identique.</li>
+<li>Ventes annulées : aucune écriture (ventes, motifs, mouvements).</li>
+</ul>
+<h3>Cas variés couverts</h3>
+<ul>
+<li>Articles avec et sans créateur enregistré ; période sans article (1 jour), 7, 102 et 1 309 articles (liste écourtée à 500, PDF complet).</li>
+<li>Cinq groupes de grossistes, dont un groupe de 9 grossistes et des groupes d'un seul ; un groupe replié puis déplié.</li>
+<li>Journal : 13 WhatsApp à 7 états différents et 6 SMS à 3 statuts différents, 5 origines ; filtre sur un canal.</li>
+<li>Ventes annulées : un mois (147 ventes, 10 pages), un jour (1 vente), une recherche.</li>
+<li>Inventaire de 7 pages : saisie de la page 3, puis clic sur la dernière.</li>
+<li>Droits retirés puis rendus.</li>
+</ul>
+
+<h2>Non-régression</h2>
+<p>43 tests d'écran existants, passés un par un sur le nouveau code : menus, thèmes, tableau de bord, sélecteurs de période, règlements fournisseurs, fiche article, inventaire, ventes, caisse, droits. 37 passent entièrement. Chaque échec a été repassé sur l'ancien code (WAR d'avant le lot 9).</p>
+<table>
+<tr><th>Test</th><th>Nouveau code</th><th>Ancien code</th><th>Conclusion</th></tr>
+<tr><td><code>ergonomie/test-champ-periode-7-ecrans-2211.js</code></td><td>36 sur 37</td><td>51 sur 51</td><td><b>Régression du lot 9, corrigée</b> : 51 sur 51 après correction.</td></tr>
+<tr><td><code>retours/test-style-lots-0510.js</code></td><td>230 sur 232</td><td>230 sur 232</td><td>Déjà présent : <code>retourfrsmanager</code> et <code>ajustementmanager</code> débordent.</td></tr>
+<tr><td><code>retours/test-tva-et-motifs-rapides.js</code></td><td>18 sur 21</td><td>18 sur 21</td><td>Déjà présent : la copie n'a pas de vente le 12/11/2026, date figée dans le test.</td></tr>
+<tr><td><code>retours/test-ergonomie-ecrans.js</code></td><td>2 sur 3</td><td>2 sur 3</td><td>Déjà présent : 21 éléments de barre d'outils coupés au bord de l'écran, les mêmes.</td></tr>
+<tr><td><code>facturation/test-journal-reglement-total-1511.js</code></td><td>2 sur 3</td><td>2 sur 3</td><td>Constat connu, reproduit par le test (déjà ouvert).</td></tr>
+</table>
+<h3>La régression : le volet de navigation restait ouvert</h3>
+<p>Avec le tri alphabétique, le choix d'un écran dans le sous-menu flottant fermait le sous-menu mais pas le volet glissant. Le volet restait par-dessus l'écran et prenait les clics : on ne pouvait plus cliquer dans le champ de période de certains écrans. Le volet se referme maintenant dès qu'un écran est choisi (<code>Navigation.js</code>, <code>_fermerVolet</code>).</p>
+<p>Nouveau test <code>ergonomie/test-volet-menu-referme-2211.js</code> : 6 écrans, 3 tours, 2 tailles d'écran (36 choix), avec redimensionnement de la fenêtre avant chaque choix. Il vérifie que le volet est refermé, que le premier champ de l'écran reçoit le clic et que le volet se rouvre au clic. Résultat : 2 sur 4 sur l'ancien code, 4 sur 4 après correction.</p>
+
+<h2>Notes</h2>
+<ul>
+<li>Pour prouver l'échec de l'ancien code sur « OK » du recalcul, l'ancien droit « recalculer seuils » a été réactivé le temps d'une passe. Sur l'ancien code, l'appel de contrôle au recalcul a été accepté et <b>a réellement recalculé les seuils de la copie <code>laborex_audit</code></b>. C'est une copie de test, pas la production. Le nouveau code refuse cet appel sans le droit.</li>
+<li>L'aide commune des tests <code>ouvrirMenu</code> fait défiler le volet jusqu'à l'entrée avant de cliquer. Avec le tri alphabétique, certaines entrées passent sous le pli des volets longs.</li>
+<li>L'ancien test des règlements fournisseurs choisit maintenant les espèces lui-même pour le règlement A, puisque le mode par défaut est le chèque.</li>
+<li><b>Commit et push</b> : le commit a été refusé par le contrôle automatique des actions (mode automatique), sans doute parce que CLAUDE.md désigne la branche <code>claude/new-session-xm8ptu</code> alors que ce travail est sur <code>plan/21112026</code>. Tout est prêt dans <code>D:\projet\p3\prestige-plan21112026</code>, en attente de votre accord.</li>
+</ul>
+</body>
+</html>

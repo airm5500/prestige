@@ -363,9 +363,12 @@ public class SuggestionRessource {
                     .put("message", "L'identifiant de la suggestion est requis.").toString()).build();
         }
         int n = suggestionService.nettoyerALOuverture(suggestionId, user);
-        return Response.ok(
-                new JSONObject().put("success", true).put("actif", n >= 0).put("retires", Math.max(n, 0)).toString())
-                .build();
+        JSONObject r = new JSONObject().put("success", true).put("actif", n >= 0).put("retires", Math.max(n, 0));
+        /*
+         * plan du 21/11, point 4.1 : sans nettoyage automatique, combien de produits le bandeau proposerait de retirer
+         */
+        r.put("aNettoyer", n >= 0 ? 0 : suggestionService.compterANettoyer(suggestionId, user));
+        return Response.ok(r.toString()).build();
     }
 
 }

@@ -21,6 +21,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
     cls: 'campagnes',
     URL: '../api/v1/campagnes/',
     config: {nameintern: '', titre: '', odatasource: ''},
+    requires: ['testextjs.view.commun.CrayonTelephone'],
 
     TOUS: 'TOUS',
     CANAUX: [{v: 'SMS', t: 'SMS'}, {v: 'WHATSAPP', t: 'WhatsApp'}, {v: 'SMS_WHATSAPP', t: 'WhatsApp, repli SMS'}],
@@ -75,6 +76,16 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             } else if (t.categorie && !t.charge) {
                 t.charge = true;
                 me.initialiserCategorie(t);
+            }
+            /* plan du 21/11, point 8.2 : curseur dans la recherche simple a chaque ouverture de l'onglet */
+            var recherche = t.categorie && t.down('#recherche');
+            if (recherche) {
+                /* focus(false, delai) d'ExtJS ne part pas apres le clic sur l'onglet : appel direct differe */
+                Ext.defer(function () {
+                    if (!recherche.isDestroyed && recherche.isVisible(true)) {
+                        recherche.focus();
+                    }
+                }, 250);
             }
         });
     },
@@ -177,7 +188,8 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         var me = this;
         return [
             {text: 'Client', dataIndex: 'client', flex: 1, minWidth: 180},
-            {text: 'Téléphone', dataIndex: 'telephone', width: 120},
+            /* plan du 21/11, point 8.3 : crayon de correction du numero */
+            testextjs.view.commun.CrayonTelephone.colonne({width: 135}),
             {text: 'Âge', dataIndex: 'age', width: 60, align: 'right'},
             {text: 'État', dataIndex: 'motif', width: 210, renderer: function (v, m, r) {
                     return r.get('joignable') ? '<span class="cmp-joignable"><i class="fa fa-check"></i> Joignable</span>'
@@ -244,22 +256,50 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                     }}});
         }
         if (code === 'INFO_CLIENTS' || code === 'PERSONNALISE') {
-            filtres.push({xtype: 'combobox', itemId: 'sexe', fieldLabel: 'Sexe', labelWidth: 35, width: 130, editable: false, queryMode: 'local', value: '',
+            filtres.push({xtype: 'combobox', itemId: 'sexe', fieldLabel: 'Sexe', labelWidth: 35, width: 120, editable: false, queryMode: 'local', value: '',
                 displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: '', t: 'Tous'}, {v: 'F', t: 'Femmes'}, {v: 'M', t: 'Hommes'}]})},
                     {xtype: 'numberfield', itemId: 'ageMin', fieldLabel: 'Âge de', labelWidth: 45, width: 105, minValue: 0, maxValue: 130, hideTrigger: true, allowDecimals: false},
                     {xtype: 'numberfield', itemId: 'ageMax', fieldLabel: 'à', labelWidth: 12, width: 70, minValue: 0, maxValue: 130, hideTrigger: true, allowDecimals: false});
         }
         if (code === 'INFO_CLIENTS' || code === 'INFO_PHARMACIE' || code === 'PERSONNALISE') {
-            filtres.push({xtype: 'combobox', itemId: 'liste', fieldLabel: 'Liste', labelWidth: 30, width: 200, editable: false, queryMode: 'local',
+            filtres.push({xtype: 'combobox', itemId: 'liste', fieldLabel: 'Liste', labelWidth: 30, width: 180, editable: false, queryMode: 'local',
                 emptyText: 'Tous les clients', store: me.listesStore, displayField: 'affiche', valueField: 'id',
                 listeners: {expand: function () {
                         me.chargerListes();
                     }}});
-            filtres.push({xtype: 'combobox', itemId: 'moisAchat', fieldLabel: 'Achats', labelWidth: 45, width: 230, editable: false, queryMode: 'local', value: '',
+            filtres.push({xtype: 'combobox', itemId: 'moisAchat', fieldLabel: 'Achats', labelWidth: 45, width: 210, editable: false, queryMode: 'local', value: '',
                 displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: '', t: 'Tous les clients actifs'}, {v: 1, t: 'Achat dans le dernier mois'},
-                        {v: 3, t: 'Achat dans les 3 derniers mois'}, {v: 6, t: 'Achat dans les 6 derniers mois'}, {v: 12, t: 'Achat dans les 12 derniers mois'}]})},
-                    {xtype: 'textfield', itemId: 'recherche', emptyText: 'Nom ou téléphone', width: 170});
+                        {v: 3, t: 'Achat dans les 3 derniers mois'}, {v: 6, t: 'Achat dans les 6 derniers mois'}, {v: 12, t: 'Achat dans les 12 derniers mois'}]})});
         }
+        /* plan du 21/11, point 8.2 : recherche simple en premiere ligne (curseur place, Entree = rechercher), tous les
+           filtres sur la seconde ligne */
+        var avecRecherche = code === 'INFO_CLIENTS' || code === 'INFO_PHARMACIE' || code === 'PERSONNALISE';
+        var voir = {xtype: 'button', itemId: 'voir', text: 'Voir les destinataires', iconCls: 'fa fa-search', handler: function () {
+                me.chargerPopulation(me.down('#onglet-' + code));
+            }};
+        var communs = [
+            /* retours du 25/10 (point 14) : WhatsApp seul par defaut */
+            {xtype: 'combobox', itemId: 'canal', fieldLabel: 'Canal', labelWidth: 40, width: 175, editable: false, queryMode: 'local', value: 'WHATSAPP',
+                displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: me.CANAUX}),
+                listeners: {change: function (c, v) {
+                        me.chargerModeles(me.down('#onglet-' + code), v);
+                        me.majPieceJointe(me.down('#onglet-' + code));
+                    }}},
+            /* plan du 21/11, point 8.2 : « Accord ▾ » (meme valeur qu'avant : vrai = accord explicite seulement) */
+            {xtype: 'combobox', itemId: 'accord', width: 190, editable: false, queryMode: 'local', value: false,
+                displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: [{name: 'v', type: 'boolean'}, 't'],
+                    data: [{v: false, t: 'Accord : tous'}, {v: true, t: 'Accord explicite seulement'}]})}
+        ];
+        var rangeesFiltres = avecRecherche ? [
+            me.rangee([{xtype: 'textfield', itemId: 'recherche', emptyText: '\uD83D\uDD0D Nom ou téléphone…', width: 340, enableKeyEvents: true,
+                    listeners: {specialkey: function (c, e) {
+                            if (e.getKey() === e.ENTER) {
+                                e.stopEvent();
+                                me.chargerPopulation(me.down('#onglet-' + code));
+                            }
+                        }}}, voir]),
+            Ext.apply(me.rangee(filtres.concat(communs)), {margin: '6 0 0 0'})
+        ] : me.rangeesFiltres(filtres, communs.concat([voir]));
         var store = me.storeDestinataires(), modeles = me.storeModeles();
         var onglet = {
             title: libelle, itemId: 'onglet-' + code, categorie: code, iconCls: 'fa ' + icone, layout: {type: 'vbox', align: 'stretch'},
@@ -267,19 +307,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             items: [
                 {xtype: 'component', html: '<div class="cmp-aide">' + me.esc(me.AIDE[code]) + '</div>'},
                 /* retours du 25/10 (point 14) : avec beaucoup de filtres, deux rangees (le bouton « Voir » reste visible a 1366 px) */
-                {xtype: 'container', layout: {type: 'vbox', align: 'stretch'}, padding: '8 8 0 8', items: me.rangeesFiltres(filtres, [
-                        /* retours du 25/10 (point 14) : WhatsApp seul par defaut */
-                        {xtype: 'combobox', itemId: 'canal', fieldLabel: 'Canal', labelWidth: 40, width: 220, editable: false, queryMode: 'local', value: 'WHATSAPP',
-                            displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: me.CANAUX}),
-                            listeners: {change: function (c, v) {
-                                    me.chargerModeles(me.down('#onglet-' + code), v);
-                                    me.majPieceJointe(me.down('#onglet-' + code));
-                                }}},
-                        {xtype: 'checkbox', itemId: 'accord', boxLabel: 'Accord explicite seulement', checked: false},
-                        {xtype: 'button', itemId: 'voir', text: 'Voir les destinataires', iconCls: 'fa fa-search', handler: function () {
-                                me.chargerPopulation(me.down('#onglet-' + code));
-                            }}
-                    ])},
+                {xtype: 'container', layout: {type: 'vbox', align: 'stretch'}, padding: '8 8 0 8', items: rangeesFiltres},
                 {xtype: 'container', flex: 1, layout: {type: 'hbox', align: 'stretch'}, padding: 8, items: [
                         me.grilleDestinataires(store, {flex: 3, title: 'Destinataires', listeners: {cochage: function (g, n) {
                                     me.majBoutonEnvoi(me.down('#onglet-' + code), n);
@@ -327,10 +355,12 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
     },
 
     /* filtres propres a l'onglet, puis canal / accord / « Voir » : sur une rangee, ou deux s'il y a plus de deux filtres */
+    rangee: function (items) {
+        return {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, defaults: {margin: '0 8 0 0'}, items: items};
+    },
+
     rangeesFiltres: function (filtres, communs) {
-        var rangee = function (items) {
-            return {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, defaults: {margin: '0 8 0 0'}, items: items};
-        };
+        var rangee = this.rangee;
         if (filtres.length <= 2) {
             return [rangee(filtres.concat(communs))];
         }
@@ -879,7 +909,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             items: [{xtype: 'gridpanel', itemId: 'trouves', flex: 3, columnLines: true, selModel: cocheTrouves, title: 'Résultats',
                     store: Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone', 'achats', 'montant'], data: []}),
                     viewConfig: {emptyText: '<div class="cmp-vide">Nom ou téléphone (3 caractères au moins), ou des filtres puis « Chercher ».</div>', deferEmptyText: false, markDirty: false},
-                    columns: [{text: 'Client', dataIndex: 'client', flex: 1, minWidth: 150}, {text: 'Téléphone', dataIndex: 'telephone', width: 105},
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1, minWidth: 150}, testextjs.view.commun.CrayonTelephone.colonne({width: 120}),
                         {text: 'Achats', dataIndex: 'achats', width: 60, align: 'right'}],
                     bbar: [{xtype: 'button', itemId: 'ajouterResultats', text: 'Ajouter tous les résultats', iconCls: 'fa fa-plus-square', disabled: true, handler: function (b) {
                                 var n = me.down('#ongletListes #trouves').getStore().getCount();
@@ -889,7 +919,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                             }}]},
                 {xtype: 'gridpanel', itemId: 'panier', flex: 2, margin: '0 0 0 8', columnLines: true, title: 'Clients sélectionnés (0)', store: me.panier,
                     viewConfig: {emptyText: '<div class="cmp-vide">Cochez des clients : ils restent ici d\'une recherche à l\'autre.</div>', deferEmptyText: false},
-                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, {text: 'Téléphone', dataIndex: 'telephone', width: 100},
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, testextjs.view.commun.CrayonTelephone.colonne({width: 115}),
                         {text: '', width: 62, align: 'center', renderer: function () {
                                 return '<span class="cmp-retirer" style="color:#c0392b;cursor:pointer" title="Retirer de la sélection"><i class="fa fa-times"></i> Retirer</span>';
                             }}],
@@ -940,7 +970,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 {xtype: 'gridpanel', itemId: 'membres', flex: 2, margin: '8 0 0 0', title: 'Clients de la liste', columnLines: true, selModel: cocheMembres,
                     store: Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone', 'ajouteLe'], data: []}),
                     viewConfig: {emptyText: '<div class="cmp-vide">Choisissez une liste.</div>', deferEmptyText: false},
-                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, {text: 'Téléphone', dataIndex: 'telephone', width: 130}, {text: 'Ajouté le', dataIndex: 'ajouteLe', width: 100}],
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, testextjs.view.commun.CrayonTelephone.colonne({width: 135}), {text: 'Ajouté le', dataIndex: 'ajouteLe', width: 100}],
                     bbar: [{xtype: 'button', itemId: 'retirerMembres', text: 'Retirer les clients cochés', iconCls: 'fa fa-minus', disabled: true, handler: function (b) {
                                 var ids = Ext.Array.map(cocheMembres.getSelection(), function (r) {
                                     return r.get('clientId');

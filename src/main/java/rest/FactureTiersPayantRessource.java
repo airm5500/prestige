@@ -105,6 +105,39 @@ public class FactureTiersPayantRessource {
         return m;
     }
 
+    /**
+     * Plan du 21/11, point 9 : « Déjà facturé ? ». Bons retrouves par numero de bon, ticket, matricule ou nom du
+     * client, sur toutes les factures et sans limite de periode (regles dans rest.service.facture.DejaFacture).
+     */
+    @GET
+    @Path("deja-facture")
+    public Response dejaFacture(@DefaultValue("") @QueryParam("q") String recherche) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        String saisie = rest.service.facture.DejaFacture.saisie(recherche);
+        if (saisie == null) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Saisissez au moins 2 caractères : nom, matricule ou numéro de bon.").toString())
+                    .build();
+        }
+        dataManager odm = new dataManager();
+        try {
+            odm.initEntityManager();
+            return Response.ok().entity(rest.service.facture.DejaFacture
+                    .json(rest.service.facture.DejaFacture.chercher(odm.getEm(), saisie)).toString()).build();
+        } catch (Exception e) {
+            // la saisie n'est pas journalisee (nom ou matricule d'un client)
+            LOG.log(Level.SEVERE, "deja-facture", e);
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("message", "Recherche impossible.").toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     @GET
     @Path("list")
     public Response list(@DefaultValue("") @QueryParam("search_value") String searchValue,
@@ -114,6 +147,7 @@ public class FactureTiersPayantRessource {
             @DefaultValue("") @QueryParam("dt_debut") String dtDebutParam,
             @DefaultValue("") @QueryParam("dt_fin") String dtFinParam,
             @DefaultValue("") @QueryParam("impayes") String impayesParam,
+            @DefaultValue("") @QueryParam("groupe") String groupeParam,
             @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
@@ -138,9 +172,9 @@ public class FactureTiersPayantRessource {
             odm.initEntityManager();
             factureManagement ofm = new factureManagement(odm, sessionUser);
             List<TFacture> lstTFacture = ofm.getListFacture(searchValue, lgFACTUREID, lgTYPEFACTUREID, dtDebut, dtFin,
-                    lgCUSTOMERID, "", impayes, start, limit);
+                    lgCUSTOMERID, "", impayes, rest.service.facture.FiltreGroupe.lire(groupeParam), start, limit);
             int count = ofm.getListFacturesCount(searchValue, lgFACTUREID, lgTYPEFACTUREID, dtDebut, dtFin,
-                    lgCUSTOMERID, "", impayes);
+                    lgCUSTOMERID, "", impayes, rest.service.facture.FiltreGroupe.lire(groupeParam));
 
             List<TPrivilege> lstTPrivilege = (List<TPrivilege>) servletRequest.getSession()
                     .getAttribute(commonparameter.USER_LIST_PRIVILEGE);

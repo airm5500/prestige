@@ -119,8 +119,8 @@ function nettoyer(debut) {
     await p.waitForFunction(() => Ext.ComponentQuery.query('navigation').length && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });
     const nav = await p.evaluate(() => { let t = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => {
       if (n.get('id') === 'campagnes') { const m = n.parentNode; t = m.get('text') + ' > ' + m.childNodes.map((x) => x.get('text')).join(', '); } }); return t; });
-    /* 25/10 : « Discussions WhatsApp » ajoute au meme menu */
-    ok('Menu « Campagnes SMS / WhatsApp » (menu principal) : sous-menus Campagnes, Comptes WhatsApp et Discussions WhatsApp', nav === 'CAMPAGNES SMS / WHATSAPP > Campagnes, Comptes WhatsApp, Discussions WhatsApp', nav);
+    /* 25/10 : « Discussions WhatsApp » ajoute au meme menu ; plan du 21/11, point 8.1 : « Journal des messages » */
+    ok('Menu « Campagnes SMS / WhatsApp » (menu principal) : sous-menus Campagnes, Comptes WhatsApp, Discussions WhatsApp et Journal des messages', nav === 'CAMPAGNES SMS / WHATSAPP > Campagnes, Comptes WhatsApp, Discussions WhatsApp, Journal des messages', nav);
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('campagnes', {}));
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.waitForTimeout(1000);

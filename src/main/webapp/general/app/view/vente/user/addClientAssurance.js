@@ -1,8 +1,14 @@
 Ext.define('testextjs.view.vente.user.addClientAssurance', {
+    requires: ['testextjs.view.commun.TelephoneSaisie'],
     extend: 'Ext.window.Window',
     xtype: 'addaddclientwindow',
     autoShow: false,
-    height: 600,
+    /* plan du 21/11, point 7 : plus haute pour agrandir la grille des complementaires, sans depasser l'ecran */
+    height: Math.min(680, Math.max(560, (window.innerHeight || 700) - 40)),
+    /* hauteur recalculee a chaque ouverture : l'ecran a pu changer depuis le chargement de la classe */
+    hauteurEcran: function () {
+        return Math.min(680, Math.max(480, (window.innerHeight || 700) - 40));
+    },
     width: '70%',
     modal: true,
     title: 'Gestion des clients',
@@ -175,7 +181,8 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                 {
                                     xtype: 'fieldset',
                                     collapsible: false,
-                                    height: 160,
+                                    /* plan du 21/11, point 7 : quatre lignes de 30 px sans debordement */
+                                    height: 182,
                                     bodyPadding: 5,
                                     title: 'Information sur le client',
                                     layout: {
@@ -256,11 +263,12 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                         specialkey: function(field, e) {
                                                             if (e.getKey() === e.ENTER) {
                                                                 e.stopEvent();
-                                                                me.down('[name=strADRESSE]').focus(false, 100);
+                                                                /* plan du 21/11, point 7 : Matricule -> Telephone */
+                                                                me.down('#strTELEPHONE').focus(false, 100);
                                                             }
                                                         }
                                                     }
-                                                }, 
+                                                },
                                                 {xtype: 'splitter'},
                                                 {
                                                     xtype: 'datefield',
@@ -276,6 +284,9 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                 }
                                             ]
                                         },
+                                        /* plan du 21/11, point 7 : le code postal laisse la place a l'Adresse, et l'ancienne
+                                           place de l'adresse recoit le Telephone ; ordre Nom -> Prenom -> Matricule ->
+                                           Telephone -> Adresse -> Assurance -> Pourcentage -> Enregistrer */
                                         {
                                             xtype: 'fieldcontainer',
                                             flex: 1,
@@ -283,13 +294,38 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                             items: [
                                                 {
                                                     xtype: 'textfield',
+                                                    fieldLabel: 'Téléphone',
+                                                    emptyText: '07 08 47 37 50',
+                                                    name: 'strTELEPHONE',
+                                                    itemId: 'strTELEPHONE',
+                                                    height: 30,
+                                                    flex: 1,
+                                                    allowBlank: true,
+                                                    /* meme controle que le client standard (le serveur le refait : util.TelephoneCi) */
+                                                    /* retour du 22/11 : numero etranger accepte avec son indicatif */
+                                                    validator: function (v) {
+                                                        return testextjs.view.commun.TelephoneSaisie.validateur(v);
+                                                    },
+                                                    enableKeyEvents: true,
+                                                    listeners: {
+                                                        specialkey: function (field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('[name=strADRESSE]').focus(false, 100);
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                {xtype: 'splitter'},
+                                                {
+                                                    xtype: 'textfield',
                                                     fieldLabel: 'Adresse',
                                                     emptyText: 'Adresse',
                                                     name: 'strADRESSE',
-                                                    height: 30, 
+                                                    height: 30,
                                                     flex: 1,
+                                                    maxLength: 50,
                                                     enableKeyEvents: true,
-                                                    /* retours du 25/10 (point 5) : Nom -> Prenom -> Matricule -> Adresse -> Tiers payant -> Taux */
                                                     listeners: {
                                                         specialkey: function (field, e) {
                                                             if (e.getKey() === e.ENTER) {
@@ -298,30 +334,31 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                             }
                                                         }
                                                     }
-                                                }, 
-                                                {xtype: 'splitter'},
+                                                },
+                                                /* le code postal n'est plus saisi ici mais reste renvoye tel qu'il est
+                                                   sur la fiche (sinon l'enregistrement l'effacerait) */
                                                 {
-                                                    xtype: 'textfield',
-                                                    fieldLabel: 'Code Postale',
-                                                    emptyText: 'Code Postale',
-                                                    name: 'strCODEPOSTAL',
-                                                    height: 30, 
-                                                    flex: 1,
-                                                    enableKeyEvents: true
+                                                    xtype: 'hiddenfield',
+                                                    name: 'strCODEPOSTAL'
                                                 }
                                             ]
                                         },
                                         {
                                             xtype: 'fieldcontainer',
                                             flex: 1,
-                                            layout: {type: 'hbox', align: 'stretch'},
+                                            /* plan du 21/11, point 7 : ligne centree (etiree, la Ville depassait de 2 px) */
+                                            layout: {type: 'hbox', align: 'middle'},
                                             items: [
                                                 {
+                                                    /* plan du 21/11, point 7 : choix sur une ligne (en colonne, il
+                                                       debordait sur la Ville) */
                                                     xtype: "radiogroup",
                                                     fieldLabel: "Genre",
                                                     allowBlank: true,
                                                     flex: 1,
-                                                    vertical: true,
+                                                    height: 30,
+                                                    columns: 2,
+                                                    vertical: false,
                                                     items: [
                                                         {boxLabel: 'Féminin', name: 'strSEXE', inputValue: 'F'},
                                                         {boxLabel: 'Masculin', name: 'strSEXE', inputValue: 'M'}
@@ -332,7 +369,6 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     xtype: 'combobox',
                                                     fieldLabel: 'Ville',
                                                     flex: 1,
-                                                    height: 30,
                                                     minChars: 2,
                                                     name: 'lgVILLEID',
                                                     itemId: 'lgVILLEID',
@@ -483,7 +519,9 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                 {
                                     xtype: 'fieldset',
                                     collapsible: false,
-                                    height: 200,
+                                    /* plan du 21/11, point 7 : la grille prend toute la place restante (200 px avant) */
+                                    flex: 1,
+                                    minHeight: 200,
                                     bodyPadding: 5,
                                     title: 'Infos Assurance Complémentaire',
                                     layout: {
@@ -550,13 +588,20 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                 {
                                                     text: 'Assurance',
                                                     flex: 1,
-                                                    dataIndex: 'tpFullName'
+                                                    minWidth: 200,
+                                                    dataIndex: 'tpFullName',
+                                                    /* nom complet au survol */
+                                                    renderer: function (v, meta) {
+                                                        var t = Ext.String.htmlEncode(v || '');
+                                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(t) + '"';
+                                                        return t;
+                                                    }
                                                 },
                                                 /* retours de recette du 28/10 : taux, matricule et priorite se
                                                    modifient d'un clic dans la cellule ; « Enregistrer » les valide */
                                                 {
                                                     text: 'Taux.Couverture',
-                                                    flex: 0.5,
+                                                    width: 120,
                                                     dataIndex: 'taux',
                                                     tooltip: 'Cliquer pour modifier',
                                                     editor: {xtype: 'numberfield', allowDecimals: false, hideTrigger: true,
@@ -564,14 +609,15 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                 },
                                                 {
                                                     text: 'Numéro/SS',
-                                                    flex: 0.8,
+                                                    flex: 0.6,
+                                                    minWidth: 150,
                                                     dataIndex: 'numSecurity',
                                                     tooltip: 'Cliquer pour modifier',
                                                     editor: {xtype: 'textfield'}
                                                 },
                                                 {
                                                     text: 'RC',
-                                                    flex: 0.5,
+                                                    width: 60,
                                                     dataIndex: 'order',
                                                     tooltip: 'Priorité : cliquer pour modifier (2 à 4)',
                                                     editor: {xtype: 'numberfield', allowDecimals: false, hideTrigger: true,
@@ -607,6 +653,19 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
         });
 
         me.callParent(arguments);
+        /* plan du 21/11, point 7 : la fenetre reste entiere a l'ecran (a l'ouverture) ;
+           hauteur changee seulement si elle differe, apres l'affichage */
+        var ajuster = function () {
+            if (me.isDestroyed || !me.isVisible() || me.maximized) {
+                return;
+            }
+            var h = me.hauteurEcran();
+            if (Math.abs(me.getHeight() - h) > 1) {
+                me.setHeight(h);
+                me.center();
+            }
+        };
+        me.on('show', ajuster);
 
         // Gestion du bouton Enregistrer
         me.down('#btnAddClientAssurance').on('specialkey', function(btn, e) {

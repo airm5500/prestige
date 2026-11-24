@@ -10,6 +10,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 
+const DEBUT = q('SELECT NOW()');
 const NOUVEAUX = ['tpventes', 'balancesalecahs', 'recap', 'ordonnancier'];
 let PRODUITS = [], AVANT = {};
 
@@ -29,6 +30,10 @@ function restaurer() {
     exec("UPDATE t_famille SET is_scheduled=" + AVANT[id].sched + ", bool_REMISE=" + AVANT[id].remise
       + " WHERE lg_FAMILLE_ID='" + id + "'");
   });
+  /* retours du 23/11 : traces par produit des mises a jour en lot (« Modification en lot ... ») */
+  if (PRODUITS.length) {
+    exec("DELETE FROM t_event_log WHERE str_TYPE_LOG IN ('" + PRODUITS.join("','") + "') AND str_DESCRIPTION LIKE 'Modification en lot%' AND dt_CREATED >= '" + DEBUT + "'");
+  }
 }
 
 (async () => {

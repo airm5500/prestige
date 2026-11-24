@@ -65,13 +65,21 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         LaborexWorkFlow_facture = Ext.create('testextjs.controller.LaborexWorkFlow', {});
         myAppController = Ext.create('testextjs.controller.App', {});
 
+        var enFenetre = this.getDansFenetre();
         var articlestore = new Ext.data.Store({
-            model: 'testextjs.model.articleSearchModel',
+            fields: [
+                {name: 'lg_FAMILLE_ID', type: 'string'},
+                {name: 'str_NAME', type: 'string'},
+                {name: 'str_DESCRIPTION', type: 'string'},
+                {name: 'int_CIP', type: 'string'},
+                {name: 'stock', type: 'int', useNull: true}
+            ],
             pageSize: 20,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/Report/saisieperimes/ws_article_list.jsp',
+                /* retour du 22/11 (lot 11) : recherche par l'API (avant : webservices/Report/saisieperimes/ws_article_list.jsp) */
+                url: '../api/v1/gestionperime/produits',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -91,7 +99,9 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                 {name: 'produitLibelle', type: 'string'},
                 {name: 'quantity', type: 'number'},
                 {name: 'stockInitial', type: 'number', useNull: true},
-                {name: 'stockFinal', type: 'number', useNull: true}
+                {name: 'stockFinal', type: 'number', useNull: true},
+                {name: 'utilisateur', type: 'string'},
+                {name: 'joursAttente', type: 'int', useNull: true}
             ],
             pageSize: 20,
             autoLoad: true,
@@ -103,6 +113,11 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     root: 'data',
                     totalProperty: 'total'
                 }
+            },
+            listeners: {
+                load: function (st) {
+                    Me.majResume(st);
+                }
             }
         });
 
@@ -113,13 +128,16 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                 labelAlign: 'left',
                 anchor: '100%'
             },
+            /*
+             * Retour du 22/11 (lot 11) : « on ne voit pas le bas de page, peu importe si on agrandit ». Le formulaire
+             * et la liste se partageaient la hauteur a parts egales et la liste (450 px au moins) debordait avec sa
+             * pagination et ses boutons. Le formulaire prend sa hauteur, la liste le reste ; les boutons sont
+             * accroches au bas de la fenetre.
+             */
             layout: {
                 type: 'vbox',
                 align: 'stretch',
                 padding: 0
-            },
-            defaults: {
-                flex: 1
             },
             id: 'panelArticlePerimes',
             items: [
@@ -152,7 +170,7 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                             pageSize: 20,
                                             valueField: 'lg_FAMILLE_ID',
                                             displayField: 'str_NAME',
-                                            typeAhead: true,
+                                            queryDelay: 300,
                                             queryMode: 'remote',
                                             minChars: 3,
                                             emptyText: 'Selectionnez un article',
@@ -161,7 +179,9 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                                 loadingText: 'Recherche...',
                                                 emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',
                                                 getInnerTpl: function () {
-                                                    return '<span>{str_NAME}</span>';
+                                                    /* retour du 22/11 (lot 11) : CIP et stock de l'emplacement, pour choisir sans se tromper */
+                                                    return '<span class="perime-choix-cip">{int_CIP}</span> <span>{str_NAME}</span>'
+                                                            + '<tpl if="stock !== null"> <span class="perime-choix-stock">(stock {stock})</span></tpl>';
                                                 }
                                             },
                                             listeners: {
@@ -229,8 +249,11 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                             }
                                         },
                                         {
-                                            text: 'Enregistrer',
+                                            /* retour du 22/11 (lot 11) : « Enregistrer » devient « Ajouter » (la ligne
+                                               s'ajoute a la saisie en cours ; la validation est en bas) */
+                                            text: 'Ajouter',
                                             id: 'btn_add',
+                                            tooltip: 'Ajouter la ligne à la saisie en cours (elle sera retirée du stock à la validation)',
                                             cls: 'btn-primary',
                                             margins: '0 0 0 15',
                                             xtype: 'button',
@@ -246,35 +269,39 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     padding: '3 15 3 15',
                     collapsible: false,
                     cls: 'ig-card ig-simple',
-                    defaultType: 'textfield',
-                    layout: 'anchor',
-                    defaults: {
-                        anchor: '100%'
-                    },
+                    layout: 'fit',
+                    flex: enFenetre ? 1 : undefined,
+                    height: enFenetre ? undefined : 500,
                     items: [
                         {
-                            columnWidth: 0.65,
                             xtype: 'gridpanel',
-                            minHeight: 450,
-                            /*plugins: [
-                                {
-                                    ptype: "rowediting",
-                                    clicksToEdit: 0
-                                }
-                            ],*/
                             id: 'gridpanelArticlePerimes',
                             cls: 'my-grid-header',
                             store: pendingStore,
                             columns: [
                                 {header: 'ID', dataIndex: 'id', hidden: true, width: 40},
-                                {header: 'CODE CIP', dataIndex: 'produitCip', flex: 1},
-                                {header: 'ARTICLE', dataIndex: 'produitLibelle', flex: 1},
-                                {header: 'LOT', dataIndex: 'lot', editor: {xtype: "textfield", allowBlank: false}, flex: 1},
-                                {header: 'STOCK ACTUEL', dataIndex: 'stockInitial', renderer: amountformat, align: 'right', editor: {xtype: "numberfield", minValue: 1, allowBlank: false}, flex: 1},
-                                {header: 'QUANTITE', dataIndex: 'quantity', renderer: amountformat, align: 'right', editor: {xtype: "numberfield", minValue: 1, allowBlank: false}, flex: 1},
-                                {header: 'STOCK FINAL', dataIndex: 'stockFinal', renderer: amountformat, align: 'right', editor: {xtype: "numberfield", minValue: 1, allowBlank: false}, flex: 1},
+                                {header: 'CODE CIP', dataIndex: 'produitCip', flex: 0.8},
+                                {header: 'ARTICLE', dataIndex: 'produitLibelle', flex: 1.6},
+                                {header: 'LOT', dataIndex: 'lot', flex: 0.8},
+                                {header: 'STOCK ACTUEL', dataIndex: 'stockInitial', renderer: amountformat, align: 'right', flex: 0.8},
+                                {header: 'QUANTITE', dataIndex: 'quantity', renderer: amountformat, align: 'right', flex: 0.7},
+                                {header: 'STOCK FINAL', dataIndex: 'stockFinal', renderer: amountformat, align: 'right', flex: 0.7},
                                 {header: 'DATE ENTREE', dataIndex: 'dateEntree', flex: 1},
-                                {header: 'DATE PEREMPTION', dataIndex: 'datePeremption', flex: 1},
+                                {header: 'DATE PEREMPTION', dataIndex: 'datePeremption', flex: 0.9},
+                                /* retour du 22/11 (lot 11) : qui a saisi la ligne, et depuis quand elle attend */
+                                {header: 'SAISI PAR', dataIndex: 'utilisateur', itemId: 'colSaisiPar', flex: 1},
+                                {header: 'EN ATTENTE', dataIndex: 'joursAttente', itemId: 'colEnAttente', width: 95, align: 'right',
+                                    renderer: function (v, meta) {
+                                        if (v === null || v === undefined) {
+                                            return '';
+                                        }
+                                        if (Me.ancienne(v)) {
+                                            meta.tdCls = 'perime-ancienne';
+                                            meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('En attente depuis ' + v + ' jours : jamais validée') + '"';
+                                        }
+                                        return v === 0 ? 'aujourd\'hui' : v + ' j';
+                                    }
+                                },
                                 {
                                     xtype: 'actioncolumn',
                                     width: 30,
@@ -286,7 +313,7 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                                 return 'unpaid';
                                             },
                                             getTip: function (v, meta, rec) {
-                                                return 'Supprimer ';
+                                                return 'Retirer la ligne de la saisie';
                                             },
                                             scope: this,
                                             handler: this.onRemoveClick
@@ -348,38 +375,46 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                 displayInfo: true,
                                 plugins: new Ext.ux.ProgressBarPager()
                             }
-                        },
+                        }
+                    ]
+                }
+            ],
+            dockedItems: [
+                {
+                    xtype: 'toolbar',
+                    ui: 'footer',
+                    dock: 'bottom',
+                    itemId: 'piedSaisiePerimes',
+                    items: [
+                        {xtype: 'tbtext', itemId: 'resumeEnCours', cls: 'perime-resume', text: ''},
+                        '->',
                         {
-                            xtype: 'toolbar',
-                            ui: 'footer',
-                            dock: 'bottom',
-                            border: '0',
-                            items: ['->',
-                                {
-                                    text: 'Imprimer',
-                                    id: 'btn_print_perime',
-                                    iconCls: 'printable',
-                                    style: 'background-color:#1565C0;border-color:#1565C0;',
-                                    tooltip: 'Imprimer la saisie en cours pour la contr&ocirc;ler avant validation',
-                                    scope: this,
-                                    handler: this.onPrintSaisie
-                                }, {
-                                    text: 'Terminer',
-                                    id: 'btn_create_perime',
-                                    cls: 'btn-primary',
-                                    iconCls: 'icon-clear-group',
-                                    hidden: true,
-                                    scope: this,
-                                    handler: this.CreateFacture
-                                }, {
-                                    text: 'RETOUR',
-                                    id: 'btn_cancel',
-                                    iconCls: 'icon-clear-group',
-                                    style: 'background-color:#d9534f;border-color:#d9534f;',
-                                    scope: this,
-                                    handler: this.onbtncancel
-                                }
-                            ]
+                            text: 'Imprimer',
+                            id: 'btn_print_perime',
+                            iconCls: 'printable',
+                            style: 'background-color:#1565C0;border-color:#1565C0;',
+                            tooltip: 'Imprimer la saisie en cours pour la contr&ocirc;ler avant validation',
+                            scope: this,
+                            handler: this.onPrintSaisie
+                        }, {
+                            /* retour du 22/11 (lot 11) : « je ne vois pas comment valider la saisie » - le bouton est
+                               toujours visible ; sans le droit, il est grise et dit pourquoi. Confirmation dans le
+                               bouton : la validation retire les lignes du stock. */
+                            text: 'Valider la saisie',
+                            id: 'btn_create_perime',
+                            cls: 'btn-primary',
+                            iconCls: 'icon-clear-group',
+                            disabled: true,
+                            tooltip: 'Vérification du droit de validation…',
+                            scope: this,
+                            handler: this.onValider
+                        }, {
+                            text: 'RETOUR',
+                            id: 'btn_cancel',
+                            iconCls: 'icon-clear-group',
+                            style: 'background-color:#d9534f;border-color:#d9534f;',
+                            scope: this,
+                            handler: this.onbtncancel
                         }
                     ]
                 }
@@ -409,10 +444,59 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
             success: function (response) {
                 var o = Ext.JSON.decode(response.responseText, true) || {};
                 var btn = Ext.getCmp('btn_create_perime');
-                if (btn && o.authorize === true) {
-                    btn.setVisible(true);
+                if (!btn || btn.isDestroyed) {
+                    return;
                 }
+                Me.droitValider = o.authorize === true;
+                var info = Me.droitValider ? 'Valider la saisie : les lignes sont retirées du stock'
+                        : 'Validation réservée au droit « ' + (o.libelle || 'Autorisation cloture saisie de perimés') + ' »';
+                btn.setTooltip(info);
+                /* setTooltip (ExtJS 4.2) ne garde pas le texte sur un bouton affiche : PrestigeConfirmation.bouton le
+                   relit pour le remettre apres la confirmation */
+                btn.tooltip = info;
+                Me.majBoutonValider();
             }
+        });
+    },
+
+    /** Ligne en attente depuis plus de joursAnciennes jours (meme regle que le serveur). */
+    ancienne: function (jours) {
+        return jours !== null && jours !== undefined && jours > (this.joursAnciennes || 30);
+    },
+
+    /* retour du 22/11 (lot 11) : bas de fenetre - nombre de lignes en attente, et les anciennes */
+    majResume: function (st) {
+        var me = this, brut = st.getProxy().getReader().rawData || {}, pied = me.down('#resumeEnCours');
+        me.joursAnciennes = brut.joursAnciennes || 30;
+        me.anciennes = brut.anciennes || 0;
+        if (pied && !pied.isDestroyed) {
+            var n = st.getTotalCount(), t = n + ' ligne' + (n > 1 ? 's' : '') + ' en attente de validation';
+            if (me.anciennes > 0) {
+                t += ' · <span class="perime-ancienne-texte">' + me.anciennes + ' depuis plus de ' + me.joursAnciennes
+                        + ' jours (la plus ancienne : ' + Ext.String.htmlEncode(brut.plusAncienne || '') + ')</span>';
+            }
+            pied.setText(t);
+        }
+        me.majBoutonValider();
+    },
+
+    majBoutonValider: function () {
+        var btn = Ext.getCmp('btn_create_perime'), grille = Ext.getCmp('gridpanelArticlePerimes');
+        if (!btn || btn.isDestroyed || btn.prestigeConfirmation) {
+            return;
+        }
+        var n = grille ? grille.getStore().getTotalCount() : 0;
+        btn.setText(n > 0 ? 'Valider la saisie (' + n + ')' : 'Valider la saisie');
+        btn.setDisabled(this.droitValider !== true || n === 0);
+    },
+
+    onValider: function (b) {
+        var me = this, n = Ext.getCmp('gridpanelArticlePerimes').getStore().getTotalCount();
+        if (!n || me.droitValider !== true) {
+            return;
+        }
+        PrestigeConfirmation.bouton(b, 'Confirmer : retirer ' + n + ' ligne' + (n > 1 ? 's' : '') + ' du stock ?', function () {
+            me.CreateFacture();
         });
     },
 
@@ -568,19 +652,26 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         });
     },
 
-    onRemoveClick: function (grid, rowIndex) {
+    onRemoveClick: function (grid, rowIndex, colIndex, item, e) {
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.Ajax.request({
-            url: '../api/v1/gestionperime/' + rec.get('id'),
-            method: 'DELETE',
-            success: function (response, options) {
-                // Suppression silencieuse
-                Ext.getCmp('gridpanelArticlePerimes').getStore().load();
-                Ext.getCmp('cmb_Article').focus(true, 10);
-            },
-            failure: function (response, options) {
-                Ext.MessageBox.show({title: 'Infos', width: 320, msg: "Erreur de serveur", buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
-            }
+        /* retour du 22/11 (lot 11) : confirmation dans l'icone (avant : retrait au premier clic) */
+        PrestigeConfirmation.icone(e.getTarget(), 'Retirer ?', function () {
+            Ext.Ajax.request({
+                url: '../api/v1/gestionperime/' + rec.get('id'),
+                method: 'DELETE',
+                success: function (response) {
+                    var o = Ext.JSON.decode(response.responseText, true) || {};
+                    Ext.getCmp('gridpanelArticlePerimes').getStore().load();
+                    if (o.success === false && o.message) {
+                        Ext.MessageBox.show({title: 'Infos', width: 360, msg: o.message, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
+                        return;
+                    }
+                    Ext.getCmp('cmb_Article').focus(true, 10);
+                },
+                failure: function () {
+                    Ext.MessageBox.show({title: 'Infos', width: 320, msg: "Erreur de serveur", buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                }
+            });
         });
     },
 

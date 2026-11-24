@@ -61,6 +61,7 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                 // Apres cloture, lg_USER_ID porte l'utilisateur qui a valide l'avoir
                 {sortable: false, menuDisabled: true, header: 'Valide par', dataIndex: 'userValidateur', flex: 1},
                 {sortable: false, menuDisabled: true, header: 'Caissier', dataIndex: 'userCaissierName', flex: 1},
+                this.messageColumn(),
                 this.detailsColumn()
             ]);
         }
@@ -71,23 +72,50 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
             {sortable: false, menuDisabled: true, header: 'Heure', dataIndex: 'heure', flex: 0.6, align: 'center'},
             {sortable: false, menuDisabled: true, header: 'Vendeur', dataIndex: 'userFullName', flex: 1},
             {sortable: false, menuDisabled: true, header: 'Caissier', dataIndex: 'userCaissierName', flex: 1},
+            this.messageColumn(),
             this.detailsColumn(),
+            /* retours du 22/11 (lot 10) : « Modifier » devient « Rappeler avoir » (la vente est rappelee pour servir l'avoir) */
             {
                 xtype: 'actioncolumn',
-                header: 'Modifier',
-                width: 55,
+                header: 'Rappeler avoir',
+                itemId: 'colRappelerAvoir',
+                width: 95,
                 align: 'center',
                 sortable: false,
                 menuDisabled: true,
                 items: [{
                         icon: 'resources/images/icons/fam/page_white_edit.png',
-                        tooltip: 'Modifier',
+                        tooltip: 'Rappeler l\'avoir pour servir les produits dus',
                         handler: function (view, rowIndex, colIndex, item, e, record) {
                             testextjs.app.getController('ListeAvoirCtr').onEdite(record);
                         }
                     }]
             }
         ]);
+    },
+
+    /*
+     * Plan du 21/11, point 11 : etat du message « produits disponibles » de la vente (en attente, envoye, distribue,
+     * lu, echec), avec le canal et la date ; le motif d'un echec en info-bulle. « — » : aucun message (pas encore de
+     * produit arrive, vente sans client, ou message anterieur a ce suivi).
+     */
+    messageColumn: function () {
+        var classes = {'En attente': 'av-msg-attente', 'Envoyé': 'av-msg-envoye', 'Distribué': 'av-msg-distribue',
+            'Lu': 'av-msg-lu', 'Échec': 'av-msg-echec'};
+        return {sortable: false, menuDisabled: true, header: 'Message', dataIndex: 'messageEtat', width: 150,
+            itemId: 'colMessage',
+            renderer: function (v, meta, r) {
+                if (!v) {
+                    meta.tdAttr = 'data-qtip="Aucun message suivi pour cette vente"';
+                    return '<span class="av-msg-aucun">—</span>';
+                }
+                var bulle = v + ' par ' + r.get('messageCanal') + (r.get('messageDate') ? ' le ' + r.get('messageDate') : '')
+                        + (r.get('messageMotif') ? ' : ' + r.get('messageMotif') : '');
+                meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(bulle)) + '"';
+                return '<span class="av-msg ' + (classes[v] || '') + '">' + Ext.String.htmlEncode(v) + '</span>'
+                        + '<span class="av-msg-canal">' + Ext.String.htmlEncode(r.get('messageCanal') || '')
+                        + (r.get('messageDate') ? ' · ' + Ext.String.htmlEncode(r.get('messageDate')) : '') + '</span>';
+            }};
     },
 
     // Construit un onglet (grille + pagination) lie a un store.
@@ -135,7 +163,9 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
 
         // Periode par defaut : du 1er du mois courant a aujourd'hui
         var today = new Date();
-        var firstOfMonth = Ext.Date.getFirstDateOfMonth(today);
+        /* retours du 22/11 (lot 10) : ouverte depuis l'alerte « Avoirs » du tableau de bord, la liste part du plus
+           ancien avoir en cours (debutPeriode), pour montrer tous ceux que l'alerte compte */
+        var firstOfMonth = me.debutPeriode || Ext.Date.getFirstDateOfMonth(today);
 
         // Un store par onglet : meme endpoint, parametre avoirStatut different.
         var storeEnCours = Ext.create('Ext.data.Store', {

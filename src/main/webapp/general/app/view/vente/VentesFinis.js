@@ -7,7 +7,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
         // plan du 06/11, point 9 : « Generer une suggestion » cache pour tout le monde
         SUGGESTION_MASQUEE: true
     },
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode',
         'testextjs.view.garde.SelecteurGarde'
     ],
     frame: true,
@@ -130,6 +130,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             xtype: 'datefield',
                             fieldLabel: 'Au',
                             itemId: 'dtEnd',
+                            plugins: [{ptype: 'champperiode', debut: 'dtStart', declencher: 'rechercher', largeur: 205}], /* retour du 22/11 : un seul selecteur de periode, 205 px comme en facturation (cases Du / Au dans le calendrier) */
                             labelWidth: 15,
                             flex: 0.8,
                             submitFormat: 'Y-m-d',

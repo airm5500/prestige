@@ -432,7 +432,7 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             OTFamille.setIntPRICE(int_PRICE);
             OTFamille.setIntCIP(int_CIP);
             OTFamille.setIntEAN13(int_EAN13);
-            OTFamille.setIntSTOCKREAPROVISONEMENT(int_STOCK_REAPROVISONEMENT);
+            OTFamille.setIntSEUILMIN(int_STOCK_REAPROVISONEMENT); // retours du 23/11 : reference et miroir
             OTFamille.setIntPAF(int_PAF);
             OTFamille.setIntPAT(int_PAT);
             OTFamille.setIntS(int_S);
@@ -2633,11 +2633,10 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                                     ? OTFamille.getLgCODEGESTIONID().getLgCODEGESTIONID() : ""),
                             tabString[10].trim(), OTFamille.getStrCODETAUXREMBOURSEMENT(), tabString[15].trim(),
                             OTFamille.getIntNUMBERDETAIL(), 0, tabString[9].trim(), "", tabString[17].trim(),
-                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(),
-                            OTFamille.getIntSTOCKREAPROVISONEMENT(), OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "",
-                            "", null, null, OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(),
-                            OTFamille.getBoolREMISE(), OTFamille.getIntQ1SEUILREAPPRO(),
-                            OTFamille.getIntQ2QTEREAPPRO())) {
+                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(), OTFamille.getIntSEUILMIN(),
+                            OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "", "", null, null,
+                            OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(), OTFamille.getBoolREMISE(),
+                            OTFamille.getIntQ1SEUILREAPPRO(), OTFamille.getIntQ2QTEREAPPRO())) {
                         count++;
                         if (updateStock) {
                             OTFamilleStock = OtellerManagement.getTProductItemStock(OTFamille.getLgFAMILLEID());
@@ -2667,7 +2666,7 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                                     tabString[13].trim(), tabString[14].trim(), tabString[8].trim(), "",
                                     tabString[10].trim(), "", tabString[15].trim(), 0, 1, "", "", bool_DECONDITIONNE,
                                     tabString[9].trim(), "", tabString[17].trim(), false, 0,
-                                    OTFamilleInit.getLgFAMILLEID(), OTFamilleInit.getIntSTOCKREAPROVISONEMENT(),
+                                    OTFamilleInit.getLgFAMILLEID(), OTFamilleInit.getIntSEUILMIN(),
                                     OTFamilleInit.getIntQTEREAPPROVISIONNEMENT(), 0, "");
                             if (OTFamille != null) {
                                 OTFamilleInit.setIntNUMBERDETAIL(OTFamilleInit.getIntNUMBERDETAIL() == 0 ? 1
@@ -2740,11 +2739,10 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                                     ? OTFamille.getLgTYPEETIQUETTEID().getLgTYPEETIQUETTEID()
                                     : Parameter.DEFAUL_TYPEETIQUETTE),
                             "", (OTFamille.getLgCODETVAID() != null ? OTFamille.getLgCODETVAID().getLgCODETVAID() : ""),
-                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(),
-                            OTFamille.getIntSTOCKREAPROVISONEMENT(), OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "",
-                            "", null, null, OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(),
-                            OTFamille.getBoolREMISE(), OTFamille.getIntQ1SEUILREAPPRO(),
-                            OTFamille.getIntQ2QTEREAPPRO())) {
+                            OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(), OTFamille.getIntSEUILMIN(),
+                            OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "", "", null, null,
+                            OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(), OTFamille.getBoolREMISE(),
+                            OTFamille.getIntQ1SEUILREAPPRO(), OTFamille.getIntQ2QTEREAPPRO())) {
 
                         OTFamilleStock = OtellerManagement.getTProductItemStock(OTFamille.getLgFAMILLEID());
                         OTTypeStockFamille = OStockManager.getTTypeStockFamilleByTypestock("1",
@@ -3924,6 +3922,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                 this.buildErrorTraceMessage("Impossible de mettre à jour cet article. Référence invalide");
                 return false;
             }
+            // retours du 23/11 : photo de la fiche avant modification, pour la trace du journal
+            java.util.Map<String, String> photoAvant = rest.service.impl.journal.ModificationFiche.photo(OTFamille);
 
             if (OTGrossiste != null) {
                 OTFamille.setLgGROSSISTEID(OTGrossiste);
@@ -4006,8 +4006,13 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             if (!"".equals(dt_Peremtion)) {
                 OTFamille.setDtPEREMPTION(java.sql.Date.valueOf(dt_Peremtion));
             }
+            // retours du 23/11 : un « Tableau » vide en base (NULL) bloquait toute modification de la fiche
+            if (int_T == null) {
+                int_T = "";
+            }
+            String tableauAvant = OTFamille.getIntT() == null ? "" : OTFamille.getIntT();
             if (!int_T.equalsIgnoreCase("")) {
-                if (OTFamille.getIntT().equalsIgnoreCase("")) {
+                if (tableauAvant.equalsIgnoreCase("")) {
                     if (OTFamille.getBoolDECONDITIONNE() == 0) {
                         OTFamille.setIntPRICE(int_PRICE + int_TAUX);
                     }
@@ -4018,7 +4023,7 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                 }
 
             } else {
-                if (!OTFamille.getIntT().equalsIgnoreCase("") && OTFamille.getBoolDECONDITIONNE() == 0) {
+                if (!tableauAvant.equalsIgnoreCase("") && OTFamille.getBoolDECONDITIONNE() == 0) {
                     OTFamille.setIntPRICE(int_PRICE - int_TAUX);
                 } else {
                     OTFamille.setIntPRICE(int_PRICE);
@@ -4102,6 +4107,12 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             // this.buildSuccesTraceMessage("ARTICLE MODIFIE AVEC SUCCES");
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             result = true;
+            if (differerJournalFiche) {
+                // l'appelant enregistre encore des champs (EAN fabricant, PSCODE) : une seule ligne, ecrite par lui
+                photoAvantFiche = photoAvant;
+            } else {
+                journaliserModificationFiche(OTFamille, photoAvant);
+            }
             /*
              * if (int_PRICE_OLD != int_PRICE_NEW) { this.sendSMS(OTFamille, int_PRICE_OLD, int_PRICE_NEW); }
              */
@@ -4135,6 +4146,58 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
         }
         return result;
 
+    }
+
+    /**
+     * Retours du 23/11 : une ligne de journal par enregistrement de la fiche qui change au moins un champ (qui, quand,
+     * champ, avant, apres). La ligne porte l'identifiant de la fiche ; une erreur d'ecriture ne bloque pas la
+     * modification deja enregistree.
+     */
+    private boolean differerJournalFiche;
+    private java.util.Map<String, String> photoAvantFiche;
+
+    /** Retours du 23/11 : la trace de {@link #update} est ecrite par l'appelant ({@link #journaliserFicheDifferee}). */
+    public void setDifferJournalFiche(boolean differer) {
+        this.differerJournalFiche = differer;
+    }
+
+    /** Ecrit la trace differee de la derniere modification reussie, apres les champs enregistres par l'appelant. */
+    public void journaliserFicheDifferee(String lgFamilleId) {
+        java.util.Map<String, String> avant = photoAvantFiche;
+        photoAvantFiche = null;
+        if (avant == null) {
+            return;
+        }
+        TFamille famille = this.getOdataManager().getEm().find(TFamille.class, lgFamilleId);
+        if (famille != null) {
+            journaliserModificationFiche(famille, avant);
+        }
+    }
+
+    private void journaliserModificationFiche(TFamille famille, java.util.Map<String, String> photoAvant) {
+        try {
+            java.util.List<rest.service.impl.achats.ModificationBl.Champ> champs = rest.service.impl.journal.ModificationFiche
+                    .ecarts(photoAvant, rest.service.impl.journal.ModificationFiche.photo(famille));
+            if (champs.isEmpty() || this.getOTUser() == null) {
+                return;
+            }
+            TEventLog eventLog = new TEventLog(UUID.randomUUID().toString());
+            eventLog.setLgUSERID(this.getOTUser());
+            eventLog.setDtCREATED(new Date());
+            eventLog.setDtUPDATED(eventLog.getDtCREATED());
+            eventLog.setStrCREATEDBY(this.getOTUser().getStrLOGIN());
+            eventLog.setStrSTATUT(Constant.STATUT_ENABLE);
+            eventLog.setStrTABLECONCERN(TFamille.class.getName());
+            eventLog.setTypeLog(TypeLog.MODIFICATION_FICHE_PRODUIT);
+            eventLog.setStrDESCRIPTION(
+                    rest.service.impl.journal.ModificationFiche.description(famille.getIntCIP(), famille.getStrNAME(),
+                            this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME(), champs));
+            eventLog.setStrTYPELOG(famille.getLgFAMILLEID());
+            eventLog.setStrDETAIL(rest.service.impl.achats.ModificationBl.detail(champs));
+            this.persiste(eventLog);
+        } catch (Exception e) {
+            new logger().OCategory.error("Trace de la modification de fiche non ecrite", e);
+        }
     }
 
     private TFamilleGrossiste getFamilleGrossisteByCIP(String CIP, TGrossiste OGrossiste) {
@@ -6709,6 +6772,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             eventLog.setStrSTATUT(Constant.STATUT_ENABLE);
             eventLog.setStrTABLECONCERN(OTFamille.getClass().getName());
             eventLog.setTypeLog(TypeLog.AJOUT_DE_NOUVEAU_PRODUIT);
+            // retours du 23/11 : identifiant de la fiche, pour l'onglet « Historique » (le CIP peut changer)
+            eventLog.setStrTYPELOG(OTFamille.getLgFAMILLEID());
             eventLog.setStrDESCRIPTION("Création du produit " + " cip [" + OTFamille.getIntCIP() + " "
                     + OTFamille.getStrNAME() + " par " + notification.getUser().getStrFIRSTNAME().concat(" ")
                             .concat(notification.getUser().getStrLASTNAME())

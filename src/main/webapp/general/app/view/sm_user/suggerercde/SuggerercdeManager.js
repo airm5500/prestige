@@ -310,7 +310,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             columns: [
                                 {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
                                 /* plan du 06/11, point 12 : libelle plus large, la place vient de QTE, MOY et SEUIL */
-                                {text: 'LIBELLE', flex: 3.6, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
+                                {text: 'LIBELLE', flex: 3.6, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.libelleRenderer},
                                 /* Disponibilite PharmaML (plan d'octobre 1.2) : dernier resultat connu, info-bulle detaillee. */
                                 /* Retours du 06/10 : indicateur seul, sans entete, et verification de ce produit sur la ligne (⟳). */
                                 {text: '', itemId: 'colDispo', width: 40, sortable: false, menuDisabled: true, align: 'center', resizable: false,
@@ -473,17 +473,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             ],
                         tbar: [
                             {xtype: 'textfield', id: 'rechercherDetail', name: 'rechercherDetail', emptyText: 'Recherche', width: 190, listeners: {'render': function (cmp) {cmp.getEl().on('keypress', function (e) {if (e.getKey() === e.ENTER) {Me_Window.onRechClick();}});}}},
-                            /* plan du 08/11, point 11.4 : recharge la page en cours (recherche gardee), lignes ET couleurs */
-                            {xtype: 'button', text: 'Actualiser', id: 'btn_sugg_actualiser', iconCls: 'x-tbar-loading', margins: '0 0 0 6',
-                                tooltip: 'Recharger les lignes et leurs couleurs (commande en cours, autre suggestion, BL non clôturé)',
-                                handler: function () {
-                                    Me_Window.actualiser();
-                                }},
-                            {xtype: 'tbseparator'},
-                            testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.comboFiltre('filtreDispo', function (v) {
-                                testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.filtrer(
-                                        Ext.getCmp('gridpanelSuggestionID').getStore(), Me_Window.etatDispo || {}, v);
-                            }),
+                            /* plan du 21/11, point 4.2 : « Actualiser » et le filtre de disponibilite passent dans la barre
+                               de pagination ; la barre du haut laisse la place aux informations du produit */
                             {xtype: 'tbtext', id: 'suggInfoBar', flex: 1, text: "Sélectionnez un produit (colonne QTE) pour voir ses informations d'aide à la décision."}
                         ],
                         
@@ -493,6 +484,21 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             store: store_details_sugg,
                             displayInfo: true,
                             plugins: new Ext.ux.ProgressBarPager(),
+                            /* plan du 21/11, point 4.2 : juste apres le bouton actualiser de la pagination */
+                            items: [
+                                {xtype: 'tbseparator'},
+                                /* plan du 08/11, point 11.4 : recharge la page en cours (recherche gardee), lignes ET couleurs */
+                                {xtype: 'button', text: 'Actualiser', id: 'btn_sugg_actualiser', iconCls: 'x-tbar-loading',
+                                    tooltip: 'Recharger les lignes et leurs couleurs (commande en cours, autre suggestion, BL non clôturé)',
+                                    handler: function () {
+                                        Me_Window.actualiser();
+                                    }},
+                                {xtype: 'tbseparator'},
+                                testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.comboFiltre('filtreDispo', function (v) {
+                                    testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.filtrer(
+                                            Ext.getCmp('gridpanelSuggestionID').getStore(), Me_Window.etatDispo || {}, v);
+                                })
+                            ],
                             listeners: {
                                 beforechange: function (page, currentPage) {
                                     Me_Window.focusContext = { row: 0 };
@@ -517,7 +523,11 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                         {xtype: 'tbseparator', cls: 'sugg-separateur'},
                         {text: 'Vérifier la disponibilité', id: 'btn_dispo_verifier', cls: 'btn-primary sugg-groupe-dispo', scope: this,
                             tooltip: 'Interroger le grossiste par PharmaML (information seulement, aucune commande)',
-                            handler: function () {
+                            handler: function (b) {
+                                /* plan du 21/11, point 4.5 : bouton grise quand la disponibilite est coupee */
+                                if (b && b.dispoCoupee) {
+                                    return;
+                                }
                                 Me_Window.verifierDispo(false);
                             }},
                         {text: 'Revérifier les indisponibles', id: 'btn_dispo_reverifier', cls: 'btn-primary sugg-groupe-dispo', scope: this,
@@ -590,6 +600,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             
             /* plan du 08/11, point 11.5 : nettoyage a l'ouverture si le parametre est a 1, puis la liste */
             Me_Window.ouvrirPuisCharger(OgridpanelSuggestionID);
+            /* retour du 22/11 : previsions des produits de la suggestion calculees a l'ouverture */
+            testextjs.view.commandemanagement.analyse.FenetrePrevision.actualiser('SUGGESTION', orderIdRef);
         }
 
         Ext.getCmp('gridpanelSuggestionID').on('edit', function (editor, e) {
@@ -903,43 +915,13 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
 
     /* plan du 08/11, point 11.3 : confirmation dans le bouton (plus de fenetre) */
     PrestigeConfirmation.bouton(bouton, 'Confirmer : nettoyer ?', function () {
-            {
-                testextjs.app.getController('App').ShowWaitingProcess();
-
-                Ext.Ajax.request({
-                    url: '../api/v1/suggestion/clean?suggestionId=' + orderIdRef,
-                    method: 'POST',
-                    scope: me,
-                    success: function(response) {
-                        testextjs.app.getController('App').StopWaitingProcess();
-                        var JsorResponse = Ext.JSON.decode(response.responseText, true);
-
-                        if (JsorResponse && JsorResponse.success) {
-                            
-                            if (window.PrestigeToast) {
-                                PrestigeToast.afficher('Suggestion nettoyée (produits retirés : voir « Produits retirés »).', {niveau: 'ok'});
-                            }
-
-                            var grid = Ext.getCmp('gridpanelSuggestionID');
-                            grid.getStore().load({
-                                params: {
-                                    orderId: orderIdRef,
-                                    query: Ext.getCmp('rechercherDetail').getValue()
-                                }
-                            });
-                            
-                            this.getSuggestionAmount(orderIdRef);
-                        } else {
-                            Ext.MessageBox.alert('Erreur', (JsorResponse ? JsorResponse.message : "Réponse invalide du serveur."));
-                        }
-                    },
-                    failure: function(response) {
-                        testextjs.app.getController('App').StopWaitingProcess();
-                        this.getSuggestionAmount(orderIdRef);
-                        Ext.MessageBox.alert('Erreur Serveur', 'Impossible de contacter le serveur. ' + response.statusText);
-                    }
-                });
-            }
+            /* meme requete que le bandeau du point 4.1, qui disparait une fois la suggestion nettoyee */
+            me.nettoyerMaintenant(function () {
+                const grid = Ext.getCmp('gridpanelSuggestionID'), b = grid && grid.down('#bandeauNettoyageSugg');
+                if (b) {
+                    grid.removeDocked(b, true);
+                }
+            });
         });
 },
     
@@ -1328,6 +1310,89 @@ onRemoveClick: function (grid, rowIndex) {
                     PrestigeToast.afficher(r.retires + (r.retires > 1 ? ' produits retirés' : ' produit retiré')
                             + ' à l\'ouverture (voir « Produits retirés »).', {niveau: 'info', titre: 'Suggestion nettoyée'});
                 }
+                /* plan du 21/11, point 4.1 : nettoyage automatique coupe, des produits sont repasses au-dessus du seuil :
+                   la question est posee dans un bandeau en haut de la suggestion (pas de fenetre) */
+                if (r && !r.actif && r.aNettoyer > 0) {
+                    Me_Window.afficherBandeauNettoyage(grid, r.aNettoyer);
+                }
+            }
+        });
+    },
+
+    /**
+     * Plan du 21/11, point 4.1 : bandeau « nettoyer la suggestion ? ». « Oui, nettoyer » fait exactement ce que fait le
+     * bouton « Nettoyer la suggestion » (meme route, lignes journalisees dans « Produits retires ») ; « Non, garder »
+     * ferme le bandeau sans rien toucher.
+     */
+    afficherBandeauNettoyage: function (grid, n) {
+        const ancien = grid.down('#bandeauNettoyageSugg');
+        if (ancien) {
+            grid.removeDocked(ancien, true);
+        }
+        const fermer = function () {
+            const b = grid.isDestroyed ? null : grid.down('#bandeauNettoyageSugg');
+            if (b) {
+                grid.removeDocked(b, true);
+            }
+        };
+        grid.addDocked({
+            xtype: 'toolbar', dock: 'top', itemId: 'bandeauNettoyageSugg', cls: 'sugg-bandeau-nettoyage',
+            items: [
+                {xtype: 'tbtext', itemId: 'texteBandeauNettoyage', cls: 'sugg-bandeau-texte',
+                    text: '⚠ ' + n + (n > 1 ? ' produits sont repassés' : ' produit est repassé')
+                            + ' au-dessus du seuil (rayon + réserve) depuis la création de la suggestion. Nettoyer la suggestion ?'},
+                '->',
+                {xtype: 'button', itemId: 'btnBandeauNettoyerOui', text: 'Oui, nettoyer', cls: 'ordo-btn ordo-btn-primaire sugg-bandeau-oui',
+                    tooltip: 'Retirer ' + (n > 1 ? 'ces ' + n + ' produits' : 'ce produit')
+                            + ' de la suggestion. Ils restent visibles dans « Produits retirés ».',
+                    handler: function (b) {
+                        b.disable();
+                        Me_Window.nettoyerMaintenant(fermer, function () {
+                            b.enable();
+                        });
+                    }},
+                {xtype: 'button', itemId: 'btnBandeauNettoyerNon', text: 'Non, garder', cls: 'ordo-btn',
+                    tooltip: 'Garder la suggestion telle quelle. « Nettoyer la suggestion » reste disponible en bas.',
+                    handler: fermer}
+            ]
+        });
+    },
+
+    /** La requete de « Nettoyer la suggestion », puis la liste et les montants. */
+    nettoyerMaintenant: function (succes, echec) {
+        const me = this;
+        testextjs.app.getController('App').ShowWaitingProcess();
+        Ext.Ajax.request({
+            url: '../api/v1/suggestion/clean?suggestionId=' + orderIdRef,
+            method: 'POST',
+            success: function (response) {
+                testextjs.app.getController('App').StopWaitingProcess();
+                const rep = Ext.JSON.decode(response.responseText, true);
+                if (rep && rep.success) {
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher('Suggestion nettoyée (produits retirés : voir « Produits retirés »).', {niveau: 'ok'});
+                    }
+                    Ext.getCmp('gridpanelSuggestionID').getStore().load({
+                        params: {orderId: orderIdRef, query: Ext.getCmp('rechercherDetail').getValue()}
+                    });
+                    me.getSuggestionAmount(orderIdRef);
+                    if (succes) {
+                        succes();
+                    }
+                } else {
+                    if (echec) {
+                        echec();
+                    }
+                    Ext.MessageBox.alert('Erreur', (rep ? rep.message : 'Réponse invalide du serveur.'));
+                }
+            },
+            failure: function (response) {
+                testextjs.app.getController('App').StopWaitingProcess();
+                me.getSuggestionAmount(orderIdRef);
+                if (echec) {
+                    echec();
+                }
+                Ext.MessageBox.alert('Erreur Serveur', 'Impossible de contacter le serveur. ' + response.statusText);
             }
         });
     },
@@ -1423,6 +1488,18 @@ onRemoveClick: function (grid, rowIndex) {
         return '';
     },
     
+    /** Plan du 21/11, point 4.5 : classe ABC de la fiche apres le nom, ex. « DOLIPRANE 500 (A) » ; rien sans classe. */
+    libelleRenderer: function (v, m, r, ligne, col, store, vue) {
+        var c = r.get('str_CLASSE_ABC');
+        /* retours du 22/11 (lot 10, point 2) : l'info-bulle du nom (trop long pour la colonne) porte aussi la classe */
+        if (m && v && c) {
+            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('LIBELLE : ' + v + ' (classe ' + c + ')')) + '"';
+        }
+        var t = Me_Window.columnRenderer(v, m, r, ligne, col, store, vue);
+        return c ? t + ' <span class="classe-abc" data-classe-abc="' + Ext.String.htmlEncode(c)
+                + '" style="color:#2E75B6;font-weight:600">(' + Ext.String.htmlEncode(c) + ')</span>' : t;
+    },
+
     columnRenderer: function (v, m, r, ligne, col, store, vue) {
         const st = Me_Window.manageColor(r);
         m.style = st;

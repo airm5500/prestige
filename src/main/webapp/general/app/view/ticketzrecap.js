@@ -196,8 +196,10 @@ Ext.define('testextjs.view.ticketzrecap', {
         b.setText(enCours);
         Ext.Ajax.request({
             url: url, method: 'POST', jsonData: p,
-            success: function () {
-                finir(fait);
+            success: function (r) {
+                /* plan du 21/11, point 8.1 : etat reel de l'envoi s'il est renvoye (SMS non parti : son motif) */
+                var o = Ext.decode(r.responseText, true);
+                finir(url.indexOf('send-sms') >= 0 && o && o.statut && o.statut !== 'Envoyé' ? 'SMS : ' + o.statut : fait);
             },
             failure: function () {
                 finir('Échec : réessayer');

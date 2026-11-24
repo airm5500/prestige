@@ -25,6 +25,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.PrevisionCommandeService;
 import rest.service.impl.prevision.AlertesLigne;
+import rest.service.impl.prevision.ExplicationPrevision;
 import rest.service.impl.prevision.Prevision;
 import rest.service.impl.prevision.Recommandation;
 
@@ -147,118 +148,11 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         long t0 = System.currentTimeMillis();
         LocalDateTime debut = LocalDateTime.now();
         try {
-            YearMonth courant = YearMonth.now();
-            YearMonth premier = courant.minusMonths(MOIS_HISTORIQUE);
-            Map<String, Produit> produits = new HashMap<>();
-            /* produits actifs (vendus a l'unite : les produits deconditionnes sont ecartes, comme pour les ruptures) */
-            for (Object[] r : lignes("SELECT f.lg_FAMILLE_ID, f.str_NAME, f.lg_GROSSISTE_ID, COALESCE(f.int_PAF, 0),"
-                    + " COALESCE(f.bool_DECONDITIONNE, 0) FROM t_famille f WHERE f.str_STATUT = 'enable'")) {
-                Produit p = new Produit(texte(r[0]));
-                p.nom = texte(r[1]);
-                p.grossiste = texte(r[2]);
-                p.paf = entier(r[3]);
-                p.detail = entier(r[4]) == 1;
-                produits.put(p.id, p);
-            }
-            Set<String> suivis = new HashSet<>();
-            /* ventes mensuelles (ventes cloturees, non annulees, hors avoirs) des vendeurs de l'emplacement */
-            for (Object[] r : lignes("SELECT d.lg_FAMILLE_ID,"
-                    + " PERIOD_DIFF(DATE_FORMAT(p.dt_UPDATED, '%Y%m'), ?2) AS m, SUM(d.int_QUANTITY), MAX(p.dt_UPDATED)"
-                    + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d"
-                    + "   ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
-                    + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?1"
-                    + " WHERE p.dt_UPDATED >= ?3 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-                    + " GROUP BY d.lg_FAMILLE_ID, m", emplacementId,
-                    premier.format(DateTimeFormatter.ofPattern("yyyyMM")),
-                    Timestamp.valueOf(premier.atDay(1).atStartOfDay()))) {
-                Produit p = produits.get(texte(r[0]));
-                if (p == null || p.detail) {
-                    continue;
-                }
-                int m = entier(r[1]);
-                if (m >= 0 && m < MOIS_HISTORIQUE) {
-                    p.ventes[m] += Math.max(0, reel(r[2]));
-                }
-                LocalDateTime dv = dateHeure(r[3]);
-                if (dv != null && (p.derniereVente == null || dv.isAfter(p.derniereVente))) {
-                    p.derniereVente = dv;
-                }
-                suivis.add(p.id);
-            }
-            for (Object[] r : lignes("SELECT lg_FAMILLE_ID, SUM(int_NUMBER_AVAILABLE) FROM t_famille_stock"
-                    + " WHERE lg_EMPLACEMENT_ID = ?1 GROUP BY lg_FAMILLE_ID", emplacementId)) {
-                Produit p = produits.get(texte(r[0]));
-                if (p != null && !p.detail) {
-                    p.stock = entier(r[1]);
-                    if (p.stock > 0) {
-                        suivis.add(p.id);
-                    }
-                }
-            }
-            for (Object[] r : lignes(
-                    "SELECT lg_FAMILLE_ID, SUM(int_NUMBER) FROM t_type_stock_famille"
-                            + " WHERE lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = ?1 GROUP BY lg_FAMILLE_ID",
-                    emplacementId)) {
-                Produit p = produits.get(texte(r[0]));
-                if (p != null && !p.detail) {
-                    p.reserve = Math.max(0, entier(r[1]));
-                    if (p.reserve > 0) {
-                        suivis.add(p.id);
-                    }
-                }
-            }
-            for (Map.Entry<String, Integer> e : enCoursCommandes().entrySet()) {
-                Produit p = produits.get(e.getKey());
-                if (p != null) {
-                    p.enCours = e.getValue();
-                }
-            }
-            Map<String, Integer> delais = new HashMap<>();
-            for (Object[] r : lignes(
-                    "SELECT lg_GROSSISTE_ID, COALESCE(int_DELAI_REAPPROVISIONNEMENT, 0) FROM t_grossiste")) {
-                delais.put(texte(r[0]), entier(r[1]));
-            }
-            int delaiDefaut = Math.max(0, entierParametre("KEY_PREVISION_DELAI_JOURS", 3));
-            int couvertureVoulue = Math.max(0, entierParametre("KEY_PREVISION_COUVERTURE_JOURS", 15));
-            equivalentsDirects(produits);
-
             List<Object[]> sortie = new ArrayList<>();
-            long poids = 0, fiabilitePonderee = 0;
-            int moisTest = Math.max(1, param("KEY_PREVISION_MOIS_TEST"));
-            for (String id : suivis) {
-                Produit p = produits.get(id);
-                Integer d = p.grossiste == null ? null : delais.get(p.grossiste);
-                p.delai = d != null && d > 0 ? d : delaiDefaut;
-                double[] serie = depuisPremiereVente(p.ventes);
-                Prevision.Resultat r = Prevision.analyser(serie, moisTest);
-                int stockTotal = Math.max(0, p.stock) + p.reserve;
-                int recommande = Recommandation.quantite(r.parJour(), r.ecartTypeMois, p.delai, couvertureVoulue,
-                        stockTotal, p.enCours, p.equivalents);
-                int couverture = Recommandation.couverture(stockTotal, p.enCours, r.parJour());
-                int ventes12 = (int) Math.round(somme(p.ventes, MOIS_HISTORIQUE - 12, MOIS_HISTORIQUE));
-                StringBuilder erreurs = new StringBuilder();
-                for (int i = 0; i < r.methodes.length; i++) {
-                    erreurs.append(i > 0 ? "," : "").append(r.methodes[i]).append(':').append(r.erreurs[i]);
-                }
-                double[] affiche = Arrays.copyOfRange(serie, Math.max(0, serie.length - MOIS_AFFICHES), serie.length);
-                StringBuilder h = new StringBuilder();
-                for (int i = 0; i < affiche.length; i++) {
-                    h.append(i > 0 ? "," : "").append((long) Math.round(affiche[i]));
-                }
-                sortie.add(new Object[] { id, emplacementId, r.methode, r.prevuMois,
-                        Math.round(r.ecartTypeMois * 100) / 100.0, r.fiabilite, erreurs.toString(), h.toString(),
-                        ventes12, p.derniereVente == null ? null : Timestamp.valueOf(p.derniereVente), stockTotal,
-                        p.enCours, p.equivalents, p.delai, couverture < 0 ? null : Math.min(couverture, 99999),
-                        recommande });
-                if (ventes12 > 0) {
-                    poids += ventes12;
-                    fiabilitePonderee += (long) ventes12 * r.fiabilite;
-                }
-            }
+            Integer fiabilite = calculer(emplacementId, null, sortie);
             em.createNativeQuery("DELETE FROM t_prevision_produit WHERE lg_EMPLACEMENT_ID = ?1")
                     .setParameter(1, emplacementId).executeUpdate();
             inserer(sortie);
-            Integer fiabilite = poids > 0 ? (int) Math.round((double) fiabilitePonderee / poids) : null;
             em.createNativeQuery("INSERT INTO t_prevision_calcul (lg_EMPLACEMENT_ID, debut, fin, produits,"
                     + " fiabilite_moyenne, origine) VALUES (?1, ?2, NOW(), ?3, ?4, ?5)").setParameter(1, emplacementId)
                     .setParameter(2, Timestamp.valueOf(debut)).setParameter(3, sortie.size()).setParameter(4, fiabilite)
@@ -272,6 +166,220 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
             LOG.log(Level.SEVERE, "calcul des previsions de commande", e);
             return new JSONObject().put("success", false).put("message", "Le calcul des prévisions a échoué.");
         }
+    }
+
+    /**
+     * Calcul des previsions (lignes de t_prevision_produit dans « sortie ») ; fiabilite moyenne ponderee rendue. Retour
+     * du 22/11 : « seulement » (non nul) restreint le calcul a ces produits (ouverture d'une suggestion ou d'une
+     * commande, fenetre d'un produit) ; le stock des equivalents reste lu sur tous les produits, comme au calcul
+     * complet, pour que les deux donnent les memes chiffres.
+     */
+    private Integer calculer(String emplacementId, Set<String> seulement, List<Object[]> sortie) {
+        YearMonth courant = YearMonth.now();
+        YearMonth premier = courant.minusMonths(MOIS_HISTORIQUE);
+        Map<String, Produit> produits = new HashMap<>();
+        /* produits actifs (vendus a l'unite : les produits deconditionnes sont ecartes, comme pour les ruptures) */
+        for (Object[] r : lignes("SELECT f.lg_FAMILLE_ID, f.str_NAME, f.lg_GROSSISTE_ID, COALESCE(f.int_PAF, 0),"
+                + " COALESCE(f.bool_DECONDITIONNE, 0) FROM t_famille f WHERE f.str_STATUT = 'enable'")) {
+            Produit p = new Produit(texte(r[0]));
+            p.nom = texte(r[1]);
+            p.grossiste = texte(r[2]);
+            p.paf = entier(r[3]);
+            p.detail = entier(r[4]) == 1;
+            produits.put(p.id, p);
+        }
+        Set<String> suivis = new HashSet<>();
+        /* ventes mensuelles (ventes cloturees, non annulees, hors avoirs) des vendeurs de l'emplacement */
+        for (Object[] r : lignes("SELECT d.lg_FAMILLE_ID,"
+                + " PERIOD_DIFF(DATE_FORMAT(p.dt_UPDATED, '%Y%m'), ?2) AS m, SUM(d.int_QUANTITY), MAX(p.dt_UPDATED)"
+                + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d"
+                + "   ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?1"
+                + " WHERE p.dt_UPDATED >= ?3 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+                + dans("d.lg_FAMILLE_ID", seulement, 4) + " GROUP BY d.lg_FAMILLE_ID, m",
+                avec(seulement, emplacementId, premier.format(DateTimeFormatter.ofPattern("yyyyMM")),
+                        Timestamp.valueOf(premier.atDay(1).atStartOfDay())))) {
+            Produit p = produits.get(texte(r[0]));
+            if (p == null || p.detail) {
+                continue;
+            }
+            int m = entier(r[1]);
+            if (m >= 0 && m < MOIS_HISTORIQUE) {
+                p.ventes[m] += Math.max(0, reel(r[2]));
+            }
+            LocalDateTime dv = dateHeure(r[3]);
+            if (dv != null && (p.derniereVente == null || dv.isAfter(p.derniereVente))) {
+                p.derniereVente = dv;
+            }
+            suivis.add(p.id);
+        }
+        for (Object[] r : lignes("SELECT lg_FAMILLE_ID, SUM(int_NUMBER_AVAILABLE) FROM t_famille_stock"
+                + " WHERE lg_EMPLACEMENT_ID = ?1 GROUP BY lg_FAMILLE_ID", emplacementId)) {
+            Produit p = produits.get(texte(r[0]));
+            if (p != null && !p.detail) {
+                p.stock = entier(r[1]);
+                if (p.stock > 0) {
+                    suivis.add(p.id);
+                }
+            }
+        }
+        for (Object[] r : lignes(
+                "SELECT lg_FAMILLE_ID, SUM(int_NUMBER) FROM t_type_stock_famille"
+                        + " WHERE lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = ?1 GROUP BY lg_FAMILLE_ID",
+                emplacementId)) {
+            Produit p = produits.get(texte(r[0]));
+            if (p != null && !p.detail) {
+                p.reserve = Math.max(0, entier(r[1]));
+                if (p.reserve > 0) {
+                    suivis.add(p.id);
+                }
+            }
+        }
+        for (Map.Entry<String, Integer> e : enCoursCommandes().entrySet()) {
+            Produit p = produits.get(e.getKey());
+            if (p != null) {
+                p.enCours = e.getValue();
+            }
+        }
+        Map<String, Integer> delais = new HashMap<>();
+        for (Object[] r : lignes(
+                "SELECT lg_GROSSISTE_ID, COALESCE(int_DELAI_REAPPROVISIONNEMENT, 0) FROM t_grossiste")) {
+            delais.put(texte(r[0]), entier(r[1]));
+        }
+        int delaiDefaut = Math.max(0, entierParametre("KEY_PREVISION_DELAI_JOURS", 3));
+        int couvertureVoulue = Math.max(0, entierParametre("KEY_PREVISION_COUVERTURE_JOURS", 15));
+        equivalentsDirects(produits);
+
+        long poids = 0, fiabilitePonderee = 0;
+        int moisTest = Math.max(1, param("KEY_PREVISION_MOIS_TEST"));
+        for (String id : suivis) {
+            if (seulement != null && !seulement.contains(id)) {
+                continue;
+            }
+            Produit p = produits.get(id);
+            Integer d = p.grossiste == null ? null : delais.get(p.grossiste);
+            p.delai = d != null && d > 0 ? d : delaiDefaut;
+            double[] serie = depuisPremiereVente(p.ventes);
+            Prevision.Resultat r = Prevision.analyser(serie, moisTest);
+            int stockTotal = Math.max(0, p.stock) + p.reserve;
+            int recommande = Recommandation.quantite(r.parJour(), r.ecartTypeMois, p.delai, couvertureVoulue,
+                    stockTotal, p.enCours, p.equivalents);
+            int couverture = Recommandation.couverture(stockTotal, p.enCours, r.parJour());
+            int ventes12 = (int) Math.round(somme(p.ventes, MOIS_HISTORIQUE - 12, MOIS_HISTORIQUE));
+            StringBuilder erreurs = new StringBuilder();
+            for (int i = 0; i < r.methodes.length; i++) {
+                erreurs.append(i > 0 ? "," : "").append(r.methodes[i]).append(':').append(r.erreurs[i]);
+            }
+            double[] affiche = Arrays.copyOfRange(serie, Math.max(0, serie.length - MOIS_AFFICHES), serie.length);
+            StringBuilder h = new StringBuilder();
+            for (int i = 0; i < affiche.length; i++) {
+                h.append(i > 0 ? "," : "").append((long) Math.round(affiche[i]));
+            }
+            sortie.add(new Object[] { id, emplacementId, r.methode, r.prevuMois,
+                    Math.round(r.ecartTypeMois * 100) / 100.0, r.fiabilite, erreurs.toString(), h.toString(), ventes12,
+                    p.derniereVente == null ? null : Timestamp.valueOf(p.derniereVente), stockTotal, p.enCours,
+                    p.equivalents, p.delai, couverture < 0 ? null : Math.min(couverture, 99999), recommande,
+                    ExplicationPrevision.expliquer(serie, r.methode, YearMonth.now().minusMonths(1)).json()
+                            .toString() });
+            if (ventes12 > 0) {
+                poids += ventes12;
+                fiabilitePonderee += (long) ventes12 * r.fiabilite;
+            }
+        }
+        return poids > 0 ? (int) Math.round((double) fiabilitePonderee / poids) : null;
+    }
+
+    /** « AND col IN (?k, ...) » pour les produits donnes (vide si tous). */
+    static String dans(String colonne, Set<String> ids, int premier) {
+        if (ids == null) {
+            return "";
+        }
+        StringBuilder s = new StringBuilder(" AND ").append(colonne).append(" IN (");
+        for (int k = 0; k < ids.size(); k++) {
+            s.append(k > 0 ? "," : "").append('?').append(premier + k);
+        }
+        return s.append(')').toString();
+    }
+
+    private static Object[] avec(Set<String> ids, Object... debut) {
+        List<Object> l = new ArrayList<>(Arrays.asList(debut));
+        if (ids != null) {
+            l.addAll(ids);
+        }
+        return l.toArray();
+    }
+
+    /** Au plus tant de produits recalcules d'un coup (une commande tres longue : les premiers, les autres la nuit). */
+    static final int MAX_PRODUITS_RECALCULES = 400;
+
+    @Override
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.REQUIRES_NEW)
+    public JSONObject recalculerProduits(String emplacementId, java.util.Collection<String> ids) {
+        long t0 = System.currentTimeMillis();
+        Set<String> s = new java.util.LinkedHashSet<>();
+        for (String id : ids) {
+            if (id != null && !id.isEmpty() && s.size() < MAX_PRODUITS_RECALCULES) {
+                s.add(id);
+            }
+        }
+        if (s.isEmpty()) {
+            return new JSONObject().put("success", true).put("produits", 0).put("duree", 0);
+        }
+        List<Object[]> sortie = new ArrayList<>();
+        calculer(emplacementId, s, sortie);
+        Query q = em.createNativeQuery(
+                "DELETE FROM t_prevision_produit WHERE lg_EMPLACEMENT_ID = ?1" + dans("lg_FAMILLE_ID", s, 2));
+        int n = 0;
+        for (Object v : avec(s, emplacementId)) {
+            q.setParameter(++n, v);
+        }
+        q.executeUpdate();
+        inserer(sortie);
+        return new JSONObject().put("success", true).put("produits", sortie.size()).put("duree",
+                System.currentTimeMillis() - t0);
+    }
+
+    @javax.annotation.Resource
+    private javax.ejb.SessionContext contexte;
+
+    @Override
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
+    public boolean sansDetail(String emplacementId, String familleId) {
+        return lignes("SELECT p.lg_FAMILLE_ID, 0 FROM t_prevision_produit p WHERE p.lg_EMPLACEMENT_ID = ?1"
+                + " AND p.lg_FAMILLE_ID = ?2 AND p.explication IS NOT NULL", emplacementId, familleId).isEmpty();
+    }
+
+    /** recalculerProduits dans sa propre transaction ; un echec (calcul complet en meme temps) ne bloque rien. */
+    private boolean recalculerSansErreur(String emplacementId, java.util.Collection<String> ids) {
+        try {
+            contexte.getBusinessObject(PrevisionCommandeService.class).recalculerProduits(emplacementId, ids);
+            return true;
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "recalcul de produits", e);
+            return false;
+        }
+    }
+
+    @Override
+    public JSONObject actualiser(String emplacementId, String type, String id) {
+        boolean commande = COMMANDE.equals(type);
+        if (!commande && !SUGGESTION.equals(type)) {
+            return new JSONObject().put("success", false).put("message", "Type inconnu : SUGGESTION ou COMMANDE.");
+        }
+        long t0 = System.currentTimeMillis();
+        /* produits de la suggestion ou de la commande sans prevision du jour, ou sans le detail du calcul */
+        List<String> ids = new ArrayList<>();
+        for (Object[] x : lignes("SELECT DISTINCT x.lg_FAMILLE_ID, 0 FROM "
+                + (commande ? "t_order_detail x WHERE x.lg_ORDER_ID = ?2"
+                        : "t_suggestion_order_details x WHERE x.lg_SUGGESTION_ORDER_ID = ?2")
+                + " AND NOT EXISTS (SELECT 1 FROM t_prevision_produit p WHERE p.lg_EMPLACEMENT_ID = ?1"
+                + " AND p.lg_FAMILLE_ID = x.lg_FAMILLE_ID AND p.dt_CALCUL >= CURDATE() AND p.explication IS NOT NULL)"
+                + " LIMIT " + MAX_PRODUITS_RECALCULES, emplacementId, id)) {
+            ids.add(texte(x[0]));
+        }
+        boolean ok = ids.isEmpty() || recalculerSansErreur(emplacementId, ids);
+        return new JSONObject().put("success", ok).put("produits", ids.size()).put("duree",
+                System.currentTimeMillis() - t0);
     }
 
     /** La serie commence a la premiere vente : les mois d'avant n'existaient pas pour le produit. */
@@ -335,11 +443,12 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
             List<Object[]> lot = lignes.subList(de, Math.min(lignes.size(), de + parLot));
             StringBuilder sql = new StringBuilder("INSERT INTO t_prevision_produit (lg_FAMILLE_ID, lg_EMPLACEMENT_ID,"
                     + " methode, prevu_mois, ecart_type_mois, fiabilite, erreurs, historique, ventes_12_mois, derniere_vente,"
-                    + " stock, en_cours, equivalents, delai_jours, couverture_jours, recommande, dt_CALCUL) VALUES ");
+                    + " stock, en_cours, equivalents, delai_jours, couverture_jours, recommande, explication, dt_CALCUL)"
+                    + " VALUES ");
             int n = 0;
             for (int i = 0; i < lot.size(); i++) {
                 sql.append(i > 0 ? "," : "").append('(');
-                for (int k = 0; k < 16; k++) {
+                for (int k = 0; k < 17; k++) {
                     sql.append('?').append(++n).append(',');
                 }
                 sql.append("NOW())");
@@ -647,8 +756,21 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
 
     @Override
     public JSONObject produit(String emplacementId, String familleId) {
+        /*
+         * retour du 22/11 : plus de « disponible au prochain recalcul » : le produit est calcule tout de suite. Le
+         * besoin est lu HORS de cette transaction et le recalcul se fait dans la sienne, AVANT toute lecture ici : en
+         * lecture repetable (MariaDB), une lecture faite avant le recalcul figerait l'ancienne ligne pour la suite de
+         * la transaction (la fenetre montrait encore « detail apres le prochain calcul »).
+         */
+        if (contexte.getBusinessObject(PrevisionCommandeService.class).sansDetail(emplacementId, familleId)) {
+            recalculerSansErreur(emplacementId, java.util.Collections.singletonList(familleId));
+        }
+        return lireProduit(emplacementId, familleId);
+    }
+
+    private JSONObject lireProduit(String emplacementId, String familleId) {
         rafraichirEnCours(emplacementId);
-        List<Object[]> r = lignes(COLONNES + ", p.erreurs FROM t_prevision_produit p JOIN t_famille f"
+        List<Object[]> r = lignes(COLONNES + ", p.erreurs, p.explication FROM t_prevision_produit p JOIN t_famille f"
                 + " ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = ?1 AND p.lg_FAMILLE_ID = ?2",
                 emplacementId, familleId);
         if (r.isEmpty()) {
@@ -680,6 +802,7 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
             }
         }
         o.put("methodes", methodes);
+        explicationEtSaison(o, texte(x[19]), h, dernier);
         /* le detail du calcul de la quantite recommandee, pour l'expliquer a l'ecran */
         int couverture = Math.max(0, entierParametre("KEY_PREVISION_COUVERTURE_JOURS", 15));
         double parJour = o.getDouble("prevuMois") / 30.0;
@@ -689,9 +812,64 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         o.put("calcul",
                 new JSONObject().put("parJour", Math.round(parJour * 100) / 100.0).put("delai", delai)
                         .put("couvertureVoulue", couverture).put("besoin", Math.round(besoin * 10) / 10.0)
-                        .put("securite", Math.round(securite * 10) / 10.0).put("ecartType", ecartType));
+                        .put("securite", Math.round(securite * 10) / 10.0).put("ecartType", ecartType)
+                        /* plan du 21/11, point 15 : besoin + securite arrondi au-dessus, comme Recommandation */
+                        .put("arrondi", (int) Math.ceil(Math.max(0, besoin) + securite - 1e-9)));
         detailFenetre(o, emplacementId, familleId);
         return o;
+    }
+
+    /**
+     * Plan du 21/11, point 15 : explication de la prevision (celle enregistree au calcul ; a defaut, refaite sur
+     * l'historique quand il suffit : moyenne, saison, ou historique complet de moins de 24 mois), gardee seulement si
+     * elle redonne la prevision enregistree. Et le tableau des unites vendues par mois avec l'indice saisonnier du
+     * produit, sur les mois de l'historique (meme regle que l'analyse de la demande).
+     */
+    void explicationEtSaison(JSONObject o, String enregistree, String[] h, YearMonth dernier) {
+        double prevu = o.getDouble("prevuMois");
+        JSONObject e = null;
+        if (enregistree != null && !enregistree.isEmpty()) {
+            JSONObject lue = new JSONObject(enregistree);
+            if (Math.abs(lue.optDouble("valeur", -1) - prevu) < 1e-6) {
+                e = lue;
+            }
+        }
+        double[] serie = new double[h.length];
+        for (int i = 0; i < h.length; i++) {
+            serie[i] = Double.parseDouble(h[i].trim());
+        }
+        String methode = o.optString("methode");
+        if (e == null && (h.length < MOIS_AFFICHES || Prevision.MOYENNE.equals(methode)
+                || Prevision.SAISON.equals(methode))) {
+            ExplicationPrevision refaite = ExplicationPrevision.expliquer(serie, methode, dernier);
+            if (Math.abs(refaite.valeur - prevu) < 1e-6) {
+                e = refaite.json();
+            }
+        }
+        o.put("explication", e == null ? JSONObject.NULL : e);
+        java.util.Map<YearMonth, Long> unites = new java.util.HashMap<>();
+        Map<Integer, JSONArray> annees = new java.util.TreeMap<>();
+        for (int i = 0; i < h.length; i++) {
+            YearMonth m = dernier.minusMonths(h.length - 1L - i);
+            long u = Math.round(serie[i]);
+            unites.put(m, u);
+            annees.computeIfAbsent(m.getYear(), a -> {
+                JSONArray vide = new JSONArray();
+                for (int k = 0; k < 12; k++) {
+                    vide.put(JSONObject.NULL);
+                }
+                return vide;
+            }).put(m.getMonthValue() - 1, u);
+        }
+        JSONArray lignesAnnees = new JSONArray();
+        annees.forEach((a, mois) -> lignesAnnees.put(new JSONObject().put("annee", a).put("mois", mois)));
+        JSONArray indices = new JSONArray();
+        if (h.length > 0) {
+            for (double v : DemandeSaisonniereService.indices(unites, dernier.minusMonths(h.length - 1L), dernier)) {
+                indices.put(v);
+            }
+        }
+        o.put("annees", lignesAnnees).put("indices", indices);
     }
 
     /**
@@ -715,14 +893,65 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         }
         o.put("couvertureOrigine", "paramètre (couverture voulue)");
         /* derniere vente : meme perimetre que le calcul (ventes cloturees, non annulees, vendeurs de l'emplacement) */
-        List<Object[]> v = lignes("SELECT DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), SUM(d.int_QUANTITY)"
-                + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
-                + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
-                + " WHERE d.lg_FAMILLE_ID = ?1 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-                + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.dt_UPDATED ORDER BY p.dt_UPDATED DESC LIMIT 1", familleId,
-                emplacementId);
+        List<Object[]> v = derniereVente(familleId, emplacementId);
         if (!v.isEmpty() && v.get(0)[0] != null) {
             o.put("derniereVente", texte(v.get(0)[0])).put("derniereVenteQte", entier(v.get(0)[1]));
+        }
+    }
+
+    /** Vente retenue : cloturee, non annulee, payante, d'un vendeur de l'emplacement. */
+    private static final String VENTE_RETENUE = " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0";
+
+    /** Au-dela, la derniere vente est cherchee a partir des lignes du produit plutot que des ventes recentes. */
+    private static final int JOURS_RECENTS = 31;
+
+    /**
+     * Derniere vente du produit (date de cloture, quantite). Plan du 21/11, point 4.3 : l'ancienne requete lisait
+     * toutes les ventes du produit depuis toujours avant d'en garder une (5,6 s a chaud, 15,9 s a froid sur la copie
+     * d'appaul, produit le plus vendu, 81 235 lignes). Meme resultat, en deux lectures courtes :
+     * <ol>
+     * <li>T1 : date de cloture de la vente retenue dont la ligne du produit est la plus recente (index produit + date
+     * de ligne, lu a rebours jusqu'a la premiere vente retenue) ;</li>
+     * <li>la derniere vente est la plus recemment cloturee parmi celles cloturees a partir de T1 : une vente cloturee
+     * avant T1 ne peut pas l'etre plus tard que la vente de T1. Ces ventes sont lues par date de cloture si T1 est
+     * recent, sinon par les lignes du produit (un produit peu vendu en a peu).</li>
+     * </ol>
+     * En cas d'erreur (index absent, par exemple), l'ancienne requete est rejouee.
+     */
+    List<Object[]> derniereVente(String familleId, String emplacementId) {
+        try {
+            List<Object[]> t = lignes(
+                    "SELECT p.dt_UPDATED, 0 FROM t_preenregistrement_detail d FORCE INDEX (idx_tpd_famille_date)"
+                            + " STRAIGHT_JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                            + " STRAIGHT_JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
+                            + " WHERE d.lg_FAMILLE_ID = ?1" + VENTE_RETENUE + " ORDER BY d.dt_CREATED DESC LIMIT 1",
+                    familleId, emplacementId);
+            if (t.isEmpty() || t.get(0)[0] == null) {
+                return new ArrayList<>();
+            }
+            Object t1 = t.get(0)[0];
+            boolean recent = t1 instanceof java.util.Date && ((java.util.Date) t1).toInstant()
+                    .isAfter(java.time.Instant.now().minus(java.time.Duration.ofDays(JOURS_RECENTS)));
+            String depuis = recent
+                    ? " FROM t_preenregistrement p FORCE INDEX (idx_preenr_statut_date)"
+                            + " STRAIGHT_JOIN t_preenregistrement_detail d ON d.lg_FAMILLE_ID = ?1"
+                            + "   AND d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                    : " FROM t_preenregistrement_detail d FORCE INDEX (idx_tpd_famille_date)"
+                            + " STRAIGHT_JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID";
+            return lignes(
+                    "SELECT DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), SUM(d.int_QUANTITY)" + depuis
+                            + " STRAIGHT_JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
+                            + " WHERE d.lg_FAMILLE_ID = ?1 AND p.dt_UPDATED >= ?3" + VENTE_RETENUE
+                            + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.dt_UPDATED ORDER BY p.dt_UPDATED DESC LIMIT 1",
+                    familleId, emplacementId, t1);
+        } catch (RuntimeException e) {
+            LOG.log(java.util.logging.Level.WARNING, "derniereVente : retour a la requete complete", e);
+            return lignes("SELECT DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), SUM(d.int_QUANTITY)"
+                    + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                    + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
+                    + " WHERE d.lg_FAMILLE_ID = ?1" + VENTE_RETENUE
+                    + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.dt_UPDATED ORDER BY p.dt_UPDATED DESC LIMIT 1", familleId,
+                    emplacementId);
         }
     }
 

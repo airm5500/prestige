@@ -217,6 +217,11 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         /* plan du 09/11, point 13 : origine (campagne ou rappel) et utilisateur qui a declenche l'envoi */
         String origine = deCampagne(notificationId) ? rest.service.impl.whatsapp.OrigineEnvoi.CAMPAGNE
                 : rest.service.impl.whatsapp.OrigineEnvoi.RAPPEL;
+        /* plan du 21/11, point 11 : message d'avoir */
+        if (n.getCategorieNotification() != null && dal.enumeration.TypeNotification.AVOIR_PRODUIT.name()
+                .equals(n.getCategorieNotification().getName())) {
+            origine = rest.service.impl.whatsapp.OrigineEnvoi.AVOIR;
+        }
         String auteur = n.getUser() == null ? null : n.getUser().getLgUSERID();
         int envoyes = 0;
         List<NotificationClient> nonServis = new ArrayList<>();
@@ -258,6 +263,8 @@ public class WhatsAppServiceImpl implements WhatsAppService {
             em.persist(s);
             em.flush();
             repliId = s.getId();
+            /* plan du 21/11, point 11 : le repli SMS d'un message d'avoir porte les memes ventes */
+            AvoirMessage.copierLiens(em, n.getId(), repliId);
         }
         LOG.log(Level.INFO, "WhatsApp notification {0} : {1} envoye(s), {2} en repli SMS",
                 new Object[] { notificationId, envoyes, nonServis.size() });

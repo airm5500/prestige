@@ -156,6 +156,17 @@ public class DemandeSaisonniereService {
         return o == null ? 0 : ((Number) o).longValue();
     }
 
+    /** Plan du 21/11, point 15 : libelle de l'emplacement choisi, pour le sous-titre de l'edition. */
+    @SuppressWarnings("unchecked")
+    public String libelleRayon(String rayonId) {
+        if (StringUtils.isBlank(rayonId) || "ALL".equalsIgnoreCase(rayonId.trim())) {
+            return null;
+        }
+        List<Object> l = em.createNativeQuery("SELECT str_LIBELLEE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = ?1")
+                .setParameter(1, rayonId.trim()).setMaxResults(1).getResultList();
+        return l.isEmpty() || l.get(0) == null ? rayonId.trim() : String.valueOf(l.get(0));
+    }
+
     public JSONObject analyser(LocalDate aujourdhui, int nbMois, String query, String rayonId) {
         String texte = StringUtils.trimToNull(query);
         String rayon = StringUtils.isBlank(rayonId) || "ALL".equalsIgnoreCase(rayonId.trim()) ? null : rayonId.trim();

@@ -927,10 +927,14 @@ window.PrestigeAffichage.masquerMenus = function (racine) {
  * d'oeil lesquels sont concernes. App.onLoadNewComponent la consulte a l'ouverture d'un menu.
  */
 window.PrestigeAffichage.ECRANS_COLLES = [
+    // retour du 22/11 (lot 9) : menus « Liste des Reglements » (FACTURATION) et « Vente dépôt »
+    'reglementmanager', 'ventedepot',
     // menu « Activité des équipes » (ANALYSE DE GESTION, demande du 13/10)
     'activiteequipes',
     // menu « BFR » (ANALYSE DE GESTION, plan du 19/11)
     'bfr',
+    // menu « Journal des messages » (CAMPAGNES SMS / WHATSAPP, plan du 21/11, point 8.1)
+    'journalmessages',
     // menu « Péremptions courtes » (GESTION DES COMMANDES, demande mobile 36 D12)
     'peremptionscourtes',
     // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
@@ -1043,7 +1047,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
  * ceux qui ont deja leur propre dessin (liste ci-dessous). ECRANS_STYLE_VENTE reste la liste historique.
  */
 window.PrestigeAffichage.THEME_PARTOUT = true;
-window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager_new', 'doventeendepot', 'ventedepot',
+/* retour du 22/11 (lot 9) : 'ventedepot' (liste des ventes depot, menu « Vente dépôt ») sort de cette liste et prend le
+   theme (ECRANS_COLLES et ECRANS_STYLE_VENTE) ; l'ecran de saisie d'une vente depot (doventeendepot) garde son dessin */
+window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager_new', 'doventeendepot',
     'tableaubord', 'dashboard', 'mainmenumanager', 'ordonnanceclient', 'menuvente',
     // decision du 19/11 : « Nouvelle proforma » au dessin de l'ecran de vente (vp-shell / vp-vente, DoDevis.js)
     'doDevis'];
@@ -1051,6 +1057,8 @@ window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager
 window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // retours du 07/10
     'produitsxx', 'produitsonglets',
+    // retour du 22/11 (lot 9) : menus « Liste des Reglements » et « Vente dépôt »
+    'reglementmanager', 'ventedepot',
     // lot 1
     'preenregistrementmanager', 'devismanager',
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
@@ -1081,6 +1089,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'activiteequipes',
     // menu « BFR » (plan du 19/11)
     'bfr',
+    // menu « Journal des messages » (plan du 21/11, point 8.1)
+    'journalmessages',
     // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
     'extranetsgrossistes',
     // menu « Péremptions courtes »
@@ -1116,6 +1126,11 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
 window.PrestigeAffichage.ECRANS_FENETRES_THEME = [
     'famillemanager', 'articlevendurecapitulatif', 'i_sugg_manager', 'suggerercdemanager'
 ];
+/**
+ * Retour du 22/11 (lot 9) : ecrans dont la pagination numerotee garde le champ « Page [ ] sur N » pour aller
+ * directement a une page (saisie d'inventaire, des centaines de pages).
+ */
+window.PrestigeAffichage.ECRANS_SAISIE_PAGE = ['editinventaireManager'];
 /** Ecrans dont les cadres (fieldsets) prennent le dessin des sections du theme (retours du 06/10). */
 window.PrestigeAffichage.ECRANS_SECTIONS = ['suggerercdemanager'];
 /** Libelles des boutons de pied qui valident (bouton principal). */
@@ -1241,8 +1256,13 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
     Ext.each(ecran.query('toolbar'), function (barre) {
         if (barre.isXType('pagingtoolbar')) {
             barre.addCls('theme-pagination');
-            // Chargee a la demande (Ext.Loader) si aucun ecran ne l'a encore demandee.
-            Ext.create('testextjs.view.commun.PaginationNumerotee').init(barre);
+            // Chargee a la demande (Ext.Loader) si aucun ecran ne l'a encore demandee. Ecrans ou l'on tape le numero
+            // de page (retour du 22/11, lot 9) : le champ « Page [ ] sur N » reste a cote des numeros.
+            Ext.create('testextjs.view.commun.PaginationNumerotee', {
+                saisiePage: Ext.Array.some(window.PrestigeAffichage.ECRANS_SAISIE_PAGE || [], function (xtype) {
+                    return ecran.isXType(xtype) || !!barre.up(xtype);
+                })
+            }).init(barre);
             return;
         }
         if (barre.dock !== 'top') {
@@ -3604,4 +3624,52 @@ window.PrestigeRoueBoutons = (function () {
     return {brancher: brancher, liberer: liberer, enAttente: function (b) {
             return !!(b && b.prRoueAuto);
         }};
+})();
+
+/*
+ * =====================================================================================
+ * Plan du 21/11, point 8.2 : LISTES DEROULANTES A LA LARGEUR DE LEUR CONTENU (toute l'application).
+ *
+ * Symptome : dans les campagnes, « Achat dans les 12 derniers mois » s'affichait sur deux lignes ; ailleurs, un
+ * libelle long etait coupe. Cause commune : la liste prend exactement la largeur du champ (matchFieldWidth d'ExtJS),
+ * quelle que soit la longueur de ses elements.
+ * Regle : la liste garde au moins la largeur du champ et s'elargit jusqu'a son plus long element, sans depasser la
+ * fenetre ; chaque element tient sur une ligne. Un ecran peut garder l'ancienne largeur avec largeurListeFixe: true.
+ */
+(function () {
+    'use strict';
+
+    var Combo = window.Ext && Ext.form && Ext.form.field && Ext.form.field.ComboBox;
+    if (!Combo || Combo.prototype.prLargeurContenu) {
+        return;
+    }
+    if (!document.getElementById('pr-liste-une-ligne')) {
+        Ext.util.CSS.createStyleSheet('.x-boundlist-item{white-space:nowrap}', 'pr-liste-une-ligne');
+    }
+    /* methode d'origine gardee a part (callParent depuis Ext.override echoue ici : methode heritee de Picker) */
+    var alignerOrigine = Combo.prototype.alignPicker;
+    Ext.override(Combo, {
+        prLargeurContenu: true,
+        alignPicker: function () {
+            alignerOrigine.apply(this, arguments);
+            var me = this, picker = me.picker;
+            if (!me.isExpanded || !picker || !picker.rendered || !me.matchFieldWidth || me.largeurListeFixe) {
+                return;
+            }
+            var el = picker.getEl(), items = el.query('.x-boundlist-item'), besoin = 0, i;
+            for (i = 0; i < items.length && i < 500; i++) {
+                besoin = Math.max(besoin, items[i].scrollWidth);
+            }
+            if (!besoin) {
+                return;
+            }
+            var corps = picker.listEl ? picker.listEl.dom : el.dom;
+            /* bordures et barre de defilement, plus une marge pour la mesure arrondie du texte */
+            var voulu = Math.min(besoin + (picker.getWidth() - corps.clientWidth) + 12, Ext.Element.getViewWidth() - 16);
+            if (voulu > picker.getWidth()) {
+                picker.setWidth(voulu);
+                me.doAlign();
+            }
+        }
+    });
 })();

@@ -884,8 +884,7 @@ public class FamilleDTO {
         t.setIntPAF(o.getIntPAF());
         t.setIntPAT(o.getIntPAF());
         t.setStrSTATUT(o.getStrSTATUT());
-        t.setIntSEUILMIN(o.getIntSEUILMIN());
-        t.setIntSTOCKREAPROVISONEMENT(o.getIntSTOCKREAPROVISONEMENT());
+        t.setIntSEUILMIN(o.getIntSEUILMIN()); // retours du 23/11 : le miroir suit le seuil de reference
         t.setIntSEUILMAX(o.getIntSEUILMAX());
         t.setIntDAYHISTORY(o.getIntDAYHISTORY());
         t.setDblLASTPRIXACHAT(o.getDblLASTPRIXACHAT());
@@ -990,8 +989,7 @@ public class FamilleDTO {
         t.setIntPAF(o.getIntPAF());
         t.setIntPAT(o.getIntPAF());
         t.setStrSTATUT(o.getStrSTATUT());
-        t.setIntSEUILMIN(o.getIntSEUILMIN());
-        t.setIntSTOCKREAPROVISONEMENT(o.getIntSTOCKREAPROVISONEMENT());
+        t.setIntSEUILMIN(o.getIntSEUILMIN()); // retours du 23/11 : le miroir suit le seuil de reference
         t.setIntSEUILMAX(o.getIntSEUILMAX());
         t.setIntDAYHISTORY(o.getIntDAYHISTORY());
         t.setDblLASTPRIXACHAT(o.getDblLASTPRIXACHAT());

@@ -76,7 +76,12 @@ Ext.define('testextjs.model.caisse.Vente', {
         {
             name: 'userValidateur',
             type: 'string'
-        }
+        },
+        /* plan du 21/11, point 11 : message d'avoir de la vente */
+        {name: 'messageEtat', type: 'string'},
+        {name: 'messageCanal', type: 'string'},
+        {name: 'messageDate', type: 'string'},
+        {name: 'messageMotif', type: 'string'}
 
         , {
             name: 'userFullName',

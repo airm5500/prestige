@@ -5729,6 +5729,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "lgTYPECLIENTID": record.get('lgTYPECLIENTID'),
                 "lgVILLEID": record.get('lgVILLEID'),
                 "strADRESSE": record.get('strADRESSE'),
+                /* plan du 21/11, point 7 : telephone saisi dans « Modifier infos client » */
+                "strTELEPHONE": client.strTELEPHONE === undefined ? null : client.strTELEPHONE,
                 "strCODEPOSTAL": record.get('strCODEPOSTAL'),
                 "strFIRSTNAME": record.get('strFIRSTNAME'),
                 "strLASTNAME": record.get('strLASTNAME'),
@@ -6883,6 +6885,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         {
                             xtype: 'button',
                             text: 'Générer',
+                            iconCls: 'ic7 ic7-generer', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                             itemId: 'genererBon' + record.order,
                             tooltip: 'Générer un numéro de bon',
                             margin: '0 10 0 0',
@@ -6917,7 +6920,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         ...(carnet ? [] : [{
                                 xtype: 'button',
                                 text: 'Retirer',
-                                icon: 'resources/images/icons/fam/delete.png',
+                                iconCls: 'ic7 ic7-retirer', /* plan du 21/11, point 7.1 (retour du 22/11 : icones restantes) */
                                 margin: '0 10 0 0',
                                 handler: function (btn) {
                                     const cp = btn.up('fieldcontainer');

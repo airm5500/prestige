@@ -127,7 +127,7 @@ function poser() {
     ok('PE-01 : 3 de plus du lot E2EPE1 (total 12 pour 10 en stock) : refusé', r3.success === false, JSON.stringify(r3).slice(0, 200) + ' ; ' + lignes());
 
     /* cloture : bouton « Terminer » */
-    await p.locator('#btn_create_perime').click();
+    await p.locator('#btn_create_perime').click(); await p.waitForTimeout(600); /* lot 11 : confirmation dans le bouton */ await p.locator('#btn_create_perime').click();
     await p.waitForFunction(() => Ext.Msg.isVisible() && /retir/i.test(Ext.Msg.msg.getEl().dom.innerText), null, { timeout: 60000 });
     const msg = await fermerMsg();
     const s1 = stock();
@@ -141,7 +141,7 @@ function poser() {
     await p.evaluate(() => { Ext.getCmp('gridpanelArticlePerimes').getStore().load(); });
     await charge();
     await p.waitForTimeout(500);
-    await p.locator('#btn_create_perime').click();
+    await p.locator('#btn_create_perime').click(); await p.waitForTimeout(600); /* lot 11 : confirmation dans le bouton */ await p.locator('#btn_create_perime').click();
     await p.waitForFunction(() => Ext.Msg.isVisible() && /retir/i.test(Ext.Msg.msg.getEl().dom.innerText), null, { timeout: 60000 });
     const msg2 = await fermerMsg();
     ok('PE-01 : stock insuffisant à la clôture : la ligne n\'est pas retirée, l\'écran le dit (produit, lot, quantités)',

@@ -58,6 +58,8 @@ public class FicheArticleRessource {
     private SuggestionService suggestionService;
     @EJB
     private rest.service.impl.StockReserveEditionService stockReserveEditionService;
+    @EJB
+    private rest.service.impl.TracesFicheService tracesFicheService;
 
     private static final java.util.logging.Logger LOG = java.util.logging.Logger
             .getLogger(FicheArticleRessource.class.getName());
@@ -286,6 +288,31 @@ public class FicheArticleRessource {
             return null;
         }
         return tu;
+    }
+
+    /** Retours du 23/11 : onglet « Historique » de la fiche article (lecture seule, utilisateur connecte). */
+    @GET
+    @Path("historique/{id}")
+    public Response historiqueFiche(@PathParam("id") String id) throws JSONException {
+        if (servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE)
+                    .put("data", new JSONArray()).toString()).build();
+        }
+        return Response.ok().entity(tracesFicheService.historique(id).toString()).build();
+    }
+
+    /**
+     * Retours du 23/11 : a la creation d'un article, fiches desactivees ou supprimees qui ont deja le CIP ou l'EAN
+     * saisi (lecture seule, utilisateur connecte).
+     */
+    @GET
+    @Path("fiches-inactives")
+    public Response fichesInactives(@QueryParam("cip") String cip, @QueryParam("ean") String ean) throws JSONException {
+        if (servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE)
+                    .put("data", new JSONArray()).toString()).build();
+        }
+        return Response.ok().entity(tracesFicheService.fichesInactives(cip, ean).toString()).build();
     }
 
     /**
@@ -549,7 +576,9 @@ public class FicheArticleRessource {
     @POST
     @Path("produit/update-lite-info")
     public Response updateProduit(UpdateProduit updateProduit) {
-        ficheArticleService.updateProduitLiteInfo(updateProduit);
+        // retours du 23/11 : la modification est tracee au nom de l'utilisateur connecte
+        ficheArticleService.updateProduitLiteInfo(updateProduit,
+                (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER));
         return Response.accepted().build();
     }
 
@@ -767,6 +796,7 @@ public class FicheArticleRessource {
                 return reponseEnregistrement(ofm.getMessage(), ref, ofm.getDetailmessage());
             }
             if ("update".equals(mode)) {
+                ofm.setDifferJournalFiche(true); // retours du 23/11 : une trace pour tout l'enregistrement
                 ofm.update(familleId, description, "", "", "", description, entier(intPrice, 0),
                         entier(intPriceTips, 0), entier(tauxMarque, 0), entier(intPaf, 0), entier(intPat, 0),
                         entier(intS, 0), texte(intT, ""), texte(intCip, ""), texte(intEan13, ""),
@@ -781,6 +811,7 @@ public class FicheArticleRessource {
                         entierOuNull(q1SeuilReappro), entierOuNull(q2QteReappro));
                 enregistrerEanFabricant(odm, ofm.getMessage(), familleId, codeEanFabriquant);
                 enregistrerPsCode(odm, ofm.getMessage(), familleId, psCode);
+                ofm.journaliserFicheDifferee(familleId);
                 return reponseEnregistrement(ofm.getMessage(), familleId, ofm.getDetailmessage());
             }
             return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId, "PAS D'ACTION");
@@ -923,9 +954,8 @@ public class FicheArticleRessource {
         Integer q2 = (in.has("q2") && !in.isNull("q2")) ? in.getInt("q2") : null;
         List<String> ids = jsonArrToList(in.optJSONArray("ids"));
         List<String> unchecked = jsonArrToList(in.optJSONArray("uncheckedIds"));
-        return Response.ok().entity(ficheArticleService
-                .majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId, ids, unchecked, q1, q2).toString())
-                .build();
+        return Response.ok().entity(ficheArticleService.majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId,
+                ids, unchecked, q1, q2, (TUser) hs.getAttribute(commonparameter.AIRTIME_USER)).toString()).build();
     }
 
     // ----------------------- MAJ SELECTIVE (une donnee, plusieurs produits) -----------------------
@@ -962,14 +992,12 @@ public class FicheArticleRessource {
                     .build();
         }
         JSONObject in = new JSONObject(body);
-        return Response.ok()
-                .entity(ficheArticleService.majSelectiveApply(in.optString("mode", "SELECTED"),
-                        in.optString("zoneGeoId", ""), in.optString("codeFamille", ""), in.optString("codeTableau", ""),
-                        in.optString("codeTvaId", ""), in.optString("codeRemise", ""),
-                        in.optString("laboratoireId", ""), in.optString("gammeId", ""), in.optString("search", ""),
-                        jsonArrToList(in.optJSONArray("ids")), jsonArrToList(in.optJSONArray("uncheckedIds")),
-                        in.optString("champ", ""), in.optString("valeur", "")).toString())
-                .build();
+        return Response.ok().entity(ficheArticleService.majSelectiveApply(in.optString("mode", "SELECTED"),
+                in.optString("zoneGeoId", ""), in.optString("codeFamille", ""), in.optString("codeTableau", ""),
+                in.optString("codeTvaId", ""), in.optString("codeRemise", ""), in.optString("laboratoireId", ""),
+                in.optString("gammeId", ""), in.optString("search", ""), jsonArrToList(in.optJSONArray("ids")),
+                jsonArrToList(in.optJSONArray("uncheckedIds")), in.optString("champ", ""), in.optString("valeur", ""),
+                (TUser) hs.getAttribute(commonparameter.AIRTIME_USER)).toString()).build();
     }
 
     private static List<String> jsonArrToList(org.json.JSONArray a) {

@@ -83,13 +83,18 @@ const bonsEnBase = (tp) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(t.str_REF_BON, '
     ok('Sans organisme, « Actualiser » : message « Choisissez un organisme ou un groupe »', /Choisissez un organisme ou un groupe/.test(e.message + ' ' + e.compteurs), JSON.stringify(e));
     ok('Sans organisme : le champ Organisme est signalé', e.invalide, JSON.stringify(e));
 
-    /* 2. periode inversee */
-    await vues.saisir(p, P + ' #ptDebut', fmt(demain));
-    await vues.saisir(p, P + ' #ptFin', fmt(hier));
+    /* 2. periode inversee. Retour du 22/11 : l'onglet a le selecteur de periode unique, qui remet dans l'ordre une
+     * periode tapee a l'envers (comme les autres ecrans du point 7.2) : le message « fin precede » ne peut plus se
+     * produire ; on verifie la remise en ordre (champ = Du / Au) et l'absence de message. */
+    await vues.saisirPeriode(p, P + ' #ptFin', fmt(demain), fmt(hier));
     await vues.choisir(p, P + ' #ptOrganisme', TPA);
     await p.waitForTimeout(800);
     e = await etat();
-    ok('Période inversée : message « la date de fin précède la date de début »', /fin précède/.test(e.message + ' ' + e.compteurs), JSON.stringify(e));
+    const remise = await p.evaluate((x) => { const c = Ext.ComponentQuery.query(x)[0];
+      return [c.down('#ptDebut').getSubmitValue(), c.down('#ptFin').getSubmitValue(), c.down('#ptFin').champPeriode.getValue()]; }, P);
+    const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    ok('Période tapée à l\'envers : remise dans l\'ordre (Du = hier, Au = demain, champ identique), sans message d\'erreur',
+      remise[0] === iso(hier) && remise[1] === iso(demain) && remise[2] === fmt(hier) + ' → ' + fmt(demain) && !/fin précède/.test(e.message + ' ' + e.compteurs), JSON.stringify({ remise, e }));
     await vues.saisir(p, P + ' #ptDebut', fmt(hier));
     await vues.saisir(p, P + ' #ptFin', fmt(demain));
     await p.keyboard.press('Shift+Tab');

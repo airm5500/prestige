@@ -38,6 +38,10 @@ public interface CommandeService {
      */
     JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu) throws JSONException;
 
+    /** Retours du 22/11 (lot 10, point 3) : messages d'avoir prepares, envoyes depuis la fenetre des avoirs. */
+    JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu, boolean differerAvoirs)
+            throws JSONException;
+
     /** Vrai si l'utilisateur connecte detient le privilege 'Autorisation entrée en stock'. */
     boolean hasEntreeStockPrivilege();
 

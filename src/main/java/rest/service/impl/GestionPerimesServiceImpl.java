@@ -482,7 +482,95 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
         JSONObject json = new JSONObject();
         json.put("data", new JSONArray(fetchPerimesSaisiEnCours(start, limit, empl)));
         json.put("total", count);
+        /*
+         * retour du 22/11 (lot 11) : « les produits avec des anciennes dates, c'est en attente ? » - l'ecran dit
+         * combien de lignes attendent depuis plus de JOURS_ANCIENNE jours et depuis quand
+         */
+        try {
+            javax.persistence.Query nq = getEntityManager().createNativeQuery("SELECT"
+                    + " COALESCE(SUM(DATEDIFF(CURDATE(), `t_warehouse`.`dt_CREATED`) > " + JOURS_ANCIENNE + "), 0),"
+                    + " DATE_FORMAT(MIN(`t_warehouse`.`dt_CREATED`), '%d/%m/%Y')"
+                    + " FROM `t_famille` INNER JOIN `t_warehouse` ON (`t_famille`.`lg_FAMILLE_ID` = `t_warehouse`.`lg_FAMILLE_ID`)"
+                    + filtreEnCours(empl));
+            if (empl != null) {
+                nq.setParameter(1, empl);
+            }
+            Object[] r = (Object[]) nq.getSingleResult();
+            json.put("anciennes", r[0] == null ? 0 : ((Number) r[0]).longValue());
+            json.put("plusAncienne", r[1] == null ? "" : r[1].toString());
+            json.put("joursAnciennes", JOURS_ANCIENNE);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "anciennes en cours", e);
+        }
         return json;
+    }
+
+    /** Au-dela de ce nombre de jours, une ligne en attente est signalee comme ancienne. */
+    public static final int JOURS_ANCIENNE = 30;
+
+    /** Ligne en attente depuis plus de JOURS_ANCIENNE jours (meme regle que la requete et que l'ecran). */
+    public static boolean ancienne(Integer jours) {
+        return jours != null && jours > JOURS_ANCIENNE;
+    }
+
+    /** Motif LIKE « commence par » : les jokers tapes (%, _) et la barre oblique inverse sont pris a la lettre. */
+    public static String motifDebut(String saisie) {
+        String s = saisie == null ? "" : saisie.trim();
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    }
+
+    /*
+     * Retour du 22/11 (lot 11) : recherche des produits de la saisie des perimes par l'API (avant : la JSP
+     * ws_article_list.jsp, requete assemblee avec le texte tape). Meme regle : produit actif dont le nom, la
+     * designation, le CIP ou l'EAN commence par le texte ; meme ordre (designation). En plus : CIP et stock de
+     * l'emplacement de l'utilisateur, pour choisir sans se tromper.
+     */
+    @Override
+    public JSONObject rechercherProduits(String query, int start, int limit, TUser user) {
+        String motif = motifDebut(query);
+        String empl = user == null || user.getLgEMPLACEMENTID() == null ? "1"
+                : user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        String filtre = " FROM t_famille f WHERE f.str_STATUT = 'enable' AND (f.str_NAME LIKE ?1 OR f.str_DESCRIPTION"
+                + " LIKE ?1 OR f.int_CIP LIKE ?1 OR f.int_EAN13 LIKE ?1)";
+        JSONArray data = new JSONArray();
+        long total;
+        try {
+            total = ((Number) getEntityManager().createNativeQuery("SELECT COUNT(*)" + filtre).setParameter(1, motif)
+                    .getSingleResult()).longValue();
+            List<Object[]> lignes = getEntityManager().createNativeQuery("SELECT f.lg_FAMILLE_ID, f.str_NAME,"
+                    + " f.str_DESCRIPTION, f.int_CIP, (SELECT MAX(s.int_NUMBER_AVAILABLE) FROM t_famille_stock s"
+                    + " WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = ?2 AND s.str_STATUT = 'enable')"
+                    + filtre + " ORDER BY f.str_DESCRIPTION, f.lg_FAMILLE_ID").setParameter(1, motif)
+                    .setParameter(2, empl).setFirstResult(Math.max(0, start))
+                    .setMaxResults(limit <= 0 ? 20 : Math.min(limit, 200)).getResultList();
+            for (Object[] o : lignes) {
+                data.put(new JSONObject().put("lg_FAMILLE_ID", o[0]).put("str_NAME", o[1] == null ? "" : o[1])
+                        .put("str_DESCRIPTION", o[2] == null ? "" : o[2]).put("int_CIP", o[3] == null ? "" : o[3])
+                        .put("stock", o[4] == null ? JSONObject.NULL : o[4]));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "rechercherProduits", e);
+            return new JSONObject().put("success", false).put("data", new JSONArray()).put("total", 0);
+        }
+        return new JSONObject().put("success", true).put("data", data).put("total", total);
+    }
+
+    /*
+     * Retour du 22/11 (lot 11) : retrait d'une ligne de la saisie en cours ; seule une ligne encore en attente peut
+     * etre retiree (avant : n'importe quelle ligne, meme deja validee ; une ligne absente faisait une erreur 500).
+     */
+    @Override
+    public JSONObject retirerLigneEnCours(String id) {
+        TWarehouse w = id == null ? null : getEntityManager().find(TWarehouse.class, id);
+        if (w == null) {
+            return new JSONObject().put("success", false).put("message", "Ligne introuvable : rien n'a été retiré.");
+        }
+        if (!Constant.STATUT_PENDING.equals(w.getStrSTATUT())) {
+            return new JSONObject().put("success", false).put("message",
+                    "Cette ligne est déjà validée : elle ne peut plus être retirée de la saisie.");
+        }
+        getEntityManager().remove(w);
+        return new JSONObject().put("success", true);
     }
 
     /** audit 06 PE-02, PE-04 : lignes en cours de l'emplacement (toutes si null), quelle que soit leur date */
@@ -497,7 +585,11 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
         List<PerimesDTO> datas = new ArrayList<>();
         try {
             String qry = "SELECT  `t_warehouse`.`lg_FAMILLE_ID`, `t_warehouse`.`int_NUM_LOT`, `t_warehouse`.`int_NUMBER`, DATE_FORMAT(`t_warehouse`.`dt_CREATED`,'%d/%m/%Y %H:%i') AS DATEENTREE, `t_famille`.`int_CIP`,";
-            qry += "  DATE_FORMAT(`t_warehouse`.`dt_PEREMPTION`,'%d/%m/%Y') AS  dtPEREMPTION,`t_famille`.`str_NAME`, `t_warehouse`.`lg_WAREHOUSE_ID`,`t_warehouse`.`stock_initial`,`t_warehouse`.`stock_final` FROM  `t_famille`  INNER JOIN `t_warehouse` ON (`t_famille`.`lg_FAMILLE_ID` = `t_warehouse`.`lg_FAMILLE_ID`)";
+            qry += "  DATE_FORMAT(`t_warehouse`.`dt_PEREMPTION`,'%d/%m/%Y') AS  dtPEREMPTION,`t_famille`.`str_NAME`, `t_warehouse`.`lg_WAREHOUSE_ID`,`t_warehouse`.`stock_initial`,`t_warehouse`.`stock_final`,"
+                    /* retour du 22/11 (lot 11) : auteur de la ligne et jours d'attente */
+                    + " (SELECT TRIM(CONCAT_WS(' ', u.str_FIRST_NAME, u.str_LAST_NAME)) FROM t_user u WHERE u.lg_USER_ID = `t_warehouse`.`lg_USER_ID`),"
+                    + " DATEDIFF(CURDATE(), `t_warehouse`.`dt_CREATED`)"
+                    + " FROM  `t_famille`  INNER JOIN `t_warehouse` ON (`t_famille`.`lg_FAMILLE_ID` = `t_warehouse`.`lg_FAMILLE_ID`)";
             qry += filtreEnCours(empl) + " ORDER BY `t_warehouse`.`dt_CREATED` DESC LIMIT " + start + ", " + limit;
             javax.persistence.Query nq = this.getEntityManager().createNativeQuery(qry);
             if (empl != null) {
@@ -520,6 +612,8 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
                 // une seule faisait echouer toute la liste
                 perimesDTO.setStockInitial(entier(objects[8]));
                 perimesDTO.setStockFinal(entier(objects[9]));
+                perimesDTO.setUtilisateur(objects[10] == null ? "" : objects[10].toString());
+                perimesDTO.setJoursAttente(entier(objects[11]));
                 datas.add(perimesDTO);
 
             }

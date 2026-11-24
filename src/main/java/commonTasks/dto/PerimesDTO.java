@@ -20,6 +20,25 @@ public class PerimesDTO implements Serializable {
     private String produitId, datePeremption, dateEntree, produitCip, produitLibelle;
     private int quantity;
     private Integer stockInitial, stockFinal;
+    /* retour du 22/11 (lot 11) : qui a saisi la ligne et depuis combien de jours elle attend la validation */
+    private String utilisateur;
+    private Integer joursAttente;
+
+    public String getUtilisateur() {
+        return utilisateur;
+    }
+
+    public void setUtilisateur(String utilisateur) {
+        this.utilisateur = utilisateur;
+    }
+
+    public Integer getJoursAttente() {
+        return joursAttente;
+    }
+
+    public void setJoursAttente(Integer joursAttente) {
+        this.joursAttente = joursAttente;
+    }
 
     public Integer getStockInitial() {
         return stockInitial;

@@ -71,7 +71,8 @@ const INCONNU = 'ZZE2EINCONNU';
     await cliquer(p, 'cloturerventemanager #addBtn');
     await p.waitForFunction(() => Ext.ComponentQuery.query('doventemanager #typeVente').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await p.waitForTimeout(1500);
-    await parcours('ASSURANCE', 'Assurance', 'addaddclientwindow', ['strFIRSTNAME', 'strLASTNAME', 'strNUMEROSECURITESOCIAL', 'strADRESSE', 'lgTIERSPAYANTID', 'intPOURCENTAGE', 'bouton']);
+    /* plan du 21/11, point 7 : le Telephone (facultatif, laisse vide) prend l'ancienne place de l'adresse */
+    await parcours('ASSURANCE', 'Assurance', 'addaddclientwindow', ['strFIRSTNAME', 'strLASTNAME', 'strNUMEROSECURITESOCIAL', 'strTELEPHONE', 'strADRESSE', 'lgTIERSPAYANTID', 'intPOURCENTAGE', 'bouton']);
     await parcours('CARNET', 'Carnet', 'addCarnetwindow', ['strFIRSTNAME', 'strLASTNAME', 'strNUMEROSECURITESOCIAL', 'strADRESSE', 'lgTIERSPAYANTID', 'intPOURCENTAGE', 'bouton']);
     ok('Annuler : aucun client créé', q('SELECT COUNT(*) FROM t_client') === clientsAvant);
     ok('Aucune erreur JavaScript, aucune fenêtre du navigateur', erreurs.length === 0 && dialogues.length === 0, erreurs.concat(dialogues).join(' | '));

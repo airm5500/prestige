@@ -25,11 +25,13 @@ public final class OrigineEnvoi {
     public static final String LIEN = "LIEN";
     /** Demande du 15/11 : facture d'un tiers payant envoyee en PDF (liste des factures). */
     public static final String FACTURE = "FACTURE";
+    /** Plan du 21/11, point 11 : message « vos produits en avoir sont disponibles ». */
+    public static final String AVOIR = "AVOIR";
     /** Envoi anterieur au point 13, sans notification : essai, ticket Z, discussion ou avis, indistincts. */
     public static final String NON_PRECISEE = "NON_PRECISEE";
 
     public static final List<String> ORIGINES = Collections
-            .unmodifiableList(Arrays.asList(TICKET_Z, CAMPAGNE, RAPPEL, DISCUSSION, AVIS, ESSAI, LIEN, FACTURE));
+            .unmodifiableList(Arrays.asList(TICKET_Z, CAMPAGNE, RAPPEL, DISCUSSION, AVIS, ESSAI, LIEN, FACTURE, AVOIR));
 
     /** Statut d'un lien wa.me ouvert depuis Campagne client. */
     public static final String OUVERT = "OUVERT";
@@ -88,6 +90,8 @@ public final class OrigineEnvoi {
             return "Lien wa.me";
         case FACTURE:
             return "Facture";
+        case AVOIR:
+            return "Avoir";
         default:
             return "Non précisée";
         }

@@ -44,6 +44,7 @@ function amountformat(val) {
 Ext.define('testextjs.view.commandemanagement.order.action.add', {
     extend: 'Ext.form.Panel',
     requires: ['testextjs.view.commandemanagement.analyse.FenetrePrevision',
+        'testextjs.view.commandemanagement.order.action.LotsCommande',
         'testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl',
         'Ext.selection.CellModel',
         'Ext.grid.*',
@@ -367,10 +368,21 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         /* retours du 11/10 : etiquette DataMatrix+ / QR+ d'un grossiste (ou code GS1) en cours
                                            de scan : pas de recherche par nom sur ce texte */
                                         beforequery: function (qe) {
-                                            if (ecranCommande(qe.combo).ressembleEtiquette(qe.query)) {
+                                            const ecran = ecranCommande(qe.combo);
+                                            if (ecran.ressembleEtiquette(qe.query)) {
                                                 qe.cancel = true;
                                                 qe.combo.collapse();
                                                 return false;
+                                            }
+                                            /* « scan puis quantite » (22/11) : le nom du produit pose par le scan n'est pas une
+                                               recherche (elle rouvrait la liste et reprenait le curseur de la quantite) ;
+                                               autre texte tape : le scan en attente est abandonne */
+                                            if (ecran.scanEnAttente) {
+                                                if (qe.query === ecran.scanNom) {
+                                                    qe.cancel = true;
+                                                    return false;
+                                                }
+                                                ecran.scanEnAttente = null;
                                             }
                                         },
                                         /* une recherche lancee sur les premiers caracteres du scan a pu ouvrir la liste :
@@ -620,11 +632,21 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     /* retours du 08/10 (7) : produit livre par le grossiste a la place d'un autre (EL / RL) */
                                     renderer: function (v, meta, r) {
                                         var e = ecranCommande(), s = e && e.substitutions && e.substitutions[r.get('lg_ORDERDETAIL_ID')];
-                                        var t = Ext.String.htmlEncode(v || '');
+                                        var t = Ext.String.htmlEncode(v || ''), c = r.get('str_CLASSE_ABC');
+                                        /* plan du 21/11, point 4.5 : classe ABC de la fiche apres le nom ; rien sans classe */
+                                        if (c) {
+                                            t += ' <span class="classe-abc" data-classe-abc="' + Ext.String.htmlEncode(c)
+                                                    + '" style="color:#2E75B6;font-weight:600">(' + Ext.String.htmlEncode(c) + ')</span>';
+                                        }
                                         if (!s) {
+                                            /* retours du 22/11 (lot 10, point 2) : nom complet et classe en info-bulle (noms trop longs pour la colonne) */
+                                            if (v) {
+                                                meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('DESIGNATION : ' + v + (c ? ' (classe ' + c + ')' : ''))) + '"';
+                                            }
                                             return t;
                                         }
-                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode((s.type === 'RL' ? 'Remplaçant' : 'Équivalent')
+                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('DESIGNATION : ' + (v || '') + (c ? ' (classe ' + c + ')' : '') + '. '
+                                                + (s.type === 'RL' ? 'Remplaçant' : 'Équivalent')
                                                 + ' livré par ' + s.grossiste + ' à la place de ' + s.produitOrigine + ' (' + s.cipOrigine + ')'
                                                 + (s.retirable ? '. « Retirer » l\'enlève de la commande (avant réception).' : (s.raison ? '. Retrait impossible : ' + s.raison + '.' : '')))) + '"';
                                         /* seconde ligne de la cellule : le badge ne depend plus de la longueur du nom ; « Retirer » toujours visible */
@@ -932,11 +954,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     items: [
                         /* Export CSV de la commande en cours : meme fichier (CIP;QTE) que les
                          * autres exports, telecharge directement au clic. */
+                        /* plan du 21/11, point 16 : boutons du bas au nouveau style (taille normale : la barre tient sur une ligne en 1280 px,
+                           « Commander par PharmaML » compris en 1366 px), chacun avec l'icone de son action */
                         {
-                            text: 'Exporter CSV',
+                            text: '\u2B07 Exporter CSV',
                             id: 'btn_export_cmd_csv',
-                            cls: 'btn-primary',
-                            iconCls: 'export_csv_icon',
+                            cls: 'ordo-btn',
                             tooltip: 'Exporter les lignes de cette commande au format CSV',
                             scope: this,
                             handler: this.onExportCsvCommande
@@ -945,25 +968,30 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                          * produit. L'import n'ecrit rien tout seul - il rend un compte rendu que
                          * l'officine lit avant de decider, les substitutions etant signalees. */
                         {
-                            text: 'Importer la réponse du grossiste',
+                            text: '\u2B06 Réponse du grossiste',
                             id: 'btn_import_reponse',
-                            cls: 'btn-primary',
-                            iconCls: 'importicon',
+                            cls: 'ordo-btn',
                             tooltip: 'Charger le fichier de réponse (CSV ou Excel) envoyé par le grossiste',
                             scope: this,
                             handler: this.onImporterReponseGrossiste
                         },
-                        {text: 'Vérifier la disponibilité', id: 'btn_cmd_dispo_verifier', cls: 'btn-primary',
-                            tooltip: 'Interroger le grossiste par PharmaML (information seulement, aucune commande)',
-                            handler: function () {
+                        {text: '\u2714 Vérifier la disponibilité', id: 'btn_cmd_dispo_verifier', cls: 'ordo-btn',
+                            tooltip: 'Vérifie TOUS les produits de la commande auprès du grossiste, par PharmaML (information seulement, aucune commande).'
+                                    + '<br/>Le \u27F3 de la colonne Dispo vérifie un seul produit.',
+                            handler: function (b) {
+                                /* plan du 21/11, point 4.5 : bouton grise quand la disponibilite est coupee */
+                                if (b && b.dispoCoupee) {
+                                    return;
+                                }
                                 ecranCommande().verifierDispo(false);
                             }},
-                        {text: 'Revérifier les indisponibles', id: 'btn_cmd_dispo_reverifier', cls: 'btn-primary',
+                        {text: '\u27F3 Revérifier les indisponibles', id: 'btn_cmd_dispo_reverifier', cls: 'ordo-btn',
                             tooltip: 'Interroger un grossiste au choix pour les produits non disponibles',
                             handler: function () {
                                 ecranCommande().verifierDispo(true);
                             }},
-                        {text: 'Imprimer la disponibilité', id: 'btn_cmd_dispo_imprimer', cls: 'btn-primary',
+                        {text: '\uD83D\uDDA8 Imprimer la disponibilité', id: 'btn_cmd_dispo_imprimer', cls: 'ordo-btn',
+                            tooltip: 'Imprimer le résultat de la dernière vérification de disponibilité',
                             handler: function () {
                                 var e = ecranCommande();
                                 testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.imprimer('COMMANDE', e.getNameintern(), e.getOdatasource() && e.getOdatasource().str_REF_ORDER);
@@ -972,28 +1000,28 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         /* retours du 08/10 (8) puis du 09/10 (2) : passer la commande par PharmaML, en bas a cote des
                          * autres boutons ; visible seulement si le grossiste a un lien PharmaML (etatBoutonPharmaMl) */
                         {
-                            text: 'Commander par PharmaML',
+                            text: '\uD83D\uDCE8 Commander par PharmaML',
                             id: 'btn_cmd_envoyer_pml',
-                            cls: 'btn-primary btn-commander-pml',
+                            cls: 'ordo-btn btn-commander-pml',
                             hidden: true,
                             handler: function () {
                                 ecranCommande().envoyerPharmaMl();
                             }
                         },
                         {
-                            text: 'CREER BON DE LIVRAISON',
+                            text: '\uD83D\uDCE6 Créer bon de livraison',
                             id: 'btn_creerbl',
-                            cls: 'btn-primary',
-                            iconCls: 'icon-clear-group',
+                            cls: 'ordo-btn-primaire',
+                            tooltip: 'Créer le bon de livraison de cette commande',
                             scope: this,
                             handler: this.onCreateBLClick
                         },
 
                         {
-                            text: 'Retour',
+                            text: '\u21A9 Retour',
                             id: 'btn_cancel',
-                            cls: 'btn-primary',
-                            iconCls: 'icon-clear-group',
+                            cls: 'ordo-btn',
+                            tooltip: 'Revenir à la liste des commandes',
                             scope: this,
                             hidden: false,
                             handler: this.onbtncancel
@@ -1029,7 +1057,23 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         if (this.estModification()) {
             this.chargerSubstitutions();
             this.etatBoutonPharmaMl(this.getOdatasource());
+            /* retour du 22/11 : previsions des produits de la commande calculees a l'ouverture */
+            testextjs.view.commandemanagement.analyse.FenetrePrevision.actualiser('COMMANDE', this.getNameintern());
         }
+        /* plan du 21/11, point 16.1 : lot et peremption en commande en cours, si le parametre est a 1 */
+        var ecranLots = this;
+        testextjs.view.commandemanagement.order.action.LotsCommande.lireParametre(function (actif) {
+            ecranLots.saisieLots = actif;
+        });
+        Ext.getCmp('gridpanelID').on('celldblclick', function (view, td, ci, record) {
+            var col = view.getGridColumns()[ci];
+            if (ecranLots.saisieLots && col && (col.dataIndex === 'lotNums' || col.dataIndex === 'datePeremption')) {
+                testextjs.view.commandemanagement.order.action.LotsCommande.ouvrirLots(record.get('lg_ORDERDETAIL_ID'), function () {
+                    ecranLots.onRechClick();
+                });
+                return false;
+            }
+        });
         Ext.getCmp('gridpanelID').on('cellclick', function (view, td, ci, record, tr, ri, e) {
             var retrait = e && e.getTarget && e.getTarget('[data-retirer-substitution]');
             if (retrait) {
@@ -1200,7 +1244,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         var clos = E.ENVOIS_CLOS[d.str_ENVOI_PHARMAML];
         b.setDisabled(!!clos);
         /* un bouton desactive n'a pas d'info-bulle : la raison est dans le libelle */
-        b.setText(clos ? (d.str_ENVOI_PHARMAML === 'EN_ATTENTE' ? 'Déjà envoyée (en attente)' : 'Déjà envoyée (répondue)') : 'Commander par PharmaML');
+        b.setText(clos ? (d.str_ENVOI_PHARMAML === 'EN_ATTENTE' ? 'Déjà envoyée (en attente)' : 'Déjà envoyée (répondue)') : '📨 Commander par PharmaML');
         b.setTooltip(clos ? 'Commande ' + clos + ' (' + (d.dt_ENVOI_PHARMAML || '') + ') : pas de renvoi'
                 : 'Envoyer cette commande au grossiste par PharmaML ; les produits non livrés vont dans la liste des ruptures');
     },
@@ -2087,8 +2131,15 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         me.dernierScan = {saisie: saisie, t: maintenant};
         if (mode === 'QUANTITE') {
             me.appelScan(saisie, 0, false, function (r) {
+                const article = Ext.getCmp('str_NAME');
                 me.scanEnAttente = saisie;
-                Ext.getCmp('str_NAME').setRawValue(r.produit.nom);
+                me.scanNom = r.produit.nom;
+                /* la recherche differee lancee par la frappe du scan ne doit pas partir sur le nom pose ici */
+                if (article.doQueryTask) {
+                    article.doQueryTask.cancel();
+                }
+                article.collapse();
+                article.setRawValue(r.produit.nom);
                 me.etatScan(Ext.String.htmlEncode(r.produit.nom) + (r.infos.lot ? ' — lot ' + Ext.String.htmlEncode(r.infos.lot) : '')
                         + ' : saisissez la quantité puis Entrée', '#1f6fb2');
                 Ext.getCmp('int_QUANTITE').focus(true, 50);
@@ -2248,6 +2299,30 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         const  me = this;
         if (Ext.getCmp('lgGROSSISTEID').getValue() === null) {
             Ext.MessageBox.alert('Error Message', 'Renseignez le Grossiste ');
+        } else if (me.saisieLots && !me.sansDemandeLot) {
+            /* plan du 21/11, point 16.1 : la petite fenetre du lot, puis l'ajout (avec ou sans lot) */
+            testextjs.view.commandemanagement.order.action.LotsCommande.ouvrirSaisie({
+                familleId: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(), orderId: me.getNameintern(),
+                grossisteId: Ext.getCmp('lgGROSSISTEID').getValue(), statut: str_STATUT, qte: Ext.getCmp('int_QUANTITE').getValue()
+            }, Ext.getCmp('str_NAME').getRawValue(), function () {
+                me.sansDemandeLot = true;
+                try {
+                    me.onAddNewItem();
+                } finally {
+                    me.sansDemandeLot = false;
+                }
+            }, function (data) {
+                me.nameintern = data.orderId;
+                me.onRechClick();
+                Ext.getCmp('int_QUANTITE').setValue(1);
+                Ext.getCmp('str_NAME').focus(true, 100, function () {
+                    Ext.getCmp('str_NAME').setValue("");
+                    Ext.getCmp('str_NAME').selectText(0, 1);
+                    me.getCommandeAmount(data.orderId);
+                });
+            }, function () {
+                Ext.getCmp('int_QUANTITE').focus(true, 50);
+            });
         } else {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({

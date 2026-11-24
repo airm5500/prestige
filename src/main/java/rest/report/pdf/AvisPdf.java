@@ -101,10 +101,7 @@ public final class AvisPdf {
         merci.setAlignment(Element.ALIGN_CENTER);
         merci.setSpacingBefore(18 * k);
         d.add(merci);
-        Paragraph url = new Paragraph(lien.replaceAll("\\?t=.*", ""), police(8 * k, Font.NORMAL, GRIS));
-        url.setAlignment(Element.ALIGN_CENTER);
-        url.setSpacingBefore(26 * k);
-        d.add(url);
+        /* plan du 21/11, point 10 : plus d'adresse du lien imprimee sous le QR code (le QR la porte) */
         d.close();
         return out.toByteArray();
     }

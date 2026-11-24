@@ -186,10 +186,11 @@ function poser() {
     await p.waitForFunction((ref) => { const st = Ext.ComponentQuery.query('i_order_manager')[0].getStore(); return !st.isLoading() && st.findExact('str_REF_ORDER', ref) >= 0; }, CMD, { timeout: 30000 });
     await p.evaluate((ref) => { const g = Ext.ComponentQuery.query('i_order_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF_ORDER', ref)); }, CMD);
     await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelID'); return g && g.isVisible() && !g.getStore().isLoading() && g.getStore().getCount() === 2; }, null, { timeout: 30000 });
-    await p.waitForFunction(() => { const b = Ext.getCmp('btn_cmd_dispo_verifier'); return b && b.isHidden(); }, null, { timeout: 15000 }).catch(() => {});
-    const etatBoutons = await p.evaluate(() => ({ verifier: Ext.getCmp('btn_cmd_dispo_verifier').isHidden(), reverifier: Ext.getCmp('btn_cmd_dispo_reverifier').isHidden(), imprimer: Ext.getCmp('btn_cmd_dispo_imprimer').isHidden(),
+    /* plan du 21/11, point 4.5 : le bouton reste affiche, grise, avec la raison en info-bulle (il etait masque) */
+    await p.waitForFunction(() => { const b = Ext.getCmp('btn_cmd_dispo_verifier'); return b && b.hasCls('dispo-coupee'); }, null, { timeout: 15000 }).catch(() => {});
+    const etatBoutons = await p.evaluate(() => ({ verifier: !Ext.getCmp('btn_cmd_dispo_verifier').isHidden() && Ext.getCmp('btn_cmd_dispo_verifier').hasCls('dispo-coupee'), reverifier: Ext.getCmp('btn_cmd_dispo_reverifier').isHidden(), imprimer: Ext.getCmp('btn_cmd_dispo_imprimer').isHidden(),
       boules: Ext.getCmp('gridpanelID').getEl().dom.querySelectorAll('.dispo-boule').length }));
-    ok('Commande, grossiste désactivé : « Vérifier » masqué, anciens résultats et impression gardés', etatBoutons.verifier && !etatBoutons.imprimer && etatBoutons.boules === 2, JSON.stringify(etatBoutons));
+    ok('Commande, grossiste désactivé : « Vérifier » affiché mais grisé (plan du 21/11, 4.5), anciens résultats et impression gardés', etatBoutons.verifier && !etatBoutons.imprimer && etatBoutons.boules === 2, JSON.stringify(etatBoutons));
     recus.length = 0;
     const refus = await p.evaluate(async (a) => (await fetch('../api/v1/disponibilite/verifier', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'COMMANDE', id: a.cmd, familles: [a.f] }) })).json(), { cmd: CMD, f: prods[0].id });
     ok('Appel direct refusé avec un message clair, rien envoyé au grossiste', refus.success === false && refus.desactivee === true && /désactivée/.test(refus.msg) && recus.length === 0, JSON.stringify(refus));

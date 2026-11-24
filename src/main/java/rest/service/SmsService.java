@@ -29,6 +29,14 @@ public interface SmsService {
     String sendSMSStatut(String content);
 
     /**
+     * Plan du 21/11, point 8.1 : envoi au numero d'administration, trace dans le journal des messages (origine :
+     * TICKET_Z, CLOTURE_CAISSE, POINT_ACTIVITE ; statut seulement, jamais le texte).
+     */
+    String sendSMSStatut(String content, String origine, String utilisateurId);
+
+    void sendSMS(String content, String origine, String utilisateurId);
+
+    /**
      * Envoi immédiat et asynchrone d'une notification SMS à partir de son identifiant (rechargée dans une transaction
      * dédiée). Utilisé pour ne plus attendre le job planifié (ex. SMS de disponibilité d'avoir).
      */

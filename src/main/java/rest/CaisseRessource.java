@@ -708,8 +708,12 @@ public class CaisseRessource {
     @POST
     @Path("send-sms")
     public Response sendSms(Params params) throws JSONException {
-        generateTicketService.sendToSms(params);
-        return Response.ok().entity("Envoie en cours").build();
+        /*
+         * plan du 21/11, point 8.1 : l'etat reel de l'envoi, affiche dans le bouton (avant : toujours « SMS envoyé »)
+         */
+        String statut = generateTicketService.sendToSms(params);
+        return Response.ok().entity(new JSONObject().put("success", "Envoyé".equals(statut))
+                .put("statut", statut == null ? "Échec" : statut).toString()).build();
     }
 
     /** Plan du 08/11, point 19 : ticket Z par WhatsApp, au numero du SMS, texte seul. */

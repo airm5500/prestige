@@ -32,6 +32,10 @@ Ext.define('testextjs.model.caisse.ClientAssurance', {
             name: 'strADRESSE',
             type: 'string'
         }, {
+            /* plan du 21/11, point 7 */
+            name: 'strTELEPHONE',
+            type: 'string'
+        }, {
             name: 'lgTYPECLIENTID',
             type: 'string'
         }, {

@@ -41,6 +41,9 @@ Ext.define('testextjs.view.commandemanagement.AvoirsBonFenetre', {
             var continuer = function () {
                 if (!fait) {
                     fait = true;
+                    /* retours du 22/11 (lot 10, point 3) : les messages pas encore envoyes a la main partent par le canal
+                       par defaut (sans fenetre aussi : l'entree en stock ne les envoie plus elle-meme) */
+                    testextjs.view.commandemanagement.AvoirsBonFenetre.envoyer(bonId, 'AUTO', '');
                     if (suite) {
                         suite();
                     }
@@ -55,11 +58,28 @@ Ext.define('testextjs.view.commandemanagement.AvoirsBonFenetre', {
                         continuer();
                         return;
                     }
-                    var w = Ext.create('testextjs.view.commandemanagement.AvoirsBonFenetre', {bonId: bonId, donnees: r});
+                    var w = Ext.create('testextjs.view.commandemanagement.AvoirsBonFenetre', {bonId: bonId, donnees: r, apresEntree: true});
                     w.on('destroy', continuer);
                     w.show();
                 },
                 failure: continuer
+            });
+        },
+        /** Retours du 22/11 (lot 10, point 3) : envoi des messages d'avoir du bon (mode MANUEL + canal, ou AUTO). */
+        envoyer: function (bonId, mode, canal, rappel) {
+            Ext.Ajax.request({
+                method: 'POST',
+                url: '../api/v1/avoirs-bon/' + encodeURIComponent(bonId) + '/envoyer?mode=' + mode + '&canal=' + encodeURIComponent(canal || ''),
+                success: function (reponse) {
+                    if (rappel) {
+                        rappel(Ext.decode(reponse.responseText, true) || {success: false});
+                    }
+                },
+                failure: function (reponse) {
+                    if (rappel) {
+                        rappel({success: false, message: 'Le serveur n\'a pas répondu (' + reponse.status + ').'});
+                    }
+                }
             });
         }
     },
@@ -102,9 +122,86 @@ Ext.define('testextjs.view.commandemanagement.AvoirsBonFenetre', {
         e.preventDefault();
         if (action === 'fermer') {
             this.close();
+        } else if (action === 'envoyer') {
+            this.choixCanal(true);
+        } else if (action === 'annuler-envoi') {
+            this.choixCanal(false);
+        } else if (action === 'envoi-sms' || action === 'envoi-whatsapp') {
+            this.envoyerManuel(action === 'envoi-sms' ? 'SMS' : 'WHATSAPP');
         } else if (action === 'imprimer') {
             window.open('../api/v1/avoirs-bon/' + encodeURIComponent(this.bonId) + '/pdf');
         }
+    },
+
+    /*
+     * Retours du 22/11 (lot 10, point 3) : envoi des messages aux clients. « Envoyer aux clients » propose, dans le
+     * pied meme (pas de fenetre surgissante), SMS ou WhatsApp ; le choix envoie et trace l'utilisateur. Sans envoi a
+     * la main, les messages partent a la fermeture par le canal par defaut (fenetre ouverte apres l'entree en stock).
+     */
+    lireEnvoi: function () {
+        var me = this;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/avoirs-bon/' + encodeURIComponent(me.bonId) + '/envoi',
+            success: function (reponse) {
+                if (!me.isDestroyed) {
+                    me.envoi = Ext.decode(reponse.responseText, true) || {};
+                    me.dessinerEnvoi();
+                }
+            }
+        });
+    },
+
+    choixCanal: function (ouvert) {
+        this.choixOuvert = ouvert;
+        this.dessinerEnvoi();
+    },
+
+    envoyerManuel: function (canal) {
+        var me = this;
+        me.enCours = canal;
+        me.dessinerEnvoi();
+        testextjs.view.commandemanagement.AvoirsBonFenetre.envoyer(me.bonId, 'MANUEL', canal, function (o) {
+            if (me.isDestroyed) {
+                return;
+            }
+            me.enCours = null;
+            me.choixOuvert = false;
+            me.erreurEnvoi = o.success ? null : (o.message || 'L\'envoi a échoué.');
+            me.lireEnvoi();
+        });
+    },
+
+    dessinerEnvoi: function () {
+        var me = this, zone = me.getEl() && me.getEl().down('.va-envoi'), e = me.envoi, enc = Ext.String.htmlEncode;
+        if (!zone || !e || !e.success) {
+            return;
+        }
+        var nom = {SMS: 'SMS', WHATSAPP: 'WhatsApp', SMS_WHATSAPP: 'WhatsApp (SMS si refus)'};
+        var html = '';
+        if (e.envois && e.envois.length) {
+            var d = e.envois[e.envois.length - 1];
+            html += '<span class="va-envoye" data-envoi="' + enc(d.mode) + '">' + (d.mode === 'MANUEL' ? 'Envoyé' : 'Envoi automatique') + ' par <b>'
+                    + enc(nom[d.canal] || d.canal) + '</b>' + (d.utilisateur ? ' · ' + enc(d.utilisateur) : '') + ' · ' + enc(d.date || '') + '</span>';
+        }
+        if (me.erreurEnvoi) {
+            html += '<span class="va-envoi-erreur">' + enc(me.erreurEnvoi) + '</span>';
+        }
+        if (e.aEnvoyer > 0) {
+            if (me.enCours) {
+                html += '<button type="button" class="vc-bouton" disabled>Envoi par ' + enc(nom[me.enCours]) + '…</button>';
+            } else if (me.choixOuvert) {
+                html += '<span class="va-choix">Envoyer par</span>'
+                        + '<button type="button" class="vc-bouton" data-action="envoi-sms">SMS</button>'
+                        + '<button type="button" class="vc-bouton" data-action="envoi-whatsapp">WhatsApp</button>'
+                        + '<button type="button" class="vc-bouton vc-bouton-second" data-action="annuler-envoi">Annuler</button>';
+            } else {
+                html += '<button type="button" class="vc-bouton" data-action="envoyer" data-qtip="'
+                        + enc(me.apresEntree ? (e.canalFermeture ? 'Sans envoi ici, les messages partent à la fermeture par ' + (nom[e.canalFermeture] || e.canalFermeture)
+                                : 'Sans envoi ici, les messages partent par SMS au prochain passage planifié')
+                                : 'Canal par défaut : ' + (nom[e.canalDefaut] || e.canalDefaut)) + '">Envoyer aux clients (' + e.aEnvoyer + ')</button>';
+            }
+        }
+        zone.update(html);
     },
 
     dessiner: function (r) {
@@ -146,9 +243,12 @@ Ext.define('testextjs.view.commandemanagement.AvoirsBonFenetre', {
                 + '<button type="button" class="vc-croix" data-action="fermer" aria-label="Fermer">&times;</button></div>'
                 + '<div class="vc-corps">' + corps + '</div>'
                 + '<div class="vc-pied"><span>Sortez ces produits et prévenez les clients. Rien n\'est marqué comme servi ici.</span>'
-                + '<span class="va-boutons">' + (r.total ? '<button type="button" class="vc-bouton vc-bouton-second" data-action="imprimer">'
+                + '<span class="va-boutons"><span class="va-envoi"></span>' + (r.total ? '<button type="button" class="vc-bouton vc-bouton-second" data-action="imprimer">'
                         + 'Imprimer la liste</button>' : '')
                 + '<button type="button" class="vc-bouton" data-action="fermer">Fermer</button></span></div>'
                 + '</div>');
+        if (r.total) {
+            me.lireEnvoi();
+        }
     }
 });

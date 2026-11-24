@@ -95,8 +95,14 @@ public class CommandeRessource {
     @Path("validerbl/{id}")
     public Response cloturerBonLivration(@PathParam("id") String id,
             @javax.ws.rs.QueryParam("avecEcart") boolean avecEcart, @javax.ws.rs.QueryParam("mode") String mode,
-            @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) throws JSONException {
+            @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef, @javax.ws.rs.QueryParam("avoirs") String avoirs)
+            throws JSONException {
         if (!MODE_RECU.equalsIgnoreCase(org.apache.commons.lang3.StringUtils.trimToEmpty(mode))) {
+            /* retours du 22/11 (lot 10, point 3) : avoirs=differe -> messages d'avoir envoyes depuis la fenetre */
+            if (AVOIRS_DIFFERES.equals(avoirs)) {
+                return Response.ok().entity(commandeService.cloturerBonLivraison(id, avecEcart, false, true).toString())
+                        .build();
+            }
             /* modes actuels (sans parametre, avecEcart=true) : strictement inchanges */
             return Response.ok().entity(commandeService.cloturerBonLivraison(id, avecEcart).toString()).build();
         }
@@ -114,6 +120,8 @@ public class CommandeRessource {
 
     /** Demande 59 : valeur du parametre {@code mode} de validerbl qui n'entre que le reçu. */
     public static final String MODE_RECU = "RECU";
+    /** Retours du 22/11 (lot 10, point 3) : valeur du parametre {@code avoirs} de validerbl. */
+    public static final String AVOIRS_DIFFERES = "differe";
     static final String TYPE_CLOTURE_BL_RECU = "CLOTURE_BL_RECU";
 
     @GET
@@ -252,6 +260,80 @@ public class CommandeRessource {
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
         return Response.ok().entity(this.orderService.addItem(orderDetail, tu).toString()).build();
+    }
+
+    /* ------------------------------------------------ plan du 21/11, point 16.1 : lot et peremption en commande */
+
+    @EJB
+    private rest.service.impl.LotsCommandeService lotsCommande;
+
+    private TUser utilisateurConnecte() {
+        return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+    }
+
+    private static Response deconnecte() {
+        return Response.ok()
+                .entity(new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                .build();
+    }
+
+    /** Produit, quantite ET lot en une transaction. Corps : celui de item/add, plus numeroLot et peremption. */
+    @POST
+    @Path("item/add-lot")
+    public Response addItemAvecLot(String corps) {
+        TUser tu = utilisateurConnecte();
+        if (tu == null) {
+            return deconnecte();
+        }
+        JSONObject o = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
+        OrderDetailDTO dto = new OrderDetailDTO();
+        dto.setFamilleId(o.optString("familleId", null));
+        dto.setOrderId(o.optString("orderId", null));
+        dto.setGrossisteId(o.optString("grossisteId", null));
+        dto.setStatut(o.optString("statut", null));
+        dto.setQte(o.optInt("qte", 0));
+        return Response.ok().entity(lotsCommande
+                .ajouterAvecLot(dto, o.optString("numeroLot", ""), o.optString("peremption", ""), tu).toString())
+                .build();
+    }
+
+    @GET
+    @Path("item/{itemId}/lots")
+    public Response lotsLigne(@PathParam("itemId") String itemId) {
+        if (utilisateurConnecte() == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(lotsCommande.lire(itemId).toString()).build();
+    }
+
+    /** Corps : {lots: [{numeroLot, datePeremption (saisie), quantity}]}. */
+    @PUT
+    @Path("item/{itemId}/lots")
+    public Response remplacerLotsLigne(@PathParam("itemId") String itemId, String corps) {
+        if (utilisateurConnecte() == null) {
+            return deconnecte();
+        }
+        JSONObject o = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
+        org.json.JSONArray lots = o.optJSONArray("lots");
+        return Response.ok()
+                .entity(lotsCommande.remplacer(itemId, lots == null ? new org.json.JSONArray() : lots).toString())
+                .build();
+    }
+
+    /**
+     * Scan d'un DataMatrix dans le champ du lot : lot et peremption (JJ/MM/AAAA), code complet ou non, et code produit
+     * compare a celui du produit de la ligne (familleId, facultatif).
+     */
+    @POST
+    @Path("lot-depuis-code")
+    public Response lotDepuisCode(String corps) {
+        if (utilisateurConnecte() == null) {
+            return deconnecte();
+        }
+        JSONObject o = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
+        return Response.ok()
+                .entity(lotsCommande.lireCode(o.optString("code", ""), o.optString("familleId", "")).toString())
+                .build();
     }
 
     @PUT

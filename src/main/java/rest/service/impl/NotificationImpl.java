@@ -337,7 +337,9 @@ public class NotificationImpl implements NotificationService {
     @Asynchronous
     @Override
     public void sendSms(Notification notification) {
-        this.smsService.sendSMS(notification.getMessage());
+        /* plan du 21/11, point 8.1 : cloture de caisse, tracee dans le journal des messages */
+        this.smsService.sendSMS(notification.getMessage(), JournalMessages.CLOTURE_CAISSE,
+                notification.getUser() == null ? null : notification.getUser().getLgUSERID());
     }
 
     private String sendPointActiviteSms(String date) {
@@ -497,7 +499,7 @@ public class NotificationImpl implements NotificationService {
         String content = sendPointActiviteSms(activiteParam.getDateActivite());
         if (StringUtils.isNotBlank(content)) {
             if (activiteParam.getCanal() == Canal.SMS) {
-                this.smsService.sendSMS(content);
+                this.smsService.sendSMS(content, JournalMessages.POINT_ACTIVITE, null);
             } else if (activiteParam.getCanal() == Canal.EMAIL) {
                 sendMail(content);
             }

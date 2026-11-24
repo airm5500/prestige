@@ -182,19 +182,41 @@ body.x-body,
 }
 
 .vp-vente .x-btn.vp-btn-plat {
-    transition: transform .12s ease;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+/* Retour du 22/11 : « les icones sont bien mais aucun relief, on ne sent pas qu'il y a des boutons ». Le bouton
+   garde son icone, mais retrouve un cadre de bouton : fond legerement degrade, bord bleu clair, ombre portee ;
+   au survol le bord fonce, au clic le bouton s'enfonce. Seul le cadre exterieur est dessine (les cases du theme
+   restent transparentes, regle ci-dessus). */
+.vp-vente .x-btn.vp-btn-plat {
+    background: linear-gradient(#ffffff, #e4edf8) !important;
+    border: 1px solid #9fb8d6 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 2px 3px rgba(30, 95, 168, .28), inset 0 1px 0 #ffffff !important;
+    cursor: pointer;
 }
 
 .vp-vente .x-btn.vp-btn-plat:hover {
-    transform: scale(1.2);
+    transform: translateY(-1px);
+    border-color: #1E5FA8 !important;
+    box-shadow: 0 3px 6px rgba(30, 95, 168, .38), inset 0 1px 0 #ffffff !important;
+}
+
+.vp-vente .x-btn.vp-btn-plat:active,
+.vp-vente .x-btn.vp-btn-plat.x-btn-pressed {
+    transform: translateY(1px);
+    background: linear-gradient(#dbe6f4, #f3f7fc) !important;
+    box-shadow: inset 0 2px 3px rgba(30, 95, 168, .35) !important;
 }
 
 /* Icône « modifier » agrandie (l'image de 16 px était perdue dans la carte) et centrée
    dans son bouton pour rester alignée sur la ligne du texte du client. */
 .vp-vente .x-btn.vp-btn-plat .x-btn-icon-el {
-    width: 26px !important;
-    height: 26px !important;
-    background-size: 26px 26px !important;
+    /* 22 px (26 avant le 22/11) : l'icone respire dans son cadre de bouton */
+    width: 22px !important;
+    height: 22px !important;
+    background-size: 22px 22px !important;
     background-position: center center !important;
 }
 
@@ -1162,7 +1184,8 @@ body.x-body,
 }
 
 .vp-ap-cote {
-    flex: 0 1 330px;
+    /* retour du 22/11 (lot 9) : le panneau prend la largeur de son texte (une ligne par repere), la courbe le reste */
+    flex: 0 0 auto;
     min-width: 260px;
     display: flex;
     flex-direction: column;
@@ -1180,7 +1203,7 @@ body.x-body,
     font-size: 11.5px;
 }
 .vp-ap-ligne .l { color: #6b8089; font-weight: 700; white-space: nowrap; }
-.vp-ap-ligne .v { color: #14303a; font-weight: 700; text-align: right; }
+.vp-ap-ligne .v { color: #14303a; font-weight: 700; text-align: right; white-space: nowrap; }
 .vp-ap-ligne em { font-style: normal; font-weight: 600; color: #6b8089; }
 .vp-ap-ligne em.alerte { color: #c0392b; }
 .vp-ap-ligne em.ok { color: #1c7c1c; }
@@ -3278,6 +3301,28 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pv-calcul tr.pv-total td { font-weight: 700; border-top: 2px solid #94a3b8; }
 .pv-calcul .pv-origine { color: #5b6b7b; font-size: 10px; font-weight: normal; }
 .pv-calcul tr { cursor: help; }
+/* Plan du 21/11, point 15 : fenetre de prevision sans defilement en 1366x768 (lignes resserrees), tableau des unites et
+   de l'indice saisonnier sous le graphe, explication de la valeur prevue et de la quantite a commander */
+.pv-fenetre .ac-bloc-t { margin: 2px 0 4px; }
+.pv-fenetre .ac-detail svg { margin-bottom: 2px; }
+.pv-fenetre .ac-table th, .pv-fenetre .ac-table td { padding: 2px 6px; }
+.pv-fenetre .ac-note { margin-top: 4px; line-height: 1.35; }
+.pv-fenetre .ac-colonnes { margin-top: 6px; }
+.pv-fenetre .ac-colonnes > div:first-child { flex: 0 1 300px; }
+.pv-fenetre .ac-colonnes > div:last-child { flex: 1 1 400px; }
+.pv-saison { font-size: 11px; margin-bottom: 2px; }
+.pv-saison tr.pv-indice td { border-bottom: none; font-weight: 600; cursor: help; }
+.pv-explication { background: #fef5e7; border-left: 3px solid #e67e22; border-radius: 4px; padding: 3px 8px; margin: 0 0 6px;
+    font-size: 12px; color: #6e3b0c; cursor: help; }
+.pv-explication-t { font-weight: 700; }
+.pv-explication-aide { color: #d35400; font-size: 11px; margin-left: 4px; }
+.pv-methodes tr.pv-methode { cursor: help; }
+.pv-fiabilite { cursor: help; }
+.pv-phrase { color: #2c3e50; background: #f4f7fa; border-radius: 4px; padding: 4px 8px; }
+.pv-ecart-calcul { color: #b45309; }
+table.pv-bulle { border-collapse: collapse; margin-top: 4px; }
+table.pv-bulle td { padding: 1px 6px 1px 0; vertical-align: top; }
+table.pv-bulle td.n { text-align: right; white-space: nowrap; padding-left: 10px; }
 /* Retours du 10/10 : onglet Analyse (nombre de lignes en vert, pastilles filtrantes, marqueur equivalent cliquable) */
 .ac-nb-lignes { color: #17795f; font-weight: 700; }
 .ac-puce-filtre, .ac-puce-eq { cursor: pointer; }
@@ -3636,3 +3681,139 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     color: #0f4f3c; font-size: 13px; line-height: 19px; }
 .vp-paye-mobile.vp-paye-mobile-ecart { background: #fff4e0; border-color: #d97f06; color: #6b3d00; }
 .vp-paye-mobile-cellule .x-grid-cell-inner { color: #17795f !important; font-weight: 700; }
+
+/* Plan du 21/11, point 4.1 : bandeau « nettoyer la suggestion ? » en haut de la suggestion ouverte (pas de fenetre) */
+.x-toolbar.sugg-bandeau-nettoyage { background: #fff4e0 !important; background-image: none !important; border: 1px solid #e0a03a !important;
+  border-radius: 4px; padding: 4px 8px !important; }
+.sugg-bandeau-nettoyage .sugg-bandeau-texte { color: #7a4a00 !important; font-weight: bold; font-size: 13px; white-space: normal; }
+/* Plan du 21/11, point 7.2 : selecteur de periode unique « du → au » (testextjs.view.commun.ChampPeriode) */
+.champ-periode input { font-weight: 600; color: #1e3a5f; }
+.champ-periode-panneau { background: #fff; border: 1px solid #c9d6e3; border-radius: 8px; padding: 8px; }
+.champ-periode-raccourcis { padding-right: 8px; border-right: 1px solid #eef1f4; margin-right: 8px; }
+.champ-periode-raccourci .x-btn-inner { text-align: left; }
+/* retour du 22/11 (lot 9) : raccourcis en liste sobre, sans le bouton bleu d'ExtJS */
+.champ-periode-raccourcis .x-btn.champ-periode-raccourci { background: transparent !important; background-image: none !important;
+  border: 0 !important; border-radius: 6px !important; box-shadow: none !important; }
+.champ-periode-raccourcis .x-btn.champ-periode-raccourci .x-btn-inner { color: #1e2a36 !important; font-weight: 600 !important;
+  text-shadow: none !important; font-size: 12px !important; }
+.champ-periode-raccourcis .x-btn.champ-periode-raccourci.x-btn-over,
+.champ-periode-raccourcis .x-btn.champ-periode-raccourci.x-btn-focus { background: #eef2f6 !important; }
+.champ-periode-raccourcis .x-btn.champ-periode-raccourci.x-btn-pressed { background: #e2e8ef !important; }
+.champ-periode-consigne { font-size: 12px; color: #2c3e50; padding: 2px 4px 6px; min-height: 20px; }
+/* retour du 22/11 : cases « Du » et « Au » en tete du calendrier, comme les deux anciens champs */
+.champ-periode-bornes { display: flex; align-items: center; gap: 6px; padding: 0 2px 6px; }
+.champ-periode-case { flex: 1; cursor: pointer; border: 1px solid #c9d6e3; border-radius: 6px; padding: 3px 8px; background: #f7f9fb; line-height: 16px; }
+.champ-periode-case span { display: block; font-size: 10px; color: #5b6b7c; text-transform: uppercase; }
+.champ-periode-case b { font-size: 13px; color: #1e3a5f; }
+.champ-periode-case:hover { border-color: #1e5fa8; }
+.champ-periode-case-active { border: 2px solid #1e5fa8; background: #eaf2fc; padding: 2px 7px; }
+.champ-periode-fleche { color: #5b6b7c; }
+.champ-periode-panneau .x-datepicker td.champ-periode-dans { background: #dbeafe; }
+.champ-periode-panneau .x-datepicker td.champ-periode-borne { background: #1e5fa8; }
+.champ-periode-panneau .x-datepicker td.champ-periode-borne a,
+.champ-periode-panneau .x-datepicker td.champ-periode-borne div { color: #fff !important; font-weight: 700; }
+
+/* Retour du 22/11 (lot 9) : analyse du journal des messages (taux et repartition) */
+.jm-analyse { margin: 0 0 6px; }
+.jm-taux-ligne { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.jm-taux { background: #fff; border: 1px solid #dbe2e6; border-radius: 8px; padding: 4px 10px; min-width: 150px; line-height: 16px; }
+.jm-taux span { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #5b6b7c; letter-spacing: .3px; }
+.jm-taux b { font-size: 16px; color: #14303a; }
+.jm-taux i { display: block; font-style: normal; font-size: 11px; color: #6b8089; }
+.jm-voir-repartition { align-self: center; cursor: pointer; color: #1e5fa8; font-weight: 600; font-size: 12px; text-decoration: underline; }
+.jm-repartitions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.jm-repartition { border-collapse: collapse; background: #fff; font-size: 11.5px; }
+.jm-repartition th { background: #eef2f6; color: #1e3a5f; padding: 3px 7px; text-align: right; border: 1px solid #dbe2e6; }
+.jm-repartition th:first-child, .jm-repartition td:first-child { text-align: left; }
+.jm-repartition td { padding: 3px 7px; text-align: right; border: 1px solid #e6ebef; }
+
+/* Plan du 21/11, point 8.3 : crayon de correction du numero dans les listes de destinataires */
+.crayon-tel-cellule .x-grid-cell-inner { display: flex; align-items: center; gap: 4px; }
+.crayon-tel-numero { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.crayon-tel { cursor: pointer; color: #2471a3; font-size: 14px; line-height: 14px; padding: 0 3px; border-radius: 3px; }
+.crayon-tel:hover { background: #d6eaf8; }
+.crayon-tel-alerte { color: #c0392b; font-weight: 700; }
+.crayon-tel-alerte:hover { background: #fadbd8; }
+.crayon-tel-editeur .x-form-text { font-size: 12px; }
+
+/* Plan du 21/11, point 7.1 (reponse du 22/11 : « on essaie ») : icones dessinees au trait du theme pour les
+ * boutons de la vente. Chaque icone a son propre fond blanc arrondi : elle reste lisible sur un bouton clair ou fonce. */
+.x-btn .x-btn-icon-el.ic7 { background-repeat: no-repeat !important; background-position: center center !important; background-size: 16px 16px; }
+.vp-vente .vp-actions .x-btn .x-btn-icon-el.ic7 { background-size: 24px 24px !important; }
+.x-btn .x-btn-icon-el.ic7-client { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='9' cy='8' r='4'/%3E%3Cpath d='M2 21c0-4 3-6 7-6'/%3E%3Cpath d='M15 20l6-6-3-3-6 6v3z'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-suivi { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Cpath d='M3 20h18'/%3E%3Cpath d='M6 16V10M11 16V5M16 16v-7'/%3E%3Cpath d='M19 7l2-2'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-ayant { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='9' cy='8' r='4'/%3E%3Cpath d='M2 21c0-4 3-6 7-6'/%3E%3Cpath d='M18 11v8M14 15h8'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-terminer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232e9d57' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M7.5 12.5l3 3 6-6'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-attente { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e67e22' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M10 8v8M14 8v8'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-ventes-attente { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-mobile { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Crect x='6' y='2' width='12' height='20' rx='2'/%3E%3Cpath d='M10 18h4'/%3E%3Cpath d='M9 8h6M9 11h4'/%3E%3C/g%3E%3C/svg%3E") !important; }
+
+/* Plan du 21/11, point 16.1 : lot et peremption en commande en cours */
+.lc-fenetre .lc-produit { font-size: 13px; margin-bottom: 8px; color: #1e3a5f; }
+.lc-fenetre .lc-apercu { min-height: 18px; font-size: 12px; }
+.lc-fenetre .lc-aide, .lc-gris { color: #7f8c8d; font-size: 11px; }
+.lc-ok { color: #1e8449; font-weight: 700; }
+.lc-ko { color: #c0392b; font-weight: 700; }
+
+/* Plan du 21/11, point 11 : etat du message d'avoir dans la liste des avoirs */
+.av-msg { display: inline-block; padding: 0 6px; border-radius: 8px; font-weight: 600; font-size: 11px; line-height: 16px; }
+.av-msg-attente { background: #eef1f5; color: #5a6b7d; }
+.av-msg-envoye { background: #e4eefa; color: #1E5FA8; }
+.av-msg-distribue { background: #e3f4ea; color: #2e7d4f; }
+.av-msg-lu { background: #2e9d57; color: #fff; }
+.av-msg-echec { background: #fdecec; color: #c0392b; }
+/* Lot 9 : la tuile « Taux de lecture » reprend la teinte claire, la pastille verte pleine la rendait illisible */
+.jm-taux.av-msg-lu { background: #dff3e6; color: #1e6b3c; border-color: #b7e0c5; }
+.av-msg-canal { display: block; color: #6b7a8c; font-size: 10.5px; line-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.av-msg-aucun { color: #9aa7b5; }
+
+/* ===== Plan du 21/11, point 8.1 : journal des messages (SMS et WhatsApp) ===== */
+.jm-compteurs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px 0; }
+.jm-compteur { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; line-height: 18px; white-space: nowrap; }
+.jm-compteur b { margin-left: 4px; }
+.jm-compteur.jm-total { background: #1e3a5f; color: #fff; }
+.jm-journal .av-msg { white-space: nowrap; }
+
+/* Retour du 22/11 (« les icônes et boutons n'ont pas changé ») : les icônes restantes de la vente au même trait :
+ * fiche client, afficher net à payer, retour, générer et retirer un bon, icônes des cartes assuré et ayant droit. */
+.x-btn .x-btn-icon-el.ic7-fiche { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Crect x='5' y='4' width='14' height='17' rx='2'/%3E%3Cpath d='M9 4V2h6v2'/%3E%3Cpath d='M8 10h8M8 14h8M8 18h5'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-afficheur { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Crect x='2' y='4' width='20' height='13' rx='2'/%3E%3Cpath d='M8 21h8M12 17v4'/%3E%3Cpath d='M7 9h4M7 12h4M14 10.5h4'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-retour { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Cpath d='M9 14L4 9l5-5'/%3E%3Cpath d='M4 9h11a5 5 0 0 1 0 10h-4'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-generer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Cpath d='M4 9h16M4 15h16M10 3L8 21M16 3l-2 18'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-retirer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0392b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M9 9l6 6M15 9l-6 6'/%3E%3C/g%3E%3C/svg%3E") !important; }
+
+/* Retour du 22/11 : Facturation > Facture, « Supprimer la sélection » et « Relevé FNE » n'avaient pas d'icône. */
+.x-btn .x-btn-icon-el.ic7-supprimer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0392b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Cpath d='M4 7h16'/%3E%3Cpath d='M9 7V4h6v3'/%3E%3Cpath d='M6 7l1 13h10l1-13'/%3E%3Cpath d='M10 11v6M14 11v6'/%3E%3C/g%3E%3C/svg%3E") !important; }
+.x-btn .x-btn-icon-el.ic7-fne { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E5FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='0.5' y='0.5' width='23' height='23' rx='5' fill='%23fff' stroke='none'/%3E%3Cg transform='translate(2.4 2.4) scale(0.8)'%3E%3Cpath d='M6 2h9l4 4v16H6z'/%3E%3Cpath d='M15 2v4h4'/%3E%3Cpath d='M9 12h7M9 16h4'/%3E%3Ccircle cx='17' cy='18' r='2.5'/%3E%3C/g%3E%3C/svg%3E") !important; }
+
+/* Retours du 22/11 (lot 10, point 3) : envoi des messages d'avoir depuis la fenetre des produits en avoir d'un bon. */
+.vc-fenetre .vc-pied .va-boutons { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.vc-fenetre .vc-pied > span:first-child { min-width: 0; margin-right: 12px; }
+.va-envoi { display: inline-flex; gap: 8px; align-items: center; white-space: nowrap; }
+.va-envoi:empty { display: none; }
+.va-envoye { color: #1e6b3c; background: #dff3e6; border: 1px solid #b7e0c5; border-radius: 10px; padding: 2px 10px; }
+.va-envoi-erreur { color: #b42318; font-weight: bold; }
+.va-choix { color: #1e3a5f; font-weight: bold; }
+.vc-bouton[disabled] { opacity: .6; cursor: default; }
+
+/* Retours du 22/11 (lot 10, point 1) : renvoi d'un echec depuis le journal des messages. */
+.jm-renvoi { border: 1px solid #c3cfdb; background: #fff; color: #1e3a5f; border-radius: 10px; padding: 1px 9px; font-size: 11px; cursor: pointer; }
+.jm-renvoi:hover { background: #e3edf7; }
+.jm-renvoi-arme { background: #f0a23a; border-color: #f0a23a; color: #fff; font-weight: bold; }
+.jm-renvoi-arme:hover { background: #e08e1f; }
+.jm-renvoi-cours { color: #64748b; font-style: italic; }
+.jm-renvoi-ok { color: #1e6b3c; font-weight: bold; }
+.jm-renvoi-ko { color: #b42318; font-weight: bold; }
+
+/* Retour du 22/11 (lot 11) : saisie des produits perimes - lignes en attente depuis longtemps, choix du produit */
+.perime-ancienne .x-grid-cell-inner { color: #b03a2e; font-weight: bold; }
+.perime-ancienne-texte { color: #b03a2e; font-weight: bold; }
+.perime-resume { color: #33475b; }
+.perime-choix-cip { color: #5a6b7d; font-family: Consolas, monospace; margin-right: 4px; }
+.perime-choix-stock { color: #5a6b7d; }
+
+/* Retour du 22/11 : analyse des perimes - bouton de tri actif nettement marque (fond fonce, texte blanc) */
+.sp-analyse .x-btn.sp-tri.x-btn-pressed,
+.sp-analyse .x-btn.sp-tri.x-btn-pressed.x-btn-over,
+.sp-analyse .x-btn.sp-tri.x-btn-pressed.x-btn-focus { background: #1e3a5f !important; background-image: none !important; border-color: #1e3a5f !important; }
+.sp-analyse .x-btn.sp-tri.x-btn-pressed .x-btn-inner { color: #fff !important; }

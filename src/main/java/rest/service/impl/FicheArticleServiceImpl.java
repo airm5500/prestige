@@ -135,37 +135,69 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     @Override
     public JSONObject produitPerimes(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
             String codeRayon, String codeGrossiste, int start, int limit) throws JSONException {
-        Pair<commonTasks.dto.LotDTO, List<commonTasks.dto.LotDTO>> p = produitPerimes(query, nbreMois, dtStart, dtEnd,
-                codeFamile, codeRayon, codeGrossiste, start, limit, false);
-        List<commonTasks.dto.LotDTO> data = p.getRight();
-        return new JSONObject()
-                .put("total",
-                        produitPerimesCount(query, nbreMois, dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste,
-                                sessionHelperService.getCurrentUser().getLgEMPLACEMENTID()))
-                .put("data", new JSONArray(data)).put("metaData", new JSONObject(p.getLeft()));
+        /*
+         * Plan du 21/11, point 17 : nombre et totaux lus en une seule passe (ils etaient lus par deux requetes), puis
+         * la page, seulement s'il y a des lots. Memes conditions, memes valeurs.
+         */
+        TEmplacement emp = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+        long total = 0;
+        commonTasks.dto.LotDTO totaux = null;
+        try {
+            Object[] agregats = agregatsPerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamile, codeRayon,
+                    codeGrossiste);
+            total = agregats[0] == null ? 0L : ((Number) agregats[0]).longValue();
+            totaux = new commonTasks.dto.LotDTO(entierLong(agregats[1]), entierLong(agregats[2]),
+                    entierLong(agregats[3]));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitPerimes", e);
+        }
+        List<commonTasks.dto.LotDTO> data = Collections.emptyList();
+        if (total > 0) {
+            try {
+                data = listePerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamile, codeRayon, codeGrossiste, start,
+                        limit, false);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "produitPerimes", e);
+            }
+        }
+        commonTasks.dto.LotDTO metaData = data.isEmpty() || totaux == null ? new commonTasks.dto.LotDTO() : totaux;
+        return new JSONObject().put("total", total).put("data", new JSONArray(data)).put("metaData",
+                new JSONObject(metaData));
     }
 
-    private commonTasks.dto.LotDTO produitPerimes(String query, int nbreMois, String dtStart, String dtEnd,
-            TEmplacement emp, String codeFamille, String codeRayon, String codeGrossiste) throws Exception {
+    private static Long entierLong(Object valeur) {
+        return valeur == null ? null : ((Number) valeur).longValue();
+    }
+
+    /**
+     * Nombre de lots perimes et totaux (stock, valeur d'achat, valeur de vente) en une seule lecture : le compte, puis
+     * les trois sommes de l'ancienne requete des totaux.
+     */
+    private Object[] agregatsPerimes(String query, int nbreMois, String dtStart, String dtEnd, TEmplacement emp,
+            String codeFamille, String codeRayon, String codeGrossiste) {
         CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-        CriteriaQuery<commonTasks.dto.LotDTO> cq = cb.createQuery(commonTasks.dto.LotDTO.class);
+        CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
         Root<TLot> root = cq.from(TLot.class);
         Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
         Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-        Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-        Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-        Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
-
+        Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                javax.persistence.criteria.JoinType.LEFT);
         List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query, nbreMois,
                 dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
-        cq.select(cb.construct(commonTasks.dto.LotDTO.class, cb.sum(root.get(TLot_.currentStock)),
+        cq.multiselect(cb.count(root), cb.sum(root.get(TLot_.currentStock)),
                 cb.sum(cb.prod(root.get(TLot_.currentStock), joinLot.get(TFamille_.intPAF))),
-                cb.sum(cb.prod(root.get(TLot_.currentStock), joinLot.get(TFamille_.intPRICE)))));
+                cb.sum(cb.prod(root.get(TLot_.currentStock), joinLot.get(TFamille_.intPRICE))));
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-        TypedQuery<commonTasks.dto.LotDTO> q = getEntityManager().createQuery(cq);
-        q.setMaxResults(1);
-        return q.getSingleResult();
-
+        OrdreLectureVentes.activerLots();
+        try {
+            return getEntityManager().createQuery(cq).getSingleResult();
+        } finally {
+            OrdreLectureVentes.desactiverLots();
+        }
     }
 
     @Override
@@ -174,45 +206,62 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             int limit, boolean all) {
         try {
             TEmplacement emp = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<commonTasks.dto.LotDTO> cq = cb.createQuery(commonTasks.dto.LotDTO.class);
-            Root<TLot> root = cq.from(TLot.class);
-            Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
-            Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
-
-            List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
-                    nbreMois, dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
-            cq.select(cb.construct(commonTasks.dto.LotDTO.class, root.get(TLot_.lgLOTID), joinLot.get(TFamille_.intCIP),
-                    joinFa.get(TFamillearticle_.strLIBELLE), joinFaz.get(TZoneGeographique_.strLIBELLEE),
-                    joinLot.get(TFamille_.strNAME), root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION),
-                    joinFaG.get(TGrossiste_.strLIBELLE), root.get(TLot_.intNUMBER),
-                    cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
-                    cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE)), root.get(TLot_.currentStock)))
-
-                    .orderBy(cb.asc(joinFaz.get(TZoneGeographique_.strLIBELLEE)), cb.asc(root.get(TLot_.dtPEREMPTION)));
-
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            Query q = getEntityManager().createQuery(cq);
-            if (!all) {
-                q.setFirstResult(start);
-                q.setMaxResults(limit);
-            }
-            List<commonTasks.dto.LotDTO> l = q.getResultList();
+            List<commonTasks.dto.LotDTO> l = listePerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamille, codeRayon,
+                    codeGrossiste, start, limit, all);
             if (l.isEmpty()) {
                 return Pair.of(new commonTasks.dto.LotDTO(), Collections.emptyList());
             }
-            commonTasks.dto.LotDTO summary = produitPerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamille,
-                    codeRayon, codeGrossiste);
-
-            return Pair.of(summary, l);
+            Object[] agregats = agregatsPerimes(query, nbreMois, dtStart, dtEnd, emp, codeFamille, codeRayon,
+                    codeGrossiste);
+            return Pair.of(new commonTasks.dto.LotDTO(entierLong(agregats[1]), entierLong(agregats[2]),
+                    entierLong(agregats[3])), l);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "produitPerimes", e);
             return Pair.of(new commonTasks.dto.LotDTO(), Collections.emptyList());
         }
+    }
 
+    /** Lots perimes, tries par rayon puis par date de peremption ; une page, ou tous (all). */
+    private List<commonTasks.dto.LotDTO> listePerimes(String query, int nbreMois, String dtStart, String dtEnd,
+            TEmplacement emp, String codeFamille, String codeRayon, String codeGrossiste, int start, int limit,
+            boolean all) {
+        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        CriteriaQuery<commonTasks.dto.LotDTO> cq = cb.createQuery(commonTasks.dto.LotDTO.class);
+        Root<TLot> root = cq.from(TLot.class);
+        Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
+        Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
+        Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                javax.persistence.criteria.JoinType.LEFT);
+        Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                javax.persistence.criteria.JoinType.LEFT);
+
+        List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query, nbreMois,
+                dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
+        cq.select(cb.construct(commonTasks.dto.LotDTO.class, root.get(TLot_.lgLOTID), joinLot.get(TFamille_.intCIP),
+                // plan du 21/11, point 17 : produit sans famille, rayon ou grossiste, liste quand meme
+                cb.coalesce(joinFa.get(TFamillearticle_.strLIBELLE), "(sans famille)"),
+                cb.coalesce(joinFaz.get(TZoneGeographique_.strLIBELLEE), "(sans rayon)"),
+                joinLot.get(TFamille_.strNAME), root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION),
+                cb.coalesce(joinFaG.get(TGrossiste_.strLIBELLE), "(sans grossiste)"), root.get(TLot_.intNUMBER),
+                cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
+                cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE)), root.get(TLot_.currentStock)))
+
+                .orderBy(cb.asc(joinFaz.get(TZoneGeographique_.strLIBELLEE)), cb.asc(root.get(TLot_.dtPEREMPTION)));
+
+        cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+        Query q = getEntityManager().createQuery(cq);
+        if (!all) {
+            q.setFirstResult(start);
+            q.setMaxResults(limit);
+        }
+        OrdreLectureVentes.activerLots();
+        try {
+            return q.getResultList();
+        } finally {
+            OrdreLectureVentes.desactiverLots();
+        }
     }
 
     /* ---- Visualisation des perimes (peremptionquery) : exports + inventaire ---- */
@@ -286,14 +335,22 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             Root<TLot> root = cq.from(TLot.class);
             Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
             Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
+            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                    javax.persistence.criteria.JoinType.LEFT);
             List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
                     nbreMois, dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, emp);
             cq.select(joinLot.get(TFamille_.lgFAMILLEID)).distinct(true)
                     .where(cb.and(predicates.toArray(Predicate[]::new)));
-            return new java.util.LinkedHashSet<>(getEntityManager().createQuery(cq).getResultList());
+            OrdreLectureVentes.activerLots();
+            try {
+                return new java.util.LinkedHashSet<>(getEntityManager().createQuery(cq).getResultList());
+            } finally {
+                OrdreLectureVentes.desactiverLots();
+            }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "perimesProduitIds", e);
             return java.util.Collections.emptySet();
@@ -1169,8 +1226,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 predicates.add(cb.notEqual(fa.get(TFamilleStock_.intNUMBERAVAILABLE), stock));
                 break;
             case STOCK_LESS_THAN_SEUIL:
-                predicates.add(cb.lessThan(fa.get(TFamilleStock_.intNUMBERAVAILABLE),
-                        root.get(TFamille_.intSTOCKREAPROVISONEMENT)));
+                // retours du 23/11 : seuil de reference (celui de la fiche et des suggestions)
+                predicates.add(cb.lessThan(fa.get(TFamilleStock_.intNUMBERAVAILABLE), root.get(TFamille_.intSEUILMIN)));
                 break;
             default:
                 break;
@@ -1181,23 +1238,23 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             switch (filtreSeuil) {
 
             case EQUAL:
-                predicates.add(cb.equal(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.equal(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case GREATER:
-                predicates.add(cb.greaterThan(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.greaterThan(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case GREATER_EQUAL:
-                predicates.add(cb.greaterThanOrEqualTo(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case LESS:
-                predicates.add(cb.lessThan(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.lessThan(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
 
             case LESS_EQUAL:
-                predicates.add(cb.lessThanOrEqualTo(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.lessThanOrEqualTo(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
             case NOT:
-                predicates.add(cb.notEqual(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuil));
+                predicates.add(cb.notEqual(root.get(TFamille_.intSEUILMIN), seuil));
                 break;
 
             default:
@@ -1370,6 +1427,11 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         if (simuler || ids.isEmpty()) {
             return new JSONObject().put("success", true).put("nombre", ids.size());
         }
+        // retours du 23/11 : une ligne de journal par article change
+        List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                .colonnes(rest.service.impl.journal.TraceLot.RETENU);
+        java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = rest.service.impl.journal.TraceLot
+                .lire(getEntityManager(), ids, suivies);
         int n = 0;
         for (int i = 0; i < ids.size(); i += 500) {
             n += getEntityManager()
@@ -1377,6 +1439,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     .setParameter(1, coche ? 0 : 1).setParameter(2, ids.subList(i, Math.min(ids.size(), i + 500)))
                     .executeUpdate();
         }
+        rest.service.impl.journal.TraceLot.ecrire(getEntityManager(), u, "Gestion des articles", avant,
+                rest.service.impl.journal.TraceLot.lire(getEntityManager(), ids, suivies));
         return new JSONObject().put("success", true).put("nombre", n);
     }
 
@@ -1488,6 +1552,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             return new JSONObject().put("success", true).put("nombre", ids.size());
         }
         String colonne = champSensible(champ) ? "is_sensible" : "is_scheduled";
+        // retours du 23/11 : une ligne de journal par article change, en plus de la ligne du lot
+        List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                .colonnes(champSensible(champ) ? rest.service.impl.journal.TraceLot.SENSIBLE
+                        : rest.service.impl.journal.TraceLot.ORDONNANCIER);
+        java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = rest.service.impl.journal.TraceLot
+                .lire(getEntityManager(), ids, suivies);
         int n = 0;
         for (int i = 0; i < ids.size(); i += 500) {
             n += getEntityManager()
@@ -1500,6 +1570,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                         + " en lot (recherche « " + StringUtils.defaultString(query).trim() + " », filtre "
                         + StringUtils.defaultString(filtre, "tous") + ")",
                 TypeLog.ORDONNANCIER_PRODUIT, new TFamille());
+        rest.service.impl.journal.TraceLot.ecrire(getEntityManager(), u, "Ordonnancier", avant,
+                rest.service.impl.journal.TraceLot.lire(getEntityManager(), ids, suivies));
         return new JSONObject().put("success", true).put("nombre", n);
     }
 
@@ -1631,7 +1703,13 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
     @Override
     public void updateProduitLiteInfo(UpdateProduit updateProduit) {
+        updateProduitLiteInfo(updateProduit, null);
+    }
+
+    @Override
+    public void updateProduitLiteInfo(UpdateProduit updateProduit, TUser user) {
         TFamille famille = em.find(TFamille.class, updateProduit.getId());
+        java.util.Map<String, String> avant = rest.service.impl.journal.ModificationFiche.photo(famille);
         if (StringUtils.isNotEmpty(updateProduit.getCodeEanFabriquant())) {
             famille.setCodeEanFabriquant(updateProduit.getCodeEanFabriquant());
         }
@@ -1654,6 +1732,15 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             famille.setIntCOLISAGE(updateProduit.getColisage() > 0 ? updateProduit.getColisage() : null);
         }
         em.merge(famille);
+        java.util.List<rest.service.impl.achats.ModificationBl.Champ> champs = rest.service.impl.journal.ModificationFiche
+                .ecarts(avant, rest.service.impl.journal.ModificationFiche.photo(famille));
+        if (user != null && !champs.isEmpty()) {
+            logService.journaliser(user, famille.getLgFAMILLEID(),
+                    rest.service.impl.journal.ModificationFiche.description(famille.getIntCIP(), famille.getStrNAME(),
+                            user.getStrFIRSTNAME() + " " + user.getStrLASTNAME(), champs),
+                    TypeLog.MODIFICATION_FICHE_PRODUIT, famille,
+                    rest.service.impl.achats.ModificationBl.detail(champs));
+        }
     }
 
     // ----------------------- MAJ SEUIL groupee (Q1/Q2 par produit) -----------------------
@@ -1726,6 +1813,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     @Override
     public JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search,
             String classeAbcId, List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2) {
+        return majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId, ids, uncheckedIds, q1, q2, null);
+    }
+
+    @Override
+    public JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search,
+            String classeAbcId, List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2, TUser u) {
         JSONObject res = new JSONObject();
         try {
             List<String> targets;
@@ -1745,6 +1838,11 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             } else {
                 targets = (ids != null) ? new java.util.ArrayList<>(ids) : new java.util.ArrayList<>();
             }
+            // retours du 23/11 : valeurs d'avant, pour la trace de chaque article change
+            List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                    .colonnes(rest.service.impl.journal.TraceLot.Q1, rest.service.impl.journal.TraceLot.Q2);
+            java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = u == null ? null
+                    : rest.service.impl.journal.TraceLot.lire(em, targets, suivies);
             int count = 0;
             int chunk = 1000;
             for (int i = 0; i < targets.size(); i += chunk) {
@@ -1756,6 +1854,10 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                         .createQuery("UPDATE TFamille f SET f.intQ1SEUILREAPPRO = :q1, "
                                 + "f.intQ2QTEREAPPRO = :q2 WHERE f.lgFAMILLEID IN :ids")
                         .setParameter("q1", q1).setParameter("q2", q2).setParameter("ids", sub).executeUpdate();
+            }
+            if (avant != null) {
+                res.put("traces", rest.service.impl.journal.TraceLot.ecrire(em, u, "MAJ seuil", avant,
+                        rest.service.impl.journal.TraceLot.lire(em, targets, suivies)));
             }
             res.put("success", true).put("count", count);
         } catch (Exception e) {
@@ -1949,6 +2051,38 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     public JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
             String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
             List<String> uncheckedIds, String champ, String valeur) {
+        return majSelectiveApply(mode, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, laboratoireId,
+                gammeId, search, ids, uncheckedIds, champ, valeur, null);
+    }
+
+    /** Colonne suivie par la trace pour chaque donnee de la MAJ selective. */
+    private static rest.service.impl.journal.TraceLot.Colonne colonneSelective(String champ) {
+        switch (champ) {
+        case CHAMP_GROSSISTE:
+            return rest.service.impl.journal.TraceLot.GROSSISTE;
+        case CHAMP_FAMILLE:
+            return rest.service.impl.journal.TraceLot.FAMILLE;
+        case CHAMP_TVA:
+            return rest.service.impl.journal.TraceLot.TVA;
+        case CHAMP_CODE_REMISE:
+            return rest.service.impl.journal.TraceLot.CODE_REMISE;
+        case CHAMP_CODE_TABLEAU:
+            return rest.service.impl.journal.TraceLot.TABLEAU;
+        case CHAMP_LABORATOIRE:
+            return rest.service.impl.journal.TraceLot.LABORATOIRE;
+        case CHAMP_GAMME:
+            return rest.service.impl.journal.TraceLot.GAMME;
+        case CHAMP_ORDONNANCIER:
+            return rest.service.impl.journal.TraceLot.ORDONNANCIER;
+        default:
+            return rest.service.impl.journal.TraceLot.REMISE;
+        }
+    }
+
+    @Override
+    public JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
+            String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
+            List<String> uncheckedIds, String champ, String valeur, TUser u) {
         JSONObject res = new JSONObject();
         try {
             String cible = StringUtils.trimToEmpty(champ).toUpperCase();
@@ -2010,12 +2144,21 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             if (cibles.isEmpty()) {
                 return res.put("success", false).put("count", 0).put("message", "Aucun produit retenu.");
             }
+            // retours du 23/11 : valeurs d'avant, pour la trace de chaque article change
+            List<rest.service.impl.journal.TraceLot.Colonne> suivies = rest.service.impl.journal.TraceLot
+                    .colonnes(colonneSelective(cible));
+            java.util.Map<String, rest.service.impl.journal.TraceLot.Photo> avant = u == null ? null
+                    : rest.service.impl.journal.TraceLot.lire(em, cibles, suivies);
             int count = 0;
             int chunk = 1000;
             for (int i = 0; i < cibles.size(); i += chunk) {
                 List<String> sub = cibles.subList(i, Math.min(cibles.size(), i + chunk));
                 count += em.createQuery(jpql).setParameter("valeur", valeurAffectee).setParameter("ids", sub)
                         .executeUpdate();
+            }
+            if (avant != null) {
+                res.put("traces", rest.service.impl.journal.TraceLot.ecrire(em, u, "Mise à jour des articles", avant,
+                        rest.service.impl.journal.TraceLot.lire(em, cibles, suivies)));
             }
             LOG.log(Level.INFO, "MAJ selective : {0} = {1} sur {2} produit(s)",
                     new Object[] { cible, valeurSaisie, count });
@@ -2044,16 +2187,24 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             Root<TLot> root = cq.from(TLot.class);
             Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
             Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
-            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
-            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
-            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
+            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID,
+                    javax.persistence.criteria.JoinType.LEFT);
+            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID,
+                    javax.persistence.criteria.JoinType.LEFT);
 
             cq.select(cb.count(root));
             List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
                     nbreMois, dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
-            return (Long) q.getSingleResult();
+            OrdreLectureVentes.activerLots();
+            try {
+                return (Long) q.getSingleResult();
+            } finally {
+                OrdreLectureVentes.desactiverLots();
+            }
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);

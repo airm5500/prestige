@@ -498,10 +498,12 @@ public class TableauBordServiceImpl implements TableauBordService {
                 renouv = 0;
             }
             o.put("renouvellements", new JSONObject().put("patients", renouv).put("jours", joursRenouvellement));
-            Object[] av = ligne(
-                    "SELECT COUNT(*) FROM t_preenregistrement p WHERE p.b_IS_AVOIR = 1 AND p.str_STATUT = 'is_Closed'"
-                            + " AND p.b_IS_CANCEL = 0 AND p.dt_CLOTURE_AVOIR IS NULL");
+            /* retours du 22/11 (lot 10) : date du plus ancien, debut de la periode de la fenetre des avoirs en cours */
+            Object[] av = ligne("SELECT COUNT(*), DATE_FORMAT(MIN(p.dt_UPDATED), '%Y-%m-%d') FROM t_preenregistrement p"
+                    + " WHERE p.b_IS_AVOIR = 1 AND p.str_STATUT = 'is_Closed'"
+                    + " AND p.b_IS_CANCEL = 0 AND p.dt_CLOTURE_AVOIR IS NULL");
             o.put("avoirs", n(at(av, 0)));
+            o.put("avoirsDepuis", at(av, 1) == null ? JSONObject.NULL : String.valueOf(at(av, 1)));
             /* Retours du 06/10 : articles en stock negatif a l'emplacement (actifs). */
             Object[] ng = ligne(
                     "SELECT COUNT(*) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
@@ -518,6 +520,47 @@ public class TableauBordServiceImpl implements TableauBordService {
     @Override
     public JSONObject alerteListe(String type, int moisPeremption, int joursRupture, String emplacementId, int limite) {
         return alerteListe(type, moisPeremption, joursRupture, 30, emplacementId, limite);
+    }
+
+    /** Debut de la periode des articles crees : minuit, il y a « jours » jours (1 = aujourd'hui seulement). */
+    static Timestamp debutCrees(int jours) {
+        return Timestamp.valueOf(LocalDate.now().minusDays(Math.max(1, jours) - 1L).atStartOfDay());
+    }
+
+    @Override
+    public JSONObject produitsCrees(int jours, int limite) {
+        JSONObject o = new JSONObject().put("jours", Math.max(1, jours));
+        JSONArray a = new JSONArray();
+        try {
+            Timestamp debut = debutCrees(jours);
+            List<Object[]> n = lignes("SELECT COUNT(*), 0 FROM t_famille f WHERE f.dt_CREATED >= ?1", debut);
+            o.put("nombre", n.isEmpty() ? 0 : n(n.get(0)[0]));
+            List<Object[]> lus = lignes("SELECT f.int_CIP, f.str_NAME, f.dt_CREATED, f.int_PRICE, g.str_LIBELLE,"
+                    + " f.lg_FAMILLE_ID, f.str_STATUT"
+                    + " FROM t_famille f LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID"
+                    + " WHERE f.dt_CREATED >= ?1 ORDER BY f.dt_CREATED DESC, f.int_CIP LIMIT " + Math.max(1, limite),
+                    debut);
+            /* meme auteur que la fiche article : notification, sinon journal (retours du 23/11) */
+            List<CreateurArticle.Fiche> fiches = new ArrayList<>();
+            for (Object[] r : lus) {
+                fiches.add(new CreateurArticle.Fiche(t(r[5]), t(r[0]), t(r[1]), (Timestamp) r[2]));
+            }
+            java.util.Map<String, String> auteurs = CreateurArticle.auteurs(em, fiches);
+            for (Object[] r : lus) {
+                Timestamp c = (Timestamp) r[2];
+                a.put(new JSONObject().put("cip", t(r[0])).put("libelle", t(r[1]))
+                        .put("creeLe",
+                                c == null ? ""
+                                        : c.toLocalDateTime().format(
+                                                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
+                        .put("prix", n(r[3])).put("grossiste", t(r[4]))
+                        .put("creePar", auteurs.getOrDefault(t(r[5]), "")).put("actif", "enable".equals(t(r[6]))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Articles crees non lus", e);
+            o.put("erreur", true);
+        }
+        return o.put("data", a);
     }
 
     @Override

@@ -108,6 +108,16 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                         {text: 'Analyser', itemId: 'demAnalyser', iconCls: 'searchicon', handler: function () {
                                 me.chargerDemande();
                             }},
+                        /* plan du 21/11, point 15 : imprimer et exporter l'analyse affichee, comme les deux autres onglets */
+                        '-', {text: '🖨 Imprimer', itemId: 'demImprimer', cls: 'ordo-btn', disabled: true,
+                            tooltip: 'Imprimer l\'analyse affichée (synthèse, ventes par mois, produits à anticiper et saisonniers)',
+                            handler: function () {
+                                me.editerDemande('pdf');
+                            }},
+                        {text: '⬇ Excel', itemId: 'demExcel', cls: 'ordo-btn', disabled: true,
+                            tooltip: 'Exporter l\'analyse affichée en Excel', handler: function () {
+                                me.editerDemande('excel');
+                            }},
                         '->', {xtype: 'component', itemId: 'demFenetre', html: ''}]}],
             items: [{xtype: 'component', itemId: 'demContenu', html: '<div style="color:#7f8c8d">Chargement…</div>',
                     listeners: {afterrender: function (c) {
@@ -121,13 +131,30 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
         };
     },
 
+    /** Edition de l'analyse affichee : memes criteres que le dernier calcul montre a l'ecran. */
+    editerDemande: function (format) {
+        var me = this;
+        if (!me.demande || !me.demandeCriteres) {
+            return;
+        }
+        window.open('../api/v1/analyse-commande/demande/edition?' + Ext.Object.toQueryString(Ext.apply({format: format}, me.demandeCriteres)));
+    },
+
+    activerEditionDemande: function (actif) {
+        var o = this.down('#ongletDemande');
+        Ext.each(['#demImprimer', '#demExcel'], function (b) {
+            o.down(b).setDisabled(!actif);
+        });
+    },
+
     chargerDemande: function () {
         var me = this, o = me.down('#ongletDemande'), contenu = o.down('#demContenu');
+        var criteres = {mois: o.down('#demMois').getValue(), query: o.down('#demRecherche').getValue() || '',
+            rayonId: o.down('#demRayon').getValue() || ''};
         o.setLoading('Calcul…');
         me.demandeEnCours = true;
-        Ext.Ajax.request({url: '../api/v1/analyse-commande/demande', method: 'GET', timeout: 300000, params: {
-                mois: o.down('#demMois').getValue(), query: o.down('#demRecherche').getValue() || '',
-                rayonId: o.down('#demRayon').getValue() || ''},
+        me.activerEditionDemande(false);
+        Ext.Ajax.request({url: '../api/v1/analyse-commande/demande', method: 'GET', timeout: 300000, params: criteres,
             success: function (r) {
                 me.demandeEnCours = false;
                 if (o.isDestroyed) {
@@ -141,6 +168,8 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                     return;
                 }
                 me.demande = d;
+                me.demandeCriteres = criteres;
+                me.activerEditionDemande(true);
                 o.down('#demFenetre').update('<span style="color:#5d6d7e">Mois complets : ' + me.moisLong(d.debut) + ' → ' + me.moisLong(d.fin) + '</span>');
                 contenu.update(me.htmlDemande(d));
             },

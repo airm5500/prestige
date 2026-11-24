@@ -19,7 +19,7 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireBisManager', 
     minHeight: 570,
     /* integrer le menu a utiliser ici  */
 requires: [
-        'testextjs.view.vente.user.UpdateVenteClientTpForm'
+        'testextjs.view.vente.user.UpdateVenteClientTpForm', 'testextjs.view.commun.ChampPeriode'
     ],
     layout: {
         type: 'fit'
@@ -194,8 +194,9 @@ requires: [
                             value: new Date(),
                             margin: '0 9 0 0',
                             submitFormat: 'Y-m-d',
-                            format: 'd/m/Y'
-
+                            format: 'd/m/Y',
+                            /* plan du 21/11, point 7.2 : un seul selecteur de periode */
+                            plugins: [{ptype: 'champperiode', debut: 'dtStart', declencher: 'rechercher', libelle: 'Période', largeur: 265}]
                         }, {
                             xtype: 'timefield',
                             fieldLabel: 'De',
@@ -223,7 +224,22 @@ requires: [
                             flex: 1,
                             enableKeyEvents: true
 
-                        }, '-', {
+                        }, {
+                            text: 'rechercher',
+                            itemId: 'rechercher',
+                            tooltip: 'rechercher',
+                            scope: this,
+                            iconCls: 'searchicon'
+                        }]
+                },
+                {
+                    /* Plan du 21/11 (point 1.3) : seconde ligne — filtres tiers payant et impression,
+                       la barre ne déborde plus à 1366 ni à 1280 */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    itemId: 'filtresTiersPayant',
+                    items: [
+                        {
                             xtype: 'combobox',
                             itemId: 'tiersPayantId',
                             flex: 1,
@@ -284,13 +300,6 @@ requires: [
                                 this.fireEvent('vide', this);
                             }
                         }, '-', {
-                            text: 'rechercher',
-                            itemId: 'rechercher',
-                            tooltip: 'rechercher',
-                            scope: this,
-                            iconCls: 'searchicon'
-//                    handler: this.onRechClick
-                        }, {
                             /* Lot 3 : deux editions — la liste actuelle et la liste avec produits */
                             xtype: 'splitbutton',
                             text: 'Imprimer',

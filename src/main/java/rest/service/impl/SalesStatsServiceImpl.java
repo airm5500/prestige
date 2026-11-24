@@ -3285,6 +3285,19 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     ventes.stream().map(VenteDTO::getLgPREENREGISTREMENTID).collect(Collectors.toList()));
             ventes.forEach(vente -> vente
                     .setItems(parVente.getOrDefault(vente.getLgPREENREGISTREMENTID(), Collections.emptyList())));
+            /* plan du 21/11, point 11 : etat du message d'avoir de chaque vente, pour toute la page en une fois */
+            Map<String, AvoirMessage.Etat> messages = AvoirMessage.etats(getEntityManager(),
+                    ventes.stream().map(VenteDTO::getLgPREENREGISTREMENTID).collect(Collectors.toList()));
+            java.text.SimpleDateFormat jour = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+            ventes.forEach(vente -> {
+                AvoirMessage.Etat m = messages.get(vente.getLgPREENREGISTREMENTID());
+                if (m != null) {
+                    vente.setMessageEtat(m.etat);
+                    vente.setMessageCanal(m.canal);
+                    vente.setMessageDate(m.date == null ? null : jour.format(m.date));
+                    vente.setMessageMotif(m.motif);
+                }
+            });
         }
         return ventes;
     }
@@ -3481,6 +3494,13 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         } else {
             sql = sql.replace("{produit_join}", "");
             sql = sql.replace("{distinct}", "");
+            /*
+             * Retours du 22/11 (lot 10, liste des avoirs en cours : 1,39 s pour 9 ventes) : MariaDB partait des
+             * caissiers et relisait les ventes de chacun par l'index du caissier (1,4 s pour le comptage des avoirs,
+             * 3,5 s pour une page de trois mois de ventes, copie appaul). Les ventes d'abord, par leur index de date ou
+             * d'avoir, puis le caissier par sa cle : moins d'une milliseconde, memes ventes (jointure interne).
+             */
+            sql = sql.replace("INNER JOIN t_user caissier", "STRAIGHT_JOIN t_user caissier");
         }
 
         // Onglet "Avoir cloture" : on filtre la periode sur la date de cloture
@@ -3536,8 +3556,11 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                 // Avoirs historises et desormais fermes
                 finalSql.append(" AND p.b_HAS_AVOIR=TRUE AND p.b_IS_AVOIR=FALSE ");
             } else {
-                // Avoirs encore ouverts
-                finalSql.append(" AND p.b_IS_AVOIR=TRUE ");
+                /*
+                 * Avoirs encore ouverts. Retours du 22/11 (lot 10) : sans les ventes annulees, comme l'alerte du
+                 * tableau de bord et l'analyse des avoirs (une vente annulee n'a plus de produit du au client).
+                 */
+                finalSql.append(" AND p.b_IS_AVOIR=TRUE AND p.b_IS_CANCEL=FALSE ");
             }
         }
         if (StringUtils.isNotEmpty(params.getCaissierId())) {

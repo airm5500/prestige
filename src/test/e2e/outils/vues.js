@@ -30,11 +30,14 @@ async function ouvrirMenu(p, parent, entree) {
   await visible('.prestige-nav .x-grid-row').filter({ has: p.getByText(exact(parent)) }).first().click();
   const item = visible('.prestige-flyout-menu .x-menu-item').filter({ has: p.getByText(exact(entree)) }).first();
   await item.waitFor({ timeout: 10000 });
+  /* retour du 22/11 (lot 9) : sous-menus tries par ordre alphabetique ; un long volet (ANALYSE DE GESTION, 43 entrees)
+     defile par ses fleches : l'entree est amenee dans le volet comme le ferait la molette, puis cliquee */
+  await item.evaluate((e) => e.scrollIntoView({ block: 'nearest' }));
   await item.click();
 }
 
 /* ecran dont le menu peut etre masque au profit d'un menu qui le remplace (correctifs-affichage.js, MENUS_REMPLACES ;
-   plan du 14/11 : « Ouverture de Caisse » et « Cloture de Caisse » remplaces par « Ouverture / clôture caisse ») :
+   plan du 14/11 : « Ouverture de Caisse » et « Cloture de Caisse » remplaces par « Ouverture/clôture caisse ») :
    par son menu s'il est affiche, sinon par son composant, comme l'application ouvre un ecran */
 async function ouvrirEcran(p, parent, entree, xtype) {
   const affiche = await p.evaluate((x) => { let t = false; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { if (n.get('id') === x) { t = true; } }); return t; }, xtype);
@@ -63,11 +66,39 @@ async function choisir(p, requete, element) {
   return texte;
 }
 
-/* champ texte ou date : clic, tout selectionner, frappe, puis Tab */
+/* champ texte ou date : clic, tout selectionner, frappe, puis Tab.
+ * Plan du 21/11, point 7.2 : une date « Du » ou « Au » remplacee a l'ecran par le selecteur de periode unique
+ * (ChampPeriode) se saisit dans ce champ : la periode entiere y est tapee, l'autre date restant celle de l'ecran. */
 async function saisir(p, requete, texte) {
+  const periode = await p.evaluate(([r, t]) => { const c = Ext.ComponentQuery.query(r)[0];
+    if (!c || !c.champPeriode || c.isVisible(true) || !c.champPeriode.isVisible(true)) { return null; }
+    const ext = c.ownerCt.query('datefield').filter((x) => x.champPeriode === c.champPeriode && x !== c)[0];
+    const autre = ext && ext.getValue() ? Ext.Date.format(ext.getValue(), 'd/m/Y') : '';
+    const texte = !t && !autre ? '' : c.rolePeriode === 'debut' ? (t + ' → ' + autre).trim() : (autre + ' → ' + t).trim();
+    return { id: c.champPeriode.inputEl.dom.id, texte }; }, [requete, texte]);
+  if (periode) {
+    await p.click('#' + periode.id);
+    await p.keyboard.press('Control+A');
+    if (periode.texte) { await p.keyboard.type(periode.texte, { delay: 20 }); } else { await p.keyboard.press('Delete'); }
+    await p.keyboard.press('Tab');
+    return;
+  }
   await cliquer(p, requete);
   await p.keyboard.press('Control+A');
   await p.keyboard.type(texte, { delay: 20 });
+  await p.keyboard.press('Tab');
+}
+
+/* Periode entiere tapee dans le selecteur unique (ChampPeriode) pose sur le champ de fin « requeteFin » : « du → au »,
+ * puis Tab. Pour avancer ou reculer une periode d'un coup : deux appels a « saisir » (debut puis fin) remettraient
+ * dans l'ordre une periode intermediaire. Retour du 22/11 sur le point 7.2. */
+async function saisirPeriode(p, requeteFin, du, au) {
+  const id = await p.evaluate((r) => { const c = Ext.ComponentQuery.query(r)[0]; return c && c.champPeriode ? c.champPeriode.inputEl.dom.id : null; }, requeteFin);
+  if (!id) { throw new Error('Sélecteur de période absent : ' + requeteFin); }
+  await p.click('#' + id);
+  await p.keyboard.press('Escape');
+  await p.keyboard.press('Control+A');
+  await p.keyboard.type((du || '') + ' → ' + (au || ''), { delay: 15 });
   await p.keyboard.press('Tab');
 }
 
@@ -104,4 +135,4 @@ async function choisirMotif(p, motif) {
   if (await item.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) { await item.click(); }
 }
 
-module.exports = { BASE, connexion, ouvrirMenu, ouvrirEcran, cliquer, choisir, saisir, texteMessage, attendreMessage, repondre, confirmerAnnulation, choisirMotif };
+module.exports = { BASE, connexion, ouvrirMenu, ouvrirEcran, cliquer, choisir, saisir, saisirPeriode, texteMessage, attendreMessage, repondre, confirmerAnnulation, choisirMotif };

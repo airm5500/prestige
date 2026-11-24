@@ -690,7 +690,8 @@ public class ArticleDTO implements Serializable {
         this.prixVente = famille.getIntPRICE();
         this.filterId = filterId;
         this.filterLibelle = filterLibelle;
-        this.seuiRappro = famille.getIntSTOCKREAPROVISONEMENT();
+        // retours du 23/11 : seuil de reference (celui de la fiche), pas la colonne miroir
+        this.seuiRappro = famille.getIntSEUILMIN() == null ? 0 : famille.getIntSEUILMIN();
         this.qteReappro = famille.getIntQTEREAPPROVISIONNEMENT();
         this.stockDetail = famille.getIntNUMBERDETAIL();
         this.codeEan = famille.getIntEAN13();

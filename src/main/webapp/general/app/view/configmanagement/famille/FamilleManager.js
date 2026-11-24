@@ -1205,6 +1205,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         } else {
             reperes += ligne('Dern. entr\u00e9e', '<em>aucune entr\u00e9e en stock</em>');
         }
+        /* retour du 22/11 (lot 9) : creation de la fiche (date et auteur), comme dans le detail de l'article */
+        if (o.creeLe) {
+            reperes += ligne('Cr\u00e9\u00e9 le', esc(o.creeLe) + (o.creePar ? ' <em>par ' + esc(o.creePar) + '</em>' : ''));
+        }
 
         // Retour des tests du 12/09 : la classe et la TVA figurent toujours, meme absentes de la fiche.
         var puces = '<span class="vp-ap-puce">Classe ' + (o.classe ? esc(o.classe) : '<em>non classé</em>') + '</span>';
@@ -1310,7 +1314,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     }
                 };
                 masquerSiRefuse('btn_add', 'P_BTN_CREER_ARTICLE');
-                masquerSiRefuse('btn_recalc_seuils', 'P_BTN_RECALCULER_SEUILS');
+                /* retour du 22/11 (lot 9) : Recalculer seuils et MAJ SEUIL = « Autorisation de mise a jour sur fiche
+                   article » ; Importation = « Autorisation d'importation fiche article » ; Creer = « Autorisation de
+                   creation article » */
+                masquerSiRefuse('btn_recalc_seuils', 'P_BTN_MAJ_SEUIL');
                 masquerSiRefuse('btn_maj_seuil', 'P_BTN_MAJ_SEUIL');
                 // MAJ SELECTIVE suit le meme privilege que MAJ SEUIL : meme nature d'operation,
                 // une modification groupee du fichier articles.
@@ -1550,7 +1557,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                         ? 'Le recalcul a échoué. Veuillez consulter les logs du serveur.'
                                         : 'Recalcul des seuils terminé. Les seuils et quantités de réappro ont été mis à jour.',
                                 buttons: Ext.MessageBox.OK,
-                                icon: (r.success === false) ? Ext.MessageBox.ERROR : Ext.MessageBox.INFO
+                                icon: (r.success === false) ? Ext.MessageBox.ERROR : Ext.MessageBox.INFO,
+                                /* retour du 22/11 (lot 9) : « OK » recharge la liste (seuils et quantites a jour) et
+                                   l'apercu ouvert, sans changer de page ni de recherche */
+                                fn: function () {
+                                    Me_Workflow.rechargerApresRecalcul();
+                                }
                             });
                         },
                         failure: function (r) {
@@ -1565,6 +1577,18 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                     });
                 });
+    },
+
+    /** Apres le recalcul des seuils : la page courante (memes filtres) et l'apercu ouvert sont relus. */
+    rechargerApresRecalcul: function () {
+        var store = Me_Workflow.getStore();
+        if (store) {
+            store.reload();
+        }
+        var barre = Ext.getCmp('apercu_fiche_article');
+        if (barre && barre.isVisible() && barre.produitAffiche) {
+            Me_Workflow.majApercu(barre.produitAffiche);
+        }
     },
 
     onAddClick: function () {

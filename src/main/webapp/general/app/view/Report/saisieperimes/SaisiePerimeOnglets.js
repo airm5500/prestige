@@ -93,13 +93,18 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
                                 }}},
                         /* produits : par valeur ou par frequence */
                         {xtype: 'tbseparator'}, {xtype: 'tbtext', text: 'Produits'},
-                        {xtype: 'button', itemId: 'spTriValeur', text: 'Par valeur', toggleGroup: 'sp-tri-' + me.id, allowDepress: false, pressed: true,
+                        /* retour du 22/11 : « ils ne font rien au clic » - le tableau des produits change, mais il est
+                           sous les tuiles et les emplacements, hors de l'ecran, et le bouton actif ne se voyait pas.
+                           Le bouton actif est marque (sp-tri) ; au clic, l'analyse defile jusqu'au tableau. */
+                        {xtype: 'button', itemId: 'spTriValeur', text: 'Par valeur', cls: 'sp-tri', toggleGroup: 'sp-tri-' + me.id, allowDepress: false, pressed: true,
                             tooltip: 'Produits dont la valeur périmée est la plus forte', handler: function () {
                                 me.redessiner();
+                                me.montrerProduits();
                             }},
-                        {xtype: 'button', itemId: 'spTriFrequence', text: 'Les plus fréquents', toggleGroup: 'sp-tri-' + me.id, allowDepress: false,
+                        {xtype: 'button', itemId: 'spTriFrequence', text: 'Les plus fréquents', cls: 'sp-tri', toggleGroup: 'sp-tri-' + me.id, allowDepress: false,
                             tooltip: 'Produits qui se périment le plus souvent (nombre de saisies)', handler: function () {
                                 me.redessiner();
+                                me.montrerProduits();
                             }},
                         /* retour du 15/11 : imprimer et exporter l'analyse affichee */
                         {xtype: 'tbseparator'},
@@ -221,6 +226,18 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
         if (me.donnees) {
             me.analyse.down('#spContenu').update(me.htmlAnalyse(me.donnees));
         }
+    },
+
+    /* retour du 22/11 : amene le titre du tableau des produits en haut de l'analyse (il etait hors de l'ecran) */
+    montrerProduits: function () {
+        var me = this, contenu = me.analyse.down('#spContenu'), corps = me.analyse.body;
+        var table = contenu && contenu.getEl() ? contenu.getEl().dom.querySelector('table.sp-par-produit') : null;
+        if (!table || !corps) {
+            return;
+        }
+        var cible = table.previousElementSibling || table;
+        var haut = cible.getBoundingClientRect().top - corps.dom.getBoundingClientRect().top + corps.dom.scrollTop - 8;
+        corps.scrollTo('top', Math.max(0, haut), false);
     },
 
     enregistrerObjectif: function (b) {

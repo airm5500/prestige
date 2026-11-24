@@ -104,7 +104,7 @@ function poser() {
       .filter((s) => /^E2EPT/.test(s)).sort().join(' '));
     ok('Rapprochement écran / base : les 4 lignes en cours (lot, quantité)', ecran === lignes('pending') && ecran === 'E2EPT1A:2 E2EPT1B:1 E2EPT2:1 E2EPT3:2', 'écran « ' + ecran + ' » ; base « ' + lignes('pending') + ' »');
 
-    await p.locator('#btn_create_perime').click();
+    await p.locator('#btn_create_perime').click(); await p.waitForTimeout(600); /* lot 11 : confirmation dans le bouton */ await p.locator('#btn_create_perime').click();
     const vu = await p.waitForFunction(() => Ext.Msg.isVisible() && !/patienter/i.test(Ext.Msg.msg.getEl().dom.innerText), null, { timeout: 60000 }).then(() => true).catch(() => false);
     const msg = vu ? await p.evaluate(() => Ext.Msg.msg.getEl().dom.innerText.replace(/\s+/g, ' ')) : '(aucun message)';
     if (vu) { await p.evaluate(() => { const x = Ext.Msg.down('button[itemId=ok]'); if (x) { x.btnEl.dom.click(); } }); }

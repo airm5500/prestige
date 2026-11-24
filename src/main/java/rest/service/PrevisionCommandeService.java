@@ -17,6 +17,21 @@ public interface PrevisionCommandeService {
     /** Recalcule toutes les previsions de l'emplacement. Rend {success, produits, fiabilite, duree}. */
     JSONObject recalculer(String emplacementId, String origine);
 
+    /** Retour du 22/11 : recalcule ces produits seulement (dans sa propre transaction). */
+    JSONObject recalculerProduits(String emplacementId, java.util.Collection<String> ids);
+
+    /**
+     * Retour du 22/11 : vrai si le produit n'a pas de ligne de prevision ou pas le detail du calcul (lu hors de la
+     * transaction de l'appelant, pour qu'il lise ensuite le recalcul).
+     */
+    boolean sansDetail(String emplacementId, String familleId);
+
+    /**
+     * Retour du 22/11 : a l'ouverture d'une suggestion ou d'une commande, recalcule les produits qui n'ont pas de
+     * prevision du jour ou pas le detail du calcul.
+     */
+    JSONObject actualiser(String emplacementId, String type, String id);
+
     /** Indicateurs : taux de rupture, valeur des invendus, couverture moyenne, fiabilite, dernier calcul. */
     JSONObject tableau(String emplacementId);
 

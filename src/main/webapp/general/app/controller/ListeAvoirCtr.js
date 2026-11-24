@@ -244,7 +244,12 @@ Ext.define('testextjs.controller.ListeAvoirCtr', {
     },
 
     onEdite: function (rec) {
-        var data = {'record': rec.data, 'isEdit': true};
+        var data = {'record': rec.data, 'isEdit': true},
+                fenetre = this.getVenteavoirmanager() && this.getVenteavoirmanager().up('window');
+        /* retours du 22/11 (lot 10) : depuis la fenetre du tableau de bord, la fenetre se ferme avant le rappel */
+        if (fenetre) {
+            fenetre.close();
+        }
         var xtype = "doAvoir";
         testextjs.app.getController('App').onRedirectTo(xtype, data);
     },

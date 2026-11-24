@@ -3,7 +3,7 @@
 Ext.define('testextjs.view.reglement.Differe', {
     extend: 'Ext.tab.Panel',
     xtype: 'delayed',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         'testextjs.model.caisse.ClientLambda'
     ],
     frame: true,
@@ -205,6 +205,8 @@ Ext.define('testextjs.view.reglement.Differe', {
                                     xtype: 'datefield',
                                     fieldLabel: 'Au',
                                     itemId: 'dtEndre',
+                                    /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                                    plugins: [{ptype: 'champperiode', souple: true, debut: 'dtStartre', declencher: 'search'}],
                                     labelWidth: 20,
                                     flex: 1,
                                     maxValue: new Date(),
@@ -389,6 +391,8 @@ Ext.define('testextjs.view.reglement.Differe', {
                                     xtype: 'datefield',
                                     fieldLabel: 'Au',
                                     itemId: 'dtEnd',
+                                    /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                                    plugins: [{ptype: 'champperiode', souple: true, debut: 'dtStart', declencher: 'rechercher'}],
                                     labelWidth: 20,
                                     flex: 1,
                                     maxValue: new Date(),
@@ -865,7 +869,9 @@ Ext.define('testextjs.view.reglement.Differe', {
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'datefield', itemId: 'soldeDu', fieldLabel: 'Du', labelWidth: 25, width: 145, format: 'd/m/Y',
                             submitFormat: 'Y-m-d', value: new Date(2015, 0, 1)},
-                        {xtype: 'datefield', itemId: 'soldeAu', fieldLabel: 'Au', labelWidth: 25, width: 145, format: 'd/m/Y',
+                        {xtype: 'datefield', itemId: 'soldeAu',
+                            /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                            plugins: [{ptype: 'champperiode', souple: true, debut: 'soldeDu', declencher: 'soldeRechercher'}], fieldLabel: 'Au', labelWidth: 25, width: 145, format: 'd/m/Y',
                             submitFormat: 'Y-m-d', value: new Date()},
                         {xtype: 'combobox', itemId: 'soldeClient', store: clients, valueField: 'lgCLIENTID', displayField: 'fullName',
                             width: 280, minChars: 2, queryMode: 'remote', emptyText: 'Tous les clients (ou choisir un client)',

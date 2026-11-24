@@ -163,24 +163,89 @@ public class TableauBordRessource {
     public Response alertes(@DefaultValue("6") @QueryParam("per") int per,
             @DefaultValue("7") @QueryParam("rup") int rup, @DefaultValue("7") @QueryParam("ren") int ren,
             @DefaultValue("2") @QueryParam("sug") int sug, @DefaultValue("30") @QueryParam("nv") int nv,
-            @DefaultValue("0") @QueryParam("frais") int frais) {
+            @DefaultValue("30") @QueryParam("cr") int cr, @DefaultValue("0") @QueryParam("frais") int frais) {
         TUser u = utilisateur();
         if (u == null) {
             return deconnecte();
         }
         Response r = cache("alertes|" + per + "|" + rup + "|" + ren + "|" + sug + "|" + nv + "|" + emplacement(u),
                 COURT, frais == 1, () -> service.alertes(per, rup, ren, sug, nv, emplacement(u)));
-        if (privilegesEnBase.voitSuggestionsReserve(servletRequest)) {
-            return r;
-        }
-        /*
-         * demande 60 : sans le droit de voir les suggestions de reserve, leurs compteurs ne sont pas envoyes (le cache
-         * est commun a tous les profils : on retire les champs de la reponse, pas de la lecture)
-         */
         JSONObject o = new JSONObject((String) r.getEntity());
-        o.remove("suggestionsReserve");
-        o.remove("suggestionsRayon");
+        /* retour du 22/11 (lot 9) : nombre d'articles crees sur la periode choisie (cache court, comme les alertes) */
+        if (o.optBoolean("success", false)) {
+            JSONObject c = new JSONObject(
+                    (String) cache("alertes-crees|" + cr, COURT, frais == 1, () -> service.produitsCrees(cr, 1))
+                            .getEntity());
+            o.put("crees",
+                    new JSONObject().put("produits", c.optLong("nombre", 0)).put("jours", c.optInt("jours", cr)));
+        }
+        if (!privilegesEnBase.voitSuggestionsReserve(servletRequest)) {
+            /*
+             * demande 60 : sans le droit de voir les suggestions de reserve, leurs compteurs ne sont pas envoyes (le
+             * cache est commun a tous les profils : on retire les champs de la reponse, pas de la lecture)
+             */
+            o.remove("suggestionsReserve");
+            o.remove("suggestionsRayon");
+        }
         return Response.ok(o.toString()).build();
+    }
+
+    /** Articles crees lus au plus pour la fenetre et pour le PDF. */
+    static final int CREES_MAX = 100000;
+
+    /** Retour du 22/11 (lot 9) : liste des articles crees sur la periode (fenetre de l'alerte). */
+    @GET
+    @Path("alertes/crees")
+    public Response produitsCrees(@DefaultValue("30") @QueryParam("cr") int cr,
+            @DefaultValue("500") @QueryParam("limite") int limite) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        JSONObject o = service.produitsCrees(cr, Math.min(Math.max(1, limite), CREES_MAX));
+        return Response.ok(o.put("success", !o.optBoolean("erreur", false)).toString()).build();
+    }
+
+    /** Retour du 22/11 (lot 9) : PDF des articles crees sur la periode, meme ordre que la fenetre, toutes lignes. */
+    @GET
+    @Path("alertes/crees/pdf")
+    @Produces("application/pdf")
+    public Response produitsCreesPdf(@DefaultValue("30") @QueryParam("cr") int cr) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        JSONObject o = service.produitsCrees(cr, CREES_MAX);
+        if (o.optBoolean("erreur", false)) {
+            return Response.status(500).type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false).put("msg", "Liste indisponible.").toString())
+                    .build();
+        }
+        org.json.JSONArray a = o.getJSONArray("data");
+        java.util.List<String[]> l = new java.util.ArrayList<>();
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject x = a.getJSONObject(i);
+            l.add(new String[] { x.optString("cip"), x.optString("libelle"), x.optString("creeLe"),
+                    x.optString("creePar"), x.optString("grossiste"), milliers(x.optLong("prix")) });
+        }
+        l.add(new String[] { "TOTAL", a.length() + " article(s)", "", "", "", "" });
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        dal.TOfficine off = caisseService.findOfficine();
+        e.officine = off != null ? StringUtils.defaultString(off.getStrNOMCOMPLET()) : "";
+        e.titre = "ARTICLES CRÉÉS";
+        int jours = o.optInt("jours", cr);
+        e.sousTitre = (jours == 1 ? "Aujourd'hui" : "Les " + jours + " derniers jours") + " (depuis le "
+                + LocalDate.now().minusDays(jours - 1L)
+                        .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + ") ; " + a.length() + " article(s), du plus récent au plus ancien";
+        e.imprimePar = (StringUtils.defaultString(u.getStrFIRSTNAME()) + " "
+                + StringUtils.defaultString(u.getStrLASTNAME())).trim();
+        e.entetes = new String[] { "CIP", "Désignation", "Créé le", "Créé par", "Grossiste", "Prix de vente" };
+        e.largeurs = new float[] { 10, 38, 12, 16, 14, 10 };
+        e.droite = new boolean[] { false, false, false, false, false, true };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, l), "application/pdf")
+                .header("Content-Disposition", "inline; filename=articles_crees_"
+                        + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd_MM_yyyy")) + ".pdf")
+                .build();
     }
 
     @GET
@@ -198,6 +263,63 @@ public class TableauBordRessource {
         }
         JSONObject o = service.alerteListe(StringUtils.defaultString(type), per, rup, nv, emplacement(u), limite);
         return Response.ok(o.put("success", !o.optBoolean("erreur", false)).toString()).build();
+    }
+
+    @EJB
+    private rest.service.CaisseService caisseService;
+
+    /** Lecture complete des negatifs pour le PDF (la fenetre en montre 500 au plus). */
+    static final int NEGATIFS_PDF_MAX = 100000;
+
+    /**
+     * Plan du 21/11 : PDF des articles en stock negatif de l'alerte du tableau de bord (CIP, designation, emplacement,
+     * stock), meme liste et meme ordre que la fenetre, sans limite de 500 lignes, avec le total.
+     */
+    @GET
+    @Path("alertes/negatifs/pdf")
+    @Produces("application/pdf")
+    public Response negatifsPdf() {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        JSONObject o = service.alerteListe("negatifs", 6, 7, 30, emplacement(u), NEGATIFS_PDF_MAX);
+        if (o.optBoolean("erreur", false)) {
+            return Response.status(500).type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false).put("msg", "Liste indisponible.").toString())
+                    .build();
+        }
+        org.json.JSONArray a = o.getJSONArray("data");
+        java.util.List<String[]> l = new java.util.ArrayList<>();
+        long total = 0;
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject x = a.getJSONObject(i);
+            l.add(new String[] { x.optString("cip"), x.optString("libelle"), x.optString("emplacement"),
+                    milliers(x.optLong("quantite")) });
+            total += x.optLong("quantite");
+        }
+        l.add(new String[] { "TOTAL", a.length() + " article(s)", "", milliers(total) });
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        dal.TOfficine off = caisseService.findOfficine();
+        e.officine = off != null ? StringUtils.defaultString(off.getStrNOMCOMPLET()) : "";
+        e.titre = "ARTICLES EN STOCK NÉGATIF";
+        e.sousTitre = "Stock au "
+                + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                + " ; " + a.length() + " article(s), du stock le plus négatif au moins négatif";
+        e.imprimePar = (StringUtils.defaultString(u.getStrFIRSTNAME()) + " "
+                + StringUtils.defaultString(u.getStrLASTNAME())).trim();
+        e.entetes = new String[] { "CIP", "Désignation", "Emplacement", "Stock" };
+        e.largeurs = new float[] { 12, 52, 26, 10 };
+        e.droite = new boolean[] { false, false, false, true };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, l), "application/pdf")
+                .header("Content-Disposition", "inline; filename=stock_negatif_"
+                        + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd_MM_yyyy")) + ".pdf")
+                .build();
+    }
+
+    static String milliers(long v) {
+        String s = String.valueOf(Math.abs(v)).replaceAll("\\B(?=(\\d{3})+(?!\\d))", " ");
+        return (v < 0 ? "-" : "") + s;
     }
 
     @javax.ejb.EJB

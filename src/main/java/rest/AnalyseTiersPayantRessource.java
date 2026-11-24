@@ -280,23 +280,14 @@ public class AnalyseTiersPayantRessource {
     }
 
     /**
-     * Nom du tiers payant retenu pour l'etat produit. Les lignes produits ne le portent pas : on le relit dans la liste
-     * des tiers payants de LA MEME periode — la relire sur une autre periode ramenerait une liste ou le tiers payant
-     * demande n'apparait pas, et l'etat afficherait son identifiant technique. Sans identifiant, l'etat couvre tous les
-     * tiers payants.
+     * Nom du tiers payant retenu pour l'etat produit, lu sur sa fiche. Sans identifiant, l'etat couvre tous les tiers
+     * payants.
      */
     private String nomTiersPayant(String dtStart, String dtEnd, String tiersPayantId) {
         if (StringUtils.isBlank(tiersPayantId)) {
             return "tous";
         }
-        // On ne cherche qu'un libelle dans la liste : ni l'ordre ni le filtre de groupe n'ont
-        // d'importance ici, le tiers payant est deja designe par son identifiant.
-        for (AnalyseTiersPayantDTO ligne : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, null, null, null)) {
-            if (tiersPayantId.equals(ligne.getTiersPayantId())) {
-                return ligne.getTiersPayant();
-            }
-        }
-        return tiersPayantId;
+        return analyseTiersPayantService.libelleTiersPayant(tiersPayantId);
     }
 
     static String csv(List<AnalyseTiersPayantDTO> lignes, boolean parProduit) {

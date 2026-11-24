@@ -48,7 +48,10 @@ public class OrangeSmsProvider implements SmsProvider {
         }
         String sendUrl = param(SmsProviderCatalog.ORANGE_SEND_URL, sp.pathsmsapisendmessageurl);
         String senderAddress = param(SmsProviderCatalog.ORANGE_SENDER_ADDRESS, sp.senderAddress);
-        String address = "tel:+225" + StringUtils.trimToEmpty(localNumber);
+        /* retour du 22/11 : un numero etranger (« +32470123456 ») part avec son propre indicatif */
+        util.TelephoneCi.Resultat numero = util.TelephoneCi.controler(localNumber);
+        String address = numero.isValide() ? "tel:+" + numero.getInternational()
+                : "tel:+225" + StringUtils.trimToEmpty(localNumber);
         OrangeSmsResult result = OrangeSmsClient.send(sendUrl, bearer, senderAddress, address, message);
         if (result.isAccepted()) {
             return SmsSendResult.accepted(result.getResourceUrl(), result.getHttpStatus());

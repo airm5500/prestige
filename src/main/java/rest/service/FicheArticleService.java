@@ -174,6 +174,9 @@ public interface FicheArticleService {
 
     void updateProduitLiteInfo(UpdateProduit updateProduit);
 
+    /** Retours du 23/11 : meme mise a jour, tracee dans le journal au nom de l'utilisateur (null : sans trace). */
+    void updateProduitLiteInfo(UpdateProduit updateProduit, dal.TUser user);
+
     /** Liste paginee des produits pour l'ecran MAJ SEUIL (filtres famille, emplacement, classe ABC + recherche). */
     JSONObject majSeuilList(String codeFamille, String zoneGeoId, String search, String classeAbcId, int start,
             int limit);
@@ -181,6 +184,10 @@ public interface FicheArticleService {
     /** MAJ groupee de Q1/Q2 par produit : mode SELECTED (ids) ou ALL (filtre moins uncheckedIds). */
     JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search, String classeAbcId,
             List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2);
+
+    /** Retours du 23/11 : meme mise a jour, une ligne de journal par article change au nom de l'utilisateur. */
+    JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search, String classeAbcId,
+            List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2, TUser u);
 
     /**
      * Liste paginee des produits pour l'ecran MAJ SELECTIVE. Memes filtres que l'ecran : emplacement, famille, code
@@ -205,6 +212,11 @@ public interface FicheArticleService {
     JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
             String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
             List<String> uncheckedIds, String champ, String valeur);
+
+    /** Retours du 23/11 : meme mise a jour, une ligne de journal par article change au nom de l'utilisateur. */
+    JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
+            String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
+            List<String> uncheckedIds, String champ, String valeur, TUser u);
 
     byte[] buildComparaisonExcel(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil, String codeFamile,
             String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException;

@@ -670,7 +670,8 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                 Ext.Ajax.request({
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
-                    url: '../api/v1/commande/validerbl/' + lg_BON_LIVRAISON_ID,
+                    /* retours du 22/11 (lot 10, point 3) : messages d'avoir envoyes depuis la fenetre des produits en avoir */
+                    url: '../api/v1/commande/validerbl/' + lg_BON_LIVRAISON_ID + '?avoirs=differe',
                     timeout: 1800000,
                     success: function (response) {
                         testextjs.app.getController('App').StopWaitingProcess();

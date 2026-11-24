@@ -76,6 +76,17 @@ Ext.define('testextjs.controller.AnnulationCtr', {
                 click: this.handleActionColumn
             }, 'venteannuler #printPlus': {
                 click: this.printPlus
+            },
+            /* retour du 22/11 (lot 9) : export Excel / CSV */
+            'venteannuler #exportAnnuleesExcel': {
+                click: function () {
+                    this.exporter('xlsx');
+                }
+            },
+            'venteannuler #exportAnnuleesCsv': {
+                click: function () {
+                    this.exporter('csv');
+                }
             }
 
         });
@@ -138,6 +149,25 @@ Ext.define('testextjs.controller.AnnulationCtr', {
         var linkUrl = '../FacturePdfServlet?dtStart=' + dtStart + "&dtEnd=" + dtEnd + "&query=" + query + "&mode=VENTE_ANNULEES";
 
         window.open(linkUrl);
+    },
+
+    /** Export de la liste avec les criteres de l'ecran (periode, recherche, motif, tri), toutes pages. */
+    exporter: function (format) {
+        var me = this;
+        var url = '../api/v1/ventestats/annulations/export?' + Ext.Object.toQueryString({
+            format: format,
+            query: me.getQueryField().getValue() || '',
+            dtStart: me.getDtStart().getSubmitValue() || '',
+            dtEnd: me.getDtEnd().getSubmitValue() || '',
+            motif: me.motifChoisi(),
+            tri: me.triChoisi()
+        });
+        var bouton = me.getVenteannulerlist() ? me.getVenteannulerlist().down('#exportAnnulees') : null;
+        if (window.PrestigeChargement && PrestigeChargement.telecharger) {
+            PrestigeChargement.telecharger(bouton, url, 'Export…');
+        } else {
+            window.open(url);
+        }
     },
 
     printPlus: function () {

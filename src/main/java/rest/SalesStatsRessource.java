@@ -118,10 +118,19 @@ public class SalesStatsRessource {
             @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "statut") String statut,
             @QueryParam(value = "motif") String motif, @QueryParam(value = "tri") String tri) throws JSONException {
+        SalesStatsParams body = paramsAnnulations(start, limit, query, dtStart, dtEnd, false);
+        /* plan du 14/11, point 10 : filtre par motif, tri « motif » = motifs les plus utilises d'abord */
+        boolean triMotif = "motif".equals(tri);
+        JSONObject jsono = salesService.annulations(body, motif, triMotif);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /** Criteres de la liste des ventes annulees : les memes pour l'ecran et pour ses exports. */
+    @SuppressWarnings("unchecked")
+    private SalesStatsParams paramsAnnulations(int start, int limit, String query, String dtStart, String dtEnd,
+            boolean toutes) {
         HttpSession hs = servletRequest.getSession();
-
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
-
         List<TPrivilege> hsAttribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         boolean asAuthority = CommonUtils.hasAuthorityByName(hsAttribute, Constant.SHOW_VENTE);
         boolean allActivitis = CommonUtils.hasAuthorityByName(hsAttribute, Constant.P_SHOW_ALL_ACTIVITY);
@@ -130,7 +139,7 @@ public class SalesStatsRessource {
         body.setStart(start);
         body.setQuery(query);
         body.setStatut(Constant.STATUT_IS_CLOSED);
-        body.setAll(false);
+        body.setAll(toutes);
         body.setShowAll(asAuthority);
         body.setShowAllActivities(allActivitis);
         body.setUserId(tu);
@@ -139,11 +148,43 @@ public class SalesStatsRessource {
             body.setDtStart(LocalDate.parse(dtStart));
         } catch (Exception e) {
         }
+        return body;
+    }
 
-        /* plan du 14/11, point 10 : filtre par motif, tri « motif » = motifs les plus utilises d'abord */
-        boolean triMotif = "motif".equals(tri);
-        JSONObject jsono = salesService.annulations(body, motif, triMotif);
-        return Response.ok().entity(jsono.toString()).build();
+    /**
+     * Retour du 22/11 (lot 9) : export Excel (xlsx) ou CSV de la liste des ventes annulees, avec les criteres de
+     * l'ecran (periode, recherche, motif, tri) et TOUTES les pages, dans l'ordre de l'ecran.
+     */
+    @GET
+    @Path("annulations/export")
+    public Response exporterAnnulations(@QueryParam(value = "query") String query,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "motif") String motif, @QueryParam(value = "tri") String tri,
+            @DefaultValue("xlsx") @QueryParam(value = "format") String format) throws IOException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(401).type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        SalesStatsParams body = paramsAnnulations(0, 0, query, dtStart, dtEnd, true);
+        JSONObject o = salesService.annulations(body, motif, "motif".equals(tri));
+        JSONArray data = o.optJSONArray("data");
+        java.util.List<JSONObject> lignes = new java.util.ArrayList<>();
+        for (int i = 0; data != null && i < data.length(); i++) {
+            lignes.add(data.getJSONObject(i));
+        }
+        String periode = rest.report.excel.VentesAnnuleesExport.periode(body.getDtStart(), body.getDtEnd());
+        String nom = "ventes_annulees_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm"));
+        if ("csv".equalsIgnoreCase(format)) {
+            return Response.ok(rest.report.excel.VentesAnnuleesExport.csv(lignes), "text/csv; charset=UTF-8")
+                    .header("Content-Disposition", "attachment; filename=" + nom + ".csv").build();
+        }
+        return Response
+                .ok(rest.report.excel.VentesAnnuleesExport.xlsx(lignes, periode, StringUtils.trimToEmpty(query),
+                        StringUtils.trimToEmpty(motif)),
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("Content-Disposition", "attachment; filename=" + nom + ".xlsx").build();
     }
 
     @POST

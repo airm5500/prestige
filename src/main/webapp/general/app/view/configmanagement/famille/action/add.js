@@ -734,6 +734,150 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             this.setQtyDetailState('off');        // caché (y compris si on modifie l’article détail)
         }
 
+        // Retours du 23/11 (proposition 3) : a la creation, une fiche desactivee ou supprimee qui a deja le CIP ou
+        // l'EAN saisi est signalee au-dessus du formulaire, avec un bouton « Réactiver » (confirmation dans le bouton).
+        if (Omode === 'create') {
+            form.insert(0, { xtype: 'container', itemId: 'banniereFichesInactives', hidden: true, margin: '0 0 8 0',
+                padding: '6 10', style: { background: '#fff4e5', border: '1px solid #f0b35b', borderRadius: '3px' } });
+            var derniereVerif = '';
+            var verifierInactives = function () {
+                var cip = g('int_CIP') ? Ext.String.trim(String(g('int_CIP').getValue() || '')) : '';
+                var ean = g('int_EAN13') ? Ext.String.trim(String(g('int_EAN13').getValue() || '')) : '';
+                var cle = cip + '|' + ean;
+                if (cle === derniereVerif) {
+                    return;
+                }
+                derniereVerif = cle;
+                var bandeau = g('banniereFichesInactives');
+                if (cip.length < 6 && ean.length < 8) {
+                    if (bandeau) { bandeau.removeAll(); bandeau.hide(); }
+                    return;
+                }
+                Ext.Ajax.request({
+                    url: '../api/v1/fichearticle/fiches-inactives', method: 'GET', params: { cip: cip, ean: ean },
+                    success: function (r) {
+                        var o = Ext.JSON.decode(r.responseText, true) || {}, bd = g('banniereFichesInactives');
+                        if (!bd || bd.isDestroyed || derniereVerif !== cle) {
+                            return;
+                        }
+                        bd.removeAll();
+                        var l = o.data || [];
+                        if (!l.length) {
+                            bd.hide();
+                            return;
+                        }
+                        var h = Ext.String.htmlEncode;
+                        Ext.each(l, function (f) {
+                            bd.add({ xtype: 'container', layout: { type: 'hbox', align: 'middle' }, margin: '2 0', items: [
+                                { xtype: 'component', flex: 1, cls: 'fiche-inactive-texte',
+                                  html: '<span style="color:#9a5a00;font-weight:bold">Une fiche ' + h(f.statut) + ' a déjà ce ' + h(f.par) + ' :</span> '
+                                      + h(f.cip) + ' ' + h(f.nom) + (f.trace ? ' <span style="color:#666">(' + h(f.statut) + ' le ' + h(f.trace) + ')</span>' : '')
+                                      + '<br><span style="color:#555">Son historique (ventes, prix, lots) reste sur cette fiche : réactivez-la plutôt que d\'en créer une nouvelle.</span>' },
+                                { xtype: 'button', itemId: 'btnReactiver', text: 'Réactiver cette fiche', margin: '0 0 0 10', ficheId: f.id, cip: f.cip,
+                                  handler: function (btn) {
+                                      if (!btn.aConfirmer) {
+                                          btn.aConfirmer = true;
+                                          btn.setText('Confirmer la réactivation');
+                                          btn.addCls('fiche-inactive-confirmer');
+                                          btn.minuteur = Ext.defer(function () {
+                                              if (!btn.isDestroyed) { btn.aConfirmer = false; btn.setText('Réactiver cette fiche'); btn.removeCls('fiche-inactive-confirmer'); }
+                                          }, 6000);
+                                          return;
+                                      }
+                                      clearTimeout(btn.minuteur);
+                                      btn.disable();
+                                      btn.setText('Réactivation...');
+                                      var echec = function () { if (!btn.isDestroyed) { btn.enable(); btn.aConfirmer = false; btn.setText('Échec : réessayer'); } };
+                                      Ext.Ajax.request({
+                                          url: '../api/v1/produit/enable-desactives/' + encodeURIComponent(btn.ficheId), method: 'POST',
+                                          success: function (rr) {
+                                              var res = Ext.JSON.decode(rr.responseText, true) || {};
+                                              if (!res.success) {
+                                                  echec();
+                                                  return;
+                                              }
+                                              var w = btn.up('window'), rech = Ext.getCmp('rechecher');
+                                              if (w) { w.close(); }
+                                              if (rech && typeof Me_Workflow !== 'undefined' && Me_Workflow && !Me_Workflow.isDestroyed) {
+                                                  rech.setValue(btn.cip);
+                                                  Me_Workflow.onRechClick();
+                                              }
+                                          },
+                                          failure: echec
+                                      });
+                                  } }
+                            ] });
+                        });
+                        bd.show();
+                    }
+                });
+            };
+            Ext.each(['int_CIP', 'int_EAN13'], function (id) {
+                var c = g(id);
+                if (c) {
+                    c.on('change', verifierInactives, null, { buffer: 600 });
+                    c.on('blur', verifierInactives);
+                }
+            });
+        }
+
+        // Retours du 23/11 (proposition 2) : en modification, onglet « Historique » (journal de la fiche, lecture seule)
+        var contenu = form;
+        if (Omode === 'update' && ref) {
+            var idHisto = ref, hh = Ext.String.htmlEncode;
+            var histo = Ext.create('Ext.grid.Panel', {
+                title: 'Historique', itemId: 'historiqueFiche', cls: 'historique-fiche',
+                store: Ext.create('Ext.data.Store', { fields: ['le', 'action', 'auteur', 'quoi', 'champs', 'fiche'], data: [] }),
+                emptyText: 'Aucune trace pour cette fiche.', viewConfig: { deferEmptyText: true, enableTextSelection: true },
+                columns: [
+                    { text: 'Date', dataIndex: 'le', width: 120, tdCls: 'histo-le', renderer: function (v, m) { m.style = 'white-space:nowrap'; return hh(v); } },
+                    { text: 'Action', dataIndex: 'action', width: 170, renderer: function (v) { return '<b>' + hh(v) + '</b>'; } },
+                    { text: 'Par', dataIndex: 'auteur', width: 190, tdCls: 'histo-par', renderer: function (v, m) {
+                        m.tdAttr = 'data-qtip="' + hh(hh(v || '')) + '"';
+                        return v ? hh(v) : '<span style="color:#999">inconnu</span>';
+                    } },
+                    { text: 'Détail', dataIndex: 'quoi', flex: 1, tdCls: 'histo-detail', renderer: function (v, m, rec) {
+                        m.style = 'white-space:normal';
+                        var c = rec.get('champs') || [];
+                        if (!c.length) {
+                            return hh(v);
+                        }
+                        return Ext.Array.map(c, function (x) {
+                            return '<div class="histo-champ"><b>' + hh(x.champ) + '</b> : ' + hh(x.avant) + ' <span style="color:#1f5fa8">→</span> ' + hh(x.apres) + '</div>';
+                        }).join('');
+                    } },
+                    { text: 'Fiche', dataIndex: 'fiche', width: 200, tdCls: 'histo-fiche', renderer: function (v, m) {
+                        m.style = 'white-space:normal';
+                        return v === 'cette fiche' ? '<span style="color:#666">' + hh(v) + '</span>' : '<span style="color:#b35c00;font-weight:bold">' + hh(v) + '</span>';
+                    } }
+                ],
+                listeners: {
+                    activate: function (p) {
+                        if (p.charge) {
+                            return;
+                        }
+                        p.charge = true;
+                        p.setLoading('Lecture du journal...');
+                        Ext.Ajax.request({
+                            url: '../api/v1/fichearticle/historique/' + encodeURIComponent(idHisto), method: 'GET',
+                            callback: function (o, ok, r) {
+                                if (p.isDestroyed) { return; }
+                                p.setLoading(false);
+                                var res = ok ? (Ext.JSON.decode(r.responseText, true) || {}) : {};
+                                p.getStore().loadData(res.data || []);
+                                if (res.success && res.complet === false) {
+                                    p.setTitle('Historique (' + (res.data || []).length + ' dernières lignes)');
+                                }
+                                if (!res.success) { p.charge = false; }
+                            }
+                        });
+                    }
+                }
+            });
+            form.title = 'Fiche';
+            contenu = Ext.create('Ext.tab.Panel', { itemId: 'ongletsFiche', plain: true, activeTab: 0, items: [form, histo] });
+        }
+
         // WINDOW
         // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
         if (winModifArticleOuverte && !winModifArticleOuverte.isDestroyed) {
@@ -762,7 +906,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             modal: true,
             maximizable: true,
             closeAction: 'destroy',
-            items: form,
+            items: contenu,
             buttons: [
                 { text: 'Enregistrer', handler: this.onbtnsave, scope: this },
                 { text: 'Retour', handler: function () { win.close(); } }

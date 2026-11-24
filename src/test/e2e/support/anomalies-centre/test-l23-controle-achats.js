@@ -38,7 +38,7 @@ const AUJ = (() => { const d = new Date(); return z(d.getDate()) + '/' + z(d.get
   try {
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Etat de contrôle Achats');
-    await p.waitForFunction(() => Ext.ComponentQuery.query('#datedebut').some((c) => c.isVisible(true)), null, { timeout: 60000 });
+    await p.waitForFunction(() => Ext.ComponentQuery.query('#datedebut, #datefinPeriode').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     await p.waitForLoadState('networkidle').catch(() => {});
     await saisir(p, '#datedebut', DEBUT);
     await saisir(p, '#datefin', AUJ);

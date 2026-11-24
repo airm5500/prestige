@@ -96,7 +96,8 @@ public class NotificationClientDTO implements Serializable {
     public NotificationClientDTO(NotificationClient notificationClient) {
         TClient client = notificationClient.getClient();
         this.email = client.getEmail();
-        this.clientPhone = client.getStrADRESSE();
+        // plan du 21/11 : le numero montre est celui qui part (str_TELEPHONE, a defaut l'ancien champ adresse)
+        this.clientPhone = util.TelephoneClient.affiche(client.getStrTELEPHONE(), client.getStrADRESSE());
         this.lastName = client.getStrLASTNAME();
         this.firstName = client.getStrFIRSTNAME();
         this.clientId = client.getLgCLIENTID();

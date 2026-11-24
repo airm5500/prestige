@@ -154,6 +154,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 return it.itemId !== 'ongletSuggestions';
             });
         }
+        /* plan du 21/11, point 13 : sans le droit « Voir la liste réserve », pas d'onglet LISTE RÉSERVE */
+        if (droitsReserve && droitsReserve.voirListe && droitsReserve.voirListe() === false) {
+            this.items = Ext.Array.filter(this.items, function (it) {
+                return it.itemId !== 'ongletListe';
+            });
+        }
         // Chargement pilote UNIQUEMENT ici. Les grilles ne se chargent plus d'elles-memes a
         // l'affichage : leur chargement automatique se cumulait avec celui declenche au
         // changement d'onglet, et la meme requete partait deux fois.
@@ -189,13 +195,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 updateReservePastille(tabPanel);
                 if (droitsReserve && droitsReserve.voirSuggestions() === null) {
                     droitsReserve.charger(function () {
-                        var onglet = tabPanel.isDestroyed ? null : tabPanel.down('#ongletSuggestions');
-                        if (onglet && droitsReserve.voirSuggestions() === false) {
-                            if (tabPanel.getActiveTab() === onglet) {
-                                tabPanel.setActiveTab(0);
+                        Ext.each([['#ongletSuggestions', droitsReserve.voirSuggestions()],
+                            ['#ongletListe', droitsReserve.voirListe ? droitsReserve.voirListe() : null]], function (c) {
+                            var onglet = tabPanel.isDestroyed ? null : tabPanel.down(c[0]);
+                            if (onglet && c[1] === false) {
+                                if (tabPanel.getActiveTab() === onglet) {
+                                    tabPanel.setActiveTab(0);
+                                }
+                                tabPanel.remove(onglet);
                             }
-                            tabPanel.remove(onglet);
-                        }
+                        });
                     });
                 }
                 // Le premier onglet affiche n'a pas recu d'evenement de changement : on le charge ici.

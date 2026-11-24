@@ -14,7 +14,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
     xtype: 'groupeInvoices',
     id: 'groupeInvoicesID',
     title: 'Groupe Factures',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
@@ -462,6 +462,8 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                     labelWidth: 20,
                     flex: 1,
                     id: 'dt_end',
+                    /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                    plugins: [{ptype: 'champperiode', souple: true, debut: 'dt_start'}],
                     listeners: {
                         change: function () {
 

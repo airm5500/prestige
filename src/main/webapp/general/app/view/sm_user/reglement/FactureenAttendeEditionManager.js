@@ -18,7 +18,7 @@ Ext.define('testextjs.view.sm_user.reglement.FactureenAttendeEditionManager', {
     xtype: 'factureenattenteedition',
     id: 'factureenattenteeditionID',
     title: 'Liste des dossiers en attente de facturation',
-    requires: [
+    requires: ['testextjs.view.commun.ChampPeriode', 
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
@@ -271,6 +271,8 @@ var searchstore = Ext.create('Ext.data.Store', {
                     fieldLabel: 'Au',
                     name: 'dt_fin',
                     id: 'dt_fin_journal',
+                    /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                    plugins: [{ptype: 'champperiode', souple: true, debut: 'dt_debut_journal', declencher: 'btnRechercherDossiers'}],
                     allowBlank: false,
                     labelWidth: 50,
                     flex: 1,
@@ -387,6 +389,7 @@ var searchstore = Ext.create('Ext.data.Store', {
                     }
                 },'-', {
                     text: 'rechercher',
+                    itemId: 'btnRechercherDossiers',
                     tooltip: 'rechercher',
                     scope: this,
                     iconCls: 'searchicon',

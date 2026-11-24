@@ -35,8 +35,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         CARTES: [
             {id: 'evolution', titre: 'Évolution du chiffre d\'affaires (Net TTC)', ico: 'fa-chart-area', t: 't-bleu', l: 'l8'},
             {id: 'valorisation', titre: 'Valorisation du stock', ico: 'fa-cubes', t: 't-cyan', l: 'l4'},
-            /* Plan du 19/11 : besoin en fonds de roulement, memes chiffres que le menu « BFR » (reservee a son droit) */
-            {id: 'bfr', titre: 'BFR (besoin en fonds de roulement)', ico: 'fa-scale-balanced', t: 't-ambre', l: 'l4', droit: 'bfr'},
+            /* Plan du 21/11 : carte BFR retiree (six lectures lourdes a chaque ouverture) ; le menu « BFR » reste. */
             {id: 'encaissements', titre: 'Encaissements du jour', ico: 'fa-money-bill-wave', t: 't-vert', l: 'l4'},
             {id: 'mouvements', titre: 'Mouvements de caisse du jour', ico: 'fa-right-left', t: 't-violet', l: 'l4'},
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
@@ -138,10 +137,15 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         return trouve;
     },
 
-    ouvrirMenu: function (xtype) {
+    /** Ouvre un menu de l'utilisateur ; « donnees » (facultatif) est passe a l'ecran ouvert (filtre deja pose). */
+    ouvrirMenu: function (xtype, donnees) {
         var titre = this.menu(xtype);
         if (!titre) {
             Ext.MessageBox.alert('Tableau de bord', 'Ce menu n\'est pas dans vos accès.');
+            return;
+        }
+        if (donnees) {
+            testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, titre, '', donnees);
             return;
         }
         testextjs.app.getController('App').onLoadNewComponent(xtype, titre, '');
@@ -174,7 +178,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
     },
 
     alertesPrefs: function () {
-        return Ext.apply({per: 6, rup: 7, ren: 7, sug: 2, nv: 30}, this.prefs.alertes || {});
+        /* retour du 22/11 (lot 9) : cr = periode des articles crees (jours) */
+        return Ext.apply({per: 6, rup: 7, ren: 7, sug: 2, nv: 30, cr: 30}, this.prefs.alertes || {});
     },
 
     /* ------------------------------------------------------------------ construction */
@@ -550,7 +555,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 });
             },
             frequentation: function () {
-                lire('../api/v1/tableau-bord/frequentation', {date: j, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/frequentation', {date: me.dateFreq || j, frais: fr}, function (o) {
                     me.donneesFreq = o;
                     me.dessinerFrequentation();
                 });
@@ -967,6 +972,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<label>Renouvellements sous <input type="number" min="0" max="60" value="' + a.ren + '" data-p="ren"> jours</label>'
                 + '<label>Suggestions de commande clôturées depuis <input type="number" min="0" max="60" value="' + a.sug + '" data-p="sug"> jours</label>'
                 + '<label>Articles entrés non vendus depuis <input type="number" min="1" max="365" value="' + a.nv + '" data-p="nv"> jours</label>'
+                + '<label>Articles créés ces <input type="number" min="1" max="365" value="' + a.cr + '" data-p="cr"> derniers jours</label>'
                 + '<div class="tb-note">Enregistré pour votre compte. La période des ruptures vaut aussi pour la tuile « Ruptures ».</div></div>'
                 + '<table>' + ligne('data-liste="ruptures"', 'Rupture', 'p-r', '<b>' + me.fmt(o.ruptures.produits) + '</b> produits à zéro, dont <b>' + me.fmt(o.ruptures.vendusRecemment)
                         + '</b> vendus ces <b>' + a.rup + '</b> derniers jours')
@@ -978,12 +984,16 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + ligne(menuOu('i_sugg_manager'), 'Sugg. commande', 'p-v', '<b>' + me.fmt(o.suggestionsCommande.cloturees) + '</b> suggestions de commande clôturées depuis <b>'
                         + a.sug + '</b> j, non commandées')
                 + ligne(menuOu('ordonnanceclient'), 'Renouvellement', 'p-g', '<b>' + me.fmt(o.renouvellements.patients) + '</b> ordonnances à renouveler sous <b>' + a.ren + '</b> j')
-                + ligne(menuOu('venteavoirmanager'), 'Avoirs', 'p-a', '<b>' + me.fmt(o.avoirs) + '</b> ventes en avoir en cours')
+                /* retours du 22/11 (lot 10) : les avoirs en cours s'ouvrent dans une fenetre, au-dessus du tableau de bord */
+                + ligne(me.menu('venteavoirmanager') ? 'data-avoirs="' + me.esc(o.avoirsDepuis || '') + '"' : '', 'Avoirs', 'p-a', '<b>' + me.fmt(o.avoirs) + '</b> ventes en avoir en cours')
                 + ligne('data-liste="negatifs"', 'Stock négatif', 'p-r', '<b>' + me.fmt(o.negatifs) + '</b> articles en stock négatif')
                 /* retours du 06/10 (4) : articles commandes (entres en stock) et jamais vendus depuis */
                 + ligne('data-liste="nonvendus"', 'Entrés non vendus', 'p-a', '<b>' + me.fmt((o.nonVendus || {}).produits || 0) + '</b> articles entrés depuis <b>'
-                        + a.nv + '</b> j et pas vendus depuis') + '</table>'
-                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif, entrés non vendus : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
+                        + a.nv + '</b> j et pas vendus depuis')
+                /* retour du 22/11 (lot 9) : articles crees sur la periode, liste et impression au clic */
+                + (o.crees === undefined ? '' : ligne('data-liste="crees"', 'Articles créés', 'p-v', '<b>' + me.fmt(o.crees.produits || 0) + '</b> articles créés ces <b>'
+                        + (o.crees.jours || a.cr) + '</b> derniers jours')) + '</table>'
+                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif, entrés non vendus, articles créés : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
     },
 
     /* --- carte d'affluence (retour du 24/10) : ventes par jour et par heure, semaine choisie avec ◀ ▶ */
@@ -1057,6 +1067,29 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         c.innerHTML = html;
     },
 
+    /* --- frequentation : date au choix (plan du 21/11) : ◀ Veille, calendrier, Aujourd'hui. La semaine affichee va du
+       lundi au jour choisi ; la semaine precedente suit. Jamais apres aujourd'hui. */
+
+    dateFreqCourante: function () {
+        return this.dateFreq || this.jour();
+    },
+
+    outilsDateFreq: function () {
+        var me = this, d = me.dateFreqCourante(), auj = me.jour();
+        return '<span class="tb-freq-date" data-freqdate="1"><span class="tb-seg"><button data-fd="veille" title="Jour précédent">◀ Veille</button></span> '
+                + '<input type="date" class="tb-select" data-freqjour="1" title="Date de la fréquentation" value="' + d + '" max="' + auj + '"> '
+                + (d === auj ? '<span class="tb-note">aujourd\'hui</span>' : '<span class="tb-lien" data-fd="aujourdhui">Aujourd\'hui</span>') + '</span>';
+    },
+
+    choisirDateFreq: function (valeur) {
+        var me = this, auj = me.jour();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(valeur || '') || !Ext.Date.parse(valeur, 'Y-m-d')) {
+            return;
+        }
+        me.dateFreq = valeur >= auj ? null : valeur;
+        me.chargerCarte('frequentation');
+    },
+
     /* --- frequentation (retours du 06/10) : ventes par tranche de 2 h, semaine precedente / semaine en cours */
 
     dessinerFrequentation: function () {
@@ -1075,7 +1108,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             out.innerHTML = '<select class="tb-select" data-tranche="1" title="Tranche horaire">' + [1, 2, 3, 4, 5, 6].map(function (n) {
                 return '<option value="' + n + '"' + (n === pas ? ' selected' : '') + '>Tranche de ' + n + ' h</option>';
             }).join('') + '</select> <span class="tb-seg" data-seg="freq"><button data-v="moyenne" class="' + (moy ? 'on' : '') + '">Moyenne par jour</button>'
-                    + '<button data-v="total" class="' + (moy ? '' : 'on') + '">Total de la semaine</button></span>';
+                    + '<button data-v="total" class="' + (moy ? '' : 'on') + '">Total de la semaine</button></span> ' + me.outilsDateFreq();
         }
         /* Ventes par heure (24 cases) regroupees par tranche de « pas » heures ; repli sur les tranches de 2 h. */
         var regrouper = function (sem) {
@@ -1109,14 +1142,14 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var etiquette = function (i) {
             return (i * pas) + 'h-' + Math.min(24, i * pas + pas) + 'h';
         };
-        /* Tranches affichees : celles qui ont eu au moins une vente sur l'une des deux semaines. */
-        var tranches = [];
+        /* Plan du 21/11, point 2 : toute la journee est representee, de 0 h a 24 h, tranches sans vente comprises (avant :
+           seules les tranches avec au moins une vente etaient dessinees, 0-6 h et 22-24 h disparaissaient). */
+        var tranches = [], venteSurDeuxSemaines = false;
         for (var i = 0; i < p.ventes.length; i++) {
-            if ((p.ventes[i] || 0) + (s.ventes[i] || 0) > 0) {
-                tranches.push(i);
-            }
+            tranches.push(i);
+            venteSurDeuxSemaines = venteSurDeuxSemaines || (p.ventes[i] || 0) + (s.ventes[i] || 0) > 0;
         }
-        if (!tranches.length) {
+        if (!venteSurDeuxSemaines) {
             c.innerHTML = '<div class="tb-attente">Aucune vente sur les deux semaines.</div>';
             return;
         }
@@ -1145,7 +1178,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             var ev = v0 > 0 ? Math.round((v1 / v0 - 1) * 100) : null;
             svg += '<rect x="' + (x0 - lb - 1) + '" y="' + Y(v0) + '" width="' + lb + '" height="' + (h - pb - Y(v0)) + '" rx="3" fill="#9fb3c8"><title>Semaine précédente, '
                     + etiquette(i) + ' : ' + nb(v0) + partCa(p, i) + '</title></rect>';
-            svg += '<rect x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>Semaine en cours, '
+            svg += '<rect x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>' + (me.dateFreq ? 'Semaine du jour choisi, ' : 'Semaine en cours, ')
                     + etiquette(i) + ' : ' + nb(v1) + partCa(s, i) + '</title></rect>';
             svg += '<text x="' + (x0 - lb / 2 - 1) + '" y="' + (Y(v0) - 4) + '" font-size="10" fill="#5b6b7c" text-anchor="middle">' + nb(v0) + '</text>';
             svg += '<text x="' + (x0 + lb / 2 + 1) + '" y="' + (Y(v1) - 4) + '" font-size="10" font-weight="700" fill="#0e5f73" text-anchor="middle">' + nb(v1) + '</text>';
@@ -1161,7 +1194,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         };
         var totP = Ext.Array.sum(p.ventes), totS = Ext.Array.sum(s.ventes);
         c.innerHTML = svg + '<div class="tb-legende"><span><i style="background:#9fb3c8"></i>Semaine précédente (' + d(p.debut) + ' → ' + d(p.fin) + ') : <b>'
-                + me.fmt(totP) + '</b> ventes sur ' + p.jours + ' j</span><span><i style="background:#0891b2"></i>Semaine en cours (' + d(s.debut) + ' → ' + d(s.fin)
+                + me.fmt(totP) + '</b> ventes sur ' + p.jours + ' j</span><span><i style="background:#0891b2"></i>' + (me.dateFreq ? 'Semaine du jour choisi' : 'Semaine en cours') + ' (' + d(s.debut) + ' → ' + d(s.fin)
                 + ') : <b>' + me.fmt(totS) + '</b> ventes sur ' + s.jours + ' j</span><span>' + (moy ? 'Moyenne par jour de vente ; % : évolution de la semaine en cours'
                 : 'Total de chaque semaine (la semaine en cours n\'est pas terminée)') + '</span></div>';
     },
@@ -1370,12 +1403,19 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
 
     /* ------------------------------------------------------------------ fenetres de consultation */
 
-    fenetre: function (titre, html, menu) {
+    fenetre: function (titre, html, menu, imprimer) {
         var me = this;
         var pied = menu && me.menu(menu.xtype) ? [{text: menu.texte, cls: 'fen-btn-principal', handler: function (b) {
                     b.up('window').close();
-                    me.ouvrirMenu(menu.xtype);
+                    me.ouvrirMenu(menu.xtype, menu.donnees);
                 }}] : [];
+        /* plan du 21/11 : impression de la liste (PDF ouvert dans un onglet, dans le clic) */
+        if (imprimer) {
+            pied.push({text: 'Imprimer', itemId: 'tbImprimerListe', cls: 'fen-btn', icon: 'resources/images/icons/fam/printer.png',
+                tooltip: 'Imprimer la liste complète (PDF)', handler: function () {
+                    window.open(imprimer, '_blank');
+                }});
+        }
         pied.push({text: 'Fermer', cls: 'fen-btn', handler: function (b) {
                 b.up('window').close();
             }});
@@ -1421,8 +1461,47 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         });
     },
 
+    /** Retour du 22/11 (lot 9) : articles crees sur la periode (fenetre, impression de la liste complete). */
+    listeCrees: function () {
+        var me = this, a = me.alertesPrefs();
+        me.lire('../api/v1/tableau-bord/alertes/crees', {cr: a.cr, limite: 500}, function (o) {
+            var l = o && o.success ? o.data || [] : [];
+            /* retours du 23/11 : date et heure sur une seule ligne, nom de l'auteur entier en infobulle */
+            var t = '<tr><th style="width:31%">Produit</th><th style="width:13%">CIP</th><th style="width:17%;white-space:nowrap">Créé le</th><th>Créé par</th><th>Grossiste</th><th class="tb-n" style="width:9%">Prix</th></tr>'
+                    + l.map(function (x) {
+                        return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td class="tb-nom1" title="' + me.esc(x.cip) + '">' + me.esc(x.cip) + '</td><td class="tb-cree-le" style="white-space:nowrap">'
+                                + me.esc(x.creeLe) + '</td><td class="tb-nom1"' + (x.creePar ? ' title="' + me.esc(x.creePar) + '">' + me.esc(x.creePar) : '><span class="tb-note">—</span>')
+                                + '</td><td class="tb-nom1" title="' + me.esc(x.grossiste) + '">' + me.esc(x.grossiste) + '</td><td class="tb-n">' + me.fmt(x.prix) + '</td></tr>';
+                    }).join('');
+            var total = o && o.success ? o.nombre || 0 : 0;
+            me.fenetre('Articles créés ces ' + a.cr + ' derniers jours (' + total + ')', '<table class="tb-fixe">' + t + '</table>'
+                    + (total > l.length ? '<div class="tb-note" style="margin-top:8px">Les ' + l.length + ' plus récents ; l\'impression donne la liste complète.</div>' : '')
+                    + (l.length ? '' : '<div class="tb-attente">Aucun produit.</div>'),
+                    {xtype: 'famillemanager', texte: 'Ouvrir la fiche article'}, '../api/v1/tableau-bord/alertes/crees/pdf?cr=' + encodeURIComponent(a.cr));
+        });
+    },
+
+    /*
+     * Retours du 22/11 (lot 10) : la liste des avoirs (venteavoirmanager) dans une fenetre modale, sur l'onglet des
+     * avoirs en cours, depuis le plus ancien d'entre eux (depuis : AAAA-MM-JJ) jusqu'a aujourd'hui : elle montre les
+     * ventes que l'alerte compte. « Rappeler avoir » ferme la fenetre et ouvre la vente.
+     */
+    ouvrirAvoirs: function (depuis) {
+        var debut = depuis ? Ext.Date.parse(depuis, 'Y-m-d') : null;
+        Ext.create('Ext.window.Window', {
+            title: 'Liste des avoirs en cours', itemId: 'tbAvoirsFenetre', modal: true, layout: 'fit', cls: 'tb-fenetre fen-theme',
+            width: Math.min(Ext.Element.getViewportWidth() - 40, 1300), height: Math.min(Ext.Element.getViewportHeight() - 40, 640),
+            maximizable: true, constrain: true,
+            items: [{xtype: 'venteavoirmanager', debutPeriode: debut, title: null, header: false, frame: false, width: null, minHeight: null}]
+        }).show();
+    },
+
     listeAlerte: function (type) {
         var me = this, a = me.alertesPrefs();
+        if (type === 'crees') {
+            me.listeCrees();
+            return;
+        }
         me.lire('../api/v1/tableau-bord/alertes/liste', {type: type, per: a.per, rup: a.rup, nv: a.nv, limite: 500}, function (o) {
             var l = o && o.success ? o.data : [], t;
             var date = function (d) {
@@ -1459,7 +1538,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td class="tb-n tb-baisse">'
                             + me.fmt(x.quantite) + '</td><td class="tb-nom1">' + me.esc(x.emplacement) + '</td></tr>';
                 }).join('');
-                me.fenetre('Articles en stock négatif (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>', {xtype: 'etatstock', texte: 'Ouvrir l\'état du stock'});
+                me.fenetre('Articles en stock négatif (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>', {xtype: 'etatstock', texte: 'Ouvrir l\'état du stock', donnees: {stock: 'negatif'}}, /* plan du 21/11, point 2 : negatifs deja filtres */
+                        '../api/v1/tableau-bord/alertes/negatifs/pdf');
             } else if (type === 'peremptions') {
                 t = '<tr><th style="width:46%">Produit</th><th>CIP</th><th>Lot</th><th>Péremption</th><th class="tb-n">Qté</th></tr>' + l.map(function (x) {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td>' + me.esc(x.lot) + '</td><td>'
@@ -1573,6 +1653,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var me = this, racine = me.body.dom;
         racine.addEventListener('change', function (e) {
             var t = e.target;
+            if (t.hasAttribute('data-freqjour')) {
+                me.choisirDateFreq(t.value);
+                return;
+            }
             if (t.hasAttribute('data-tranche')) {
                 /* Retours du 06/10 (2) : tranche de 1 a 6 h, la vue est regroupee sans relire la base */
                 me.prefs.tranche = parseInt(t.value, 10) || 2;
@@ -1653,6 +1737,14 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             if (me.edition) {
                 return;
             }
+            if ((x = cible('[data-fd]'))) {
+                if (x.getAttribute('data-fd') === 'aujourdhui') {
+                    me.choisirDateFreq(me.jour());
+                } else {
+                    me.choisirDateFreq(Ext.Date.format(Ext.Date.add(Ext.Date.parse(me.dateFreqCourante(), 'Y-m-d'), Ext.Date.DAY, -1), 'Y-m-d'));
+                }
+                return;
+            }
             if ((x = cible('[data-aff]'))) {
                 var aff = x.getAttribute('data-aff');
                 if (!x.disabled && aff !== 'libelle') {
@@ -1708,6 +1800,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             }
             if ((x = cible('[data-liste]'))) {
                 me.listeAlerte(x.getAttribute('data-liste'));
+                return;
+            }
+            if ((x = cible('[data-avoirs]'))) {
+                me.ouvrirAvoirs(x.getAttribute('data-avoirs'));
                 return;
             }
             if ((x = cible('[data-menu]'))) {

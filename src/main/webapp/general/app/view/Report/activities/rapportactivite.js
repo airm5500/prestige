@@ -3,6 +3,7 @@
 Ext.define('testextjs.view.Report.activities.rapportactivite', {
     extend: 'Ext.panel.Panel',
     xtype: 'activitiessummary',
+    requires: ['testextjs.view.commun.ChampPeriode'],
     initComponent: function () {
         var me = this;
         var castore = new Ext.data.Store({
@@ -334,6 +335,7 @@ Ext.define('testextjs.view.Report.activities.rapportactivite', {
                                         value: new Date(),
                                         width: 350,
                                         id: 'dt_end_activities',
+                                        plugins: [{ptype: 'champperiode', debut: 'dt_start_activities', declencher: 'btnRechercherActivites', largeur: 205}], /* retour du 22/11 : un seul selecteur, 205 px comme en facturation, de periode (cases Du / Au dans le calendrier) */
                                         listeners: {
                                             change: function () {
                                                 Ext.getCmp('dt_start_activities').setMaxValue(this.getValue());
@@ -347,6 +349,7 @@ Ext.define('testextjs.view.Report.activities.rapportactivite', {
                                         xtype: 'button',
                                         style: 'margin-left:5px;',
                                         iconCls: 'activitiessearch',
+                                        itemId: 'btnRechercherActivites',
                                         text: 'Rechercher',
                                         handler: function () {
                                             var dt_start_activities = Ext.getCmp('dt_start_activities').getSubmitValue();

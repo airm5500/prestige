@@ -24,8 +24,9 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', '--raw', BASE, '-sN', '-e', s], { encoding: 'utf8' }).replace(/\r\n/g, '\n').trim();
 const MDP = 'E2e-Rvs-60';
 const PROFILS = {
-  sans: { id: 'E2E-RVSE-SANS', login: 'e2e-rvse-sans', com: 'E2E-RVSE-SANS', droits: ['P_M_GESTION_STOCK', 'P_SM_RESERVE', 'P_TRAITER_RESERVE'] },
-  avec: { id: 'E2E-RVSE-AVEC', login: 'e2e-rvse-avec', com: 'E2E-RVSE-AVEC', droits: ['P_M_GESTION_STOCK', 'P_SM_RESERVE', 'P_TRAITER_RESERVE', 'P_RESERVE_SUGGESTION'] }
+  sans: { id: 'E2E-RVSE-SANS', login: 'e2e-rvse-sans', com: 'E2E-RVSE-SANS', /* P_RESERVE_LISTE : plan du 21/11, point 13 (onglet LISTE RESERVE, comme le role d'un utilisateur du menu apres la migration V7.6.41.2191) */
+    droits: ['P_M_GESTION_STOCK', 'P_SM_RESERVE', 'P_TRAITER_RESERVE', 'P_RESERVE_LISTE'] },
+  avec: { id: 'E2E-RVSE-AVEC', login: 'e2e-rvse-avec', com: 'E2E-RVSE-AVEC', droits: ['P_M_GESTION_STOCK', 'P_SM_RESERVE', 'P_TRAITER_RESERVE', 'P_RESERVE_SUGGESTION', 'P_RESERVE_LISTE'] }
 };
 
 /* deux produits geres en rayon, sans reserve ni suggestion : le test les met en reserve */

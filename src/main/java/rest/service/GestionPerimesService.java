@@ -22,6 +22,12 @@ public interface GestionPerimesService {
 
     void removePerime(String id);
 
+    /** Recherche des produits de la saisie des perimes (retour du 22/11, lot 11 : remplace ws_article_list.jsp). */
+    JSONObject rechercherProduits(String query, int start, int limit, TUser user);
+
+    /** Retire une ligne encore en attente de la saisie en cours (retour du 22/11, lot 11). */
+    JSONObject retirerLigneEnCours(String id);
+
     JSONObject completePerimes(String id, TUser user);
 
     JSONObject getPerimesSaisiEnCours(int start, int limit);

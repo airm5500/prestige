@@ -73,7 +73,7 @@ const n = (v) => Number(v || 0);
     ok('KEY_TABLEAU_BORD_VERSION = NOUVEAU : nouveau tableau de bord, sans iframe', await tb() && await p.evaluate(() => !Ext.ComponentQuery.query('dashboard')[0].getEl().dom.querySelector('iframe')));
     await reconstruire(D);
     const S = await p.evaluate(() => ({ tuiles: document.querySelectorAll('.tb-tuile .tb-ico i').length, cartes: document.querySelectorAll('.tb-carte').length, iconesCartes: document.querySelectorAll('.tb-carte .tb-tete > .fa-solid').length }));
-    ok('5 tuiles avec icône, 17 cartes avec icône (plan du 19/11 : top 10 des marges, point 13, et BFR ; dont la fréquentation, l\'affluence et l\'activité des équipes)', S.tuiles === 5 && S.cartes === 17 && S.iconesCartes === 17, JSON.stringify(S));
+    ok('5 tuiles avec icône, 16 cartes avec icône (plan du 19/11 : top 10 des marges, point 13 ; BFR retirée par le plan du 21/11 ; dont la fréquentation, l\'affluence et l\'activité des équipes)', S.tuiles === 5 && S.cartes === 16 && S.iconesCartes === 16, JSON.stringify(S));
     ok('Chargement progressif : les cartes du bas ne sont pas lues tant qu\'elles ne sont pas visibles', routes.indexOf('tiers-payants') < 0 && routes.indexOf('emplacements') < 0, routes.join(','));
 
     // Memes chiffres que l'ancien tableau de bord (formules de bll.report.Dashboard a la date D)
@@ -178,8 +178,9 @@ const n = (v) => Number(v || 0);
     await p.evaluate(() => { document.querySelector('[data-carte="frequentation"]').scrollIntoView(); });
     await p.waitForFunction(() => document.querySelector('[data-corps="frequentation"] svg'), null, { timeout: 30000 });
     const barres = await p.evaluate(() => document.querySelectorAll('[data-corps="frequentation"] svg rect').length);
-    const tranches = fq.semaine.ventes.map((v, i) => v + fq.precedente.ventes[i]).filter((v) => v > 0).length;
-    ok('Fréquentation : deux barres par tranche (semaine précédente / en cours)', barres === 2 * tranches, barres + ' / ' + 2 * tranches);
+    /* plan du 21/11, point 2 : toutes les tranches de la journee, meme sans vente (12 tranches de 2 h) */
+    const tranches = fq.semaine.ventes.length;
+    ok('Fréquentation : deux barres par tranche (semaine précédente / en cours), toute la journée', barres === 2 * tranches && tranches === 12, barres + ' / ' + 2 * tranches);
     await cliquer('[data-seg="freq"] [data-v="total"]');
     await p.waitForTimeout(300);
     ok('Fréquentation : interrupteur moyenne par jour / total de la semaine', /Total de chaque semaine/.test(await texte('[data-corps="frequentation"] .tb-legende')));
@@ -192,7 +193,7 @@ const n = (v) => Number(v || 0);
       await choisirTranche(n);
       await p.waitForTimeout(300);
       const nbT = [];
-      for (let k = 0; k < Math.ceil(24 / n); k++) { let t = 0; for (let h = k * n; h < Math.min(24, k * n + n); h++) { t += fq.semaine.ventesH[h] + fq.precedente.ventesH[h]; } if (t > 0) { nbT.push(k); } }
+      for (let k = 0; k < Math.ceil(24 / n); k++) { nbT.push(k); } /* plan du 21/11, point 2 : toutes les tranches */
       const vue = await p.evaluate(() => ({ r: document.querySelectorAll('[data-corps="frequentation"] svg rect').length, l: Array.from(document.querySelectorAll('[data-corps="frequentation"] svg text')).map((t) => t.textContent).filter((t) => /h-/.test(t)) }));
       ok('Fréquentation : tranche de ' + n + ' h -> la vue change (barres et libellés)', vue.r === 2 * nbT.length && vue.l.length === nbT.length && vue.l[0] === (nbT[0] * n) + 'h-' + Math.min(24, nbT[0] * n + n) + 'h', JSON.stringify(vue.l));
     }
@@ -360,7 +361,7 @@ const n = (v) => Number(v || 0);
     await cliquer('[data-tb="defaut"]');
     await p.waitForTimeout(1500);
     const def = await p.evaluate(() => ({ cartes: document.querySelectorAll('[data-dd="cartes"] > [data-id]').length, tuiles: document.querySelectorAll('[data-dd="tuiles"] > [data-id]').length, premier: document.querySelector('[data-dd="cartes"] > [data-id]').getAttribute('data-id') }));
-    ok('« Rétablir la disposition par défaut »', def.cartes === 17 && def.tuiles === 5 && def.premier === 'evolution', JSON.stringify(def));
+    ok('« Rétablir la disposition par défaut »', def.cartes === 16 && def.tuiles === 5 && def.premier === 'evolution', JSON.stringify(def));
     await cliquer('[data-tb="perso"]');
 
     // Clic -> menu lie (mouvements de caisse)

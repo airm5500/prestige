@@ -796,6 +796,7 @@ Ext.application({
         'testextjs.view.caisseManager.GestionCaisseOnglets',
         'testextjs.view.activiteequipes.ActiviteEquipes',
         'testextjs.view.analyse.Bfr',
+        'testextjs.view.notification.JournalMessages',
         'testextjs.view.receptionmobile.PeremptionsCourtes',
         'testextjs.view.vente.HistoriqueOrdonnancier',
         'testextjs.view.commandemanagement.extranet.ExtranetsGrossistes',

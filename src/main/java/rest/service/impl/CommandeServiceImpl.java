@@ -143,6 +143,9 @@ public class CommandeServiceImpl implements CommandeService {
     private NotificationService notificationService;
     @EJB
     private SmsService smsService;
+    /* plan du 21/11, point 11 : message d'avoir par WhatsApp (KEY_SMS_AVOIR_CANAL) */
+    @EJB
+    private rest.service.WhatsAppService whatsAppService;
     @EJB
     private SessionHelperService sessionHelperService;
     @EJB
@@ -220,14 +223,27 @@ public class CommandeServiceImpl implements CommandeService {
      */
     @Override
     public JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu) throws JSONException {
+        return cloturerBonLivraison(id, avecEcart, modeRecu, false);
+    }
+
+    /**
+     * Retours du 22/11 (lot 10, point 3) : avec {@code differerAvoirs} (ecran d'entree en stock, qui affiche ensuite la
+     * fenetre des produits en avoir), les messages d'avoir sont prepares mais pas envoyes : ils partent depuis la
+     * fenetre (choix SMS / WhatsApp) ou a sa fermeture (canal par defaut), voir AvoirsEnvoiService. Sans ce drapeau,
+     * envoi strictement inchange.
+     */
+    @Override
+    public JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu, boolean differerAvoirs)
+            throws JSONException {
         try {
-            return cloturerBonLivraisonSuivi(id, avecEcart, modeRecu);
+            return cloturerBonLivraisonSuivi(id, avecEcart, modeRecu, differerAvoirs);
         } finally {
             stocksDuBon = null; // instance sans etat entre deux appels
         }
     }
 
-    private JSONObject cloturerBonLivraisonSuivi(String id, boolean avecEcart, boolean modeRecu) throws JSONException {
+    private JSONObject cloturerBonLivraisonSuivi(String id, boolean avecEcart, boolean modeRecu, boolean differerAvoirs)
+            throws JSONException {
         JSONObject json = new JSONObject();
         JSONArray ecarts = new JSONArray();
         int totalManquant = 0;
@@ -578,6 +594,7 @@ public class CommandeServiceImpl implements CommandeService {
                     .collect(Collectors.groupingBy(e -> e.getLgPREENREGISTREMENTID().getClient()));
             List<String> avoirNotificationIds = new ArrayList<>();
             boolean immediateAvoirSms = isImmediateAvoirSmsEnabled();
+            String canalAvoir = AvoirMessage.canal(em);
             map.forEach((k, v) -> {
                 if (k != null) {
                     StringBuilder sb = new StringBuilder();
@@ -605,6 +622,9 @@ public class CommandeServiceImpl implements CommandeService {
                             user, donneesMap, bonLivraison.getLgBONLIVRAISONID(), k);
                     if (avoirNotification != null) {
                         avoirNotificationIds.add(avoirNotification.getId());
+                        /* plan du 21/11, point 11 : ventes du message, pour son etat dans la liste des avoirs */
+                        AvoirMessage.lier(em, avoirNotification.getId(), mapp.keySet().stream()
+                                .map(TPreenregistrement::getLgPREENREGISTREMENTID).collect(Collectors.toList()));
                     }
                 }
 
@@ -659,7 +679,22 @@ public class CommandeServiceImpl implements CommandeService {
             // Envoi immédiat des SMS d'avoir (après commit pour que la notification
             // soit persistée). Asynchrone : n'impacte pas la réponse de l'entrée en
             // stock. Le job planifié reste le filet de rattrapage en cas d'échec.
-            if (immediateAvoirSms) {
+            /*
+             * plan du 21/11, point 11 : WHATSAPP ou SMS_WHATSAPP -> WhatsApp tout de suite (repli SMS pour
+             * SMS_WHATSAPP) ; SMS -> comme avant.
+             */
+            if (differerAvoirs) {
+                json.put("avoirsDifferes", avoirNotificationIds.size());
+            } else if (!AvoirMessage.SMS.equals(canalAvoir)) {
+                boolean repli = AvoirMessage.SMS_WHATSAPP.equals(canalAvoir);
+                for (String avoirNotificationId : avoirNotificationIds) {
+                    try {
+                        whatsAppService.envoyerNotificationAsync(avoirNotificationId, repli);
+                    } catch (Exception e) {
+                        LOG.log(Level.SEVERE, "Echec declenchement envoi WhatsApp avoir " + avoirNotificationId, e);
+                    }
+                }
+            } else if (immediateAvoirSms) {
                 for (String avoirNotificationId : avoirNotificationIds) {
                     try {
                         smsService.sendSMSByNotificationIdAsync(avoirNotificationId);

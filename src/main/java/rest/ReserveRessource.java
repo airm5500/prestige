@@ -243,7 +243,9 @@ public class ReserveRessource {
                         .put("traiter", Droits.a(servletRequest, "P_TRAITER_RESERVE", "P_SM_RESERVE"))
                         .put("annulerMouvement", Droits.a(servletRequest, "P_ANNULER_MOUVEMENT_RESERVE"))
                         /* demande 60 : voir et ouvrir les suggestions de reserve (onglet SUGGESTIONS, mobile) */
-                        .put("voirSuggestions", privilegesEnBase.voitSuggestionsReserve(servletRequest)).toString())
+                        .put("voirSuggestions", privilegesEnBase.voitSuggestionsReserve(servletRequest))
+                        /* plan du 21/11, point 13 : onglet LISTE RESERVE */
+                        .put("voirListe", voitListe()).toString())
                 .build();
     }
 
@@ -411,6 +413,26 @@ public class ReserveRessource {
     }
     /* ------------------------------------------------------------------ onglet LISTE RESERVE (15/11) */
 
+    /** Plan du 21/11, point 13 (question 9) : voir et utiliser l'onglet LISTE RESERVE. */
+    public static final String P_VOIR_LISTE = "P_RESERVE_LISTE";
+    public static final String LIBELLE_VOIR_LISTE = "Voir la liste réserve";
+
+    /**
+     * Meme regle que les suggestions (demande 61) : la session porte P_RESERVE_LISTE, ou ce droit n'existe pas (actif)
+     * en base, et tout le monde voit l'onglet comme avant.
+     */
+    private boolean voitListe() {
+        return Droits.a(servletRequest, P_VOIR_LISTE) || !privilegesEnBase.actif(P_VOIR_LISTE);
+    }
+
+    /**
+     * Refus si la session ne voit pas l'onglet LISTE RESERVE, sinon null. Sans session, rien ici : la route garde sa
+     * reponse « deconnecte » d'avant.
+     */
+    private Response refusListe() {
+        return currentUser() == null || voitListe() ? null : Droits.interdit(LIBELLE_VOIR_LISTE);
+    }
+
     private static rest.service.impl.ListeReserveService.Filtres filtresListe(String search, String zoneId,
             String familleId, String grossisteId, String etat) {
         return rest.service.impl.ListeReserveService.Filtres.de(search, zoneId, familleId, grossisteId, etat);
@@ -422,6 +444,10 @@ public class ReserveRessource {
     public Response liste(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
             @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
             @QueryParam("etat") String etat, @QueryParam("start") int start, @QueryParam("limit") Integer limit) {
+        Response refusListe = refusListe();
+        if (refusListe != null) {
+            return refusListe;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -438,6 +464,10 @@ public class ReserveRessource {
     public Response listeTout(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
             @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
             @QueryParam("etat") String etat) {
+        Response refusListe = refusListe();
+        if (refusListe != null) {
+            return refusListe;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -451,6 +481,10 @@ public class ReserveRessource {
     @POST
     @Path("liste/enregistrer")
     public Response listeEnregistrer(String body) {
+        Response refusListe = refusListe();
+        if (refusListe != null) {
+            return refusListe;
+        }
         Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
         if (refusDroit != null) {
             return refusDroit;
@@ -478,6 +512,10 @@ public class ReserveRessource {
     @Consumes({ "application/octet-stream", "text/csv", "text/plain", "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
     public Response listeImport(byte[] contenu) {
+        Response refusListe = refusListe();
+        if (refusListe != null) {
+            return refusListe;
+        }
         Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
         if (refusDroit != null) {
             return refusDroit;
@@ -503,6 +541,10 @@ public class ReserveRessource {
     @Consumes("application/json")
     @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     public Response listeImportExcel(String body) throws java.io.IOException {
+        Response refusListe = refusListe();
+        if (refusListe != null) {
+            return refusListe;
+        }
         Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
         if (refusDroit != null) {
             return refusDroit;
@@ -530,6 +572,10 @@ public class ReserveRessource {
     public Response listeExcel(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
             @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
             @QueryParam("etat") String etat) throws java.io.IOException {
+        Response refusListe = refusListe();
+        if (refusListe != null) {
+            return refusListe;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -546,6 +592,10 @@ public class ReserveRessource {
     public Response listePdf(@QueryParam("search") String search, @QueryParam("zoneId") String zoneId,
             @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
             @QueryParam("etat") String etat) {
+        Response refusListe = refusListe();
+        if (refusListe != null) {
+            return refusListe;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();

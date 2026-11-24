@@ -74,11 +74,34 @@ public class NotificationScheduledService {
                     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
             q.setParameter("statut", Statut.NOT_SEND);
             q.setParameter("canal", Canal.SMS);
-            return q.getResultList();
+            return sansWhatsApp(q.getResultList(), envoyeesParWhatsApp());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Plan du 21/11, point 11 : une notification deja confiee a WhatsApp (campagne, rappel, avoir) n'est pas renvoyee
+     * par SMS : son repli SMS, s'il y en a un, est une notification a part. Avant, elle restait « NOT_SEND » et partait
+     * aussi par SMS au passage suivant.
+     */
+    static List<Notification> sansWhatsApp(List<Notification> notifications, java.util.Set<String> parWhatsApp) {
+        List<Notification> l = new java.util.ArrayList<>();
+        for (Notification n : notifications) {
+            if (!parWhatsApp.contains(n.getId())) {
+                l.add(n);
+            }
+        }
+        return l;
+    }
+
+    @SuppressWarnings("unchecked")
+    private java.util.Set<String> envoyeesParWhatsApp() {
+        return new java.util.HashSet<>(em
+                .createNativeQuery("SELECT DISTINCT notification_id FROM whatsapp_message"
+                        + " WHERE notification_id IS NOT NULL AND created_at >= CURDATE() - INTERVAL 2 DAY")
+                .getResultList());
     }
 
     private boolean checkParameterByKey(String key) {

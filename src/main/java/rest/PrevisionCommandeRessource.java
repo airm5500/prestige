@@ -385,6 +385,46 @@ public class PrevisionCommandeRessource {
         return reponse(demande.analyser(java.time.LocalDate.now(), n, query, rayonId));
     }
 
+    /**
+     * Plan du 21/11, point 15 : impression (PDF) et export Excel de l'analyse de la demande, memes criteres et meme
+     * contenu que l'ecran (synthese, matrice annee x mois et indices, produits a anticiper, produits saisonniers).
+     */
+    @GET
+    @Path("demande/edition")
+    @Produces({ "application/pdf", "application/vnd.ms-excel", "application/json" })
+    public Response demandeEdition(@QueryParam("format") String format, @QueryParam("mois") Integer mois,
+            @QueryParam("query") String query, @QueryParam("rayonId") String rayonId) throws java.io.IOException {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        int n = mois == null ? 24 : mois;
+        if (n != 12 && n != 24 && n != 36) {
+            return refus("Durée : 12, 24 ou 36 mois.");
+        }
+        if (query != null && query.length() > 100) {
+            return refus("Recherche trop longue (100 caractères au plus).");
+        }
+        JSONObject d = demande.analyser(java.time.LocalDate.now(), n, query, rayonId);
+        List<rest.report.pdf.TableauPdf.Section> sections = rest.service.impl.EditionDemande.sections(d);
+        String st = rest.service.impl.EditionDemande.sousTitre(d, query, demande.libelleRayon(rayonId));
+        if ("excel".equals(format)) {
+            return Response
+                    .ok(rest.service.impl.EditionDemande.classeur("Analyse de la demande", st, sections),
+                            "application/vnd.ms-excel")
+                    .header("content-disposition", "attachment; filename=analyse_demande_" + horodatage() + ".xls")
+                    .build();
+        }
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        e.officine = service.officine();
+        e.titre = "ANALYSE DE LA DEMANDE";
+        e.sousTitre = st;
+        TUser u = utilisateur();
+        e.imprimePar = u == null ? "" : (u.getStrFIRSTNAME() + " " + u.getStrLASTNAME()).trim();
+        return Response.ok(rest.report.pdf.TableauPdf.genererSections(e, sections), "application/pdf")
+                .header("Content-Disposition", "inline; filename=analyse_demande_" + horodatage() + ".pdf").build();
+    }
+
     @GET
     @Path("a-analyser")
     public Response aAnalyser() {
@@ -503,6 +543,23 @@ public class PrevisionCommandeRessource {
         }
         return reponse(service.appliquerRecommande(emplacement(), in.optString("type", "").trim().toUpperCase(), id,
                 utilisateur()));
+    }
+
+    /**
+     * Retour du 22/11 : a l'ouverture d'une suggestion ou d'une commande en cours, les previsions de ses produits sont
+     * calculees (celles qui ne sont pas du jour ou n'ont pas le detail du calcul), sans attendre le calcul de la nuit.
+     */
+    @POST
+    @Path("actualiser")
+    public Response actualiser(@QueryParam("type") String type, @QueryParam("id") String id) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        if (id == null || id.trim().isEmpty()) {
+            return refus("Suggestion ou commande manquante.");
+        }
+        return reponse(service.actualiser(emplacement(), type == null ? "" : type.trim().toUpperCase(), id.trim()));
     }
 
     @POST

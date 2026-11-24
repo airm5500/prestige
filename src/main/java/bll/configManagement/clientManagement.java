@@ -119,7 +119,7 @@ public class clientManagement extends bllBase {
             TTypeClient OTTypeClient = this.getOdataManager().getEm().find(TTypeClient.class, lg_TYPE_CLIENT_ID);
             new logger().OCategory.info("Type client " + OTTypeClient.getStrNAME());
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
-            OTClient.setStrCODEINTERNE(this.getKey().getShortId(6));
+            OTClient.setStrCODEINTERNE(util.CodeInterneClient.libre(this::doesCodeInternClientExist));
             OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
             OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setLgTYPECLIENTID(OTTypeClient);
@@ -817,7 +817,8 @@ public class clientManagement extends bllBase {
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
 
             if ("".equals(str_CODE_INTERNE) || str_CODE_INTERNE == null) {
-                str_CODE_INTERNE = this.getKey().getShortId(6);
+                // 21/11 : l'ancien code, tire de l'heure, retombait sur des codes pris
+                str_CODE_INTERNE = util.CodeInterneClient.libre(this::doesCodeInternClientExist);
             }
             OTClient.setStrCODEINTERNE(str_CODE_INTERNE);
             OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
@@ -1028,7 +1029,7 @@ public class clientManagement extends bllBase {
             TTypeClient OTTypeClient = this.getOdataManager().getEm().find(TTypeClient.class, lg_TYPE_CLIENT_ID);
             new logger().OCategory.info("Type client " + OTTypeClient.getStrNAME());
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
-            OTClient.setStrCODEINTERNE(this.getKey().getShortId(6));
+            OTClient.setStrCODEINTERNE(util.CodeInterneClient.libre(this::doesCodeInternClientExist));
             OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
             OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setLgTYPECLIENTID(OTTypeClient);
@@ -1519,30 +1520,43 @@ public class clientManagement extends bllBase {
                 TCompteClientTiersPayant OTCompteClientTiersPayant = new tierspayantManagement(this.getOdataManager())
                         .isRegimeExistForCptltTiersPBis(_OTCompteClient.getLgCOMPTECLIENTID(), 1,
                                 commonparameter.statut_enable);
-                new logger().OCategory.info("Pourcentage " + OTCompteClientTiersPayant.getIntPOURCENTAGE() + "----"
-                        + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID()
-                                .getLgTYPETIERSPAYANTID());
-                if (OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID()
-                        .equals("1")) {
-                    updateAyantdroitPrincipal(lg_AYANTS_DROITS_ID, lg_CATEGORIE_AYANTDROIT_ID,
-                            OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(), OTClient.getStrSEXE(),
-                            OTClient.getDtCREATED(), _vill, lg_RISQUE_ID, olstr_NUMERO_SECURITE_SOCIAL, OTClient, em);
-                } else {
-                    if (OTTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equals("1")) {
-                        createAyantdroit(OTClient, lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(),
-                                OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(), _vill,
-                                lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE(), em);
+                if (OTCompteClientTiersPayant == null) {
+                    /*
+                     * plan du 21/11, point 6 : client sans tiers payant (client standard). Seule la fiche est modifiee
+                     * ; avant, l'absence de regime levait une erreur qui sautait la validation et la fiche n'etait
+                     * jamais enregistree.
+                     */
+                    if (em.getTransaction().isActive()) {
+                        em.getTransaction().commit();
                     }
-                }
-                if (em.getTransaction().isActive()) {
-                    em.getTransaction().commit();
-                }
+                } else {
+                    new logger().OCategory.info("Pourcentage " + OTCompteClientTiersPayant.getIntPOURCENTAGE() + "----"
+                            + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID()
+                                    .getLgTYPETIERSPAYANTID());
+                    if (OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID()
+                            .equals("1")) {
+                        updateAyantdroitPrincipal(lg_AYANTS_DROITS_ID, lg_CATEGORIE_AYANTDROIT_ID,
+                                OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(), OTClient.getStrSEXE(),
+                                OTClient.getDtCREATED(), _vill, lg_RISQUE_ID, olstr_NUMERO_SECURITE_SOCIAL, OTClient,
+                                em);
+                    } else {
+                        if (OTTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equals("1")) {
+                            createAyantdroit(OTClient, lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(),
+                                    OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(), _vill,
+                                    lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE(),
+                                    em);
+                        }
+                    }
+                    if (em.getTransaction().isActive()) {
+                        em.getTransaction().commit();
+                    }
 
-                new tierspayantManagement(this.getOdataManager()).updateComptecltTierspayant(
-                        OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID(),
-                        _OTCompteClient.getLgCOMPTECLIENTID(), OTTiersPayant.getLgTIERSPAYANTID(), int_POURCENTAGE,
-                        int_PRIORITY, plafond, dbl_QUOTA_CONSO_VENTE, OTClient.getStrNUMEROSECURITESOCIAL(), encours,
-                        mode, isAbsolut);
+                    new tierspayantManagement(this.getOdataManager()).updateComptecltTierspayant(
+                            OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID(),
+                            _OTCompteClient.getLgCOMPTECLIENTID(), OTTiersPayant.getLgTIERSPAYANTID(), int_POURCENTAGE,
+                            int_PRIORITY, plafond, dbl_QUOTA_CONSO_VENTE, OTClient.getStrNUMEROSECURITESOCIAL(),
+                            encours, mode, isAbsolut);
+                }
             } catch (Exception e) {
                 this.buildErrorTraceMessage("Impossible de mettre à jour  ", e.getMessage());
                 e.printStackTrace();

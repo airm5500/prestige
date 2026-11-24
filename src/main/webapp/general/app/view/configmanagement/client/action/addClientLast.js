@@ -715,6 +715,10 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
 
 
             Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID').hide();
+            /* plan du 21/11, point 6 : en modification, ce champ est masque et n'est pas envoye ; vide pour un client
+               standard, il bloquait l'enregistrement (« Veuillez renseignez les champs obligatoires »). Desactive,
+               il n'est plus controle ; les autres champs obligatoires le restent. */
+            Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID').disable();
             // Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID').setValue(this.getOdatasource().lg_TYPE_TIERS_PAYANT_ID);
 
             if (this.getOdatasource().lg_TYPE_CLIENT_ID === "Confrere" || this.getOdatasource().lg_TYPE_CLIENT_ID === "Proprietaire" || this.getOdatasource().lg_TYPE_CLIENT_ID === "Depot") {

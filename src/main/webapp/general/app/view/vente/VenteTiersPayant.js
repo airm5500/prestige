@@ -1,6 +1,7 @@
 
 /* global Ext */
 Ext.define('testextjs.view.vente.VenteTiersPayant', {
+    requires: ['testextjs.view.commun.ChampPeriode'],
     extend: 'Ext.panel.Panel',
     xtype: 'tpventes',
     frame: true,
@@ -161,6 +162,8 @@ Ext.define('testextjs.view.vente.VenteTiersPayant', {
                             xtype: 'datefield',
                             fieldLabel: 'Au',
                             itemId: 'dtEnd',
+                            /* plan du 21/11, point 7.2 (retour du 22/11) : selecteur de periode unique, menu FACTURATION */
+                            plugins: [{ptype: 'champperiode', souple: true, debut: 'dtStart', declencher: 'rechercher'}],
                             labelWidth: 15,
                             flex: 0.6,
                             submitFormat: 'Y-m-d',

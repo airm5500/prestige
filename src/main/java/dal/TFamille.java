@@ -584,8 +584,14 @@ public class TFamille implements Serializable {
         return intSEUILMIN;
     }
 
+    /**
+     * Seuil de reapprovisionnement, valeur de reference (fiche article, suggestions, ruptures, tableau de bord).
+     * Retours du 23/11 : int_STOCK_REAPROVISONEMENT en est le miroir et suit chaque ecriture ; certaines ecritures
+     * (suggestion, calcul des seuils, entrepot) ne changeaient que cette colonne, et les deux divergeaient.
+     */
     public void setIntSEUILMIN(Integer intSEUILMIN) {
         this.intSEUILMIN = intSEUILMIN;
+        this.intSTOCKREAPROVISONEMENT = intSEUILMIN;
     }
 
     public Integer getIntSTOCKREAPROVISONEMENT() {

@@ -35,6 +35,8 @@ const lot = C.q("SELECT CONCAT_WS('~', f.lg_FAMILLE_ID, IFNULL(f.is_scheduled, 0
   + " AND s.lg_EMPLACEMENT_ID = '1' WHERE f.str_STATUT = 'enable' AND s.str_STATUT = 'enable' AND f.str_NAME LIKE '" + PREFIXE.replace(/'/g, "''") + "%'")
   .split(/\n/).filter(Boolean).map((l) => { const [id, scheduled, sensible] = l.split('~'); return { id, scheduled, sensible }; });
 const N = lot.length;
+/* retours du 23/11 : trace par produit d'un cochage en lot (« Modification en lot (Ordonnancier) de la fiche CIP NOM par AUTEUR : sensible ») */
+const LIGNE_LOT = new RegExp('\\|(' + lot.map((x) => x.id).join('|') + ')\\|Modification en lot \\(Ordonnancier\\) de la fiche .* : sensible$');
 const SUIVIS = [A1.id, A2.id, TEMOIN.id].concat(lot.map((x) => x.id));
 const ventes = [];
 let paramAvant = null, caisseOuverte = false;
@@ -118,7 +120,8 @@ const avecDrapeaux = (avant, modifs) => avant.drapeaux.split(';').map((x) => { c
     apres = etat();
     C.ok('Second clic : le lot est appliqué', fait.success === true && fait.nombre === N, JSON.stringify(fait));
     const lotCoche = {}; lot.forEach((x) => { lotCoche[x.id] = x.scheduled + '1'; });
-    bilan('Cochage en lot', avant, apres, avecDrapeaux(avant, lotCoche), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) coché\\(s\\) sensible en lot \\(recherche « ' + PREFIXE.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' »')]);
+    /* retours du 23/11 : en plus de la ligne du lot, une ligne « Modification en lot » par produit change (tous l'etaient : aucun sensible) */
+    bilan('Cochage en lot', avant, apres, avecDrapeaux(avant, lotCoche), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) coché\\(s\\) sensible en lot \\(recherche « ' + PREFIXE.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' »')].concat(lot.map(() => LIGNE_LOT)));
 
     /* A3. lot decoche : etat initial rendu */
     avant = etat();
@@ -127,7 +130,7 @@ const avecDrapeaux = (avant, modifs) => avant.drapeaux.split(';').map((x) => { c
     apres = etat();
     C.ok('Décocher tout (deux clics) : le lot est défait', defait.success === true && defait.nombre === N, JSON.stringify(defait));
     const lotInitial = {}; lot.forEach((x) => { lotInitial[x.id] = x.scheduled + x.sensible; });
-    bilan('Décochage en lot', avant, apres, avecDrapeaux(avant, lotInitial), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) décoché\\(s\\) sensible en lot')]);
+    bilan('Décochage en lot', avant, apres, avecDrapeaux(avant, lotInitial), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) décoché\\(s\\) sensible en lot')].concat(lot.map(() => LIGNE_LOT)));
 
     /* A4. onglet Produits ordonnancier : la case joue sur is_scheduled seulement, sur A2 */
     await C.ouvrirOnglet(p, 'Produits ordonnancier', 'ongletProduitsOrdonnancier');

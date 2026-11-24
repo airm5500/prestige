@@ -230,10 +230,20 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     dataIndex: 'str_TELEPHONE',
                     flex: 0.7
                 }, {
+                    // Plan du 21/11, point 6 : adresse affichee apres le telephone, texte brut, entiere au survol
                     header: 'Adresse',
                     dataIndex: 'str_ADRESSE',
-                    hidden: true,
-                    flex: 1
+                    flex: 0.9,
+                    renderer: function (val, metadata) {
+                        if (Ext.isEmpty(val)) {
+                            return '';
+                        }
+                        var texte = Ext.String.htmlEncode(val);
+                        if (metadata) {
+                            metadata.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(texte) + '"';
+                        }
+                        return texte;
+                    }
 
                 }, {
                     header: 'Boite.Postale',

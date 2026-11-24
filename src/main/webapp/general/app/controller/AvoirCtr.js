@@ -262,6 +262,12 @@ Ext.define('testextjs.controller.AvoirCtr', {
     updateClientStandard: function (client) {
         const me = this;
         const clientStandard = me.getInfosClientStandard();
+        /* retours du 22/11 (lot 10) : « Rappeler avoir » d'une vente au comptant sans client (70 % des ventes VNO) -
+           le bloc client reste masque ; avant, erreur JavaScript et ecran incomplet */
+        if (!client) {
+            clientStandard.hide();
+            return;
+        }
         clientStandard.show();
         me.getNom().setValue(client.strFIRSTNAME + ' ' + client.strLASTNAME);
         me.getMobile().setValue(client.strADRESSE);

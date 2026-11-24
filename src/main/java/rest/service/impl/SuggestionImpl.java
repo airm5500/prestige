@@ -1916,6 +1916,8 @@ public class SuggestionImpl implements SuggestionService {
                         familleGrossiste != null ? familleGrossiste.getStrCODEARTICLE() : famille.getIntCIP());
 
                 json.put("str_FAMILLE_NAME", famille.getStrDESCRIPTION());
+                // plan du 21/11, point 4.5 : classe ABC de la fiche, affichee apres le nom
+                json.put("str_CLASSE_ABC", rest.service.dto.ClasseAbc.lettre(famille.getLgCLASSEABCID()));
                 produitsExtranet.add(new rest.service.extranet.commun.InfosGrossiste.Produit(
                         order.getLgSUGGESTIONORDERDETAILSID(), famille.getStrNAME(),
                         java.util.Arrays.asList(famille.getIntCIP(), famille.getIntCIP2(), famille.getIntCIP3(),
@@ -2454,6 +2456,11 @@ public class SuggestionImpl implements SuggestionService {
             return -1;
         }
         return nettoyer(suggestionId, tUser);
+    }
+
+    @Override
+    public int compterANettoyer(String suggestionId, TUser tUser) {
+        return supprimerLigneSuggestion(suggestionId, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).size();
     }
 
     private int nettoyer(String suggestionId, TUser tUser) {

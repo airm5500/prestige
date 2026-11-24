@@ -709,3 +709,83 @@ affichées.
 Rejoué le 16/11 sur l'intégration (`integration/recette-2026-10-29`, 1991fe41c, puis la même avec la correction) :
 21/12/2023 à l'écran, 2 197 ms et 1 868 410 octets avant, 324 ms et 13 317 octets après ; 12 au 23/10/2026 à
 l'écran, 541 ms et 203 760 octets avant, 324 ms et 18 476 octets après ; détail d'un BL de 445 lignes : 322 ms.
+
+## Plan du 21/11, lot 2 : prévision, analyse des tiers payants, recherche des périmés (21/11)
+
+Branche `plan/21112026`. Deux séries de mesures :
+
+- **copie d'appaul** (port 3306, base `appaul`) : requêtes SQL rejouées en lecture seule avec le client `mariadb` ;
+  ancienne et nouvelle forme rendent le même résultat (empreinte MD5 identique) ;
+- **domain4** sur la base de test `laborex_audit` : appels de l'écran mesurés par `perf/mesure-plan2111-lot2.js` (un
+  appel à froid, puis la médiane de 3 avant et de 5 après). Les réponses avant / après ont été comparées une à une :
+  mêmes lignes et mêmes totaux partout ; seul change l'ordre des ex aequo, désormais départagés par le nom.
+
+### 4.3 Prévision : « Dernière vente » d'un produit très vendu
+
+La fenêtre d'un produit lisait toutes ses ventes depuis l'origine pour n'en garder qu'une. Elle lit maintenant la
+dernière ligne de vente par l'index (produit, date) puis, au besoin, les ventes clôturées depuis cette date.
+
+| Copie d'appaul, produit le plus vendu (81 235 lignes) | Avant | Après |
+|---|---|---|
+| Dernière vente, à froid | 15,9 s | 2,3 ms |
+| Dernière vente, à chaud | 5,6 s | 2,3 ms |
+
+Sur `laborex_audit` (peu de ventes par produit), la fenêtre passe de 160-176 ms à 138-148 ms. Test :
+`achats/test-prevision-derniere-vente-2111.js` (25 produits variés et deux cas limites contre l'ancienne requête).
+
+### 14 Analyse des tiers payants
+
+La requête gardait ses tables, ses jointures et ses conditions, mais MariaDB partait des utilisateurs et relisait
+toutes les ventes depuis l'origine. L'ordre de lecture est maintenant imposé, au choix selon les volumes :
+
+- par la date de la vente ;
+- par les rattachements des tiers payants visés (identifiant, nom cherché, groupe) ;
+- par tous les rattachements, quand il y en a moins que de ventes sur la période (cas de `laborex_audit`).
+
+Le nom du tiers payant de l'état est lu sur sa fiche au lieu de recalculer l'analyse. L'onglet du PDF s'ouvre dans
+le clic : Firefox ne demande plus d'autorisation.
+
+| Copie d'appaul (requête SQL) | Avant | Après |
+|---|---|---|
+| Liste, un mois | 2 952 ms | 212 ms |
+| Liste, un an | 17,7 s à froid, 4,4 à 4,7 s à chaud | 2,3 s |
+| Parts des tiers payants, un an | 3 414 ms | 1 363 ms |
+| Détail d'un gros tiers payant, un mois | 3 073 ms | 134 ms |
+| Détail d'un gros tiers payant, un an | 3 670 ms | 603 ms |
+| Détail d'un petit tiers payant, un mois | 7 ms | 6 ms |
+
+| `laborex_audit`, appel de l'écran (médiane) | Avant | Après |
+|---|---|---|
+| Liste, un mois | 414 ms | 242 ms |
+| Liste, un an | 1 438 ms | 1 234 ms |
+| Recherche « MUGEF », un mois / un an | 306 / 589 ms | 173 / 274 ms |
+| Détail MUGEFCI, un mois / un an | 180 / 246 ms | 110 / 231 ms |
+| CSV, un an | 1 292 ms | 1 246 ms |
+| Excel, un mois (à froid) | 708 ms (2 908 ms) | 257 ms (261 ms) |
+| PDF, un mois (à froid) | 563 ms (3 287 ms) | 300 ms (284 ms) |
+| PDF du détail, un an | 1 848 ms | 377 ms |
+
+Une première version, lisant toujours par la date sans filtre, rendait la liste d'un an plus lente sur
+`laborex_audit` (1,4 s → 2,7 s) : le choix du chemin a été étendu à ce cas avant la livraison. Test :
+`analyse/test-analyse-tierspayant-lenteur-2111.js` (23 cas contre l'ancienne requête, écran, CSV, Excel, PDF).
+
+### 17 Recherche des périmés
+
+Sur la copie d'appaul, la plupart des lots n'ont pas de date de péremption : MariaDB partait des fiches de stock et
+relisait tous les lots de chaque produit, trois fois par appel (nombre, totaux, page). Les lots sont maintenant lus en
+premier (STRAIGHT_JOIN posé par l'inspecteur `OrdreLectureVentes`, requêtes des périmés seulement), et le nombre et
+les totaux en une seule requête. Le badge de la cloche reste un simple compte.
+
+| Copie d'appaul (requêtes SQL) | Avant | Après |
+|---|---|---|
+| Appel de l'écran : nombre + totaux + page | 806 + 773 + 872 ms | 23 + 20 ms |
+| Badge (6 mois) | 0,6 ms | 0,6 ms |
+
+| `laborex_audit`, appel de l'écran (médiane) | Avant | Après |
+|---|---|---|
+| Page 1 (à froid) | 57 ms (124 ms) | 14 ms (30 ms) |
+| Péremptions à 6 mois | 35 ms | 16 ms |
+| CSV | 24 ms | 11 ms |
+
+Test : `retours/test-perimes-lecture-2111.js` (13 cas contre l'ancienne requête : lots, ordre, nombre, totaux, badge,
+produits, CSV).

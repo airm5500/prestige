@@ -933,11 +933,17 @@ public class FacturationServiceImpl implements FacturationService {
     @Override
     public ReportTypeTiersPayantFactureDTO exportReleveFacture(String invoiceFilter, String tiersPayantId,
             String codeFacture, String searchTerm, String dtStart, String dtEnd) {
+        return exportReleveFacture(invoiceFilter, tiersPayantId, codeFacture, searchTerm, dtStart, dtEnd, null);
+    }
+
+    @Override
+    public ReportTypeTiersPayantFactureDTO exportReleveFacture(String invoiceFilter, String tiersPayantId,
+            String codeFacture, String searchTerm, String dtStart, String dtEnd, Integer groupe) {
         SimpleDateFormat df = new SimpleDateFormat("dd/MM/yyyy");
         SimpleDateFormat dHeure = new SimpleDateFormat("HH:mm:ss");
         ReportTypeTiersPayantFactureDTO reportTypeTiersPayantFacture = new ReportTypeTiersPayantFactureDTO();
         Map<TTiersPayant, List<TFacture>> factureByTp = fetchFactures(invoiceFilter, tiersPayantId, codeFacture,
-                searchTerm, dtStart, dtEnd).stream().collect(
+                searchTerm, dtStart, dtEnd, groupe).stream().collect(
                         Collectors.groupingBy(TFacture::getTiersPayant, LinkedHashMap::new, Collectors.toList()));
 
         BigDecimal montantFacture = BigDecimal.ZERO;
@@ -1033,7 +1039,7 @@ public class FacturationServiceImpl implements FacturationService {
     }
 
     private List<TFacture> fetchFactures(String invoiceFilter, String tiersPayantId, String codeFacture,
-            String searchTerm, String dtStart, String dtEnd) {
+            String searchTerm, String dtStart, String dtEnd, Integer groupe) {
         try {
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -1047,6 +1053,10 @@ public class FacturationServiceImpl implements FacturationService {
 
             List<Predicate> predicates = fetchFacturesPredicates(cb, root, st, searchTerm, tiersPayantId, codeFacture,
                     invoiceFilter, DateCommonUtils.from(dtStart), DateCommonUtils.toDateAtEndOfDay(dtEnd));
+            if (groupe != null) {
+                predicates.add(
+                        cb.equal(st.get(TTiersPayant_.lgGROUPEID).get(dal.TGroupeTierspayant_.lgGROUPEID), groupe));
+            }
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TFacture> q = getEntityManager().createQuery(cq);

@@ -3802,6 +3802,7 @@ public class ProduitServiceImpl implements ProduitService {
         eventLog.setStrSTATUT(Constant.STATUT_ENABLE);
         eventLog.setStrTABLECONCERN(famille.getClass().getName());
         eventLog.setTypeLog(typeLog);
+        eventLog.setStrTYPELOG(famille.getLgFAMILLEID()); // retours du 23/11 : onglet « Historique »
         eventLog.setStrDESCRIPTION("Création du produit " + " cip [" + famille.getIntCIP() + " " + famille.getStrNAME()
                 + " par "
                 + notification.getUser().getStrFIRSTNAME().concat(" ").concat(notification.getUser().getStrLASTNAME())

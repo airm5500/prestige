@@ -10,6 +10,9 @@
  *    (colonne « Part du règlement » : la répartition qui sera enregistrée) ; confirmation dans le bouton ;
  *  - Historique : règlements et leur répartition, annulation (confirmation dans le bouton), relevé Excel et PDF par
  *    grossiste.
+ * Retour du 22/11 (lot 9) : filtre par groupe de grossistes sur « À régler » et sur l'historique, renomme « Règlements
+ * effectués » ; « À régler » regroupe les grossistes par groupe (en-tete : nombre de grossistes, BL et total du ; un
+ * clic sur l'en-tete replie ou deplie le detail du groupe) ; mode de reglement propose par defaut : le cheque.
  */
 Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
     extend: 'Ext.panel.Panel',
@@ -25,9 +28,13 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
         var me = this;
         me.storeARegler = Ext.create('Ext.data.Store', {
             fields: ['grossisteId', 'grossiste', {name: 'nombre', type: 'int'}, {name: 't0', type: 'int'}, {name: 't1', type: 'int'},
-                {name: 't2', type: 'int'}, {name: 't3', type: 'int'}, {name: 'total', type: 'int'}],
+                {name: 't2', type: 'int'}, {name: 't3', type: 'int'}, {name: 'total', type: 'int'}, 'groupeId', 'groupe'],
+            groupField: 'groupe',
             proxy: {type: 'ajax', url: me.URL + 'a-regler', reader: {type: 'json', root: 'data'}},
-            listeners: {load: function (s, r, ok) {
+            listeners: {beforeload: function (s) {
+                    var g = me.down('#rfGroupeARegler');
+                    s.getProxy().extraParams = {groupeId: g ? (g.getValue() || '') : ''};
+                }, load: function (s, r, ok) {
                     var raw = s.getProxy().getReader().rawData || {};
                     me.majTotalARegler(ok === false ? null : raw);
                 }}
@@ -37,8 +44,13 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                 {name: 'regle', type: 'int'}, {name: 'restant', type: 'int'}, 'statut', {name: 'part', type: 'int'}],
             proxy: {type: 'ajax', url: me.URL + 'bls', reader: {type: 'json', root: 'data'}},
             listeners: {beforeload: function (s) {
-                    s.getProxy().extraParams = {grossisteId: me.down('#rfGrossiste').getValue() || ''};
+                    var g = me.down('#rfGrossiste').getValue() || '';
+                    /* plan du 21/11, point 1 : les BL coches sont gardes au rechargement (meme grossiste) */
+                    me.blsCoches = g === me.grossisteBls ? me.idsChoisis(me.down('#rfSaisir')) : [];
+                    me.grossisteBls = g;
+                    s.getProxy().extraParams = {grossisteId: g};
                 }, load: function () {
+                    me.rechoisir(me.down('#rfSaisir'), me.blsCoches, true);
                     me.repartir();
                 }}
         });
@@ -48,19 +60,34 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                 'grossisteId', 'grossiste', 'auteur', {name: 'nombreBl', type: 'int'}, 'bls', 'parts'],
             proxy: {type: 'ajax', url: me.URL + 'historique', reader: {type: 'json', root: 'data'}},
             listeners: {beforeload: function (s) {
+                    me.reglementChoisi = me.idsChoisis(me.down('#rfReglements'));
                     s.getProxy().extraParams = me.criteresHistorique();
                 }, load: function (s, r, ok) {
                     var raw = s.getProxy().getReader().rawData || {};
                     me.down('#rfHistoTotal').setText(ok === false ? 'Chargement impossible'
                             : (raw.actifs || 0) + ' règlement(s) · ' + me.montant(raw.montant) + (raw.total > raw.actifs
                             ? ' · ' + (raw.total - raw.actifs) + ' annulé(s)' : ''));
-                    me.storeParts.removeAll();
-                    me.majBoutonAnnuler();
+                    /* plan du 21/11, point 1 : le reglement choisi le reste, avec sa repartition (avant : la ligne
+                       paraissait choisie, le bas etait vide et un nouveau clic sur elle ne faisait plus rien) */
+                    me.rechoisir(me.down('#rfReglements'), me.reglementChoisi, false);
+                    me.chargerParts();
                 }}
         });
         me.storeParts = Ext.create('Ext.data.Store', {
             fields: ['blId', 'numero', 'dateBl', {name: 'ttc', type: 'int'}, {name: 'montant', type: 'int'}]
         });
+        /* retour du 22/11 (lot 9) : groupes de grossistes (« Tous les groupes » en tete), un store par liste */
+        var groupes = function () {
+            return Ext.create('Ext.data.Store', {
+                fields: ['id', 'libelle'], autoLoad: true,
+                proxy: {type: 'ajax', url: '../api/v1/common/groupefournisseurs', reader: {type: 'json', root: 'data'}},
+                listeners: {load: function (st) {
+                        st.insert(0, {id: '', libelle: 'Tous les groupes'});
+                    }}
+            });
+        };
+        me.storeGroupesARegler = groupes();
+        me.storeGroupesHisto = groupes();
         me.storeGrossistes = Ext.create('Ext.data.Store', {
             fields: ['lg_GROSSISTE_ID', 'str_LIBELLE'], pageSize: 999,
             proxy: {type: 'ajax', url: '../api/v1/grossiste/all', reader: {type: 'json', root: 'results', totalProperty: 'total'}}
@@ -101,6 +128,41 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                 rappel(false, {msg: 'Le serveur ne répond pas (code ' + r.status + ').'});
             }
         });
+    },
+
+    /** Identifiants des lignes choisies d'une grille. */
+    idsChoisis: function (grille) {
+        return grille ? Ext.Array.map(grille.getSelectionModel().getSelection(), function (r) {
+            return r.get('id');
+        }) : [];
+    },
+
+    /**
+     * Apres un rechargement, choisit a nouveau les lignes dont l'identifiant est donne (les autres sont oubliees). Sans
+     * cela, ExtJS garde l'ancienne selection sans le signaler : la ligne parait choisie mais ses donnees ne suivent pas.
+     */
+    rechoisir: function (grille, ids, silencieux) {
+        if (!grille) {
+            return;
+        }
+        var sm = grille.getSelectionModel(), store = grille.getStore(), a = [];
+        Ext.each(ids || [], function (id) {
+            var r = store.getById(id);
+            if (r) {
+                a.push(r);
+            }
+        });
+        sm.deselectAll(true);
+        if (a.length) {
+            sm.select(a, false, silencieux === true);
+        }
+    },
+
+    /** Repartition du reglement choisi dans la grille du bas. */
+    chargerParts: function () {
+        var me = this, r = me.down('#rfReglements').getSelectionModel().getSelection()[0];
+        me.storeParts.loadData(r ? (r.get('parts') || []) : []);
+        me.majBoutonAnnuler();
     },
 
     message: function (cmp, ok, texte) {
@@ -196,7 +258,25 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
         };
         return {xtype: 'grid', itemId: 'rfARegler', title: 'À régler', store: me.storeARegler, columnLines: true,
             viewConfig: {emptyText: 'Aucun BL à régler depuis la date de départ.', deferEmptyText: false},
+            /* retour du 22/11 (lot 9) : grossistes regroupes par groupe ; l'en-tete donne le du du groupe, un clic
+               sur lui replie ou deplie le detail */
+            features: [{ftype: 'grouping', itemId: 'rfGroupement', enableGroupingMenu: false, collapsible: true,
+                    groupHeaderTpl: ['{name} — {[this.resume(values.rows)]}', {
+                            resume: function (lignes) {
+                                var bl = 0, du = 0;
+                                Ext.each(lignes || [], function (r) {
+                                    bl += r.get('nombre') || 0;
+                                    du += r.get('total') || 0;
+                                });
+                                return (lignes || []).length + ' grossiste(s) · ' + bl + ' BL · total dû <b>' + me.montant(du) + '</b>';
+                            }
+                        }]}],
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'combobox', itemId: 'rfGroupeARegler', width: 210, store: me.storeGroupesARegler, valueField: 'id',
+                            displayField: 'libelle', queryMode: 'local', editable: false, value: '', emptyText: 'Tous les groupes',
+                            listeners: {select: function () {
+                                    me.storeARegler.load();
+                                }}},
                         {text: 'Actualiser', itemId: 'rfActualiser', iconCls: 'refresh', handler: function () {
                                 me.storeARegler.load();
                             }},
@@ -269,9 +349,12 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                                 me.down('#rfMontant').setValue(me.du());
                             }},
                         {xtype: 'datefield', itemId: 'rfDate', fieldLabel: 'Date', labelWidth: 32, width: 140, format: 'd/m/Y',
-                            value: aujourdhui, maxValue: aujourdhui},
+                            value: aujourdhui, maxValue: aujourdhui}]},
+                /* plan du 21/11, points 1.3 et 3 : la saisie tient sur deux lignes (plus de defilement sur petit ecran) */
+                {xtype: 'toolbar', dock: 'top', itemId: 'rfFormulaire2', items: [
                         {xtype: 'combobox', itemId: 'rfMode', fieldLabel: 'Mode', labelWidth: 36, width: 165, queryMode: 'local',
-                            store: me.MODES, value: 'ESPECES', forceSelection: true, editable: false},
+                            /* retour du 22/11 (lot 9) : le cheque est propose par defaut */
+                            store: me.MODES, value: 'CHEQUE', forceSelection: true, editable: false},
                         {xtype: 'textfield', itemId: 'rfReference', fieldLabel: 'Référence', labelWidth: 62, width: 210,
                             emptyText: 'N° chèque, virement…'},
                         {xtype: 'button', itemId: 'rfEnregistrer', text: 'Enregistrer le règlement', handler: function (b) {
@@ -400,9 +483,10 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
             viewConfig: {emptyText: 'Aucun règlement sur la période.', deferEmptyText: false, getRowClass: function (r) {
                     return r.get('annule') ? 'rf-annule' : '';
                 }},
-            listeners: {selectionchange: function (sm, sel) {
-                    me.storeParts.loadData(sel.length ? (sel[0].get('parts') || []) : []);
-                    me.majBoutonAnnuler();
+            listeners: {selectionchange: function () {
+                    me.chargerParts();
+                }, itemclick: function () {
+                    me.chargerParts();
                 }},
             columns: [
                 {text: 'Date', dataIndex: 'date', width: 90},
@@ -424,7 +508,8 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                     }}
             ]
         });
-        return {xtype: 'panel', itemId: 'rfHistorique', title: 'Historique', layout: 'border', border: false,
+        /* retour du 22/11 (lot 9) : « Historique » devient « Règlements effectués » */
+        return {xtype: 'panel', itemId: 'rfHistorique', title: 'Règlements effectués', layout: 'border', border: false,
             dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'rfBarreHistorique', items: [
                         {xtype: 'datefield', itemId: 'rfDu', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y',
                             value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui, listeners: entree},
@@ -434,10 +519,20 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
                             displayField: 'str_LIBELLE', queryMode: 'remote', minChars: 1, typeAhead: true, emptyText: 'Tous les grossistes',
                             listeners: Ext.apply({select: function () {
                                     me.storeReglements.load();
+                                }, change: function () {
+                                    /* plan du 21/11, point 1 : « Choisissez le grossiste du relevé » ne reste pas affiche */
+                                    me.message('#rfHistoMessage', true, '');
                                 }}, entree)},
+                        {xtype: 'combobox', itemId: 'rfHistoGroupe', width: 190, store: me.storeGroupesHisto, valueField: 'id',
+                            displayField: 'libelle', queryMode: 'local', editable: false, value: '', emptyText: 'Tous les groupes',
+                            listeners: {select: function () {
+                                    me.storeReglements.load();
+                                }}},
                         {text: 'Rechercher', itemId: 'rfRechercher', iconCls: 'searchicon', handler: function () {
                                 me.storeReglements.load();
-                            }},
+                            }}]},
+                /* plan du 21/11, points 1.3 et 3 : filtres en haut, actions et totaux en dessous */
+                {xtype: 'toolbar', dock: 'top', itemId: 'rfActionsHistorique', items: [
                         {text: 'Relevé', itemId: 'rfReleve', menu: [
                                 {text: 'Excel', itemId: 'rfReleveExcel', handler: function () {
                                         me.releve('excel');
@@ -456,7 +551,8 @@ Ext.define('testextjs.view.commandemanagement.etats.ReglementsFournisseurs', {
         var me = this, aujourdhui = new Date();
         return {dtStart: Ext.Date.format(me.down('#rfDu').getValue() || Ext.Date.getFirstDateOfMonth(aujourdhui), 'Y-m-d'),
             dtEnd: Ext.Date.format(me.down('#rfAu').getValue() || aujourdhui, 'Y-m-d'),
-            grossisteId: me.down('#rfHistoGrossiste').getValue() || ''};
+            grossisteId: me.down('#rfHistoGrossiste').getValue() || '',
+            groupeId: me.down('#rfHistoGroupe') ? (me.down('#rfHistoGroupe').getValue() || '') : ''};
     },
 
     majBoutonAnnuler: function () {
