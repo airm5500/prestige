@@ -70,13 +70,14 @@ Register-ScheduledTask -TaskName $TACHE -Principal $systeme -Settings $reglages 
 # Utilisateurs authentifies (AU) : lecture et execution de cette tache seulement
 $service = New-Object -ComObject 'Schedule.Service'
 $service.Connect()
-$tache = $service.GetFolder('\').GetTask($TACHE)
-$sd = $tache.GetSecurityDescriptor(0xF)
+# nom distinct de $TACHE : PowerShell ne distingue pas les majuscules ($tache ecrasait le nom de la tache)
+$objetTache = $service.GetFolder('\').GetTask($TACHE)
+$sd = $objetTache.GetSecurityDescriptor(0xF)
 if ($sd -notmatch '\(A;;GRGX;;;AU\)') {
     # l'entree va dans la DACL (D:...), avant une eventuelle SACL (S:...)
     $i = $sd.IndexOf('S:')
     $nouveau = if ($i -ge 0) { $sd.Insert($i, '(A;;GRGX;;;AU)') } else { $sd + '(A;;GRGX;;;AU)' }
-    $tache.SetSecurityDescriptor($nouveau, 0)
+    $objetTache.SetSecurityDescriptor($nouveau, 0)
 }
 Write-Host "creee : $TACHE (SYSTEM ; lancement permis aux utilisateurs authentifies)"
 Etat
