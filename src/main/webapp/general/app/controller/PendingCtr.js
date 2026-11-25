@@ -258,8 +258,12 @@ Ext.define('testextjs.controller.PendingCtr', {
 
     },
 
-    doInitStore: function () {
+    doInitStore: function (grille) {
         var me = this;
+        /* le tableau de l'onglet « Ventes en cours et interrompues » se charge lui-meme a l'ouverture de l'onglet */
+        if (grille && grille !== me.getPendingGrid()) {
+            return;
+        }
 //         me.getPendingGrid().plugins.push({
 //                    ptype: 'rowexpander',
 //                    rowBodyTpl: new Ext.XTemplate(
@@ -288,6 +292,31 @@ Ext.define('testextjs.controller.PendingCtr', {
                 "typeVenteId": me.getTypeComboField().getValue()
             }
         });
+        /* retour du 25/11 (point 2) : les memes filtres valent pour l'onglet « Ventes en cours et interrompues » ;
+         * gardes sur sa liste (ouverture de l'onglet, « Actualiser », rafraichissement des 15 s) */
+        var enCours = me.getPending() ? me.getPending().down('ventesencourssaisie') : null;
+        if (enCours) {
+            var proxy = enCours.ventes.getProxy();
+            proxy.setExtraParam('query', me.getQueryField().getValue() || '');
+            proxy.setExtraParam('typeVenteId', me.getTypeComboField().getValue() || '');
+            if (me.ongletEnCours()) {
+                enCours.ventes.load();
+            }
+        }
+    },
+    /** Vrai quand l'onglet « Ventes en cours et interrompues » est affiche. */
+    ongletEnCours: function () {
+        var p = this.getPending(), t = p ? p.down('#ongletsVentes') : null, a = t ? t.getActiveTab() : null;
+        return !!a && a.itemId === 'ongletEnCours';
+    },
+    /** Adresses et libelles des impressions et de l'inventaire, selon l'onglet affiche. */
+    cible: function () {
+        if (this.ongletEnCours()) {
+            return {pdf: '../api/v1/vente-saisie/en-cours/produits/pdf', count: '../api/v1/vente-saisie/en-cours/produits/count',
+                inventaire: '../api/v1/vente-saisie/en-cours/create-inventaire', libelle: 'ventes en cours et interrompues affichees'};
+        }
+        return {pdf: '../api/v1/ventestats/preventes/produits/pdf', count: '../api/v1/ventestats/preventes/produits/count',
+            inventaire: '../api/v1/ventestats/preventes/create-inventaire', libelle: 'ventes en attente affichees'};
     },
     // Filtres actifs de la liste (repris pour les impressions et l'inventaire)
     getActiveFilters: function () {
@@ -303,7 +332,7 @@ Ext.define('testextjs.controller.PendingCtr', {
         var params = Ext.apply({mode: mode}, me.getActiveFilters());
         var progress = Ext.MessageBox.wait('Generation du PDF . . .', 'Veuillez patienter');
         Ext.Ajax.request({
-            url: '../api/v1/ventestats/preventes/produits/pdf',
+            url: me.cible().pdf,
             method: 'GET',
             params: params,
             timeout: 600000,
@@ -332,10 +361,10 @@ Ext.define('testextjs.controller.PendingCtr', {
     // Creation d'inventaire avec les produits des ventes en attente affichees
     // (un meme produit dans plusieurs ventes = une seule ligne)
     onCreateInventaire: function () {
-        var me = this, filters = me.getActiveFilters();
+        var me = this, filters = me.getActiveFilters(), cible = me.cible();
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Controle des produits');
         Ext.Ajax.request({
-            url: '../api/v1/ventestats/preventes/produits/count',
+            url: cible.count,
             method: 'GET',
             params: filters,
             success: function (resp) {
@@ -343,12 +372,12 @@ Ext.define('testextjs.controller.PendingCtr', {
                 var r = Ext.JSON.decode(resp.responseText, true);
                 var count = (r && r.count) ? r.count : 0;
                 if (count === 0) {
-                    Ext.MessageBox.alert('Message', 'Aucun produit dans les ventes en attente affichees.');
+                    Ext.MessageBox.alert('Message', 'Aucun produit dans les ' + cible.libelle + '.');
                     return;
                 }
                 Ext.MessageBox.confirm('Confirmation',
                         'Vous allez creer un inventaire contenant <b>' + count
-                        + '</b> produit(s) distinct(s) des ventes en attente affichees.<br/>Confirmez-vous ?',
+                        + '</b> produit(s) distinct(s) des ' + cible.libelle + '.<br/>Confirmez-vous ?',
                         function (btn) {
                             if (btn !== 'yes') {
                                 return;
@@ -356,7 +385,7 @@ Ext.define('testextjs.controller.PendingCtr', {
                             var prog = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
                             Ext.Ajax.request({
                                 // filtres en query string : le endpoint lit des @QueryParam
-                                url: '../api/v1/ventestats/preventes/create-inventaire?'
+                                url: cible.inventaire + '?'
                                         + Ext.Object.toQueryString(filters),
                                 method: 'POST',
                                 timeout: 600000,

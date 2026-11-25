@@ -24,7 +24,7 @@ Ext.define('testextjs.view.vente.VentesEnCoursSaisie', {
         me.armes = {};
         me.ventes = Ext.create('Ext.data.Store', {
             fields: ['id', 'numero', 'etat', 'libelle', 'poste', 'dernierSignal', 'cause', 'montant', 'lignes',
-                'utilisateur', 'depot', 'ecran', 'depotId', 'commencee', 'reprenable'],
+                'utilisateur', 'depot', 'ecran', 'depotId', 'commencee', 'reprenable', 'typeVente', 'typeVenteId'],
             proxy: {type: 'ajax', url: '../api/v1/vente-saisie/en-cours', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
             /* retours du 25/11 (1.4) : en onglet du menu « Ventes », chargee a la premiere ouverture de l'onglet */
             autoLoad: !me.chargerALaDemande
@@ -46,26 +46,35 @@ Ext.define('testextjs.view.vente.VentesEnCoursSaisie', {
                     xtype: 'gridpanel', itemId: 'vcsGrille', store: me.ventes,
                     viewConfig: {emptyText: '<div style="padding:12px;color:#64748b">Aucune vente en cours de saisie ni de saisie interrompue aujourd\'hui.</div>',
                         deferEmptyText: false, markDirty: false},
+                    /* retour du 25/11 (point 2) : colonnes resserrees, le tableau tient sans defilement de cote a
+                     * 1280 px (utilisateur, poste, cause et bouton de reprise passent a la ligne) */
                     columns: [
-                        {header: 'Vente', dataIndex: 'numero', width: 120, menuDisabled: true, renderer: function (v, m, r) {
+                        {header: 'Vente', dataIndex: 'numero', width: 100, menuDisabled: true, renderer: function (v, m, r) {
                                 return e(v) + (r.get('depot') ? ' <span style="color:#64748b">(dépôt)</span>' : '');
                             }},
-                        {header: 'État', dataIndex: 'libelle', width: 150, menuDisabled: true, renderer: function (v, m, r) {
+                        {header: 'État', dataIndex: 'libelle', width: 135, menuDisabled: true, renderer: function (v, m, r) {
                                 var c = r.get('etat') === 'INTERROMPUE' ? '#b45309;background:#fef3c7' : '#1d4ed8;background:#dbeafe';
                                 return '<span class="vcs-etat" style="padding:2px 8px;border-radius:10px;color:' + c + '">' + e(v) + '</span>';
                             }},
-                        {header: 'Utilisateur', dataIndex: 'utilisateur', flex: 1, minWidth: 140, menuDisabled: true, renderer: e},
-                        {header: 'Poste', dataIndex: 'poste', width: 140, menuDisabled: true, renderer: e},
-                        {header: 'Commencée à', dataIndex: 'commencee', width: 95, menuDisabled: true, renderer: e},
-                        {header: 'Dernier signal', dataIndex: 'dernierSignal', width: 105, menuDisabled: true, renderer: e},
-                        {header: 'Cause', dataIndex: 'cause', width: 200, menuDisabled: true, renderer: function (v) {
+                        {header: 'Utilisateur', dataIndex: 'utilisateur', flex: 1, minWidth: 110, tdCls: 'vcs-retour', menuDisabled: true, renderer: e},
+                        {header: 'Poste', dataIndex: 'poste', width: 110, tdCls: 'vcs-retour', menuDisabled: true, renderer: e},
+                        {header: 'Commencée à', dataIndex: 'commencee', width: 85, menuDisabled: true, renderer: e},
+                        {header: 'Dernier signal', dataIndex: 'dernierSignal', width: 90, menuDisabled: true, renderer: e},
+                        {header: 'Cause', dataIndex: 'cause', flex: 1, minWidth: 120, tdCls: 'vcs-retour', menuDisabled: true, renderer: function (v) {
                                 return e(me.CAUSES[v] || v);
                             }},
-                        {header: 'Lignes', dataIndex: 'lignes', width: 70, align: 'right', menuDisabled: true},
-                        {header: 'Montant', dataIndex: 'montant', width: 100, align: 'right', menuDisabled: true, renderer: function (v) {
+                        {header: 'Lignes', dataIndex: 'lignes', width: 50, align: 'right', menuDisabled: true},
+                        {header: 'Montant', dataIndex: 'montant', width: 85, align: 'right', menuDisabled: true, renderer: function (v) {
                                 return Ext.util.Format.number(v || 0, '0,000').replace(/,/g, ' ');
                             }},
-                        {header: '', itemId: 'vcsColReprendre', width: 230, menuDisabled: true, renderer: function (v, m, r) {
+                        /* retour du 25/11 (point 2) : le type (apres le montant : le rang des colonnes lu par les tests reste le meme), filtre par les puces du menu « Ventes » ; meme pastille
+                         * que l'onglet des ventes en attente */
+                        {header: 'Type', dataIndex: 'typeVenteId', itemId: 'vcsColType', width: 105, menuDisabled: true, renderer: function (v, m, r) {
+                                var id = String(v || ''), libelles = {'1': 'Au comptant', '2': 'Assurance', '3': 'Carnet'};
+                                var cls = {'1': 'va-p-ok', '2': 'va-p-info', '3': 'va-p-att'}[id] || 'va-p-gris';
+                                return '<span class="va-pill ' + cls + '">' + e(libelles[id] || r.get('typeVente')) + '</span>';
+                            }},
+                        {header: '', itemId: 'vcsColReprendre', width: 195, tdCls: 'vcs-retour', menuDisabled: true, renderer: function (v, m, r) {
                                 if (!r.get('reprenable')) {
                                     return '';
                                 }

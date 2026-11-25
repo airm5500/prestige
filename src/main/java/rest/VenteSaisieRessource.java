@@ -139,10 +139,41 @@ public class VenteSaisieRessource {
             + " (SELECT COUNT(*) FROM t_preenregistrement_detail d"
             + "   WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID),"
             + " CONCAT(u.str_FIRST_NAME, ' ', u.str_LAST_NAME), p.lg_USER_ID, p.lg_NATURE_VENTE_ID,"
-            + " DATE_FORMAT(p.dt_CREATED, '%H:%i:%s'), p.saisie_avant_maj, p.lg_EMPLACEMENT_VENTE_ID"
+            + " DATE_FORMAT(p.dt_CREATED, '%H:%i:%s'), p.saisie_avant_maj, p.lg_EMPLACEMENT_VENTE_ID,"
+            + " p.str_TYPE_VENTE, p.lg_TYPE_VENTE_ID, DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y')"
             + " FROM t_preenregistrement p LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
             + " WHERE p.etat_saisie IN ('EN_COURS', 'INTERROMPUE') AND p.str_STATUT IN ('is_Process', 'pending')"
             + " AND p.dt_UPDATED >= CURDATE() ORDER BY p.etat_saisie, p.dt_CREATED";
+
+    /**
+     * Ventes de l'onglet « Ventes en cours et interrompues » : toutes avec le droit « voir », sinon les saisies
+     * interrompues de l'utilisateur. Retour du 25/11 : mêmes filtres que la liste des ventes en attente (type VNO / VO,
+     * recherche au début de la référence, du CIP ou du nom d'un produit) ; l'écran, les impressions et l'inventaire
+     * lisent les mêmes ventes.
+     */
+    private List<Object[]> ventesEnCours(VenteSaisieService.Acteur a, String query, String typeVenteId) {
+        List<Object> valeurs = new java.util.ArrayList<>();
+        StringBuilder w = new StringBuilder();
+        if (!a.droits.contains(Droit.VOIR_EN_COURS)) {
+            valeurs.add(a.utilisateurId);
+            w.append(" AND p.etat_saisie = 'INTERROMPUE' AND p.lg_USER_ID = ?").append(valeurs.size());
+        }
+        if (typeVenteId != null && !typeVenteId.trim().isEmpty()) {
+            valeurs.add(typeVenteId.trim());
+            w.append(" AND p.str_TYPE_VENTE = ?").append(valeurs.size());
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            valeurs.add(query.trim() + "%");
+            String r = "?" + valeurs.size();
+            w.append(" AND (p.str_REF LIKE ").append(r)
+                    .append(" OR p.lg_PREENREGISTREMENT_ID IN (SELECT d.lg_PREENREGISTREMENT_ID")
+                    .append(" FROM t_preenregistrement_detail d JOIN t_famille f ON d.lg_FAMILLE_ID = f.lg_FAMILLE_ID")
+                    .append(" WHERE f.int_CIP LIKE ").append(r).append(" OR f.str_NAME LIKE ").append(r).append("))");
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = requete(LISTE_SQL.replace(" ORDER BY", w + " ORDER BY"), valeurs).getResultList();
+        return l;
+    }
 
     /**
      * Écran « Ventes en cours de saisie et saisies interrompues » : du jour, en lecture (droit « voir »). Sans ce
@@ -151,17 +182,13 @@ public class VenteSaisieRessource {
      */
     @GET
     @Path("en-cours")
-    public Response enCours() {
+    public Response enCours(@QueryParam("query") String query, @QueryParam("typeVenteId") String typeVenteId) {
         VenteSaisieService.Acteur a = acteur(servletRequest);
         if (a == null) {
             return connexion();
         }
         boolean tout = a.droits.contains(Droit.VOIR_EN_COURS);
-        @SuppressWarnings("unchecked")
-        List<Object[]> l = (tout ? em.createNativeQuery(LISTE_SQL)
-                : em.createNativeQuery(LISTE_SQL.replace(" ORDER BY",
-                        " AND p.etat_saisie = 'INTERROMPUE' AND p.lg_USER_ID = ?1 ORDER BY"))
-                        .setParameter(1, a.utilisateurId)).getResultList();
+        List<Object[]> l = ventesEnCours(a, query, typeVenteId);
         JSONArray data = new JSONArray();
         for (Object[] r : l) {
             boolean interrompue = "INTERROMPUE".equals(r[2]);
@@ -178,7 +205,8 @@ public class VenteSaisieRessource {
                     .put("montant", r[6] == null ? 0 : ((Number) r[6]).longValue())
                     .put("lignes", ((Number) r[7]).intValue()).put("utilisateur", s(r[8])).put("auteur", auteur)
                     .put("depot", "3".equals(s(r[10]))).put("ecran", ecranDepot ? "depot" : "vente")
-                    .put("depotId", ecranDepot ? depotId : "").put("commencee", s(r[11])).put("reprenable",
+                    .put("depotId", ecranDepot ? depotId : "").put("commencee", s(r[11])).put("typeVente", s(r[14]))
+                    .put("typeVenteId", s(r[15])).put("reprenable",
                             interrompue && (auteur || a.droits.contains(Droit.REPRENDRE_INTERROMPUE_AUTRUI))));
         }
         return Response.ok(new JSONObject().put("success", true).put("data", data).put("total", data.length())
@@ -530,5 +558,133 @@ public class VenteSaisieRessource {
         int n = inventaireService.create(produits, nom,
                 description.length() > 200 ? description.substring(0, 200) : description);
         return Response.ok(new JSONObject().put("success", true).put("count", n).put("nom", nom).toString()).build();
+    }
+
+    @EJB
+    private rest.report.ReportUtil reportUtil;
+
+    /**
+     * Retour du 25/11 : produits des ventes de l'onglet « Ventes en cours et interrompues » (mêmes ventes et mêmes
+     * filtres que l'écran), au format des impressions des ventes en attente. parVente : ventes dans l'ordre où elles
+     * ont été commencées, produits par ordre alphabétique ; sinon liste alphabétique avec le numéro de vente.
+     */
+    private List<rest.service.dto.PreventeProduitDTO> produitsEnCours(VenteSaisieService.Acteur a, String query,
+            String typeVenteId, boolean parVente) {
+        java.util.Map<String, Object[]> ventes = new java.util.LinkedHashMap<>();
+        for (Object[] r : ventesEnCours(a, query, typeVenteId)) {
+            ventes.put(s(r[0]), r);
+        }
+        List<rest.service.dto.PreventeProduitDTO> rows = new java.util.ArrayList<>();
+        if (ventes.isEmpty()) {
+            return rows;
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT d.lg_PREENREGISTREMENT_ID, f.lg_FAMILLE_ID, f.int_CIP,"
+                + " f.str_NAME, d.int_QUANTITY FROM t_preenregistrement_detail d"
+                + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE d.lg_PREENREGISTREMENT_ID IN (?1)")
+                .setParameter(1, new java.util.ArrayList<>(ventes.keySet())).getResultList();
+        for (Object[] d : l) {
+            Object[] v = ventes.get(s(d[0]));
+            if (v == null) {
+                continue;
+            }
+            rest.service.dto.PreventeProduitDTO row = new rest.service.dto.PreventeProduitDTO();
+            row.setVenteId(s(v[0]));
+            row.setVenteRef(s(v[1]));
+            row.setDateVente(s(v[16]));
+            row.setHeure(s(v[11]));
+            row.setVendeur(s(v[8]).trim());
+            row.setProduitId(s(d[1]));
+            row.setProduitCip(s(d[2]));
+            row.setProduitLibelle(s(d[3]));
+            row.setQuantite(d[4] == null ? 0 : ((Number) d[4]).intValue());
+            rows.add(row);
+        }
+        java.util.Comparator<rest.service.dto.PreventeProduitDTO> produit = java.util.Comparator
+                .comparing(r -> s(r.getProduitLibelle()));
+        rows.sort(parVente
+                ? java.util.Comparator.comparing((rest.service.dto.PreventeProduitDTO r) -> s(r.getHeure()))
+                        .thenComparing(r -> s(r.getVenteRef())).thenComparing(produit)
+                : produit.thenComparing(r -> s(r.getVenteRef())));
+        return rows;
+    }
+
+    private java.util.Set<String> produitIdsEnCours(VenteSaisieService.Acteur a, String query, String typeVenteId) {
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        for (rest.service.dto.PreventeProduitDTO r : produitsEnCours(a, query, typeVenteId, false)) {
+            ids.add(r.getProduitId());
+        }
+        return ids;
+    }
+
+    private static String criteresEnCours(String query, String typeVenteId) {
+        StringBuilder b = new StringBuilder("VENTES EN COURS ET INTERROMPUES DU "
+                + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        if (typeVenteId != null && !typeVenteId.trim().isEmpty()) {
+            b.append(" - TYPE : ").append(typeVenteId.trim());
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            b.append(" - RECHERCHE : ").append(query.trim());
+        }
+        return b.toString();
+    }
+
+    /**
+     * Impression « par vente » ou « liste des produits » de l'onglet ; même réponse que celle des ventes en attente.
+     */
+    @GET
+    @Path("en-cours/produits/pdf")
+    public Response enCoursProduitsPdf(@QueryParam("query") String query, @QueryParam("typeVenteId") String typeVenteId,
+            @QueryParam("mode") String mode) {
+        VenteSaisieService.Acteur a = acteur(servletRequest);
+        if (a == null) {
+            return connexion();
+        }
+        boolean parVente = !"LISTE".equalsIgnoreCase(mode);
+        List<rest.service.dto.PreventeProduitDTO> data = produitsEnCours(a, query, typeVenteId, parVente);
+        if (data.isEmpty()) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("message", "Aucun produit a imprimer").toString())
+                    .build();
+        }
+        java.util.Map<String, Object> params = reportUtil.officineData(Droits.utilisateur(servletRequest));
+        params.put("P_H_CLT_INFOS", (parVente ? "PRODUITS DES VENTES EN COURS PAR VENTE - "
+                : "LISTE COMPLETE DES PRODUITS DES VENTES EN COURS - ") + criteresEnCours(query, typeVenteId));
+        String url = servletRequest.getContextPath() + reportUtil.buildReport(params,
+                parVente ? "rp_preventes_produits_par_vente" : "rp_preventes_produits_liste", data);
+        return Response.ok(new JSONObject().put("success", true).put("url", url).toString()).build();
+    }
+
+    /** Nombre de produits distincts des ventes de l'onglet (contrôle avant la création de l'inventaire). */
+    @GET
+    @Path("en-cours/produits/count")
+    public Response enCoursProduitsCount(@QueryParam("query") String query,
+            @QueryParam("typeVenteId") String typeVenteId) {
+        VenteSaisieService.Acteur a = acteur(servletRequest);
+        if (a == null) {
+            return connexion();
+        }
+        return Response.ok(new JSONObject().put("success", true)
+                .put("count", produitIdsEnCours(a, query, typeVenteId).size()).toString()).build();
+    }
+
+    /** Inventaire des produits des ventes de l'onglet : un produit présent dans plusieurs ventes compte une fois. */
+    @POST
+    @Path("en-cours/create-inventaire")
+    public Response enCoursCreerInventaire(@QueryParam("query") String query,
+            @QueryParam("typeVenteId") String typeVenteId) {
+        VenteSaisieService.Acteur a = acteur(servletRequest);
+        if (a == null) {
+            return connexion();
+        }
+        java.util.Set<String> produits = produitIdsEnCours(a, query, typeVenteId);
+        if (produits.isEmpty()) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("message", "Aucun produit dans les ventes en cours").toString()).build();
+        }
+        String nom = "INVENTAIRE PRODUITS EN COURS DU " + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        int n = inventaireService.create(produits, nom, nom);
+        return Response.ok(new JSONObject().put("success", true).put("count", n).toString()).build();
     }
 }

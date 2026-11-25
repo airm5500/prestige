@@ -173,10 +173,10 @@ const limiter = (ids) => ids.split(',').filter((x) => x && Number(x) > J0).join(
       return { lignes: v.ventes.getRange().map((r) => r.get('id') + '/' + r.get('etat') + '/' + r.get('lignes')) }; });
     ok('1. Onglet « Ventes en cours et interrompues » : la vente D de JS2 (INTERROMPUE, 1 ligne, comme en base)',
       o2.lignes.includes(vD + '/INTERROMPUE/1') && q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'") === '1', JSON.stringify(o2));
-    /* retour du 25/11 : la barre ne disparait plus ; « Nouvelle vente » reste active, le reste (liste des ventes en attente) est grise avec sa raison */
+    /* retour du 25/11 (point 2) : la barre porte aussi sur cet onglet (test-ventes-en-cours-barre-2511.js) : tout est actif */
     const b2 = await barreMenu();
-    ok('1. Onglet « Ventes en cours et interrompues » : barre toujours visible, « Nouvelle vente » active, type, recherche, impressions et inventaire grisés avec la raison au survol',
-      b2.barre && JSON.stringify(b2.actifs) === '["addBtn"]' && b2.titres.length === 6, JSON.stringify(b2));
+    ok('1. Onglet « Ventes en cours et interrompues » : barre toujours visible, entièrement active (type, recherche, impressions et inventaire portent sur cet onglet)',
+      b2.barre && b2.actifs.length === 7 && b2.titres.length === 0, JSON.stringify(b2));
     await j2.p.locator('.x-tab', { hasText: 'Ventes en attente' }).first().click();
     await j2.p.waitForTimeout(300);
     const b1 = await barreMenu();
