@@ -232,24 +232,45 @@ const barre = (p) => p.evaluate(() => { const e = Ext.ComponentQuery.query('clot
     ok('4. Filtre « Au comptant » respecté par l\'impression : X présente, Y absente', pc.texte.indexOf(refX) >= 0 && pc.texte.indexOf(refY) < 0 && /TYPE :\s+VNO/.test(pc.texte), pc.texte.slice(0, 800));
     await puce(vu.p, 'Toutes');
 
-    /* 5. inventaire des produits des ventes affichees (recherche = reference de X) */
+    /* 5. inventaire des produits des ventes affichees (recherche = reference de X). Retour du 25/11 : aucune fenetre,
+       la confirmation se fait dans le bouton (1er clic : nombre de produits, 5 s pour confirmer ; 2e clic : creation) */
     await chercher(vu.p, refX);
     const inv0 = inventaires();
-    const idInv = await vu.p.evaluate(() => Ext.ComponentQuery.query('cloturerventemanager #createInventaire')[0].getId());
-    await vu.p.click('#' + idInv);
-    /* la fenetre d'attente (« Veuillez patienter ») precede la question */
-    await vu.p.locator('.x-message-box:visible', { hasText: 'Confirmez' }).first().waitFor({ timeout: 20000 });
-    const question = await vu.p.locator('.x-message-box:visible', { hasText: 'Confirmez' }).first().innerText();
-    ok('5. « Créer un inventaire » : 2 produits distincts annoncés pour X (P1 deux fois = une), aucun inventaire avant la confirmation',
-      /\b2\b/.test(question) && /ventes en cours/.test(question) && inventaires() === inv0, question);
-    await vu.p.locator('.x-message-box:visible .x-btn', { hasText: /^(Oui|Yes)$/ }).first().click();
+    const boutonInv = () => vu.p.evaluate(() => { const b = Ext.ComponentQuery.query('cloturerventemanager #createInventaire')[0];
+      return { id: b.getId(), texte: b.getText(), arme: b.hasCls('psv-arme'), fenetre: Ext.ComponentQuery.query('messagebox{isVisible()}').length }; });
+    const texteInv = (re) => vu.p.waitForFunction((r) => new RegExp(r).test(Ext.ComponentQuery.query('cloturerventemanager #createInventaire')[0].getText()), re.source, { timeout: 20000 }).catch(() => {});
+    await vu.p.click('#' + (await boutonInv()).id);
+    await texteInv(/Confirmer/);
+    const i1 = await boutonInv();
+    ok('5. « Créer un inventaire », 1er clic : le bouton annonce 2 produits (P1 deux fois = une) et demande confirmation, sans fenêtre ; aucun inventaire',
+      /Confirmer : inventaire de 2 produit/.test(i1.texte) && i1.arme && i1.fenetre === 0 && inventaires() === inv0, JSON.stringify(i1));
+    /* sans 2e clic, le bouton se desarme au bout de 5 s : rien n'est cree */
+    await vu.p.waitForTimeout(5800);
+    const i2 = await boutonInv();
+    ok('5. Sans second clic dans les 5 s : le bouton revient à « Créer un inventaire », aucun inventaire créé',
+      i2.texte === 'Créer un inventaire' && !i2.arme && inventaires() === inv0, JSON.stringify(i2));
+    await vu.p.click('#' + i2.id);
+    await texteInv(/Confirmer/);
+    await vu.p.click('#' + i2.id);
     await attendre(() => inventaires() !== inv0, 20000);
-    await vu.p.waitForTimeout(800);
+    await texteInv(/Inventaire créé/);
+    const i3 = await boutonInv();
     const invs = inventaires().split(',').filter(Boolean);
     const produitsInv = invs.length === 1 ? q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY lg_FAMILLE_ID) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = '" + invs[0] + "'") : '';
-    ok('5. Inventaire créé : un seul, avec P1 et P2 une fois chacun (= produits de X en base)',
-      invs.length === 1 && produitsInv === [P1.id, P2.id].sort().join(','), invs.join(',') + ' : ' + produitsInv + ' attendu ' + [P1.id, P2.id].sort().join(','));
-    await vu.p.locator('.x-message-box:visible .x-btn', { hasText: /^OK$/ }).first().click().catch(() => {});
+    ok('5. 2e clic : un seul inventaire, avec P1 et P2 une fois chacun (= produits de X en base) ; le bouton le dit, sans fenêtre',
+      invs.length === 1 && produitsInv === [P1.id, P2.id].sort().join(',') && /Inventaire créé : 2 produit/.test(i3.texte) && i3.fenetre === 0,
+      invs.join(',') + ' : ' + produitsInv + ' attendu ' + [P1.id, P2.id].sort().join(',') + ' ' + JSON.stringify(i3));
+    await vu.p.waitForTimeout(4500);
+    const i4 = await boutonInv();
+    ok('5. Le message du bouton s\'efface : « Créer un inventaire » de nouveau', i4.texte === 'Créer un inventaire' && !i4.arme, JSON.stringify(i4));
+    /* recherche sans vente : le bouton dit « Aucun produit », rien n'est cree */
+    await chercher(vu.p, 'ZZQ' + MARQUE);
+    await vu.p.click('#' + i4.id);
+    await texteInv(/Aucun produit/);
+    const i5 = await boutonInv();
+    ok('5. Aucune vente affichée : « Aucun produit » dans le bouton, sans fenêtre, rien de créé',
+      /Aucun produit/.test(i5.texte) && i5.fenetre === 0 && inventaires().split(',').filter(Boolean).length === 1, JSON.stringify(i5));
+    await chercher(vu.p, '');
     ok('5. Bilan : ventes X et Y intactes (statut, montant, lignes)', empreinte(vX) === avantX && empreinte(vY) === avantY, [empreinte(vX), empreinte(vY)].join(' / '));
 
     /* 6. droits : JS1 sans le droit « voir » ne voit que sa vente interrompue, son impression aussi */
@@ -269,6 +290,15 @@ const barre = (p) => p.evaluate(() => { const e = Ext.ComponentQuery.query('clot
     ok('7. Onglet « Ventes en attente » : barre active, X et Y absentes de la liste (elles ne sont pas en attente)', b7.actifs.length === 7
       && !(await vu.p.evaluate((ids) => Ext.ComponentQuery.query('cloturerventemanager gridpanel')[0].getStore().getRange().some((r) => ids.includes(r.get('lgPREENREGISTREMENTID'))), ventes)), JSON.stringify(b7) + ' ' + n7);
 
+    /* 7. meme bouton sur l'onglet « Ventes en attente » : texte sans vente -> « Aucun produit » dans le bouton, sans fenetre */
+    await chercher(vu.p, 'ZZQ' + MARQUE);
+    await vu.p.waitForTimeout(500);
+    await vu.p.click('#' + (await boutonInv()).id);
+    await texteInv(/Aucun produit/);
+    const i7 = await boutonInv();
+    ok('7. Onglet « Ventes en attente » : « Créer un inventaire » sans vente -> « Aucun produit » dans le bouton, sans fenêtre',
+      /Aucun produit dans les ventes en attente/.test(i7.texte) && i7.fenetre === 0, JSON.stringify(i7));
+    await chercher(vu.p, '');
     /* 8. ergonomie de l'ecran complet */
     await vu.p.locator('.x-tab', { hasText: 'Ventes en cours et interrompues' }).first().click();
     await chargee(vu.p);

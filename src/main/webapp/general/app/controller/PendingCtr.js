@@ -81,6 +81,12 @@ Ext.define('testextjs.controller.PendingCtr', {
             'cloturerventemanager #createInventaire': {
                 click: this.onCreateInventaire
             },
+            /* l'inventaire arme porte sur l'onglet affiche : un changement d'onglet le desarme */
+            'cloturerventemanager #ongletsVentes': {
+                tabchange: function () {
+                    this.desarmerInventaire();
+                }
+            },
             'preventeDetail #btnCancel': {
                 click: this.onClosePreventeDetail
             }
@@ -313,10 +319,10 @@ Ext.define('testextjs.controller.PendingCtr', {
     cible: function () {
         if (this.ongletEnCours()) {
             return {pdf: '../api/v1/vente-saisie/en-cours/produits/pdf', count: '../api/v1/vente-saisie/en-cours/produits/count',
-                inventaire: '../api/v1/vente-saisie/en-cours/create-inventaire', libelle: 'ventes en cours et interrompues affichees'};
+                inventaire: '../api/v1/vente-saisie/en-cours/create-inventaire', libelle: 'ventes en cours et interrompues affichées'};
         }
         return {pdf: '../api/v1/ventestats/preventes/produits/pdf', count: '../api/v1/ventestats/preventes/produits/count',
-            inventaire: '../api/v1/ventestats/preventes/create-inventaire', libelle: 'ventes en attente affichees'};
+            inventaire: '../api/v1/ventestats/preventes/create-inventaire', libelle: 'ventes en attente affichées'};
     },
     // Filtres actifs de la liste (repris pour les impressions et l'inventaire)
     getActiveFilters: function () {
@@ -358,60 +364,82 @@ Ext.define('testextjs.controller.PendingCtr', {
     onPrintListe: function () {
         this.doPrintProduits('LISTE');
     },
-    // Creation d'inventaire avec les produits des ventes en attente affichees
-    // (un meme produit dans plusieurs ventes = une seule ligne)
-    onCreateInventaire: function () {
+    /*
+     * « Créer un inventaire » avec les produits des ventes affichées de l'onglet (un même produit dans plusieurs ventes
+     * = une seule ligne). Retour du 25/11 : aucune fenêtre, la confirmation se fait dans le bouton. 1er clic : le
+     * bouton dit combien de produits et demande confirmation (5 s) ; 2e clic : création ; le résultat s'affiche dans
+     * le bouton (4 s).
+     */
+    onCreateInventaire: function (b) {
         var me = this, filters = me.getActiveFilters(), cible = me.cible();
-        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Controle des produits');
-        Ext.Ajax.request({
-            url: cible.count,
-            method: 'GET',
-            params: filters,
-            success: function (resp) {
-                progress.hide();
-                var r = Ext.JSON.decode(resp.responseText, true);
-                var count = (r && r.count) ? r.count : 0;
-                if (count === 0) {
-                    Ext.MessageBox.alert('Message', 'Aucun produit dans les ' + cible.libelle + '.');
-                    return;
+        b = b || me.getPending().down('#createInventaire');
+        var dire = function (texte) {
+            me.desarmerInventaire(b);
+            b.setText(texte);
+            me.minuteurInventaire = setTimeout(function () {
+                me.desarmerInventaire(b);
+            }, 4000);
+        };
+        if (!b.inventaireArme) {
+            me.desarmerInventaire(b);
+            b.disable();
+            Ext.Ajax.request({
+                url: cible.count,
+                method: 'GET',
+                params: filters,
+                success: function (resp) {
+                    b.enable();
+                    var r = Ext.JSON.decode(resp.responseText, true);
+                    var count = (r && r.count) ? r.count : 0;
+                    if (count === 0) {
+                        dire('Aucun produit dans les ' + cible.libelle);
+                        return;
+                    }
+                    b.inventaireArme = true;
+                    b.addCls('psv-arme');
+                    b.setText('Confirmer : inventaire de ' + count + ' produit(s)');
+                    me.minuteurInventaire = setTimeout(function () {
+                        me.desarmerInventaire(b);
+                    }, 5000);
+                },
+                failure: function () {
+                    b.enable();
+                    dire('Contrôle impossible : réessayez');
                 }
-                Ext.MessageBox.confirm('Confirmation',
-                        'Vous allez creer un inventaire contenant <b>' + count
-                        + '</b> produit(s) distinct(s) des ' + cible.libelle + '.<br/>Confirmez-vous ?',
-                        function (btn) {
-                            if (btn !== 'yes') {
-                                return;
-                            }
-                            var prog = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
-                            Ext.Ajax.request({
-                                // filtres en query string : le endpoint lit des @QueryParam
-                                url: cible.inventaire + '?'
-                                        + Ext.Object.toQueryString(filters),
-                                method: 'POST',
-                                timeout: 600000,
-                                success: function (response) {
-                                    prog.hide();
-                                    var res = Ext.JSON.decode(response.responseText, true);
-                                    if (res && res.success) {
-                                        Ext.MessageBox.alert('Inventaire',
-                                                'Inventaire cree.<br/>Produits en compte : <b>' + (res.count || 0) + '</b>');
-                                    } else {
-                                        Ext.MessageBox.alert('Erreur',
-                                                (res && res.message) ? res.message : "La creation de l'inventaire a echoue.");
-                                    }
-                                },
-                                failure: function () {
-                                    prog.hide();
-                                    Ext.MessageBox.alert('Erreur',
-                                            "La creation de l'inventaire a echoue. Aucun inventaire partiel n'a ete cree.");
-                                }
-                            });
-                        });
+            });
+            return;
+        }
+        clearTimeout(me.minuteurInventaire);
+        b.inventaireArme = false;
+        b.removeCls('psv-arme');
+        b.disable();
+        b.setText('Création…');
+        Ext.Ajax.request({
+            // filtres en query string : le endpoint lit des @QueryParam
+            url: cible.inventaire + '?' + Ext.Object.toQueryString(filters),
+            method: 'POST',
+            timeout: 600000,
+            success: function (response) {
+                b.enable();
+                var res = Ext.JSON.decode(response.responseText, true);
+                dire(res && res.success ? 'Inventaire créé : ' + (res.count || 0) + ' produit(s)'
+                        : ((res && (res.message || res.msg)) || 'Création de l\'inventaire refusée'));
             },
             failure: function () {
-                progress.hide();
-                Ext.MessageBox.alert('Erreur', 'Le controle du nombre de produits a echoue.');
+                b.enable();
+                dire('Échec : aucun inventaire créé');
             }
         });
+    },
+    /** Bouton « Créer un inventaire » remis à son état de départ (fin du délai, changement d'onglet). */
+    desarmerInventaire: function (b) {
+        b = b || (this.getPending() ? this.getPending().down('#createInventaire') : null);
+        clearTimeout(this.minuteurInventaire);
+        if (!b || b.isDestroyed) {
+            return;
+        }
+        b.inventaireArme = false;
+        b.removeCls('psv-arme');
+        b.setText('Créer un inventaire');
     }
 });
