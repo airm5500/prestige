@@ -18,6 +18,7 @@
         <link rel="icon" type="image/x-icon" sizes="16x16 24x24 32x32 48x48" href="../resources/images/favicon.ico?v=3" /> 
         <!-- version standart //--> 
         <link rel="icon" type="image/png" sizes="256x256" href="../resources/images/favicon.png?v=3" />
+        <link rel="manifest" href="../manifest.json?v=3" />
         <%@page import="dal.dataManager"  %>
         <%@page import="java.util.*"  %>
         <%@page import="multilangue.Translate"  %>

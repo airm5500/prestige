@@ -148,6 +148,39 @@ public final class ReglagesTicket {
         }
     }
 
+    /** Demande du 25/11 : modeles livres par defaut (export de l'officine du 20/11), par largeur puis par ticket. */
+    static final String FICHIER_DEFAUT = "/ticket/modeles-ticket-defaut.json";
+    private static volatile JSONObject modelesDefaut;
+
+    private static JSONObject modelesDefaut() {
+        JSONObject m = modelesDefaut;
+        if (m == null) {
+            m = new JSONObject();
+            try (java.io.InputStream in = ReglagesTicket.class.getResourceAsStream(FICHIER_DEFAUT)) {
+                if (in != null) {
+                    JSONObject f = new JSONObject(
+                            new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+                    m = f.optJSONObject("largeurs") == null ? m : f.getJSONObject("largeurs");
+                }
+            } catch (Exception e) {
+                java.util.logging.Logger.getLogger(ReglagesTicket.class.getName()).log(java.util.logging.Level.WARNING,
+                        "Lecture des modèles de ticket par défaut : valeurs du code", e);
+            }
+            modelesDefaut = m;
+        }
+        return m;
+    }
+
+    /**
+     * Demande du 25/11 : reglages par defaut d'un ticket jamais enregistre, pour une largeur : ceux du fichier livre
+     * (lus comme un fichier importe) ; a defaut, les valeurs du code ({@link #ReglagesTicket(ModeleTicket)}).
+     */
+    public static ReglagesTicket defaut(ModeleTicket t, int largeur) {
+        JSONObject l = modelesDefaut().optJSONObject(String.valueOf(largeur <= 58 ? 58 : 80));
+        JSONObject j = l == null ? null : l.optJSONObject(t.name());
+        return j == null ? new ReglagesTicket(t) : depuis(t, j);
+    }
+
     /**
      * Retour du 05/11 : tailles par defaut (en points autour du modele) : nom de l'officine −2, numero du ticket −1 (−2
      * sur le recu assurance + comptant et le ticket Z), client −1, designation et « quantite × prix » −1, « Caissier :

@@ -90,7 +90,7 @@ public class ModeleTicketRessource {
                     .put("groupe", e.getKey().groupe()).put("nouveauDisponible", e.getKey().nouveauDisponible())
                     .put("reglages", e.getValue().json())
                     // retour du 05/11 : « Rétablir la disposition par défaut » reprend celle du ticket
-                    .put("defaut", new ReglagesTicket(e.getKey()).json()));
+                    .put("defaut", ReglagesTicket.defaut(e.getKey(), mm).json()));
         }
         JSONArray imprimantes = new JSONArray();
         for (Object[] i : service.imprimantes()) {
@@ -137,12 +137,37 @@ public class ModeleTicketRessource {
         }
     }
 
-    private static JSONObject rendu(ModeleTicket t, int mm, ReglagesTicket r) throws java.io.IOException {
+    /** Exemple du ticket avec l'officine de la base (demande du 25/11) ; l'exemple seul si la fiche manque. */
+    private ConversionTicket.Source exemple(ModeleTicket t, int mm) {
+        ConversionTicket.Source s = ExemplesTicket.exemple(t, mm);
+        String[] o = service.officine();
+        return o == null ? s
+                : ExemplesTicket.avecOfficine(s, o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7], o[8], o[9]);
+    }
+
+    private JSONObject rendu(ModeleTicket t, int mm, ReglagesTicket r) throws java.io.IOException {
         List<String> avertissements = new ArrayList<>();
         List<String> bloquants = RenduTicket.controler(r, avertissements);
         RenduTicket.Resultat[] res = new RenduTicket.Resultat[1];
-        java.awt.image.BufferedImage img = RenduTicket
-                .apercu(ConversionTicket.convertir(ExemplesTicket.exemple(t, mm), r), r, mm, ECHELLE, res);
+        TicketDocument doc = ConversionTicket.convertir(exemple(t, mm), r);
+        java.awt.image.BufferedImage img = RenduTicket.apercu(doc, r, mm, ECHELLE, res);
+        /*
+         * demande du 25/11 : texte dessine de chaque bloc, pour rapprocher l'apercu de la fiche officine et du ticket
+         */
+        JSONObject textes = new JSONObject();
+        for (TicketDocument.Bloc b : doc.blocsNonVides()) {
+            JSONArray l = new JSONArray();
+            for (TicketDocument.Element e : b.elements) {
+                for (String c : new String[] { e.a, e.b, e.c, e.d }) {
+                    String v = c == null ? "" : c.replace(String.valueOf(TicketDocument.GRAS_DEBUT), "")
+                            .replace(String.valueOf(TicketDocument.GRAS_FIN), "").trim();
+                    if (!v.isEmpty()) {
+                        l.put(v);
+                    }
+                }
+            }
+            textes.put(b.id, l);
+        }
         for (String d : res[0].debordements) {
             bloquants.add("« " + d + " » dépasse de la largeur du papier.");
         }
@@ -159,7 +184,7 @@ public class ModeleTicketRessource {
                 .put("pied",
                         new JSONObject().put("codeBarres", res[0].hauteurCodeBarres)
                                 .put("policeDate", res[0].policeDate).put("dateDessous", res[0].dateSousCodeBarres))
-                .put("avertissements", new JSONArray(avertissements));
+                .put("avertissements", new JSONArray(avertissements)).put("textes", textes);
     }
 
     @PUT

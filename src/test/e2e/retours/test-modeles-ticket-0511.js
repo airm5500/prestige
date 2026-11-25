@@ -3,7 +3,7 @@
  * Par les vues, avec de vrais clics (1366 × 768, l'ecran d'une caisse). Ce que le test etablit :
  *  - le bloc « alignement et taille » est juste a gauche de l'apercu ; l'apercu tient dans l'ecran sans defilement ;
  *    les boutons sont remontes dans la colonne des reglages ;
- *  - vente depot jamais enregistree : Arial Narrow, net a payer coupe (option proposee) ;
+ *  - vente depot jamais enregistree : police et net a payer du fichier par defaut (demande du 25/11), option proposee ;
  *  - un bloc se retrecit (largeur en %), sans probleme bloquant ;
  *  - le bloc des articles regle a part la taille de la designation ;
  *  - le pied se choisit d'un clic et son « + » agrandit le code-barres ; il reste le dernier ;
@@ -34,6 +34,9 @@ const remettre = () => {
     q(`INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('${t}', ${Number(lg)}, UNHEX('${r}'), ${maj ? `'${maj}'` : 'NOW()'}, UNHEX('${u}'))`);
   });
 };
+/* demande du 25/11 : les valeurs par defaut sont celles du fichier livre (modeles du 20/11) */
+const DEFAUT = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../main/resources/ticket/modeles-ticket-defaut.json'), 'utf8')).largeurs['80'];
+const blocDefaut = (t, b) => (DEFAUT[t].disposition || []).find((d) => d.bloc === b) || {};
 const enBase = (t, l) => JSON.parse(q(`SELECT reglages FROM ticket_modele WHERE ticket = '${t}' AND largeur = ${l}`) || '{}');
 
 (async () => {
@@ -83,10 +86,10 @@ const enBase = (t, l) => JSON.parse(q(`SELECT reglages FROM ticket_modele WHERE 
 
     /* valeurs par defaut d'un ticket jamais enregistre */
     const police = await composant(() => { const s = document.querySelector('.mtk [data-choix=police][aria-checked=true]'); return s && s.getAttribute('data-valeur'); });
-    ok('Vente dépôt jamais enregistrée : Arial Narrow', police === 'Arial Narrow', police);
+    ok('Vente dépôt jamais enregistrée : police du modèle par défaut (' + DEFAUT.VENTE_DEPOT.police + ')', police === DEFAUT.VENTE_DEPOT.police, police);
     const net = p.locator(racine + ' [data-option=net]');
-    ok('Vente dépôt : option « net à payer », coupée par défaut, et pas de net dans l\'aperçu',
-      await net.count() === 1 && await net.getAttribute('aria-checked') === 'false' && !(await apercu()).zones.NET, await net.count());
+    ok('Vente dépôt : option « net à payer » proposée, réglée comme le modèle par défaut, et l\'aperçu suit (net ' + DEFAUT.VENTE_DEPOT.net + ')',
+      await net.count() === 1 && await net.getAttribute('aria-checked') === String(DEFAUT.VENTE_DEPOT.net) && !!(await apercu()).zones.NET === DEFAUT.VENTE_DEPOT.net, await net.count());
 
     /* bloc retreci */
     const hAvant = (await zone('COORDONNEES').boundingBox()).height;
@@ -108,7 +111,7 @@ const enBase = (t, l) => JSON.parse(q(`SELECT reglages FROM ticket_modele WHERE 
     const nomAvant = ((await position('CORPS')) || {}).nom || 0;
     await apresApercu(() => p.locator(racine + ' [data-partie=nom][data-pas="1"]').click());
     const corps = await position('CORPS');
-    ok('Articles : taille de la désignation réglée à part (+1)', corps && corps.nom === nomAvant + 1 && (corps.detail || 0) === -1, JSON.stringify(corps));
+    ok('Articles : taille de la désignation réglée à part (+1)', corps && corps.nom === nomAvant + 1 && (corps.detail || 0) === (blocDefaut('VENTE_DEPOT', 'CORPS').detail || 0), JSON.stringify(corps));
 
     /* pied : taille du code-barres */
     const hPied = (await zone('PIED').boundingBox()).height;
@@ -135,11 +138,11 @@ const enBase = (t, l) => JSON.parse(q(`SELECT reglages FROM ticket_modele WHERE 
     const depot = enBase('VENTE_DEPOT', 80), z = enBase('TICKET_Z', 80), vente = enBase('VENTE', 80);
     const coordVente = (vente.disposition || []).find((d) => d.bloc === 'COORDONNEES') || {};
     const piedZ = (z.disposition || []).find((d) => d.bloc === 'PIED') || {};
-    ok('Enregistré : marge 1 mm, net coupé (vente dépôt)', depot.marge === 1 && depot.net === false && depot.version === 2, JSON.stringify(depot).slice(0, 250));
+    ok('Enregistré : marge 1 mm, net comme le modèle par défaut (vente dépôt)', depot.marge === 1 && depot.net === DEFAUT.VENTE_DEPOT.net && depot.version === DEFAUT.VENTE_DEPOT.version, JSON.stringify(depot).slice(0, 250));
     ok('Réglages communs reportés : marge et adresse à 40 % sur la vente, marge et pied sur le ticket Z',
       vente.marge === 1 && coordVente.largeur === 40 && z.marge === 1 && piedZ.taille === 2, JSON.stringify({ vente: vente.marge, coordVente, z: z.marge, piedZ }));
     const corpsZ = (z.disposition || []).find((d) => d.bloc === 'CORPS') || {};
-    ok('Le bloc des articles n\'est pas commun : le ticket Z garde le sien', (corpsZ.nom || 0) === 0 && corpsZ.section === -1, JSON.stringify(corpsZ));
+    ok('Le bloc des articles n\'est pas commun : le ticket Z garde le sien', (corpsZ.nom || 0) === (blocDefaut('TICKET_Z', 'CORPS').nom || 0) && (corpsZ.section || 0) === (blocDefaut('TICKET_Z', 'CORPS').section || 0) && corpsZ.taille === blocDefaut('TICKET_Z', 'CORPS').taille, JSON.stringify(corpsZ));
 
     /* export */
     const [telechargement] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.locator(racine + ' [data-action=exporter]').click()]);

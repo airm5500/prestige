@@ -99,6 +99,11 @@ class EtatsSaisieVenteCoherenceTest {
                             assertTrue(c.memeJour, k);
                             assertTrue(c.auteur || c.droits.contains(Droit.REPRENDRE_INTERROMPUE_AUTRUI), k);
                             break;
+                        case ABANDONNER_INTERROMPUE:
+                            // fin du décompte du bandeau : l'auteur seul, le jour même, une saisie interrompue
+                            assertEquals(Etat.INTERROMPUE, e, k);
+                            assertTrue(c.auteur && c.memeJour, k);
+                            break;
                         case EXPIRER:
                             assertFalse(c.memeJour, k);
                             assertTrue(e == Etat.EN_COURS || e == Etat.EN_ATTENTE || e == Etat.INTERROMPUE, k);
@@ -156,6 +161,27 @@ class EtatsSaisieVenteCoherenceTest {
         // l'auteur reprend sa propre saisie interrompue sans droit particulier
         assertTrue(EtatsSaisieVente.decider(Etat.INTERROMPUE, Geste.REPRENDRE_INTERROMPUE,
                 new Contexte(EnumSet.noneOf(Droit.class), true, true, false, false)).admis);
+    }
+
+    /**
+     * Retour du 25/11 : décompte de 30 s sur le bandeau « Saisie interrompue » ; non reprise, la vente est abandonnée.
+     * Seul l'auteur, le jour même ; jamais une autre caissière, même avec le droit de reprendre la saisie d'un autre
+     * (l'écran d'administration ne supprime rien tout seul) ; jamais une vente en cours, en attente ou close.
+     */
+    @Test
+    void finDuDecompteAbandonneLaSaisieInterrompueDeLAuteur() {
+        Contexte auteur = new Contexte(EnumSet.noneOf(Droit.class), true, true, false, false);
+        Decision d = EtatsSaisieVente.decider(Etat.INTERROMPUE, Geste.ABANDONNER_INTERROMPUE, auteur);
+        assertTrue(d.admis, d.motif);
+        assertEquals(Etat.ABANDONNEE, d.etat);
+        Contexte autre = new Contexte(EnumSet.allOf(Droit.class), false, true, true, false);
+        assertFalse(EtatsSaisieVente.decider(Etat.INTERROMPUE, Geste.ABANDONNER_INTERROMPUE, autre).admis);
+        Contexte hier = new Contexte(EnumSet.allOf(Droit.class), true, false, true, false);
+        assertFalse(EtatsSaisieVente.decider(Etat.INTERROMPUE, Geste.ABANDONNER_INTERROMPUE, hier).admis);
+        for (Etat e : EnumSet.of(Etat.EN_COURS, Etat.EN_ATTENTE, Etat.ABANDONNEE, Etat.CLOTUREE)) {
+            assertFalse(EtatsSaisieVente.decider(e, Geste.ABANDONNER_INTERROMPUE, auteur).admis, e.name());
+        }
+        assertFalse(Geste.ABANDONNER_INTERROMPUE.systeme);
     }
 
     @Test

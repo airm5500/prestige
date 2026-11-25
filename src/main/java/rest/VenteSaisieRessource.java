@@ -118,6 +118,13 @@ public class VenteSaisieRessource {
         return geste(id, service::reprendreInterrompue);
     }
 
+    /** Fin du décompte de 30 s du bandeau « Saisie interrompue » sans reprise : l'auteur, le jour même. */
+    @POST
+    @Path("{id}/abandonner-interrompue")
+    public Response abandonnerInterrompue(@PathParam("id") String id) {
+        return geste(id, service::abandonnerInterrompue);
+    }
+
     /** Envoyé par l'écran qui se ferme (navigator.sendBeacon) : changement de menu, fermeture, déconnexion. */
     @POST
     @Path("{id}/interrompre")
@@ -185,29 +192,189 @@ public class VenteSaisieRessource {
     private static final String JOURNAL_SQL = "SELECT j.id, DATE_FORMAT(j.cree_le, '%d/%m/%Y %H:%i:%s'), j.numero,"
             + " j.depot, j.geste, j.etat_avant, j.etat_apres, j.admis, j.motif, j.cause,"
             + " CONCAT(u.str_FIRST_NAME, ' ', u.str_LAST_NAME), j.poste, j.nb_lignes, j.montant, j.empreinte"
-            + " FROM vente_journal_saisie j LEFT JOIN t_user u ON u.lg_USER_ID = j.utilisateur_id"
-            + " WHERE j.cree_le >= ?1 AND j.cree_le < ?2 ORDER BY j.id DESC";
+            + " FROM vente_journal_saisie j LEFT JOIN t_user u ON u.lg_USER_ID = j.utilisateur_id";
 
-    private List<Object[]> journal(String du, String au) {
-        LocalDate d = util.horloge.DatesFutures.jour(du), f = util.horloge.DatesFutures.jour(au);
-        LocalDate aujourdhui = LocalDate.now();
-        d = d == null ? aujourdhui : d;
-        f = f == null ? aujourdhui : f;
+    /**
+     * Filtres du journal (retours du 25/11, 1.5) : période, geste, poste, utilisateur (identifiant, ou « SERVEUR » pour
+     * les gestes du serveur), motif ou cause (texte contenu). Un filtre vide ne restreint rien. L'écran, le CSV, le PDF
+     * et l'inventaire lisent les mêmes lignes.
+     */
+    static final class FiltreJournal {
+        LocalDate du, au;
+        String geste, poste, utilisateur, motif;
+
+        FiltreJournal(String du, String au, String geste, String poste, String utilisateur, String motif) {
+            LocalDate d = util.horloge.DatesFutures.jour(du), f = util.horloge.DatesFutures.jour(au);
+            LocalDate aujourdhui = LocalDate.now();
+            this.du = d == null ? aujourdhui : d;
+            this.au = f == null ? aujourdhui : f;
+            this.geste = vide(geste);
+            this.poste = vide(poste);
+            this.utilisateur = vide(utilisateur);
+            this.motif = vide(motif);
+        }
+
+        private static String vide(String s) {
+            return s == null || s.trim().isEmpty() ? null : s.trim();
+        }
+
+        /** Conditions SQL (alias j) et leurs valeurs, à partir du paramètre ?1. */
+        String where(List<Object> valeurs) {
+            StringBuilder w = new StringBuilder(" WHERE j.cree_le >= ?")
+                    .append(ajouter(valeurs, java.sql.Date.valueOf(du))).append(" AND j.cree_le < ?")
+                    .append(ajouter(valeurs, java.sql.Date.valueOf(au.plusDays(1))));
+            if (geste != null) {
+                w.append(" AND j.geste = ?").append(ajouter(valeurs, geste));
+            }
+            if (poste != null) {
+                w.append(" AND j.poste = ?").append(ajouter(valeurs, poste));
+            }
+            if ("SERVEUR".equals(utilisateur)) {
+                w.append(" AND j.utilisateur_id IS NULL");
+            } else if (utilisateur != null) {
+                w.append(" AND j.utilisateur_id = ?").append(ajouter(valeurs, utilisateur));
+            }
+            if (motif != null) {
+                int i = ajouter(valeurs,
+                        "%" + motif.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
+                w.append(" AND (j.motif LIKE ?").append(i).append(" OR j.cause LIKE ?").append(i).append(')');
+            }
+            return w.toString();
+        }
+
+        private static int ajouter(List<Object> valeurs, Object v) {
+            valeurs.add(v);
+            return valeurs.size();
+        }
+
+        /** Rappel des filtres, pour le titre du PDF. */
+        String libelle(java.util.function.Function<String, String> nomUtilisateur) {
+            java.time.format.DateTimeFormatter fr = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            StringBuilder b = new StringBuilder("Du ").append(du.format(fr)).append(" au ").append(au.format(fr));
+            if (geste != null) {
+                b.append(" ; geste : ").append(GESTES.getOrDefault(geste, geste));
+            }
+            if (poste != null) {
+                b.append(" ; poste : ").append(poste);
+            }
+            if (utilisateur != null) {
+                b.append(" ; utilisateur : ")
+                        .append("SERVEUR".equals(utilisateur) ? "Serveur" : nomUtilisateur.apply(utilisateur));
+            }
+            if (motif != null) {
+                b.append(" ; motif ou cause : « ").append(motif).append(" »");
+            }
+            return b.toString();
+        }
+    }
+
+    /** Libellés des gestes, les mêmes qu'à l'écran (JournalSaisieVente.js). */
+    static final java.util.Map<String, String> GESTES = new java.util.LinkedHashMap<>();
+    static {
+        GESTES.put("DEBUT_SAISIE", "Début de saisie");
+        GESTES.put("METTRE_EN_ATTENTE", "Mise en attente");
+        GESTES.put("REPRENDRE_ATTENTE", "Rappel d'une vente en attente");
+        GESTES.put("RETOUR_SUPPRIMER", "Retour : vente abandonnée");
+        GESTES.put("INTERROMPRE", "Saisie interrompue");
+        GESTES.put("SIGNAL_RETROUVE", "Signal retrouvé");
+        GESTES.put("REPRENDRE_INTERROMPUE", "Reprise d'une saisie interrompue");
+        GESTES.put("ABANDONNER_INTERROMPUE", "Abandon en fin de décompte");
+        GESTES.put("EXPIRER", "Abandon au changement de jour");
+        GESTES.put("SUPPRIMER_ATTENTE", "Suppression d'une vente en attente");
+        GESTES.put("CLOTURER", "Clôture");
+    }
+
+    private static final java.util.Map<String, String> ETATS = new java.util.HashMap<>();
+    static {
+        ETATS.put("EN_COURS", "En cours");
+        ETATS.put("EN_ATTENTE", "En attente");
+        ETATS.put("INTERROMPUE", "Interrompue");
+        ETATS.put("ABANDONNEE", "Abandonnée");
+        ETATS.put("CLOTUREE", "Clôturée");
+    }
+
+    private static FiltreJournal filtre(String du, String au, String geste, String poste, String utilisateur,
+            String motif) {
+        return new FiltreJournal(du, au, geste, poste, utilisateur, motif);
+    }
+
+    private javax.persistence.Query requete(String sql, List<Object> valeurs) {
+        javax.persistence.Query q = em.createNativeQuery(sql);
+        for (int i = 0; i < valeurs.size(); i++) {
+            q.setParameter(i + 1, valeurs.get(i));
+        }
+        return q;
+    }
+
+    private List<Object[]> journal(FiltreJournal f) {
+        List<Object> valeurs = new java.util.ArrayList<>();
+        String sql = JOURNAL_SQL + f.where(valeurs) + " ORDER BY j.id DESC";
         @SuppressWarnings("unchecked")
-        List<Object[]> l = em.createNativeQuery(JOURNAL_SQL).setParameter(1, java.sql.Date.valueOf(d))
-                .setParameter(2, java.sql.Date.valueOf(f.plusDays(1))).setMaxResults(20000).getResultList();
+        List<Object[]> l = requete(sql, valeurs).setMaxResults(20000).getResultList();
         return l;
+    }
+
+    /** Produits des ventes du journal filtré : lignes encore en vente, et lignes retirées des ventes abandonnées. */
+    private java.util.Set<String> produitsDuJournal(FiltreJournal f) {
+        List<Object> valeurs = new java.util.ArrayList<>();
+        String ventes = "SELECT DISTINCT j.vente_id FROM vente_journal_saisie j" + f.where(valeurs);
+        @SuppressWarnings("unchecked")
+        List<Object> l = requete(
+                "SELECT d.lg_FAMILLE_ID FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID IN (" + ventes
+                        + ") UNION SELECT s.produit_id FROM vente_suppression s WHERE s.produit_id IS NOT NULL AND s.vente_id IN ("
+                        + ventes + ")",
+                valeurs).getResultList();
+        java.util.Set<String> produits = new java.util.LinkedHashSet<>();
+        for (Object o : l) {
+            if (o != null) {
+                produits.add(String.valueOf(o));
+            }
+        }
+        return produits;
+    }
+
+    /** Listes des filtres sur la période : postes et utilisateurs présents au journal. */
+    @GET
+    @Path("journal/valeurs")
+    public Response journalValeurs(@QueryParam("du") String du, @QueryParam("au") String au) {
+        Response refus = Droits.refus(servletRequest, "Journal des ventes en saisie", P_JOURNAL);
+        if (refus != null) {
+            return refus;
+        }
+        FiltreJournal f = filtre(du, au, null, null, null, null);
+        List<Object> valeurs = new java.util.ArrayList<>();
+        String w = f.where(valeurs);
+        JSONArray postes = new JSONArray();
+        for (Object o : requete("SELECT DISTINCT j.poste FROM vente_journal_saisie j" + w
+                + " AND j.poste IS NOT NULL AND j.poste <> '' ORDER BY j.poste", valeurs).getResultList()) {
+            postes.put(new JSONObject().put("valeur", s(o)).put("libelle", s(o)));
+        }
+        JSONArray utilisateurs = new JSONArray();
+        @SuppressWarnings("unchecked")
+        List<Object[]> us = requete("SELECT DISTINCT j.utilisateur_id, CONCAT(u.str_FIRST_NAME, ' ', u.str_LAST_NAME)"
+                + " FROM vente_journal_saisie j LEFT JOIN t_user u ON u.lg_USER_ID = j.utilisateur_id" + w
+                + " ORDER BY 2", valeurs).getResultList();
+        for (Object[] u : us) {
+            utilisateurs.put(u[0] == null ? new JSONObject().put("valeur", "SERVEUR").put("libelle", "Serveur")
+                    : new JSONObject().put("valeur", s(u[0])).put("libelle", s(u[1]).trim()));
+        }
+        JSONArray gestes = new JSONArray();
+        GESTES.forEach((k, v) -> gestes.put(new JSONObject().put("valeur", k).put("libelle", v)));
+        return Response.ok(new JSONObject().put("success", true).put("postes", postes).put("utilisateurs", utilisateurs)
+                .put("gestes", gestes).toString()).build();
     }
 
     @GET
     @Path("journal")
-    public Response journalLire(@QueryParam("du") String du, @QueryParam("au") String au) {
+    public Response journalLire(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("geste") String geste, @QueryParam("poste") String poste,
+            @QueryParam("utilisateur") String utilisateur, @QueryParam("motif") String motif) {
         Response refus = Droits.refus(servletRequest, "Journal des ventes en saisie", P_JOURNAL);
         if (refus != null) {
             return refus;
         }
         JSONArray data = new JSONArray();
-        for (Object[] r : journal(du, au)) {
+        for (Object[] r : journal(filtre(du, au, geste, poste, utilisateur, motif))) {
             data.put(new JSONObject().put("id", ((Number) r[0]).longValue()).put("le", s(r[1])).put("numero", s(r[2]))
                     .put("depot", vrai(r[3])).put("geste", s(r[4])).put("etatAvant", s(r[5])).put("etatApres", s(r[6]))
                     .put("admis", vrai(r[7])).put("motif", s(r[8])).put("cause", s(r[9]))
@@ -237,7 +404,9 @@ public class VenteSaisieRessource {
     @GET
     @Path("journal/export")
     @Produces("text/csv")
-    public Response journalExport(@QueryParam("du") String du, @QueryParam("au") String au) {
+    public Response journalExport(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("geste") String geste, @QueryParam("poste") String poste,
+            @QueryParam("utilisateur") String utilisateur, @QueryParam("motif") String motif) {
         Response refus = Droits.refus(servletRequest, "Journal des ventes en saisie", P_JOURNAL);
         if (refus != null) {
             return refus;
@@ -245,7 +414,7 @@ public class VenteSaisieRessource {
         StringBuilder b = new StringBuilder("﻿");
         b.append("N°;Date et heure;Vente;Dépôt;Geste;État avant;État après;Admis;Motif;Cause;Utilisateur;Poste;"
                 + "Lignes;Montant;Empreinte\r\n");
-        for (Object[] r : journal(du, au)) {
+        for (Object[] r : journal(filtre(du, au, geste, poste, utilisateur, motif))) {
             b.append(csv(r[0])).append(';').append(csv(r[1])).append(';').append(csv(r[2])).append(';')
                     .append(vrai(r[3]) ? "oui" : "non").append(';').append(csv(r[4])).append(';').append(csv(r[5]))
                     .append(';').append(csv(r[6])).append(';').append(vrai(r[7]) ? "oui" : "non").append(';')
@@ -258,5 +427,108 @@ public class VenteSaisieRessource {
                 : "CHAÎNE ROMPUE à la ligne " + v[0])).append("\r\n");
         return Response.ok(b.toString().getBytes(StandardCharsets.UTF_8), "text/csv; charset=UTF-8")
                 .header("Content-Disposition", "attachment; filename=journal_ventes_en_saisie.csv").build();
+    }
+
+    /**
+     * Retours du 25/11 (1.5) : impression du journal, mêmes lignes et mêmes filtres que l'écran, état de la chaîne
+     * d'empreintes en sous-titre.
+     */
+    @GET
+    @Path("journal/pdf")
+    @Produces("application/pdf")
+    public Response journalPdf(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("geste") String geste, @QueryParam("poste") String poste,
+            @QueryParam("utilisateur") String utilisateur, @QueryParam("motif") String motif) {
+        Response refus = Droits.refus(servletRequest, "Journal des ventes en saisie", P_JOURNAL);
+        if (refus != null) {
+            return refus;
+        }
+        FiltreJournal f = filtre(du, au, geste, poste, utilisateur, motif);
+        List<String[]> lignes = new java.util.ArrayList<>();
+        for (Object[] r : journal(f)) {
+            String avant = ETATS.getOrDefault(s(r[5]), ""), apres = ETATS.getOrDefault(s(r[6]), "");
+            String etat = !avant.isEmpty() && !apres.isEmpty() && !avant.equals(apres) ? avant + " → " + apres
+                    : (apres.isEmpty() ? avant : apres);
+            String vente = s(r[2]) + (vrai(r[3]) ? " (dépôt)" : "");
+            String qui = s(r[10]).trim();
+            lignes.add(new String[] { s(r[0]), s(r[1]), vente, GESTES.getOrDefault(s(r[4]), s(r[4])),
+                    vrai(r[7]) ? "Fait" : "Refusé", etat, s(r[8]).isEmpty() ? s(r[9]) : s(r[8]),
+                    qui.isEmpty() ? "Serveur" : qui, s(r[11]), s(r[12]), r[13] == null ? "" : milliers(r[13]) });
+        }
+        long[] v = service.verifier();
+        TUser tu = Droits.utilisateur(servletRequest);
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        @SuppressWarnings("unchecked")
+        List<Object> off = em.createNativeQuery("SELECT str_NOM_COMPLET FROM t_officine LIMIT 1").getResultList();
+        e.officine = off.isEmpty() ? "" : s(off.get(0));
+        e.titre = "JOURNAL DES VENTES EN SAISIE";
+        e.sousTitre = f.libelle(this::nomUtilisateur) + " ; " + lignes.size() + " geste(s) ; "
+                + (v[0] < 0 ? "chaîne d'empreintes intacte (" + v[1] + " lignes contrôlées)"
+                        : "CHAÎNE ROMPUE à la ligne n° " + v[0]);
+        e.imprimePar = tu == null ? "" : (s(tu.getStrFIRSTNAME()) + " " + s(tu.getStrLASTNAME())).trim();
+        e.entetes = new String[] { "N°", "Date et heure", "Vente", "Geste", "Résultat", "État", "Motif / cause",
+                "Utilisateur", "Poste", "Lignes", "Montant" };
+        e.largeurs = new float[] { 5, 11, 9, 14, 6, 11, 16, 11, 8, 4, 6 };
+        e.droite = new boolean[] { true, false, false, false, false, false, false, false, false, true, true };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, lignes), "application/pdf")
+                .header("Content-Disposition", "inline; filename=journal_ventes_en_saisie.pdf").build();
+    }
+
+    private String nomUtilisateur(String id) {
+        @SuppressWarnings("unchecked")
+        List<Object> l = em
+                .createNativeQuery(
+                        "SELECT CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME) FROM t_user WHERE lg_USER_ID = ?1")
+                .setParameter(1, id).getResultList();
+        return l.isEmpty() ? id : s(l.get(0)).trim();
+    }
+
+    private static String milliers(Object n) {
+        long v = ((Number) n).longValue();
+        return (v < 0 ? "-" : "") + String.valueOf(Math.abs(v)).replaceAll("\\B(?=(\\d{3})+(?!\\d))", " ");
+    }
+
+    @EJB
+    private rest.service.InventaireService inventaireService;
+
+    /**
+     * Retours du 25/11 (1.5) : « Créer un inventaire » avec les produits des ventes du journal affiché (mêmes filtres)
+     * : lignes encore en vente et lignes retirées des ventes abandonnées ; un produit cité plusieurs fois compte une
+     * fois. GET : nombre de produits (la confirmation se fait dans le bouton) ; POST : création.
+     */
+    @GET
+    @Path("journal/inventaire")
+    public Response journalInventaireCompte(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("geste") String geste, @QueryParam("poste") String poste,
+            @QueryParam("utilisateur") String utilisateur, @QueryParam("motif") String motif) {
+        Response refus = Droits.refus(servletRequest, "Journal des ventes en saisie", P_JOURNAL);
+        if (refus != null) {
+            return refus;
+        }
+        int n = produitsDuJournal(filtre(du, au, geste, poste, utilisateur, motif)).size();
+        return Response.ok(new JSONObject().put("success", true).put("count", n).toString()).build();
+    }
+
+    @POST
+    @Path("journal/inventaire")
+    public Response journalInventaireCreer(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("geste") String geste, @QueryParam("poste") String poste,
+            @QueryParam("utilisateur") String utilisateur, @QueryParam("motif") String motif) {
+        Response refus = Droits.refus(servletRequest, "Journal des ventes en saisie", P_JOURNAL);
+        if (refus != null) {
+            return refus;
+        }
+        FiltreJournal f = filtre(du, au, geste, poste, utilisateur, motif);
+        java.util.Set<String> produits = produitsDuJournal(f);
+        if (produits.isEmpty()) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("msg", "Aucun produit dans les ventes du journal affiché.").toString()).build();
+        }
+        String nom = "INVENTAIRE VENTES EN SAISIE " + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String description = "Journal des ventes en saisie : " + f.libelle(this::nomUtilisateur);
+        int n = inventaireService.create(produits, nom,
+                description.length() > 200 ? description.substring(0, 200) : description);
+        return Response.ok(new JSONObject().put("success", true).put("count", n).put("nom", nom).toString()).build();
     }
 }

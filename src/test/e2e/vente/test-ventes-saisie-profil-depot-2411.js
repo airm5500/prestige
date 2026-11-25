@@ -149,8 +149,10 @@ const BARRE_D = 'doventeendepot #contenu [xtype=toolbar] #';
     const v = await couranteDepot(p); ventes.push(v);
     const e1 = await attendre(p, () => { const e = etat(v); return e[0] === 'EN_COURS' ? e : null; }, 10000, 300);
     ok('2. Vente saisie dans l\'onglet de vente du dépôt : EN_COURS sur le dépôt', !!e1 && e1[2] === DEPOT, JSON.stringify(etat(v)));
-    await vues.cliquer(p, BARRE_D + 'btnGoBack'); await p.waitForTimeout(500);
-    await vues.cliquer(p, BARRE_D + 'btnRetourAttente');
+    await vues.cliquer(p, BARRE_D + 'btnGoBack');
+    /* fenetre HTML de sortie (retours du 25/11) */
+    await p.waitForSelector('#psv-fenetre', { timeout: 5000 });
+    await p.click('#psv-choix-attente');
     await attendre(p, () => etat(v)[0] === 'EN_ATTENTE', 10000, 300);
     ok('2. « Mettre en attente et quitter » : EN_ATTENTE (aucun refus « droit manquant »)', etat(v)[0] === 'EN_ATTENTE', etat(v).join('|') + ' ; ' + journal(v));
 

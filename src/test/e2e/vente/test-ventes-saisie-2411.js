@@ -11,10 +11,11 @@
  *  3. Écran « Ventes en cours de saisie » (admin) : la ligne = la base (numéro, lignes, montant, utilisateur, poste).
  *  4. CAISSE1 « METTRE EN ATTENTE » : EN_ATTENTE, dans la liste, avec le même montant.
  *  5. CAISSE2 la rappelle par la fenêtre « Ventes en attente » : EN_COURS sur SA session.
- *  6. CAISSE2 « RETOUR » : choix dans la barre (aucune fenêtre) ; Annuler ; puis « Supprimer la vente » confirmé dans
- *     le bouton (1er clic : rien n'est supprimé) ; la vente disparaît, ses lignes sont dans « Produits retirés et
- *     ventes abandonnées » (mêmes produits, mêmes quantités), stock inchangé.
- *  7. CAISSE1 commence une vente puis change de menu : INTERROMPUE (cause « menu quitté »), absente de la liste.
+ *  6. CAISSE2 « RETOUR » : fenêtre HTML (retours du 25/11) ; « Rester », Échap ; puis « Abandonner la vente » en un clic :
+ *     la vente disparaît, ses lignes sont dans « Produits retirés et ventes abandonnées » (mêmes produits, mêmes
+ *     quantités), l'écran repart sur une nouvelle saisie.
+ *  7. CAISSE1 commence une vente puis demande un autre menu : la fenêtre de sortie s'ouvre ; « Rester » ; onglet fermé :
+ *     INTERROMPUE (cause « fermeture »), absente de la liste.
  *  8. CAISSE2 (pas l'auteur, sans le droit) ne peut pas la reprendre ; elle ne la voit même pas.
  *  9. CAISSE1 rouvre l'écran de vente : le bandeau lui propose SA saisie interrompue ; reprise confirmée dans le
  *     bouton ; la vente revient à l'écran, EN_COURS.
@@ -70,14 +71,19 @@ async function poste(login) {
   const p = await ctx.newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(String(e.message)));
   await vues.connexion(p, login, login === ENV_E2E.LOGIN ? 'e2etest' : MDP);
-  const api = (m, u) => p.evaluate(async ([mm, uu]) => { const r = await fetch(uu, { method: mm }); const t = await r.text();
+  /* la page peut etre remplacee (onglet ferme puis rouvert, point 7) : api passe par la page du moment */
+  const s = { b, ctx, p, erreurs };
+  s.api = (m, u) => s.p.evaluate(async ([mm, uu]) => { const r = await fetch(uu, { method: mm }); const t = await r.text();
     let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 2000) }; } j.http = r.status; return j; }, [m, u]);
-  return { b, ctx, p, api, erreurs };
+  return s;
 }
 const courante = (p) => C.venteCourante(p);
 const bandeau = (p) => p.evaluate(() => { const b = document.getElementById('psv-bandeau'); return b && b.style.display !== 'none' ? b.textContent : ''; });
-const boutons = (p) => p.evaluate(() => ['btnGoBack', 'btnRetourAttente', 'btnRetourSupprimer', 'btnRetourAnnuler'].map((i) => {
+const boutons = (p) => p.evaluate(() => ['btnGoBack'].map((i) => {
   const c = Ext.ComponentQuery.query('doventemanager #contenu [xtype=toolbar] #' + i)[0]; return c && c.isVisible(true) ? (c.getText ? c.getText() : 'ok') : null; }));
+/* fenetre HTML de sortie (retours du 25/11) : titre et choix, ou null */
+const fenetreSortie = (p) => p.evaluate(() => { const f = document.getElementById('psv-fenetre'); if (!f) { return null; }
+  return { titre: f.querySelector('#psv-fenetre-titre').textContent, choix: [...f.querySelectorAll('button[id^="psv-choix-"]')].map((b) => b.id.slice(10) + '=' + b.textContent) }; });
 const fenetreModale = (p) => p.evaluate(() => Ext.WindowManager.getActive() && Ext.WindowManager.getActive().isVisible() && Ext.WindowManager.getActive().modal ? Ext.WindowManager.getActive().getXType() : '');
 
 (async () => {
@@ -156,39 +162,63 @@ const fenetreModale = (p) => p.evaluate(() => Ext.WindowManager.getActive() && E
     const e5 = await attendre(c2.p, () => { const e = etat(v1); return e[0] === 'EN_COURS' ? e : null; }, 10000, 300);
     ok('5. Rappel par CAISSE2 : la vente s\'ouvre, EN_COURS sur une autre session que celle de CAISSE1', e5 && e5[1] !== e1[1], JSON.stringify(e5));
 
-    /* 6. Retour : choix dans la barre */
+    /* 6. Retour : fenetre HTML a deux choix (retours du 25/11, 1.1) */
     await vues.cliquer(c2.p, 'doventemanager #contenu [xtype=toolbar] #btnGoBack');
-    await c2.p.waitForTimeout(500);
-    const b6 = await boutons(c2.p);
-    ok('6. « RETOUR » : trois choix dans la barre, Retour masqué, aucune fenêtre', b6[0] === null && b6[1] === 'METTRE EN ATTENTE ET QUITTER' && b6[2] === 'SUPPRIMER LA VENTE' && b6[3] === 'ANNULER'
-      && (await fenetreModale(c2.p)) === '', JSON.stringify(b6));
-    await vues.cliquer(c2.p, 'doventemanager #contenu [xtype=toolbar] #btnRetourAnnuler');
-    await c2.p.waitForTimeout(400);
-    ok('6. « ANNULER » : Retour revient, la vente reste ouverte et EN_COURS', JSON.stringify(await boutons(c2.p)) === JSON.stringify(['RETOUR', null, null, null])
-      && (await courante(c2.p)) === v1 && etat(v1)[0] === 'EN_COURS', JSON.stringify(await boutons(c2.p)));
+    await c2.p.waitForSelector('#psv-fenetre', { timeout: 5000 }).catch(() => {});
+    const f6 = await fenetreSortie(c2.p);
+    ok('6. « RETOUR » : fenêtre HTML (pas ExtJS) « Mettre en attente et quitter », « Abandonner la vente », « Rester sur la vente »',
+      !!f6 && JSON.stringify(f6.choix) === JSON.stringify(['attente=Mettre en attente et quitter', 'abandonner=Abandonner la vente', 'rester=Rester sur la vente'])
+      && (await fenetreModale(c2.p)) === '', JSON.stringify(f6));
+    await c2.p.click('#psv-choix-rester'); await c2.p.waitForTimeout(400);
+    ok('6. « Rester sur la vente » : fenêtre fermée, la vente reste ouverte et EN_COURS, rien au journal',
+      (await fenetreSortie(c2.p)) === null && (await courante(c2.p)) === v1 && etat(v1)[0] === 'EN_COURS'
+      && journal(v1).endsWith('REPRENDRE_ATTENTE/1/EN_COURS/-/E2E-SV2'), journal(v1));
     await vues.cliquer(c2.p, 'doventemanager #contenu [xtype=toolbar] #btnGoBack');
-    await c2.p.waitForTimeout(400);
-    await vues.cliquer(c2.p, 'doventemanager #contenu [xtype=toolbar] #btnRetourSupprimer');
-    await c2.p.waitForTimeout(600);
-    ok('6. 1er clic sur « SUPPRIMER LA VENTE » : le bouton demande confirmation, rien n\'est supprimé', (await boutons(c2.p))[2] === 'CONFIRMER LA SUPPRESSION'
-      && q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v1 + "'") === '1');
-    await vues.cliquer(c2.p, 'doventemanager #contenu [xtype=toolbar] #btnRetourSupprimer');
+    await c2.p.waitForSelector('#psv-fenetre', { timeout: 5000 });
+    await c2.p.keyboard.press('Escape'); await c2.p.waitForTimeout(400);
+    ok('6. Échap : fenêtre fermée, la vente reste ouverte (Échap ne part pas à l\'écran de vente)',
+      (await fenetreSortie(c2.p)) === null && (await courante(c2.p)) === v1 && etat(v1)[0] === 'EN_COURS');
+    await vues.cliquer(c2.p, 'doventemanager #contenu [xtype=toolbar] #btnGoBack');
+    await c2.p.waitForSelector('#psv-fenetre', { timeout: 5000 });
+    await c2.p.click('#psv-choix-abandonner');
     await attendre(c2.p, () => q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v1 + "'") === '0', 15000, 300);
     const retirees = q("SELECT GROUP_CONCAT(CONCAT(produit_id, 'x', quantite) ORDER BY produit_id) FROM vente_suppression WHERE vente_id = '" + v1 + "'");
-    ok('6. 2e clic : vente supprimée ; ses lignes sont dans « Produits retirés et ventes abandonnées », mêmes produits, mêmes quantités',
+    ok('6. « Abandonner la vente », un seul clic : vente retirée ; ses lignes sont dans « Produits retirés et ventes abandonnées », mêmes produits, mêmes quantités',
       q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v1 + "'") === '0' && retirees === lignes1, retirees + ' / ' + lignes1);
-    ok('6. Journal : rappel par CAISSE2 puis « Retour : supprimer » (ABANDONNEE), une seule fois',
+    ok('6. Journal : rappel par CAISSE2 puis « Retour : abandonner » (ABANDONNEE), une seule fois',
       journal(v1).endsWith('REPRENDRE_ATTENTE/1/EN_COURS/-/E2E-SV2 ; RETOUR_SUPPRIMER/1/ABANDONNEE/-/E2E-SV2'), journal(v1));
+    await C.visible(c2.p, C.CHAMP_PRODUIT);
+    await c2.p.waitForTimeout(800);
+    const n6 = await c2.p.evaluate(() => { const e = Ext.ComponentQuery.query('doventemanager')[0]; const g = testextjs.app.getController('VenteCtr').getVnogrid();
+      return { ecran: !!e && e.isVisible(true), lignes: g ? g.getStore().getCount() : -1, fenetre: !!document.getElementById('psv-fenetre') }; });
+    ok('6. Après l\'abandon : l\'écran de vente est rechargé comme une nouvelle saisie (aucune vente, aucune ligne, fenêtre fermée)',
+      n6.ecran && n6.lignes === 0 && !n6.fenetre && (await courante(c2.p)) === null, JSON.stringify(n6));
 
-    /* 7. interruption par changement de menu */
+    /* 7. menu demande puis onglet ferme */
     await C.nouvelleVente(c1.p);
     await C.taperArticle(c1.p, CIP2);
     const v2 = await courante(c1.p); ventes.push(v2);
     const ref2 = q("SELECT str_REF FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v2 + "'");
     await attendre(c1.p, () => etat(v2)[0] === 'EN_COURS', 10000, 300);
+    /* retours du 25/11 (1.3) : un changement de menu avec une vente en cours ouvre la fenetre de sortie ; seul un
+     * onglet ferme (ou un poste perdu) laisse la saisie interrompue */
+    const lib7 = await c1.p.evaluate(() => { let r = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode()
+      .cascadeBy((n) => { if (!r && n.get('id') === 'cloturerventemanager' && n.parentNode) { r = [n.parentNode.get('text'), n.get('text')]; } }); return r; });
+    await vues.ouvrirMenu(c1.p, lib7[0], lib7[1]);
+    await c1.p.waitForSelector('#psv-fenetre', { timeout: 8000 }).catch(() => {});
+    const f7 = await fenetreSortie(c1.p);
+    ok('7. Menu demandé avec une vente en cours : la fenêtre de sortie s\'ouvre, rien n\'est fait', !!f7 && etat(v2)[0] === 'EN_COURS', JSON.stringify(f7));
+    await c1.p.click('#psv-choix-rester'); await c1.p.waitForTimeout(400);
+    await c1.p.close({ runBeforeUnload: true });
+    const e7 = await attendre({ waitForTimeout: (ms) => new Promise((r) => setTimeout(r, ms)) }, () => { const e = etat(v2); return e[0] === 'INTERROMPUE' ? e : null; }, 15000, 500);
+    ok('7. « Rester », puis onglet fermé : INTERROMPUE, cause « FERMETURE »', e7 && e7[2] === 'FERMETURE', JSON.stringify(etat(v2)));
+    /* nouvelle session de navigateur : nouveau contexte, nouvelle connexion */
+    await c1.ctx.close().catch(() => {});
+    c1.ctx = await c1.b.newContext({ viewport: { width: 1500, height: 900 } });
+    c1.p = await c1.ctx.newPage();
+    c1.p.on('pageerror', (e) => c1.erreurs.push(String(e.message)));
+    await vues.connexion(c1.p, 'e2e-caisse1', MDP);
     await C.ouvrirEcran(c1.p, 'cloturerventemanager');
-    const e7 = await attendre(c1.p, () => { const e = etat(v2); return e[0] === 'INTERROMPUE' ? e : null; }, 15000, 500);
-    ok('7. Menu quitté : INTERROMPUE, cause « MENU »', e7 && e7[2] === 'MENU', JSON.stringify(etat(v2)));
     ok('7. Une saisie interrompue n\'est pas dans « Ventes en attente »', !(await liste(c1)).includes(v2));
 
     /* 8. CAISSE2 : ni vue, ni reprise */
@@ -229,11 +259,11 @@ const fenetreModale = (p) => p.evaluate(() => Ext.WindowManager.getActive() && E
     ok('11. CAISSE3 « METTRE EN ATTENTE » : refus affiché (droit manquant), la vente reste ouverte et EN_COURS',
       /Droit manquant : Mettre une vente en attente/.test(await bandeau(c3.p)) && (await courante(c3.p)) === v3 && etat(v3)[0] === 'EN_COURS', await bandeau(c3.p));
     await vues.cliquer(c3.p, 'doventemanager #contenu [xtype=toolbar] #btnGoBack');
-    await c3.p.waitForTimeout(400);
-    await vues.cliquer(c3.p, 'doventemanager #contenu [xtype=toolbar] #btnRetourAttente');
+    await c3.p.waitForSelector('#psv-fenetre', { timeout: 5000 });
+    await c3.p.click('#psv-choix-attente');
     await c3.p.waitForTimeout(1500);
-    ok('11. « Mettre en attente et quitter » refusé de même ; Retour revient', /Droit manquant/.test(await bandeau(c3.p)) && (await courante(c3.p)) === v3
-      && (await boutons(c3.p))[0] === 'RETOUR' && etat(v3)[0] === 'EN_COURS');
+    ok('11. « Mettre en attente et quitter » refusé de même ; fenêtre fermée, la vente reste ouverte', /Droit manquant/.test(await bandeau(c3.p)) && (await courante(c3.p)) === v3
+      && (await boutons(c3.p))[0] === 'RETOUR' && (await fenetreSortie(c3.p)) === null && etat(v3)[0] === 'EN_COURS');
     ok('11. Les deux refus de CAISSE3 sont au journal', journal(v3) === 'DEBUT_SAISIE/1/EN_COURS/-/E2E-SV3 ; METTRE_EN_ATTENTE/0/EN_COURS/-/E2E-SV3 ; METTRE_EN_ATTENTE/0/EN_COURS/-/E2E-SV3', journal(v3));
 
     /* 12. journal : ecran, export, chaine */
@@ -261,7 +291,8 @@ const fenetreModale = (p) => p.evaluate(() => Ext.WindowManager.getActive() && E
     const bilan = q("SELECT GROUP_CONCAT(CONCAT(geste, '/', admis) ORDER BY geste, admis SEPARATOR ' ') FROM vente_journal_saisie WHERE id > " + J0);
     const attendu = ['DEBUT_SAISIE/1', 'DEBUT_SAISIE/1', 'DEBUT_SAISIE/1', 'INTERROMPRE/1', 'INTERROMPRE/1', 'METTRE_EN_ATTENTE/0', 'METTRE_EN_ATTENTE/0', 'METTRE_EN_ATTENTE/1',
       'REPRENDRE_ATTENTE/0', 'REPRENDRE_ATTENTE/1', 'REPRENDRE_INTERROMPUE/0', 'REPRENDRE_INTERROMPUE/1', 'RETOUR_SUPPRIMER/1', 'SIGNAL_RETROUVE/1', 'SUPPRIMER_ATTENTE/0'].join(' ');
-    ok('13. Bilan du journal : exactement les gestes du parcours, ni plus ni moins', bilan === attendu, bilan);
+    ok('13. Bilan du journal : exactement les gestes du parcours, ni plus ni moins', bilan === attendu, bilan + ' | interruptions : '
+      + q("SELECT GROUP_CONCAT(CONCAT_WS('/', id, vente_id, IFNULL(cause, '-'), IFNULL(utilisateur_id, 'SERVEUR'), DATE_FORMAT(cree_le, '%H:%i:%s')) SEPARATOR ' ; ') FROM vente_journal_saisie WHERE geste = 'INTERROMPRE' AND id > " + J0));
     ok('13. Stock des articles inchangé (aucune vente clôturée)', A.stock(P1) === STOCK0[0] && A.stock(P2) === STOCK0[1], [A.stock(P1), A.stock(P2), STOCK0].join(' '));
     ok('13. Aucune erreur JavaScript sur les quatre postes', postes.every((s) => s.erreurs.length === 0), postes.map((s) => s.erreurs.join(' | ')).join(' || '));
   } catch (e) {

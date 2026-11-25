@@ -11,6 +11,8 @@
  *   R1          gere en reserve, seuil = rayon + 3, reserve 10    -> sort (rayon + reserve au-dessus du seuil)
  *   R2          gere en reserve, seuil = rayon + 3, reserve 2     -> reste (rayon + reserve sous le seuil)
  * Par les ecrans : liste des suggestions > recherche de la reference > « Modifier ».
+ * Demande du 25/11 : le bandeau s'anime (pulsation en boucle tant qu'il attend une reponse), fixe si le poste demande
+ * moins d'animations.
  * Rapprochement : nombre du bandeau = regle appliquee aux stocks en base = lignes sorties = retraits journalises ;
  * grille = base. Bilan : seules S1, S2, R1 sortent, un retrait journalise chacune, stocks inchanges.
  */
@@ -118,6 +120,23 @@ const stocks = () => q(`SELECT GROUP_CONCAT(CONCAT(s.lg_FAMILLE_ID, ':', s.int_N
     ok('Rapprochement : nombre du bandeau = règle appliquée aux stocks en base', !!b1 && Number((b1.texte.match(/(\d+) produits?/) || [])[1]) === regle.length, b1 && b1.texte);
     ok('L\'ouverture ne retire rien tant qu\'on n\'a pas répondu (7 lignes, aucun retrait journalisé)', lignes().length === 7 && journal() === '0');
     ok('Aucune fenêtre : la question est dans l\'écran', await boites() === 0);
+    /* demande du 25/11 : le bandeau s'anime pour attirer l'attention */
+    const anim = await p.evaluate(async () => {
+      const el = Ext.getCmp('gridpanelSuggestionID').down('#bandeauNettoyageSugg').getEl().dom;
+      const a = el.getAnimations().map((x) => ({ nom: x.animationName, etat: x.playState, duree: x.effect.getTiming().duration, fois: x.effect.getTiming().iterations }));
+      /* aspect reellement change : l'ombre lue a deux instants differents de la pulsation */
+      const vues = [];
+      for (let i = 0; i < 6; i++) { vues.push(getComputedStyle(el).boxShadow); await new Promise((r) => setTimeout(r, 250)); }
+      return { a, differents: new Set(vues).size };
+    });
+    ok('Bandeau animé : pulsation en cours, en boucle tant qu\'il attend une réponse, et l\'aspect change vraiment',
+      anim.a.some((x) => x.nom === 'sugg-bandeau-pulse' && x.etat === 'running' && x.fois === Infinity && x.duree >= 800 && x.duree <= 3000) && anim.differents >= 3,
+      JSON.stringify(anim));
+    await p.emulateMedia({ reducedMotion: 'reduce' });
+    await p.waitForTimeout(300);
+    const reduit = await p.evaluate(() => Ext.getCmp('gridpanelSuggestionID').down('#bandeauNettoyageSugg').getEl().dom.getAnimations().length);
+    ok('Poste réglé pour réduire les animations : bandeau fixe', reduit === 0, String(reduit));
+    await p.emulateMedia({ reducedMotion: 'no-preference' });
     for (const [l, h] of [[1366, 768], [1280, 720], [1920, 1080]]) {
       await p.setViewportSize({ width: l, height: h });
       await p.waitForTimeout(900);

@@ -2,8 +2,8 @@
  * par defaut ? »
  *
  * Par les vues, avec de vrais clics, dans le menu « Modeles de ticket » (Parametrages). Ce que le test etablit :
- *  - « Vente assurance » (80 mm) : le champ « Police » propose cinq polices, Arial Narrow choisie par defaut
- *    (retour du 05/11 ; Segoe UI jusque-la, gardee par les reglages deja enregistres) ;
+ *  - « Vente assurance » (80 mm) : le champ « Police » propose cinq polices, celle du modele par defaut choisie
+ *    (demande du 25/11 : modele livre ; Arial Narrow du 05/11 au 25/11, Segoe UI avant) ;
  *  - chaque choix est ecrit dans sa propre police, et le champ tient dans la colonne des reglages (ergonomie) ;
  *  - un clic sur « Tahoma » : le choix passe sur Tahoma, l'apercu se redessine, « Enregistrer » s'active ;
  *  - « Enregistrer » : police = Tahoma en base pour ce ticket et cette largeur, et le choix reste affiche apres
@@ -71,7 +71,9 @@ const POLICES = ['Segoe UI', 'Arial Narrow', 'Tahoma', 'Calibri', 'Verdana'];
       v: x.getAttribute('data-valeur'), texte: x.textContent.trim(), police: getComputedStyle(x.querySelector('span') || x).fontFamily
     })));
     ok('Champ « Police » : cinq polices proposées', JSON.stringify(boutons.map((x) => x.v)) === JSON.stringify(POLICES), JSON.stringify(boutons.map((x) => x.v)));
-    ok('Arial Narrow choisie par défaut', await choisie() === 'Arial Narrow', await choisie());
+    /* demande du 25/11 : la police par defaut est celle du modele livre (fichier du 20/11) */
+    const policeDefaut = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '../../../main/resources/ticket/modeles-ticket-defaut.json'), 'utf8')).largeurs['80'].VENTE_ASSURANCE.police;
+    ok('Police du modèle par défaut choisie (' + policeDefaut + ')', await choisie() === policeDefaut, await choisie());
     ok('Chaque choix est écrit dans sa propre police', boutons.length === 5 && boutons.every((x) => x.police.replace(/["']/g, '').startsWith(x.v)),
       JSON.stringify(boutons.map((x) => x.police)));
     const tient = await p.evaluate(() => {

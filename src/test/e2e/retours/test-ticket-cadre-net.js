@@ -2,7 +2,8 @@
  * les tickets dans les modeles de tickets ? »
  *
  * Par les vues, avec de vrais clics, dans le menu « Modeles de ticket » (Parametrages). Ce que le test etablit :
- *  - « Vente assurance » (80 mm) : l'option « Cadre autour du net a payer » existe et est active par defaut ;
+ *  - « Vente assurance » (80 mm), cadre enregistre : l'option « Cadre autour du net a payer » existe et est active
+ *    (le modele livre le 25/11 n'a pas de cadre par defaut : le depart est pose par le test) ;
  *  - l'apercu dessine le cadre : des traits horizontaux sur toute la largeur de la zone « Net a payer » ;
  *  - un clic sur l'option : l'apercu se redessine sans cadre (plus aucun trait), le net reste affiche, la zone
  *    est moins haute, « Enregistrer » s'active ;
@@ -35,8 +36,12 @@ const remettre = () => {
 };
 
 (async () => {
-  /* depart des reglages par defaut : ceux du poste (personnalises) sont mis de cote et remis a la fin */
+  /* depart : le modele livre (demande du 25/11, sans cadre par defaut en vente assurance 80 mm), avec le cadre active,
+     pour verifier qu'on peut le retirer ; les reglages du poste sont mis de cote et remis a la fin */
+  const depart = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '../../../main/resources/ticket/modeles-ticket-defaut.json'), 'utf8')).largeurs['80'].VENTE_ASSURANCE;
+  depart.cadreNet = true;
   q("DELETE FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80");
+  q("INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('VENTE_ASSURANCE', 80, '" + JSON.stringify(depart).replace(/'/g, "''") + "', NOW(), NULL)");
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
@@ -87,7 +92,7 @@ const remettre = () => {
     await apresApercu(() => p.locator(racine + ' .mtk-ticket[data-ticket=VENTE_ASSURANCE]').click());
     const cadre = p.locator(racine + ' [data-option=cadreNet]');
     ok('Vente assurance : option « Cadre autour du net à payer » proposée', await cadre.count() === 1);
-    ok('Option active par défaut (rien ne change sans le vouloir)', await cadre.getAttribute('aria-checked') === 'true');
+    ok('Option active au départ (cadre enregistré)', await cadre.getAttribute('aria-checked') === 'true');
     const avec = await lireNet();
     ok('Aperçu : le net à payer est encadré (traits du haut et du bas)', avec && avec.traits >= 2, JSON.stringify(avec));
 

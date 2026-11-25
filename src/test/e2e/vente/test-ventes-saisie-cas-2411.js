@@ -5,7 +5,7 @@
  *  - E2E SC1, E2E SC2 : profil réel « Caisse/Commande/Stock ».
  *
  *  A. Poste qui disparaît (SC1, vente au comptant)
- *   A1. « RETOUR » puis Échap : les trois choix se referment, Retour revient, la vente reste ouverte, rien au journal.
+ *   A1. « RETOUR » puis Échap : la fenêtre de sortie se ferme, la vente reste ouverte, rien au journal.
  *   A2. Navigateur fermé : la saisie passe INTERROMPUE, cause « FERMETURE ».
  *   A3. Nouveau navigateur (autre session) : rien n'est repris en silence ; le bandeau propose la saisie ; reprise
  *       confirmée dans le bouton ; EN_COURS sur la nouvelle session, mêmes lignes.
@@ -15,12 +15,12 @@
  *     mise en attente, après le rappel par SC2 et après sa remise en attente ; l'écran de SC2 montre le même client,
  *     le même bon, les mêmes lignes.
  *  C. Vente en dépôt (« Gestion dépôts extensions », onglet de vente), de bout en bout :
- *   C1. Retour : trois choix dans la barre de l'écran dépôt ; « Mettre en attente et quitter » : EN_ATTENTE, le dépôt
+ *   C1. Retour : même fenêtre de sortie qu'à la vente ; « Mettre en attente et quitter » : EN_ATTENTE, le dépôt
  *       de la vente est gardé.
- *   C2. Une 2e vente en dépôt interrompue (menu quitté) n'est PAS proposée sur l'écran de vente de l'officine ; elle
+ *   C2. Autre menu demandé : fenêtre de sortie, « Rester » ; une 2e vente en dépôt interrompue (onglet fermé) n'est PAS proposée sur l'écran de vente de l'officine ; elle
  *       l'est sur l'écran dépôt, une fois le dépôt choisi.
  *   C3. « Ventes en cours de saisie » > Reprendre : l'écran dépôt s'ouvre, sur le dépôt de la vente, la vente chargée.
- *   C4. Retour > « Supprimer la vente » (confirmé dans le bouton) : lignes dans « Produits retirés et ventes
+ *   C4. Retour > « Abandonner la vente » (un clic) : l'écran dépôt repart sur une nouvelle saisie ; lignes dans « Produits retirés et ventes
  *       abandonnées », stock du dépôt et de l'officine inchangés.
  *  D. Temps d'affichage des deux écrans (ventes en cours, journal) sous plafond.
  *  E. Bilan : journal exact de chaque vente, ni plus ni moins ; aucune erreur JavaScript.
@@ -81,8 +81,16 @@ async function poste(login) {
 const courante = (p) => C.venteCourante(p);
 const couranteDepot = (p) => p.evaluate(() => { const v = testextjs.app.getController('VenteEnDepotCtr').current; return v ? v.lgPREENREGISTREMENTID : null; });
 const bandeau = (p) => p.evaluate(() => { const b = document.getElementById('psv-bandeau'); return b && b.style.display !== 'none' ? b.textContent : ''; });
-const boutons = (p, ecran) => p.evaluate((e) => ['btnGoBack', 'btnRetourAttente', 'btnRetourSupprimer', 'btnRetourAnnuler'].map((i) => {
+const boutons = (p, ecran) => p.evaluate((e) => ['btnGoBack'].map((i) => {
   const c = Ext.ComponentQuery.query(e + ' #contenu [xtype=toolbar] #' + i)[0]; return c && c.isVisible(true) ? (c.getText ? c.getText() : 'ok') : null; }), ecran);
+/* fenetre HTML de sortie (retours du 25/11) : choix proposes, ou null */
+const fenetreSortie = (p) => p.evaluate(() => { const f = document.getElementById('psv-fenetre');
+  return f ? [...f.querySelectorAll('button[id^="psv-choix-"]')].map((b) => b.id.slice(10) + '=' + b.textContent) : null; });
+async function choisirSortie(p, choix) {
+  await p.waitForSelector('#psv-fenetre', { timeout: 5000 });
+  await p.click('#psv-choix-' + choix);
+}
+const CHOIX_RETOUR = JSON.stringify(['attente=Mettre en attente et quitter', 'abandonner=Abandonner la vente', 'rester=Rester sur la vente']);
 const BARRE_V = 'doventemanager #contenu [xtype=toolbar] #';
 const BARRE_D = 'doventeendepot #contenu [xtype=toolbar] #';
 
@@ -147,13 +155,13 @@ async function taperArticleDepot(p, cipProduit) {
     const refA = ref(va);
     const ea = await attendre(c1.p, () => { const e = etat(va); return e[0] === 'EN_COURS' ? e : null; }, 10000, 300);
     await vues.cliquer(c1.p, BARRE_V + 'btnGoBack');
-    await c1.p.waitForTimeout(500);
-    const a1 = await boutons(c1.p, 'doventemanager');
+    await c1.p.waitForSelector('#psv-fenetre', { timeout: 5000 }).catch(() => {});
+    const a1 = await fenetreSortie(c1.p);
     await c1.p.keyboard.press('Escape');
     await c1.p.waitForTimeout(500);
-    ok('A1. Retour puis Échap : les trois choix se referment, Retour revient, la vente reste ouverte et EN_COURS',
-      a1[1] === 'METTRE EN ATTENTE ET QUITTER' && JSON.stringify(await boutons(c1.p, 'doventemanager')) === JSON.stringify(['RETOUR', null, null, null])
-      && (await courante(c1.p)) === va && etat(va)[0] === 'EN_COURS', JSON.stringify(a1) + ' ' + JSON.stringify(await boutons(c1.p, 'doventemanager')));
+    ok('A1. Retour puis Échap : la fenêtre (deux choix et « Rester ») se ferme, la vente reste ouverte et EN_COURS',
+      JSON.stringify(a1) === CHOIX_RETOUR && (await fenetreSortie(c1.p)) === null && JSON.stringify(await boutons(c1.p, 'doventemanager')) === JSON.stringify(['RETOUR'])
+      && (await courante(c1.p)) === va && etat(va)[0] === 'EN_COURS', JSON.stringify(a1));
     ok('A1. Échap n\'écrit rien au journal', journal(va) === 'DEBUT_SAISIE/1/EN_COURS/-/E2E-SC1', journal(va));
 
     /* A2. navigateur ferme */
@@ -187,8 +195,8 @@ async function taperArticleDepot(p, cipProduit) {
     await reprendreParBandeau(c1.p, va, 'vente');
     const e4b = await attendre(c1.p, () => { const e = etat(va); return e[0] === 'EN_COURS' ? e : null; }, 10000, 300);
     ok('A4. Reconnexion : bandeau, reprise ; EN_COURS, mêmes 2 lignes', !!e4b && nbLignes(va) === '2', JSON.stringify(etat(va)));
-    await vues.cliquer(c1.p, BARRE_V + 'btnGoBack'); await c1.p.waitForTimeout(400);
-    await vues.cliquer(c1.p, BARRE_V + 'btnRetourAttente');
+    await vues.cliquer(c1.p, BARRE_V + 'btnGoBack');
+    await choisirSortie(c1.p, 'attente');
     await attendre(c1.p, () => etat(va)[0] === 'EN_ATTENTE', 10000, 300);
     ok('A4. « Mettre en attente et quitter » : EN_ATTENTE, écran vidé', etat(va)[0] === 'EN_ATTENTE' && (await courante(c1.p)) === null, etat(va).join('|'));
     ok('A. Journal de la vente : début, fermeture, reprise, signal perdu, reprise, attente — ni plus ni moins',
@@ -237,8 +245,8 @@ async function taperArticleDepot(p, cipProduit) {
     ok('B. Rappel par SC2 : EN_COURS ; base identique', etat(vb)[0] === 'EN_COURS' && pb2.replace('#is_Process', '').replace('#pending', '') === pb0.replace('#is_Process', '').replace('#pending', ''), pb2 + ' / ' + pb0);
     ok('B. Écran de SC2 = base : type Assurance, même bon, même client, 2 lignes', ecranB.type === '2' && ecranB.bon === C.MARQUE + '-BON-SC'
       && /SCA/.test(ecranB.client) && ecranB.lignes === 2, JSON.stringify(Object.assign({}, ecranB, { client: (ecranB.client.match(/.{0,40}SCA.{0,20}/) || ['client absent'])[0] })));
-    await vues.cliquer(c2.p, BARRE_V + 'btnGoBack'); await c2.p.waitForTimeout(400);
-    await vues.cliquer(c2.p, BARRE_V + 'btnRetourAttente');
+    await vues.cliquer(c2.p, BARRE_V + 'btnGoBack');
+    await choisirSortie(c2.p, 'attente');
     await attendre(c2.p, () => etat(vb)[0] === 'EN_ATTENTE', 10000, 300);
     ok('B. SC2 « Mettre en attente et quitter » : EN_ATTENTE, base toujours identique', etat(vb)[0] === 'EN_ATTENTE' && photo().replace(/#(is_Process|pending)/, '') === pb0.replace(/#(is_Process|pending)/, ''), photo());
     ok('B. Journal : début, attente, rappel par SC2, attente par SC2', journal(vb) === ['DEBUT_SAISIE/1/EN_COURS/-/' + A.ADMIN, 'METTRE_EN_ATTENTE/1/EN_ATTENTE/-/' + A.ADMIN,
@@ -251,10 +259,11 @@ async function taperArticleDepot(p, cipProduit) {
     const vc1 = await couranteDepot(ad.p); ventes.push(vc1);
     const ec1 = await attendre(ad.p, () => { const e = etat(vc1); return e[0] === 'EN_COURS' ? e : null; }, 10000, 300);
     ok('C. Vente saisie dans l\'onglet de vente du dépôt : EN_COURS, dépôt de la vente noté', ec1 && ec1[3] === DEPOT, JSON.stringify(etat(vc1)));
-    await vues.cliquer(ad.p, BARRE_D + 'btnGoBack'); await ad.p.waitForTimeout(500);
-    const bc1 = await boutons(ad.p, 'doventeendepot');
-    ok('C1. Retour (écran dépôt) : trois choix dans la barre, Retour masqué', bc1[0] === null && bc1[1] === 'METTRE EN ATTENTE ET QUITTER' && bc1[2] === 'SUPPRIMER LA VENTE' && bc1[3] === 'ANNULER', JSON.stringify(bc1));
-    await vues.cliquer(ad.p, BARRE_D + 'btnRetourAttente');
+    await vues.cliquer(ad.p, BARRE_D + 'btnGoBack');
+    await ad.p.waitForSelector('#psv-fenetre', { timeout: 5000 }).catch(() => {});
+    const bc1 = await fenetreSortie(ad.p);
+    ok('C1. Retour (écran dépôt) : même fenêtre qu\'à la vente (deux choix et « Rester »)', JSON.stringify(bc1) === CHOIX_RETOUR, JSON.stringify(bc1));
+    await choisirSortie(ad.p, 'attente');
     await attendre(ad.p, () => etat(vc1)[0] === 'EN_ATTENTE', 10000, 300);
     ok('C1. « Mettre en attente et quitter » : EN_ATTENTE, le dépôt de la vente est gardé', etat(vc1)[0] === 'EN_ATTENTE' && etat(vc1)[3] === DEPOT, etat(vc1).join('|'));
 
@@ -266,9 +275,26 @@ async function taperArticleDepot(p, cipProduit) {
     const refC2 = ref(vc2);
     await attendre(ad.p, () => etat(vc2)[0] === 'EN_COURS', 10000, 300);
     const lignesC2 = q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, 'x', int_QUANTITY) ORDER BY lg_FAMILLE_ID) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + vc2 + "'");
+    /* retours du 25/11 (1.3, meme regle qu'a la vente) : autre menu demande -> fenetre de sortie ; « Rester » ; puis
+     * onglet ferme : la saisie en depot est interrompue */
+    const libC2 = await ad.p.evaluate(() => { let r = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode()
+      .cascadeBy((n) => { if (!r && n.get('id') === 'cloturerventemanager' && n.parentNode) { r = [n.parentNode.get('text'), n.get('text')]; } }); return r; });
+    await vues.ouvrirMenu(ad.p, libC2[0], libC2[1]);
+    await ad.p.waitForSelector('#psv-fenetre', { timeout: 8000 }).catch(() => {});
+    const fC2 = await fenetreSortie(ad.p);
+    ok('C2. Vente en dépôt, autre menu demandé : même fenêtre de sortie qu\'à la vente, rien n\'est fait', JSON.stringify(fC2) === CHOIX_RETOUR && etat(vc2)[0] === 'EN_COURS', JSON.stringify(fC2));
+    await ad.p.click('#psv-choix-rester'); await ad.p.waitForTimeout(400);
+    ok('C2. « Rester » : l\'écran dépôt garde la vente', (await couranteDepot(ad.p)) === vc2);
+    await ad.p.close({ runBeforeUnload: true });
+    const ec2 = await attendre({ waitForTimeout: (ms) => new Promise((r) => setTimeout(r, ms)) }, () => { const e = etat(vc2); return e[0] === 'INTERROMPUE' ? e : null; }, 15000, 500);
+    ok('C2. Vente en dépôt, onglet fermé : INTERROMPUE (« FERMETURE »)', ec2 && ec2[2] === 'FERMETURE', etat(vc2).join('|'));
+    /* nouvelle session de navigateur : nouveau contexte, nouvelle connexion */
+    await ad.ctx.close().catch(() => {});
+    ad.ctx = await ad.b.newContext({ viewport: { width: 1500, height: 900 } });
+    ad.p = await ad.ctx.newPage();
+    ad.p.on('pageerror', (e) => ad.erreurs.push(String(e.message)));
+    await vues.connexion(ad.p, ENV_E2E.LOGIN, 'e2etest');
     await C.ouvrirEcran(ad.p, 'cloturerventemanager');
-    const ec2 = await attendre(ad.p, () => { const e = etat(vc2); return e[0] === 'INTERROMPUE' ? e : null; }, 15000, 500);
-    ok('C2. Vente en dépôt, menu quitté : INTERROMPUE (« MENU »)', ec2 && ec2[2] === 'MENU', etat(vc2).join('|'));
     await C.visible(ad.p, 'cloturerventemanager #addBtn');
     await vues.cliquer(ad.p, 'cloturerventemanager #addBtn');
     await C.visible(ad.p, C.CHAMP_PRODUIT);
@@ -299,17 +325,21 @@ async function taperArticleDepot(p, cipProduit) {
     ok('C3. « Reprendre » : l\'écran dépôt s\'ouvre sur le dépôt de la vente, la vente chargée, EN_COURS ; pas l\'écran de l\'officine',
       !!ec3 && (await couranteDepot(ad.p)) === vc2 && ecranC3.depot === DEPOT && ecranC3.depotVente === DEPOT && !ecranC3.officine, JSON.stringify(ecranC3) + ' ' + etat(vc2).join('|'));
 
-    /* C4. Retour > supprimer */
-    await vues.cliquer(ad.p, BARRE_D + 'btnGoBack'); await ad.p.waitForTimeout(400);
-    await vues.cliquer(ad.p, BARRE_D + 'btnRetourSupprimer'); await ad.p.waitForTimeout(600);
-    ok('C4. 1er clic : confirmation demandée dans le bouton, rien n\'est supprimé', (await boutons(ad.p, 'doventeendepot'))[2] === 'CONFIRMER LA SUPPRESSION' && nbLignes(vc2) === '1');
-    await vues.cliquer(ad.p, BARRE_D + 'btnRetourSupprimer');
+    /* C4. Retour > abandonner (un seul clic) */
+    await vues.cliquer(ad.p, BARRE_D + 'btnGoBack');
+    await choisirSortie(ad.p, 'abandonner');
     await attendre(ad.p, () => q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vc2 + "'") === '0', 15000, 300);
     const retirees = q("SELECT IFNULL(GROUP_CONCAT(CONCAT(produit_id, 'x', quantite) ORDER BY produit_id), '') FROM vente_suppression WHERE vente_id = '" + vc2 + "'");
-    ok('C4. 2e clic : vente supprimée, lignes dans « Produits retirés et ventes abandonnées » (mêmes produits, mêmes quantités)', retirees === lignesC2 && retirees !== '', retirees + ' / ' + lignesC2);
+    ok('C4. « Abandonner la vente » : vente retirée, lignes dans « Produits retirés et ventes abandonnées » (mêmes produits, mêmes quantités)', retirees === lignesC2 && retirees !== '', retirees + ' / ' + lignesC2);
+    await ad.p.waitForTimeout(1000);
+    const ecranC4 = await ad.p.evaluate(() => ({ ouvert: Ext.ComponentQuery.query('doventeendepot').some((e) => e.isVisible(true)),
+      depotVente: Ext.ComponentQuery.query('doventeendepot #depotVente').map((c) => c.getValue())[0] || null,
+      lignes: testextjs.app.getController('VenteEnDepotCtr').getVnogrid().getStore().getCount(), fenetre: !!document.getElementById('psv-fenetre') }));
+    ok('C4. Après l\'abandon : l\'écran dépôt reste ouvert sur une nouvelle saisie, même dépôt, aucune ligne',
+      ecranC4.ouvert && ecranC4.depotVente === DEPOT && ecranC4.lignes === 0 && !ecranC4.fenetre && (await couranteDepot(ad.p)) === null, JSON.stringify(ecranC4));
     ok('C4. Stock du dépôt et de l\'officine inchangés', stockDepot() === STOCK_DEPOT && A.stock(P1) === stockOff0, stockDepot() + ' ' + A.stock(P1) + '/' + stockOff0);
     ok('C. Journal des deux ventes en dépôt', journal(vc1) === 'DEBUT_SAISIE/1/EN_COURS/-/' + A.ADMIN + ' ; METTRE_EN_ATTENTE/1/EN_ATTENTE/-/' + A.ADMIN
-      && journal(vc2) === ['DEBUT_SAISIE/1/EN_COURS/-/' + A.ADMIN, 'INTERROMPRE/1/INTERROMPUE/MENU/' + A.ADMIN, 'REPRENDRE_INTERROMPUE/1/EN_COURS/-/' + A.ADMIN,
+      && journal(vc2) === ['DEBUT_SAISIE/1/EN_COURS/-/' + A.ADMIN, 'INTERROMPRE/1/INTERROMPUE/FERMETURE/' + A.ADMIN, 'REPRENDRE_INTERROMPUE/1/EN_COURS/-/' + A.ADMIN,
         'RETOUR_SUPPRIMER/1/ABANDONNEE/-/' + A.ADMIN].join(' ; '), journal(vc1) + ' || ' + journal(vc2));
 
     /* D. temps d'affichage */

@@ -464,14 +464,32 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             // Bandeau d'identification de l'article. Retour du 31/10 : sur un petit ecran, le nom
                             // (hbox) etait reduit a presque rien et passait sous « Péremption proche » ; les zones
                             // vont maintenant a la ligne quand la place manque (flex CSS), le nom garde sa largeur.
+                            // Demande du 25/11 : toutes les donnees sur une ligne, deux au plus sur un petit ecran.
+                            // ExtJS range les donnees dans un conteneur interieur (x-autocontainer-innerCt, en
+                            // table-cell) : le flex du bandeau ne s'y appliquait pas, chaque donnee prenait sa ligne.
+                            // Le flex est pose sur ce conteneur (feuille de style ci-dessous) ; chaque donnee garde
+                            // sa largeur utile.
                             xtype: 'container',
                             itemId: 'bandeauArticle',
+                            cls: 'bandeau-article',
                             layout: 'auto',
                             padding: '6 12',
                             margin: '0 0 10 0',
-                            style: 'background:#f4f8fb;border:1px solid #dbe4ec;border-radius:6px;display:flex;flex-wrap:wrap;'
-                                    + 'align-items:center;column-gap:20px;row-gap:4px;',
+                            style: 'background:#f4f8fb;border:1px solid #dbe4ec;border-radius:6px;',
                             defaultType: 'displayfield',
+                            listeners: {
+                                beforerender: function () {
+                                    if (!document.getElementById('style-bandeau-article')) {
+                                        Ext.util.CSS.createStyleSheet(
+                                                '.bandeau-article .x-autocontainer-outerCt{display:block!important;width:100%!important;height:auto!important}'
+                                                + '.bandeau-article .x-autocontainer-innerCt{display:flex!important;flex-wrap:wrap;align-items:center;'
+                                                + 'column-gap:22px;row-gap:4px;width:100%!important;height:auto!important}'
+                                                + '.bandeau-article .x-autocontainer-innerCt>.x-field{flex:0 0 auto;margin:0!important;width:auto!important}'
+                                                + '.bandeau-article .x-form-display-field{white-space:nowrap}',
+                                                'style-bandeau-article');
+                                    }
+                                }
+                            },
                             items: [
                                 {
                                     hideLabel: true,
@@ -484,8 +502,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     hideLabel: true,
                                     name: 'str_DESCRIPTION',
                                     id: 'str_DESCRIPTION',
-                                    fieldStyle: 'color:#2b2b2b;font-weight:bold;font-size:17px',
-                                    style: 'flex:1 1 260px;min-width:220px'
+                                    fieldStyle: 'color:#2b2b2b;font-weight:bold;font-size:17px'
                                 },
                                 {
                                     // Date de peremption la plus proche (lot en stock, sinon date de la fiche) :
@@ -493,8 +510,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     hideLabel: true,
                                     name: 'peremption_proche_detail',
                                     id: 'peremption_proche_detail',
-                                    hidden: true,
-                                    style: 'flex:0 1 auto;max-width:430px'
+                                    hidden: true
                                 },
                                 {
                                     fieldLabel: 'EAN 13',
@@ -502,8 +518,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     labelStyle: 'color:#7a7a7a;font-size:13px',
                                     name: 'int_EAN13',
                                     id: 'int_EAN13',
-                                    fieldStyle: 'color:#555555;font-size:14px',
-                                    width: 230
+                                    fieldStyle: 'color:#555555;font-size:14px'
                                 },
                                 {
                                     // Code EAN fabricant : affiche seulement. Retour du 15/10 : il se saisit a la
@@ -512,8 +527,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     labelWidth: 90,
                                     labelStyle: 'color:#7a7a7a;font-size:13px',
                                     id: 'eanFabricantDetail',
-                                    fieldStyle: 'color:#555555;font-size:14px',
-                                    width: 260
+                                    fieldStyle: 'color:#555555;font-size:14px'
                                 },
                                 {
                                     fieldLabel: 'Classe ABC',
@@ -522,7 +536,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'classe_abc_detail',
                                     id: 'classe_abc_detail',
                                     fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:17px',
-                                    width: 170,
                                     value: 'Non classe'
                                 }
                             ]

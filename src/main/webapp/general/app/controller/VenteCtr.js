@@ -680,6 +680,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                 /* « Reprendre la vente interrompue » depuis le bandeau : le serveur a deja admis la reprise */
                 me.loadExistantSale(id);
             });
+            /* retours du 25/11 (1.3) : quitter l'ecran (menu, en-tete) avec une vente en cours -> meme fenetre que Retour */
+            if (window.PrestigeSaisieVente.garder) {
+                window.PrestigeSaisieVente.garder('vente', ['doventemanager'], function (continuer) {
+                    return me.sortieEnCours(continuer);
+                });
+            }
         }
         /*
          * Retours du 10/10 (14) : bouton « Fiche client » visible des qu'un client (standard, carnet, assurance) est sur la
@@ -4569,38 +4575,86 @@ Ext.define('testextjs.controller.VenteCtr', {
     goBack: function () {
         const me = this, vente = me.current, btn = me.getVnobtnGoBack && me.getVnobtnGoBack();
         /*
-         * cahier du 24/11, point 2 : Retour sur une vente en saisie -> choix dans la barre de boutons (aucune
-         * fenetre) : mettre en attente et quitter, ou supprimer la vente (confirmee dans le bouton). Modification
-         * d'une vente cloturee (copie) et prevente : comportement d'avant.
+         * cahier du 24/11, point 2, et retours du 25/11 (1.1) : Retour sur une vente en saisie -> fenetre a deux
+         * choix : mettre en attente et quitter, ou abandonner la vente (abandon trace, produits retires, l'ecran
+         * repart sur une nouvelle saisie). Modification d'une vente cloturee (copie) et prevente : comportement d'avant.
          */
         if (window.PrestigeSaisieVente && btn && vente && vente.lgPREENREGISTREMENTID
                 && me.getCategorie() !== 'COPY' && me.getCategorie() !== 'PREVENTE' && !(me.retourApres && me.retourApres.fenetreCmp)) {
-            const id = vente.lgPREENREGISTREMENTID;
-            window.PrestigeSaisieVente.choixRetour(btn, {
-                attente: function (ok, ko) {
-                    window.PrestigeSaisieVente.attente(id, function () {
-                        ok();
-                        me.rememberPreventeMode();
-                        me.saveModeReglementAttente();
-                        me.quitterVente();
-                    }, ko);
-                },
-                supprimer: function (ok, ko) {
-                    window.PrestigeSaisieVente.supprimer(id, function () {
-                        Ext.Ajax.request({
-                            method: 'POST',
-                            url: '../api/v1/ventestats/remove/' + encodeURIComponent(id),
-                            callback: function () {
-                                ok();
-                                me.quitterVente();
-                            }
-                        });
-                    }, ko);
-                }
-            });
+            window.PrestigeSaisieVente.choixRetour(btn, me.actionsSortie(function () {
+                me.quitterVente();
+            }));
             return;
         }
         me.quitterVente();
+    },
+    /*
+     * Retours du 25/11 : gestes de la fenetre de sortie d'une vente (Retour, changement de menu, rappel d'une autre
+     * vente). apresAttente : suite une fois la vente mise en attente. L'abandon laisse toujours l'ecran sur une
+     * nouvelle saisie (apresAbandon, facultatif, sinon l'ecran de vente est recharge).
+     */
+    /*
+     * Retours du 25/11 (1.3) : vente en cours = au moins un produit, ou un client a credit (assurance, carnet) choisi.
+     * Rend null (on quitte comme avant) ou les gestes de la fenetre ; continuer = la navigation demandee.
+     */
+    sortieEnCours: function (continuer) {
+        const me = this, ecran = Ext.ComponentQuery.query('doventemanager')[0];
+        if (!ecran || ecran.isDestroyed || !ecran.isVisible(true) || me.getCategorie() === 'PREVENTE'
+                || me.getCategorie() === 'COPY' || (me.retourApres && me.retourApres.fenetreCmp)) {
+            return null;
+        }
+        const id = me.current && me.current.lgPREENREGISTREMENTID;
+        const grille = me.getVnogrid && me.getVnogrid();
+        const produits = !!id && !!grille && grille.getStore().getCount() > 0;
+        const typeVente = me.getTypeVenteCombo && me.getTypeVenteCombo() ? me.getTypeVenteCombo().getValue() : null;
+        const credit = !!me.client && (typeVente === '2' || typeVente === '3');
+        if (!produits && !credit) {
+            return null;
+        }
+        if (!id) {
+            /* client a credit choisi, aucun produit : rien a mettre en attente */
+            return {actions: {abandonner: function (ok) {
+                ok();
+                me.resetAll();
+                continuer();
+            }}};
+        }
+        return {actions: me.actionsSortie(function () {
+            me.libererRappelVente();
+            me.resetAll();
+            continuer();
+        }, continuer)};
+    },
+    actionsSortie: function (apresAttente, apresAbandon) {
+        const me = this, id = me.current && me.current.lgPREENREGISTREMENTID;
+        return {
+            attente: function (ok, ko) {
+                window.PrestigeSaisieVente.attente(id, function () {
+                    ok();
+                    me.rememberPreventeMode();
+                    me.saveModeReglementAttente();
+                    apresAttente();
+                }, ko);
+            },
+            abandonner: function (ok, ko) {
+                window.PrestigeSaisieVente.supprimer(id, function () {
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/ventestats/remove/' + encodeURIComponent(id),
+                        callback: function () {
+                            ok();
+                            me.libererRappelVente();
+                            me.resetAll();
+                            if (apresAbandon) {
+                                apresAbandon();
+                                return;
+                            }
+                            testextjs.app.getController('App').onRedirectTo('doventemanager', {isEdit: false, record: {}});
+                        }
+                    });
+                }, ko);
+            }
+        };
     },
     quitterVente: function () {
         const me = this;
@@ -10212,6 +10266,33 @@ Ext.define('testextjs.controller.VenteCtr', {
                     });
                 };
                 const courante = me.current && me.current.lgPREENREGISTREMENTID;
+                const grille = me.getVnogrid && me.getVnogrid();
+                if (courante && courante !== id && me.getCategorie() !== 'PREVENTE' && grille
+                        && grille.getStore().getCount() > 0 && window.PrestigeSaisieVente.choixRappel) {
+                    /* retours du 25/11 (1.6) : la vente ouverte a des produits -> l'utilisateur choisit */
+                    window.PrestigeSaisieVente.choixRappel({
+                        attente: function (ok, ko) {
+                            window.PrestigeSaisieVente.attente(courante, function () {
+                                ok();
+                                ouvrir();
+                            }, ko);
+                        },
+                        abandonner: function (ok, ko) {
+                            window.PrestigeSaisieVente.supprimer(courante, function () {
+                                Ext.Ajax.request({
+                                    method: 'POST',
+                                    url: '../api/v1/ventestats/remove/' + encodeURIComponent(courante),
+                                    callback: function () {
+                                        ok();
+                                        me.libererRappelVente();
+                                        ouvrir();
+                                    }
+                                });
+                            }, ko);
+                        }
+                    });
+                    return;
+                }
                 if (courante && courante !== id && me.getCategorie() !== 'PREVENTE') {
                     window.PrestigeSaisieVente.attente(courante, ouvrir, function (msg) {
                         window.PrestigeSaisieVente.bandeau(msg);

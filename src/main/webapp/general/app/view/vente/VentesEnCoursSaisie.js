@@ -26,8 +26,14 @@ Ext.define('testextjs.view.vente.VentesEnCoursSaisie', {
             fields: ['id', 'numero', 'etat', 'libelle', 'poste', 'dernierSignal', 'cause', 'montant', 'lignes',
                 'utilisateur', 'depot', 'ecran', 'depotId', 'commencee', 'reprenable'],
             proxy: {type: 'ajax', url: '../api/v1/vente-saisie/en-cours', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
-            autoLoad: true
+            /* retours du 25/11 (1.4) : en onglet du menu « Ventes », chargee a la premiere ouverture de l'onglet */
+            autoLoad: !me.chargerALaDemande
         });
+        if (me.chargerALaDemande) {
+            me.on('activate', function () {
+                me.ventes.load();
+            });
+        }
         Ext.applyIf(me, {
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'component', itemId: 'vcsResume', html: ''},

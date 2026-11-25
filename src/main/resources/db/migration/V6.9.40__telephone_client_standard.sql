@@ -59,7 +59,10 @@ SELECT c.lg_CLIENT_ID, x.numero, c.dt_CREATED
                   FROM t_client c2
                  WHERE c2.lg_TYPE_CLIENT_ID = '6') n ON n.lg_CLIENT_ID = t.lg_CLIENT_ID
        ) x ON x.lg_CLIENT_ID = c.lg_CLIENT_ID
- WHERE x.numero REGEXP '^0[157][0-9]{8}$';
+ -- '#' devant : la chaine soumise a REGEXP n'est jamais vide. Certains MariaDB sous Windows (PCRE2 embarquee)
+ -- refusent une chaine vide : « Regex error 'NULL argument passed' » (1139), Flyway bloque sur 6.9.40 (25/11).
+ -- Memes numeros retenus : src/test/e2e/securite/test-migration-v6940-regexp.js.
+ WHERE CONCAT('#', x.numero) REGEXP '^#0[157][0-9]{8}$';
 
 -- Un numero deja pris n'est repris que pour le client standard le plus ancien.
 UPDATE t_client c

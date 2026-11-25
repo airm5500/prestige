@@ -280,6 +280,9 @@ Ext.define('testextjs.controller.App', {
     },
 
     onLoadNewComponent: function (ComponentXtype, ComponentLabel, name_ressource) {
+        if (this.venteRetient(ComponentXtype, this.onLoadNewComponent, arguments)) {
+            return;
+        }
         ComponentLabel = this.titreEcran([ComponentXtype, this.ecranReel(ComponentXtype)], ComponentLabel);
         ComponentXtype = this.ecranReel(ComponentXtype);
         // alert(ComponentXtype);
@@ -381,6 +384,9 @@ Ext.define('testextjs.controller.App', {
     },
 
     onLoadNewComponentWithDataSource: function (ComponentXtype, ComponentLabel, name_ressource, ODatatasource) {
+        if (this.venteRetient(ComponentXtype, this.onLoadNewComponentWithDataSource, arguments)) {
+            return;
+        }
         ComponentLabel = this.titreEcran([ComponentXtype, this.ecranReel(ComponentXtype)], ComponentLabel);
         ComponentXtype = this.ecranReel(ComponentXtype);
         // Experience utilisateur (RUM) : debut de l'ouverture de l'ecran.
@@ -630,6 +636,20 @@ Ext.define('testextjs.controller.App', {
         //  alert("Fin");
 
     },
+    /*
+     * Retours du 25/11 (1.3) : changement d'ecran (menu, en-tete : menu principal, accueil, mon compte, Metro) avec
+     * une vente en cours -> fenetre « mettre en attente et quitter / abandonner / rester » (saisie-vente.js). La
+     * navigation demandee reprend une fois le choix fait ; « rester » l'annule. true : navigation retenue.
+     */
+    venteRetient: function (xtype, fn, args, rester) {
+        const me = this, a = Ext.Array.slice(args || []);
+        if (!window.PrestigeSaisieVente || !window.PrestigeSaisieVente.retenir) {
+            return false;
+        }
+        return window.PrestigeSaisieVente.retenir(xtype, function () {
+            fn.apply(me, a);
+        }, rester);
+    },
     onNavSelectionChange: function (selModel, records) {
         var record = records[0],
                 text = record.get('text'),
@@ -642,7 +662,12 @@ Ext.define('testextjs.controller.App', {
 
 
         if (xtype) { // only leaf nodes have ids
-
+            /* « rester » : l'entree du menu est deselectionnee, un nouveau clic dessus repose la question */
+            if (this.venteRetient(xtype, this.onNavSelectionChange, arguments, function () {
+                selModel.deselectAll(true);
+            })) {
+                return;
+            }
 
             contentPanel.removeAll(true);
 
@@ -1019,6 +1044,9 @@ Ext.define('testextjs.controller.App', {
     },
 
     onRedirectTo: function (ComponentXtype, data) {
+        if (this.venteRetient(ComponentXtype, this.onRedirectTo, arguments)) {
+            return;
+        }
         ComponentXtype = this.ecranReel(ComponentXtype);
         // Experience utilisateur (RUM) : debut de l'ouverture de l'ecran.
         if (window.PrestigeRum) {

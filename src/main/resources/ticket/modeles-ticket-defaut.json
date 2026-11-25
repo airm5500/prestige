@@ -1,0 +1,1860 @@
+{
+  "largeurs": {
+    "58": {
+      "VENTE_DEPOT": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_DEPOT",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE_ASSURANCE": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_ASSURANCE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "REGLEMENT_FACTURE": {
+        "encoursCarnet": false,
+        "ticket": "REGLEMENT_FACTURE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -3,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "MOUVEMENT_CAISSE": {
+        "encoursCarnet": false,
+        "ticket": "MOUVEMENT_CAISSE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": true,
+        "cadreNet": true,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -4,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "REGLEMENT_DIFFERE": {
+        "encoursCarnet": false,
+        "ticket": "REGLEMENT_DIFFERE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -3,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE_MIXTE": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_MIXTE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -4,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -4,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "TICKET_Z": {
+        "encoursCarnet": false,
+        "ticket": "TICKET_Z",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": true,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -3,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "PREVENTE": {
+        "encoursCarnet": false,
+        "ticket": "PREVENTE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 2,
+        "signatures": false,
+        "cadreNet": true,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": 0,
+            "alignement": "",
+            "section": 0,
+            "detail": -1,
+            "nom": -1
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "REGLEMENT_CARNET_DEPOT": {
+        "encoursCarnet": false,
+        "ticket": "REGLEMENT_CARNET_DEPOT",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -3,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE": {
+        "encoursCarnet": false,
+        "ticket": "VENTE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE_CARNET": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_CARNET",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -3,
+            "alignement": ""
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Arial Narrow",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      }
+    },
+    "80": {
+      "VENTE_DEPOT": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_DEPOT",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE_ASSURANCE": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_ASSURANCE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "REGLEMENT_FACTURE": {
+        "encoursCarnet": false,
+        "ticket": "REGLEMENT_FACTURE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "MOUVEMENT_CAISSE": {
+        "encoursCarnet": false,
+        "ticket": "MOUVEMENT_CAISSE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": true,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "REGLEMENT_DIFFERE": {
+        "encoursCarnet": false,
+        "ticket": "REGLEMENT_DIFFERE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -1,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE_MIXTE": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_MIXTE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -3,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "TICKET_Z": {
+        "encoursCarnet": false,
+        "ticket": "TICKET_Z",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": true,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "PREVENTE": {
+        "encoursCarnet": false,
+        "ticket": "PREVENTE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "REGLEMENT_CARNET_DEPOT": {
+        "encoursCarnet": false,
+        "ticket": "REGLEMENT_CARNET_DEPOT",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE": {
+        "encoursCarnet": false,
+        "ticket": "VENTE",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      },
+      "VENTE_CARNET": {
+        "encoursCarnet": false,
+        "ticket": "VENTE_CARNET",
+        "recapitulatif": true,
+        "remise": true,
+        "version": 1,
+        "signatures": false,
+        "cadreNet": false,
+        "lot": false,
+        "marge": 0,
+        "disposition": [
+          {
+            "bloc": "ENTETE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "COORDONNEES",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "TITRE",
+            "taille": -2,
+            "alignement": "C"
+          },
+          {
+            "bloc": "INTERVENANTS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "CLIENT",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "CORPS",
+            "taille": -1,
+            "alignement": ""
+          },
+          {
+            "bloc": "RECAP",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "TOTAUX",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "NET",
+            "taille": -2,
+            "alignement": ""
+          },
+          {
+            "bloc": "REGLEMENT",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "MENTIONS",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "COMMENTAIRE",
+            "taille": 0,
+            "alignement": ""
+          },
+          {
+            "bloc": "SIGNATURES",
+            "taille": 0,
+            "alignement": ""
+          }
+        ],
+        "police": "Calibri",
+        "tiersPayant": "UNE_LIGNE",
+        "modele": "NOUVEAU",
+        "commentaires": true,
+        "net": true,
+        "signatureClient": false,
+        "promotion": true,
+        "ccRc": false
+      }
+    }
+  },
+  "format": "prestige-modeles-ticket",
+  "version": 2
+}

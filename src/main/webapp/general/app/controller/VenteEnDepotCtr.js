@@ -692,6 +692,12 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
             }, function (vente) {
                 return vente.depotId === me.depotIdDeVente();
             });
+            /* retours du 25/11 (1.3, meme regle qu'a la vente) : quitter l'ecran avec une vente en cours */
+            if (window.PrestigeSaisieVente.garder) {
+                window.PrestigeSaisieVente.garder('depot', ['doventeendepot', 'depotextension'], function (continuer) {
+                    return me.sortieEnCours(continuer);
+                });
+            }
         }
         // Recalcul de la hauteur de la grille au redimensionnement de la
         // fenêtre (portable <-> écran externe). Bufferisé, sans effet hors
@@ -4147,38 +4153,82 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     goBack: function () {
         const me = this, vente = me.current, btn = me.getVnobtnGoBack && me.getVnobtnGoBack();
         /*
-         * cahier du 24/11, point 2 : Retour sur une vente en saisie -> choix dans la barre de boutons (aucune
-         * fenetre) : mettre en attente et quitter, ou supprimer la vente (confirmee dans le bouton). Modification
-         * d'une vente cloturee (copie) et prevente : comportement d'avant.
+         * cahier du 24/11, point 2, et retours du 25/11 (1.1, meme regle qu'a la vente) : Retour sur une vente en
+         * saisie -> fenetre a deux choix : mettre en attente et quitter, ou abandonner la vente (abandon trace,
+         * produits retires, l'ecran repart sur une nouvelle saisie, meme depot). Copie et prevente : comportement d'avant.
          */
         if (window.PrestigeSaisieVente && btn && vente && vente.lgPREENREGISTREMENTID
                 && me.getCategorie() !== 'COPY' && me.getCategorie() !== 'PREVENTE') {
-            const id = vente.lgPREENREGISTREMENTID;
-            window.PrestigeSaisieVente.choixRetour(btn, {
-                attente: function (ok, ko) {
-                    window.PrestigeSaisieVente.attente(id, function () {
-                        ok();
-                        me.rememberPreventeMode();
-                        me.saveModeReglementAttente();
-                        me.quitterVente();
-                    }, ko);
-                },
-                supprimer: function (ok, ko) {
-                    window.PrestigeSaisieVente.supprimer(id, function () {
-                        Ext.Ajax.request({
-                            method: 'POST',
-                            url: '../api/v1/ventestats/remove/' + encodeURIComponent(id),
-                            callback: function () {
-                                ok();
-                                me.quitterVente();
-                            }
-                        });
-                    }, ko);
-                }
-            });
+            window.PrestigeSaisieVente.choixRetour(btn, me.actionsSortie(function () {
+                me.quitterVente();
+            }));
             return;
         }
         me.quitterVente();
+    },
+    /*
+     * Retours du 25/11 : gestes de la fenetre de sortie d'une vente en depot (Retour, changement de menu, rappel).
+     * L'abandon laisse l'ecran ouvert sur une nouvelle saisie, sur le meme depot (apresAbandon, facultatif).
+     */
+    /*
+     * Retours du 25/11 (1.3) : vente en cours = au moins un produit, ou un client a credit choisi. Rend null (on quitte
+     * comme avant) ou les gestes de la fenetre ; continuer = la navigation demandee.
+     */
+    sortieEnCours: function (continuer) {
+        const me = this, ecran = Ext.ComponentQuery.query('doventeendepot')[0];
+        if (!ecran || ecran.isDestroyed || !ecran.isVisible(true) || me.getCategorie() === 'PREVENTE'
+                || me.getCategorie() === 'COPY') {
+            return null;
+        }
+        const id = me.current && me.current.lgPREENREGISTREMENTID;
+        const grille = me.getVnogrid && me.getVnogrid();
+        const produits = !!id && !!grille && grille.getStore().getCount() > 0;
+        const typeVente = me.getTypeVenteCombo && me.getTypeVenteCombo() ? me.getTypeVenteCombo().getValue() : null;
+        const credit = !!me.client && (typeVente === '2' || typeVente === '3');
+        if (!produits && !credit) {
+            return null;
+        }
+        if (!id) {
+            return {actions: {abandonner: function (ok) {
+                ok();
+                me.resetAll();
+                continuer();
+            }}};
+        }
+        return {actions: me.actionsSortie(function () {
+            me.libererRappelVente();
+            me.resetAll();
+            continuer();
+        }, continuer)};
+    },
+    actionsSortie: function (apresAttente, apresAbandon) {
+        const me = this, id = me.current && me.current.lgPREENREGISTREMENTID;
+        return {
+            attente: function (ok, ko) {
+                window.PrestigeSaisieVente.attente(id, function () {
+                    ok();
+                    me.rememberPreventeMode();
+                    me.saveModeReglementAttente();
+                    apresAttente();
+                }, ko);
+            },
+            abandonner: function (ok, ko) {
+                window.PrestigeSaisieVente.supprimer(id, function () {
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/ventestats/remove/' + encodeURIComponent(id),
+                        callback: function () {
+                            ok();
+                            me.libererRappelVente();
+                            me.resetAll();
+                            if (apresAbandon) {
+                                apresAbandon();
+                            }
+                        }
+                    });
+                }, ko);
+            }
+        };
     },
     quitterVente: function () {
         const me = this;
@@ -8939,6 +8989,33 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                     });
                 };
                 const courante = me.current && me.current.lgPREENREGISTREMENTID;
+                const grille = me.getVnogrid && me.getVnogrid();
+                if (courante && courante !== id && me.getCategorie() !== 'PREVENTE' && grille
+                        && grille.getStore().getCount() > 0 && window.PrestigeSaisieVente.choixRappel) {
+                    /* retours du 25/11 (1.6, meme regle qu'a la vente) : la vente ouverte a des produits -> choix */
+                    window.PrestigeSaisieVente.choixRappel({
+                        attente: function (ok, ko) {
+                            window.PrestigeSaisieVente.attente(courante, function () {
+                                ok();
+                                ouvrir();
+                            }, ko);
+                        },
+                        abandonner: function (ok, ko) {
+                            window.PrestigeSaisieVente.supprimer(courante, function () {
+                                Ext.Ajax.request({
+                                    method: 'POST',
+                                    url: '../api/v1/ventestats/remove/' + encodeURIComponent(courante),
+                                    callback: function () {
+                                        ok();
+                                        me.libererRappelVente();
+                                        ouvrir();
+                                    }
+                                });
+                            }, ko);
+                        }
+                    });
+                    return;
+                }
                 if (courante && courante !== id && me.getCategorie() !== 'PREVENTE') {
                     window.PrestigeSaisieVente.attente(courante, ouvrir, function (msg) {
                         window.PrestigeSaisieVente.bandeau(msg);

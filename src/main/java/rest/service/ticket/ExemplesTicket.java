@@ -16,6 +16,30 @@ public final class ExemplesTicket {
     private ExemplesTicket() {
     }
 
+    /**
+     * Demande du 25/11 : l'apercu montre l'officine de la base (fiche officine, comme l'impression). Une valeur vide de
+     * la fiche garde la valeur d'exemple, pour que chaque bloc reste visible et deplacable.
+     */
+    public static ConversionTicket.Source avecOfficine(ConversionTicket.Source s, String nom, String pharmacien,
+            String adresse, String telephone, String autresTelephones, String enTete, String cc, String rc,
+            String commentaire1, String commentaire2) {
+        s.nomOfficine = ouExemple(nom, s.nomOfficine);
+        s.pharmacien = ouExemple(pharmacien, s.pharmacien);
+        s.adresse = ouExemple(adresse, s.adresse);
+        s.telephone = ouExemple(telephone, s.telephone);
+        s.autresTelephones = ouExemple(autresTelephones, s.autresTelephones);
+        s.enTete = ouExemple(enTete, s.enTete);
+        s.cc = ouExemple(cc, s.cc);
+        s.rc = ouExemple(rc, s.rc);
+        s.commentaire1 = ouExemple(commentaire1, s.commentaire1);
+        s.commentaire2 = ouExemple(commentaire2, s.commentaire2);
+        return s;
+    }
+
+    private static String ouExemple(String v, String exemple) {
+        return v == null || v.trim().isEmpty() ? exemple : v;
+    }
+
     public static ConversionTicket.Source exemple(ModeleTicket t, int papierMm) {
         ConversionTicket.Source s = new ConversionTicket.Source();
         s.ticket = t;

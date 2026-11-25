@@ -25,6 +25,28 @@ public class ModeleTicketService {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    /**
+     * Demande du 25/11 : identite de l'officine de la base pour l'apercu (meme fiche que l'impression, id « 1 »). Nom,
+     * pharmacien, adresse, telephone, autres telephones, en-tete, CC, RC, commentaires 1 et 2 ; null si la fiche manque
+     * ou ne se lit pas (l'apercu garde alors l'exemple).
+     */
+    public String[] officine() {
+        try {
+            dal.TOfficine o = em.find(dal.TOfficine.class, "1");
+            if (o == null) {
+                return null;
+            }
+            String pharmacien = ((o.getStrFIRSTNAME() == null ? "" : o.getStrFIRSTNAME()) + " "
+                    + (o.getStrLASTNAME() == null ? "" : o.getStrLASTNAME())).trim();
+            return new String[] { o.getStrNOMCOMPLET(), pharmacien, o.getStrADRESSSEPOSTALE(), o.getStrPHONE(),
+                    o.getStrAUTRESPHONES(), o.getStrENTETE(), o.getStrCOMPTECONTRIBUABLE(), o.getStrREGISTRECOMMERCE(),
+                    o.getStrCOMMENTAIRE1(), o.getStrCOMMENTAIRE2() };
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "Lecture de la fiche officine pour l'apercu", e);
+            return null;
+        }
+    }
+
     public static int largeurValide(int mm) {
         return mm <= 58 ? 58 : 80;
     }
@@ -39,7 +61,7 @@ public class ModeleTicketService {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Lecture des réglages du ticket " + t + " : valeurs par défaut", e);
         }
-        return new ReglagesTicket(t);
+        return ReglagesTicket.defaut(t, largeurValide(largeur));
     }
 
     public Map<ModeleTicket, ReglagesTicket> tous(int largeur) {

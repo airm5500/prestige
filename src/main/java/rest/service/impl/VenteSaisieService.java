@@ -292,6 +292,19 @@ public class VenteSaisieService {
     }
 
     /**
+     * Retour du 25/11 : décompte de 30 s du bandeau « Saisie interrompue » arrivé à zéro sans reprise. L'auteur seul,
+     * le jour même ; la vente est abandonnée, puis retirée par le chemin habituel (lignes gardées dans « Produits
+     * retirés et ventes abandonnées »). L'écran d'administration ne passe jamais par ici.
+     */
+    public Reponse abandonnerInterrompue(String venteId, Acteur a) {
+        Vente v = lire(venteId);
+        if (v == null) {
+            return introuvable();
+        }
+        return appliquer(v, Geste.ABANDONNER_INTERROMPUE, a, tenue(v, a), "DECOMPTE");
+    }
+
+    /**
      * Retour, choix « Supprimer la vente » : la vente est abandonnée. Le service des ventes la retire ensuite par le
      * chemin habituel, qui garde ses lignes dans « Produits retirés et ventes abandonnées ».
      */

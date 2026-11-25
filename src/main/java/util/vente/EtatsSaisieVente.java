@@ -18,6 +18,7 @@ import java.util.Set;
  *  EN_COURS ── Retour : supprimer ─────────▶ ABANDONNEE (lignes gardées)
  *  EN_COURS ── interruption (système) ─────▶ INTERROMPUE ── reprise (auteur, ou droit ; jour même) ──▶ EN_COURS
  *                                            INTERROMPUE ── signal retrouvé (même poste, jour même) ──▶ EN_COURS
+ *                                            INTERROMPUE ── fin du décompte du bandeau (auteur, jour même) ──▶ ABANDONNEE
  *  EN_COURS ── clôture ────────────────────▶ CLOTUREE
  *  EN_COURS, EN_ATTENTE, INTERROMPUE ── le lendemain (système) ──▶ ABANDONNEE
  * </pre>
@@ -56,7 +57,9 @@ public final class EtatsSaisieVente {
 
     public enum Geste {
         METTRE_EN_ATTENTE(false), REPRENDRE_ATTENTE(false), RETOUR_SUPPRIMER(false), INTERROMPRE(true),
-        SIGNAL_RETROUVE(false), REPRENDRE_INTERROMPUE(false), EXPIRER(true), CLOTURER(false);
+        SIGNAL_RETROUVE(false), REPRENDRE_INTERROMPUE(false), EXPIRER(true), CLOTURER(false),
+        /** fin du décompte de 30 s du bandeau « Saisie interrompue » (retour du 25/11) : l'auteur, le jour même */
+        ABANDONNER_INTERROMPUE(false);
 
         /** geste du serveur lui-même (jamais demandé par un utilisateur) */
         public final boolean systeme;
@@ -79,6 +82,7 @@ public final class EtatsSaisieVente {
         m.put(Geste.REPRENDRE_INTERROMPUE, Etat.EN_COURS);
         m.put(Geste.EXPIRER, Etat.ABANDONNEE);
         m.put(Geste.CLOTURER, Etat.CLOTUREE);
+        m.put(Geste.ABANDONNER_INTERROMPUE, Etat.ABANDONNEE);
         CIBLE = Collections.unmodifiableMap(m);
     }
 
@@ -219,6 +223,17 @@ public final class EtatsSaisieVente {
             }
             if (!c.auteur && !c.droits.contains(Droit.REPRENDRE_INTERROMPUE_AUTRUI)) {
                 return droitManquant(e, Droit.REPRENDRE_INTERROMPUE_AUTRUI);
+            }
+            break;
+        case ABANDONNER_INTERROMPUE:
+            if (e != Etat.INTERROMPUE) {
+                return refus(e, "Cette saisie n'est pas interrompue.");
+            }
+            if (!c.auteur) {
+                return refus(e, "Seul l'auteur de la saisie interrompue peut la laisser abandonner.");
+            }
+            if (!c.memeJour) {
+                return refus(e, "Saisie d'un autre jour : elle est abandonnée par le traitement de nuit.");
             }
             break;
         case EXPIRER:

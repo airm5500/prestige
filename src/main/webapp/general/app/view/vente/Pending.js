@@ -14,7 +14,7 @@
 Ext.define('testextjs.view.vente.Pending', {
     extend: 'Ext.panel.Panel',
     xtype: 'cloturerventemanager',
-    requires: ['testextjs.view.commun.PaginationNumerotee'],
+    requires: ['testextjs.view.commun.PaginationNumerotee', 'testextjs.view.vente.VentesEnCoursSaisie'],
     frame: true,
     title: 'Liste Des Ventes',
     iconCls: 'icon-grid',
@@ -128,11 +128,31 @@ Ext.define('testextjs.view.vente.Pending', {
                             cls: 'ordo-btn'
                         }]
                 }],
+            /* retours du 25/11 (1.4) : les ventes en cours de saisie et interrompues en onglet de ce menu ; le premier
+             * onglet reste la liste d'avant (premier tableau de l'ecran, lu par PendingCtr) */
             items: [{
+                    xtype: 'tabpanel',
+                    itemId: 'ongletsVentes',
+                    plain: true,
+                    margin: '0 10 10 10',
+                    listeners: {
+                        tabchange: function (tp, onglet) {
+                            /* la barre (nouvelle vente, recherche, impressions, inventaire) vaut pour les ventes en attente */
+                            var barre = me.down('#barreMenuVente');
+                            if (barre) {
+                                barre.setVisible(onglet.itemId === 'ongletAttente');
+                            }
+                        }
+                    },
+                    items: [{
+                            title: 'Ventes en attente',
+                            itemId: 'ongletAttente',
+                            layout: 'fit',
+                            items: [{
                     xtype: 'gridpanel',
                     store: vente,
                     cls: 'ordo-carte theme-grille',
-                    margin: '0 10 10 10',
+                    margin: '0',
                     viewConfig: {
                         forceFit: true,
                         columnLines: false,
@@ -257,6 +277,14 @@ Ext.define('testextjs.view.vente.Pending', {
                         displayMsg: 'Ventes {0} – {1} sur {2}',
                         emptyMsg: 'Aucune vente en attente'
                     }
+                }]
+                        }, {
+                            /* chargee a la premiere ouverture de l'onglet : rien de plus a l'ouverture du menu */
+                            xtype: 'ventesencourssaisie',
+                            itemId: 'ongletEnCours',
+                            title: 'Ventes en cours et interrompues',
+                            chargerALaDemande: true
+                        }]
                 }]
         });
         me.callParent(arguments);
