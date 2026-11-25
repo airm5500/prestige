@@ -624,6 +624,8 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                                         var result = Ext.JSON.decode(response.responseText, true);
                                                         if (result.success) {
                                                             form.destroy();
+                                                            /* retour du 25/11 : fiche enregistree a part ; « Enregistrer » proposera le ticket */
+                                                            me.ficheModifiee = true;
                                                             me.ayantDroit = result.data;
                                                             me.updateAyantDroitInfosContainer(me, result.data);
 
@@ -803,6 +805,8 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                                     var result = Ext.JSON.decode(response.responseText, true);
                                                     if (result.success) {
                                                         form.destroy();
+                                                        /* retour du 25/11 : fiche enregistree a part ; « Enregistrer » proposera le ticket */
+                                                        me.ficheModifiee = true;
                                                         var client = result.data;
                                                         me.client = client;
                                                         me.clientId = client.lgCLIENTID;
@@ -1423,6 +1427,13 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                     const result = Ext.JSON.decode(response.responseText, true);
                     /* plan du 19/11, point 7 : rien n'a change -> rien n'est enregistre ; on le dit et on revient a la
                        liste (comme la modification de vente) ; la liste n'a pas a etre relue (l'ecran appelant reste tel quel) */
+                    /* retour du 25/11 : la fiche du client ou de l'ayant droit a ete modifiee dans cette fenetre
+                       (enregistree a part) : la vente n'a pas change, mais le ticket est propose comme pour tout
+                       changement ; seul « rien n'a change » est signale sans ticket */
+                    if (result && result.codeError === 'SANS_CHANGEMENT' && wind.ficheModifiee) {
+                        wind.terminer({success: true, refId: data.venteId});
+                        return;
+                    }
                     if (result && result.codeError === 'SANS_CHANGEMENT') {
                         const sansRappel = !Ext.isFunction(wind.onSaved);
                         wind.destroy();
@@ -1437,27 +1448,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                         return;
                     }
                     if (result.success) {
-                        Ext.MessageBox.show({
-                            title: 'Impression du ticket',
-                            msg: 'Voulez-vous imprimer le ticket ?',
-                            buttons: Ext.MessageBox.YESNO,
-                            fn: function (button) {
-                                if ('yes' == button) {
-                                    wind.onPrintTicket(result.refId);
-                                }
-                            },
-                            icon: Ext.MessageBox.QUESTION
-                        });
-                        // Plan du 14/11, point 3 : l'ecran appelant peut demander a rester ouvert (rappel onSaved) ;
-                        // sans rappel, retour aux ventes terminees comme avant.
-                        const rappel = wind.onSaved;
-                        wind.destroy();
-                        if (Ext.isFunction(rappel)) {
-                            rappel(result);
-                        } else {
-                            const xtype = "ventemanager";
-                            testextjs.app.getController('App').onRedirectTo(xtype, {});
-                        }
+                        wind.terminer(result);
                     } else {
                         Ext.MessageBox.show({
                             title: 'Message d\'erreur',
@@ -1477,6 +1468,32 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
             });
         }
      
+    },
+    /* fin d'un enregistrement qui change quelque chose (vente ou fiche) : impression du ticket proposee, puis retour a
+       l'ecran appelant */
+    terminer: function (result) {
+        const wind = this;
+        Ext.MessageBox.show({
+            title: 'Impression du ticket',
+            msg: 'Voulez-vous imprimer le ticket ?',
+            buttons: Ext.MessageBox.YESNO,
+            fn: function (button) {
+                if ('yes' == button) {
+                    wind.onPrintTicket(result.refId);
+                }
+            },
+            icon: Ext.MessageBox.QUESTION
+        });
+        // Plan du 14/11, point 3 : l'ecran appelant peut demander a rester ouvert (rappel onSaved) ;
+        // sans rappel, retour aux ventes terminees comme avant.
+        const rappel = wind.onSaved;
+        wind.destroy();
+        if (Ext.isFunction(rappel)) {
+            rappel(result);
+        } else {
+            const xtype = "ventemanager";
+            testextjs.app.getController('App').onRedirectTo(xtype, {});
+        }
     },
     onPrintTicket: function (id) {
         var url = '../api/v1/vente/ticket/vo/' + id;
