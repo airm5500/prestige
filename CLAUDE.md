@@ -47,6 +47,10 @@
   - Toute donnée écrite en base doit avoir un lecteur et un test qui la relit ; une donnée écrite et jamais relue est
     un défaut.
   - Test de bilan avant / après (e2e) : une opération laisse exactement les traces attendues, ni plus ni moins.
+  - Test d'ergonomie de l'écran complet (e2e), pour tout ajout ou changement visible dans un écran : l'écran entier
+    joué comme l'utilisateur, avec l'ajout affiché, à 1280 × 600 (écran 1280 × 720 avec la barre des tâches),
+    1366 × 768 et 1920 × 1080 : molette jusqu'à la dernière ligne, page suivante et précédente, boutons du bas
+    visibles et non recouverts (c'est eux qui reçoivent le clic). Exemple : `reappro/test-suggestion-defilement-2511.js`.
 - Contrôles métier, selon l'opération (détail dans `docs/notices/STRATEGIE_TESTS.md`) :
   - stock du produit : avant ± quantité, sur le bon emplacement, jamais en double ; une annulation rend tout ;
   - mouvements : stock, caisse, recette, règlement, un seul par opération, bons montants, type, utilisateur et date ;
@@ -57,7 +61,8 @@
   Claude Code produit (exploration, tests, corrections) ; Codex contre-vérifie.
 - Avant de dire « fini », le compte rendu liste : les endroits où la donnée apparaît, et le test de rapprochement qui
   les compare ; les règles de calcul, et le test de cohérence qui les vérifie ; les traces attendues (stock,
-  mouvements, solde), et le test de bilan ; les cas variés couverts.
+  mouvements, solde), et le test de bilan ; les écrans touchés, et le test d'ergonomie de l'écran complet ; les cas
+  variés couverts.
 - Construction :
   - build : `mvn -o -q -DskipTests package` (JDK 11) ;
   - déploiement : `asadmin redeploy --name prestige --contextroot prestige target/prestige.war` ;

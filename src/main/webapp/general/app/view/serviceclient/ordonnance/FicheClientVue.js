@@ -38,13 +38,18 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
         });
         me.items = [{
                 xtype: 'container',
+                itemId: 'fcCriteres',
                 cls: 'ordo-criteres',
                 padding: '10 12',
                 margin: '0 0 10 0',
                 layout: {type: 'hbox', align: 'bottom'},
+                /* retour du 25/11 : fiche ouverte pour un client donne (fenetre depuis la vente ou les clients) : pas de
+                   recherche d'un autre client ; la bande ne sert plus qu'aux messages et n'apparait qu'avec eux */
+                hidden: me.clientFixe === true,
                 items: [{
                         xtype: 'combobox',
                         itemId: 'fcClient',
+                        hidden: me.clientFixe === true,
                         fieldLabel: 'Client (nom ou téléphone)',
                         labelAlign: 'top',
                         labelSeparator: '',
@@ -260,6 +265,9 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
     dire: function (texte, erreur) {
         this.down('#fcMessage').update(texte ? '<span class="' + (erreur ? 'ordo-scan-erreur' : 'fc-ok') + '">'
                 + Ext.String.htmlEncode(texte) + '</span>' : '');
+        if (this.clientFixe === true) {
+            this.down('#fcCriteres').setVisible(!!texte);
+        }
     },
 
     /** Parametres actifs et terrains / allergies de la liste parametrable. */

@@ -6,13 +6,14 @@ sur les documents. Un parcours qui se déroule sans erreur ne suffit pas.
 Ce document complète `docs/QUALITE_TESTS.md` (règle du 07/10 : contrôles de saisie, ergonomie, mise en page,
 cohérence des données, lancés par `src/test/e2e/retours/lancer-controles.sh`). Les deux s'appliquent.
 
-## 1. Trois familles de tests, obligatoires à chaque évolution
+## 1. Quatre familles de tests, obligatoires à chaque évolution
 
 | Famille | Ce qu'elle vérifie | Exemple |
 |---|---|---|
 | **Rapprochement** (e2e) | Une même donnée est identique partout : écran, ticket, PDF, export, base | `prix-reference/test-rapprochement-ticket.js` : taux et part de chaque ligne, écran = ticket = base |
 | **Cohérence** (unitaire) | Les règles de calcul tiennent sur des milliers de cas tirés au hasard (graine fixe) | `CreditLigneCoherenceTest` : part = base × taux, somme = total, jamais négatif |
 | **Bilan avant / après** (e2e) | Une opération laisse exactement les traces attendues, ni plus ni moins | vente de 2 boîtes : stock −2, un mouvement, une recette, un règlement |
+| **Ergonomie de l'écran complet** (e2e) | Tout ajout ou changement visible laisse l'écran entier utilisable : joué comme l'utilisateur, avec l'ajout affiché, à 1280 × 600 (écran 1280 × 720 et barre des tâches), 1366 × 768 et 1920 × 1080 ; molette jusqu'à la dernière ligne, page suivante et précédente, boutons du bas visibles et non recouverts | `reappro/test-suggestion-defilement-2511.js` : suggestion de 3 pages, la pagination reste atteignable (retour du 25/11 : un bandeau l'avait poussée hors de l'écran sans qu'aucun test ne le voie) |
 
 Chaque nouveau test échoue d'abord sur l'ancien code (ou sur le défaut remis à l'essai), puis passe.
 
@@ -102,4 +103,5 @@ Avant de dire « fini », le compte rendu liste :
 - les endroits où la donnée apparaît, et le test de rapprochement qui les compare ;
 - les règles de calcul, et le test de cohérence qui les vérifie ;
 - les traces attendues (stock, mouvements, solde), et le test de bilan avant / après ;
+- les écrans touchés, et le test d'ergonomie de l'écran complet (1280 × 600, 1366 × 768, 1920 × 1080) ;
 - les cas variés couverts.

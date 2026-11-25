@@ -60,7 +60,9 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FenetreFicheClient', {
                     return;
                 }
                 var vue = Ext.create('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
-                    ecran: me.contexte(d.modifier === true), title: null, header: false
+                    ecran: me.contexte(d.modifier === true), title: null, header: false,
+                    /* retour du 25/11 : la fenetre montre CE client (son nom est dans le titre) : pas de recherche */
+                    clientFixe: true
                 });
                 var w = Ext.create('Ext.window.Window', {
                     title: 'Fiche client' + (nom ? ' — ' + Ext.String.htmlEncode(nom) : ''), itemId: 'fenFicheClient', cls: 'fen-fiche-client',
