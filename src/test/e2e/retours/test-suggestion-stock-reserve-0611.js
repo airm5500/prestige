@@ -83,6 +83,8 @@ const cellule = (p, famille, dataIndex) => p.evaluate(([f, d]) => {
   const reservesAvant = ids.map(reserveBase);
   const sess = await C.connecterEtOuvrirVente();
   const { p } = sess;
+  /* retour du 25/11 : la question « Nettoyer la suggestion ? » (fenetre a l'ouverture) recoit « Non, garder » */
+  await require('../support/question-nettoyage-suggestion').garder(p);
   try {
     ok('Préparation : 3 produits, réserve 7 / 13 / 0 en base', reservesAvant.join('/') === '7/13/0', reservesAvant.join('/'));
 

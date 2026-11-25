@@ -78,6 +78,8 @@ const lignes = () => q(`SELECT lg_FAMILLE_ID FROM t_suggestion_order_details WHE
   if (erreur) { console.log('FATAL : ' + erreur); nettoyer(); process.exit(1); }
   const sess = await C.connecterEtOuvrirVente();
   const { p } = sess;
+  /* retour du 25/11 : la question « Nettoyer la suggestion ? » (fenetre a l'ouverture) recoit « Non, garder » */
+  await require('../support/question-nettoyage-suggestion').garder(p);
   try {
     ok('Préparation : 17 lignes, option ' + OPTION, lignes().length === 17);
     await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('i_sugg_manager', {}); });

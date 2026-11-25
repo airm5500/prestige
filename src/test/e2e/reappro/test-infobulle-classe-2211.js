@@ -71,6 +71,8 @@ const disponibilite = (v) => sql(`UPDATE t_grossiste SET int_PHARMAML_DISPO = ${
   const empreinte0 = empreinte();
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
+  /* retour du 25/11 : la question « Nettoyer la suggestion ? » (fenetre a l'ouverture) recoit « Non, garder » */
+  await require('../support/question-nettoyage-suggestion').garder(p);
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const ouvrirSuggestion = async () => {
     await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Suggestion de reappro.');

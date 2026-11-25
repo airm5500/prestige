@@ -406,7 +406,13 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                             fieldLabel: 'TP <span style="color:red;font-weight:bold;">' + _taux + '</span>',
                             flex: 1,
                             labelWidth: 50,
-                            fieldStyle: "color:blue;",
+                            /* retour du 25/11 (capture) : un nom long passait sur deux lignes et decalait « Ref.Bon » et
+                               « Taux » : une seule ligne, coupee par « … », le nom entier au survol */
+                            fieldStyle: "color:blue;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;",
+                            renderer: function (v) {
+                                const t = Ext.String.htmlEncode(v || '');
+                                return '<span data-qtip="' + t + '">' + t + '</span>';
+                            },
                             value: record.tpFullName,
                             margin: '0 10 0 0'
                         },

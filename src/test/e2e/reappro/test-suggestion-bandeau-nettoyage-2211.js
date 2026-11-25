@@ -1,9 +1,11 @@
-/* PLAN DU 21/11, POINT 4.1 : BANDEAU « NETTOYER LA SUGGESTION ? » A L'OUVERTURE D'UNE SUGGESTION DE REAPPRO.
+/* PLAN DU 21/11, POINT 4.1 : QUESTION « NETTOYER LA SUGGESTION ? » A L'OUVERTURE D'UNE SUGGESTION DE REAPPRO.
  *
  * Nettoyage automatique coupe (KEY_NETTOYER_SUGGESTION_OUVERTURE a 0, par defaut) et produits repasses au-dessus du
- * seuil : un bandeau en haut de la suggestion ouverte (pas de fenetre) dit combien, et propose « Oui, nettoyer » (meme
- * nettoyage que le bouton) ou « Non, garder ». Rien a nettoyer : pas de bandeau. Parametre a 1 : nettoyage automatique,
- * pas de bandeau.
+ * seuil : une fenetre modale, ouverte une fois la suggestion affichee, dit combien, et propose « Oui, nettoyer » (meme
+ * nettoyage que le bouton) ou « Non, garder ». Rien a nettoyer : pas de fenetre. Parametre a 1 : nettoyage
+ * automatique, pas de fenetre.
+ * Retour du 25/11 : le bandeau d'origine, pose dans la grille, bloquait son defilement et sa pagination ; il est
+ * remplace par la fenetre (demande expresse). Defilement et pagination : reappro/test-suggestion-defilement-2511.js.
  * Jeu d'essai (retire a la fin) : une suggestion de 7 produits :
  *   K1, K2, K3  seuil tres haut                                   -> restent
  *   S1          seuil = rayon - 1                                 -> sort
@@ -11,9 +13,7 @@
  *   R1          gere en reserve, seuil = rayon + 3, reserve 10    -> sort (rayon + reserve au-dessus du seuil)
  *   R2          gere en reserve, seuil = rayon + 3, reserve 2     -> reste (rayon + reserve sous le seuil)
  * Par les ecrans : liste des suggestions > recherche de la reference > « Modifier ».
- * Demande du 25/11 : le bandeau s'anime (pulsation en boucle tant qu'il attend une reponse), fixe si le poste demande
- * moins d'animations.
- * Rapprochement : nombre du bandeau = regle appliquee aux stocks en base = lignes sorties = retraits journalises ;
+ * Rapprochement : nombre de la fenetre = regle appliquee aux stocks en base = lignes sorties = retraits journalises ;
  * grille = base. Bilan : seules S1, S2, R1 sortent, un retrait journalise chacune, stocks inchanges.
  */
 const C = require('../prix-reference/commun');
@@ -97,12 +97,15 @@ const stocks = () => q(`SELECT GROUP_CONCAT(CONCAT(s.lg_FAMILLE_ID, ':', s.int_N
     await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelSuggestionID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
     await p.waitForTimeout(1200);
   };
-  const bandeau = () => p.evaluate(() => { const g = Ext.getCmp('gridpanelSuggestionID'), b = g && g.down('#bandeauNettoyageSugg');
-    if (!b || !b.isVisible(true)) { return null; }
-    const r = (c) => { const e = b.down(c).getEl().dom.getBoundingClientRect(); return { g: Math.round(e.left), d: Math.round(e.right), h: Math.round(e.height) }; };
-    const gr = g.getEl().dom.getBoundingClientRect();
-    return { texte: b.down('#texteBandeauNettoyage').getEl().dom.textContent, oui: r('#btnBandeauNettoyerOui'), non: r('#btnBandeauNettoyerNon'),
-      grille: { g: Math.round(gr.left), d: Math.round(gr.right) }, au: b.getEl().dom.getBoundingClientRect().top < g.getView().getEl().dom.getBoundingClientRect().top }; });
+  /* la fenetre de la question (nom « bandeau » garde) : texte, boutons, place dans l'ecran, modale ; aucun bandeau dans la grille */
+  const bandeau = () => p.evaluate(() => { const w = Ext.ComponentQuery.query('window').filter((x) => x.isVisible() && /Nettoyer la suggestion/.test(x.title || ''))[0];
+    if (!w) { return null; }
+    const bt = (t) => w.query('button').find((b) => b.getText() === t);
+    const r = (b) => { const e = b.getEl().dom.getBoundingClientRect(); return { g: Math.round(e.left), d: Math.round(e.right), h: Math.round(e.height), id: b.getId() }; };
+    const wr = w.getEl().dom.getBoundingClientRect();
+    return { texte: w.down('#texteNettoyageSugg').getEl().dom.textContent, oui: r(bt('Oui, nettoyer')), non: r(bt('Non, garder')),
+      grille: { g: Math.max(0, Math.round(wr.left)), d: Math.min(window.innerWidth, Math.round(wr.right)) },
+      au: !!w.modal && wr.top >= 0 && wr.bottom <= window.innerHeight && !Ext.getCmp('gridpanelSuggestionID').getEl().dom.querySelector('.sugg-bandeau-nettoyage') }; });
   const grille = () => p.evaluate(() => { const s = Ext.getCmp('gridpanelSuggestionID').getStore(); return { ids: s.getRange().map((r) => r.get('lg_FAMILLE_ID')).sort(), total: s.getTotalCount() }; });
   const boites = () => p.evaluate(() => Ext.ComponentQuery.query('messagebox').filter((m) => m.isVisible()).length);
   const sortants = [S[0].id, S[1].id, R[0].id].sort();
@@ -112,50 +115,33 @@ const stocks = () => q(`SELECT GROUP_CONCAT(CONCAT(s.lg_FAMILLE_ID, ':', s.int_N
     ok('Jeu d\'essai : 7 lignes ; la règle appliquée aux stocks en base retire S1, S2 et R1 (R1 par sa réserve), garde R2', lignes().length === 7
       && JSON.stringify(regle) === JSON.stringify(sortants), regle.length + ' à sortir');
 
-    /* ----- ouverture, parametre a 0 : bandeau avec le bon nombre, rien ne bouge ----- */
+    /* ----- ouverture, parametre a 0 : fenêtre avec le bon nombre, rien ne bouge ----- */
     await ouvrir();
     const b1 = await bandeau();
-    ok('Ouverture : bandeau « 3 produits sont repassés au-dessus du seuil … Nettoyer la suggestion ? », au-dessus des lignes', !!b1 && /3 produits sont repassés au-dessus du seuil/.test(b1.texte)
+    ok('Ouverture : fenêtre modale « 3 produits sont repassés au-dessus du seuil … Nettoyer la suggestion ? », aucun bandeau dans la grille', !!b1 && /3 produits sont repassés au-dessus du seuil/.test(b1.texte)
       && /Nettoyer la suggestion \?/.test(b1.texte) && b1.au, JSON.stringify(b1));
-    ok('Rapprochement : nombre du bandeau = règle appliquée aux stocks en base', !!b1 && Number((b1.texte.match(/(\d+) produits?/) || [])[1]) === regle.length, b1 && b1.texte);
+    ok('Rapprochement : nombre de la fenêtre = règle appliquée aux stocks en base', !!b1 && Number((b1.texte.match(/(\d+) produits?/) || [])[1]) === regle.length, b1 && b1.texte);
     ok('L\'ouverture ne retire rien tant qu\'on n\'a pas répondu (7 lignes, aucun retrait journalisé)', lignes().length === 7 && journal() === '0');
-    ok('Aucune fenêtre : la question est dans l\'écran', await boites() === 0);
-    /* demande du 25/11 : le bandeau s'anime pour attirer l'attention */
-    const anim = await p.evaluate(async () => {
-      const el = Ext.getCmp('gridpanelSuggestionID').down('#bandeauNettoyageSugg').getEl().dom;
-      const a = el.getAnimations().map((x) => ({ nom: x.animationName, etat: x.playState, duree: x.effect.getTiming().duration, fois: x.effect.getTiming().iterations }));
-      /* aspect reellement change : l'ombre lue a deux instants differents de la pulsation */
-      const vues = [];
-      for (let i = 0; i < 6; i++) { vues.push(getComputedStyle(el).boxShadow); await new Promise((r) => setTimeout(r, 250)); }
-      return { a, differents: new Set(vues).size };
-    });
-    ok('Bandeau animé : pulsation en cours, en boucle tant qu\'il attend une réponse, et l\'aspect change vraiment',
-      anim.a.some((x) => x.nom === 'sugg-bandeau-pulse' && x.etat === 'running' && x.fois === Infinity && x.duree >= 800 && x.duree <= 3000) && anim.differents >= 3,
-      JSON.stringify(anim));
-    await p.emulateMedia({ reducedMotion: 'reduce' });
-    await p.waitForTimeout(300);
-    const reduit = await p.evaluate(() => Ext.getCmp('gridpanelSuggestionID').down('#bandeauNettoyageSugg').getEl().dom.getAnimations().length);
-    ok('Poste réglé pour réduire les animations : bandeau fixe', reduit === 0, String(reduit));
-    await p.emulateMedia({ reducedMotion: 'no-preference' });
-    for (const [l, h] of [[1366, 768], [1280, 720], [1920, 1080]]) {
+    ok('Aucune boîte de message en plus de la fenêtre', await boites() === 0);
+    for (const [l, h] of [[1366, 768], [1280, 720], [1280, 600], [1920, 1080]]) {
       await p.setViewportSize({ width: l, height: h });
       await p.waitForTimeout(900);
       const b = await bandeau();
-      ok(`${l}×${h} : bandeau et ses deux boutons entiers dans la suggestion`, !!b && b.oui.g >= b.grille.g && b.non.d <= b.grille.d && b.oui.h > 0 && b.non.h > 0 && b.non.g > b.oui.g, JSON.stringify(b));
+      ok(`${l}×${h} : fenêtre et ses deux boutons entiers dans l'écran`, !!b && b.au && b.oui.g >= b.grille.g && b.non.d <= b.grille.d && b.oui.h > 0 && b.non.h > 0 && b.non.g > b.oui.g, JSON.stringify(b));
     }
     await p.setViewportSize({ width: 1366, height: 768 });
     await p.waitForTimeout(600);
 
     /* ----- « Non, garder » ----- */
-    await p.click('#' + await p.evaluate(() => Ext.getCmp('gridpanelSuggestionID').down('#btnBandeauNettoyerNon').getId()));
+    await p.click('#' + (await bandeau()).non.id);
     await p.waitForTimeout(800);
-    ok('« Non, garder » : bandeau fermé, suggestion intacte (7 lignes, aucun retrait)', await bandeau() === null && lignes().length === 7 && journal() === '0');
+    ok('« Non, garder » : fenêtre fermée, suggestion intacte (7 lignes, aucun retrait)', await bandeau() === null && lignes().length === 7 && journal() === '0');
 
     /* ----- réouverture : la question revient ; « Oui, nettoyer » ----- */
     await ouvrir();
-    ok('Réouverture : le bandeau revient (la suggestion n\'a pas été nettoyée)', !!(await bandeau()));
+    ok('Réouverture : la question revient (la suggestion n\'a pas été nettoyée)', !!(await bandeau()));
     const nettoyage = p.waitForResponse((r) => /suggestion\/clean/.test(r.url()), { timeout: 30000 });
-    await p.click('#' + await p.evaluate(() => Ext.getCmp('gridpanelSuggestionID').down('#btnBandeauNettoyerOui').getId()));
+    await p.click('#' + (await bandeau()).oui.id);
     await nettoyage;
     await p.waitForFunction(() => !Ext.getCmp('gridpanelSuggestionID').getStore().isLoading(), null, { timeout: 30000 });
     await p.waitForTimeout(1200);
@@ -167,31 +153,32 @@ const stocks = () => q(`SELECT GROUP_CONCAT(CONCAT(s.lg_FAMILLE_ID, ':', s.int_N
     ok('Bilan : un retrait journalisé par produit sorti (3), quantité, utilisateur et date du jour (visible dans « Produits retirés »)', journal() === '3'
       && sortants.every((x) => j.indexOf(x + ':') >= 0) && !/:-:/.test(j) && !/:0(,|$)/.test(j), j);
     ok('Bilan : le nettoyage ne touche à aucun stock (rayon et réserve inchangés)', stocks() === stocks0, stocks0 + ' => ' + stocks());
-    ok('« Oui, nettoyer » : bandeau fermé, aucune fenêtre', await bandeau() === null && await boites() === 0);
+    ok('« Oui, nettoyer » : fenêtre fermée, aucune boîte de message', await bandeau() === null && await boites() === 0);
 
-    /* ----- réouverture : plus rien à nettoyer, pas de bandeau ----- */
+    /* ----- réouverture : plus rien à nettoyer, pas de fenêtre ----- */
     await ouvrir();
-    ok('Réouverture sans produit au-dessus du seuil : pas de bandeau, rien ne change', await bandeau() === null && lignes().length === 4 && journal() === '3');
+    ok('Réouverture sans produit au-dessus du seuil : pas de fenêtre, rien ne change', await bandeau() === null && lignes().length === 4 && journal() === '3');
 
-    /* ----- paramètre à 1 : nettoyage automatique, pas de bandeau ----- */
+    /* ----- paramètre à 1 : nettoyage automatique, pas de fenêtre ----- */
     C.exec(`UPDATE t_type_stock_famille SET int_NUMBER = 9 WHERE lg_TYPE_STOCK_FAMILLE_ID = '${MARQUE}T1'`);
     parametre('1');
     await ouvrir();
     const apres1 = lignes();
-    ok('Paramètre à 1 : R2 (réserve passée à 9) sort automatiquement à l\'ouverture, sans bandeau', await bandeau() === null && apres1.length === 3 && !apres1.includes(R[1].id) && journal() === '4', apres1.length);
+    ok('Paramètre à 1 : R2 (réserve passée à 9) sort automatiquement à l\'ouverture, sans fenêtre', await bandeau() === null && apres1.length === 3 && !apres1.includes(R[1].id) && journal() === '4', apres1.length);
     parametre('0');
 
-    /* ----- le bouton du bas ferme aussi le bandeau ----- */
+    /* ----- « Non, garder », puis le bouton du bas ----- */
     C.exec(`UPDATE t_famille SET int_SEUIL_MIN = ${K[0].r - 1} WHERE lg_FAMILLE_ID = '${K[0].id}'`);
     await ouvrir();
     const b3 = await bandeau();
     ok('Un seul produit : « 1 produit est repassé au-dessus du seuil »', !!b3 && /1 produit est repassé au-dessus du seuil/.test(b3.texte), b3 && b3.texte);
+    if (b3) { await p.click('#' + b3.non.id); await p.waitForTimeout(600); }
     await p.click('#btn_clean_sugg'); await p.waitForTimeout(400);
     const net2 = p.waitForResponse((r) => /suggestion\/clean/.test(r.url()), { timeout: 30000 });
     await p.click('#btn_clean_sugg');
     await net2;
     await p.waitForTimeout(1500);
-    ok('« Nettoyer la suggestion » (bouton du bas, confirmé dans le bouton) : K1 sort, le bandeau disparaît', await bandeau() === null && !lignes().includes(K[0].id) && journal() === '5');
+    ok('« Nettoyer la suggestion » (bouton du bas, confirmé dans le bouton) : K1 sort, aucune fenêtre', await bandeau() === null && !lignes().includes(K[0].id) && journal() === '5');
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } catch (e) {
     await p.screenshot({ path: (process.env.TEMP || '.') + '/bandeau-nettoyage-echec.png' }).catch(() => {});

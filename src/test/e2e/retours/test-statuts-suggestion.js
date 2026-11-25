@@ -56,6 +56,8 @@ function poser() {
   const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
+  /* retour du 25/11 : la question « Nettoyer la suggestion ? » (fenetre a l'ouverture) recoit « Non, garder » */
+  await require('../support/question-nettoyage-suggestion').garder(p);
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const csv = []; p.on('request', (r) => { if (/suggestion\/csv/.test(r.url())) { csv.push(r.url()); } });
   const statut = (s) => q("SELECT CONCAT(str_STATUT, '|', dt_CLOTURE IS NOT NULL, '|', dt_COMMANDEE IS NOT NULL, '|', IFNULL(str_MODE_COMMANDE, ''), '|', lg_USER_COMMANDE_ID IS NOT NULL) FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = '" + s + "'");
@@ -78,6 +80,7 @@ function poser() {
     await p.evaluate((ref) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF', ref)); }, ref);
     await p.waitForFunction((n) => { const g = Ext.getCmp('gridpanelSuggestionID'); return g && g.isVisible() && !g.getStore().isLoading() && g.getStore().getCount() === n; }, n, { timeout: 30000 });
     await p.waitForTimeout(1200);
+    await require('../support/question-nettoyage-suggestion').repondre(p);
   };
   /* Validation de la quantite du DERNIER produit, au clavier, comme l'utilisateur. */
   const validerDernier = async () => {

@@ -169,6 +169,10 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             cls: 'screen-wrap',
             fieldDefaults: {labelAlign: 'left', labelWidth: 90, anchor: '100%', msgTarget: 'side'},
             layout: {type: 'vbox', align: 'stretch', padding: 10},
+            /* retour du 25/11 : sur un ecran bas (1280 x 720 en plein ecran, barre des taches : ~600 px utiles), la
+               liste garde ses 370 px minimum et sa pagination passait sous le bas de l'ecran, sans moyen d'y aller :
+               l'ecran defile alors verticalement */
+            overflowY: 'auto',
             // Pas de flex par defaut : il etait pose sur TOUS les enfants, y compris la barre
             // de boutons, et les quatre zones se partageaient la hauteur en parts egales. Sur
             // un ecran plein page, les deux cadres du haut devenaient d'immenses cadres vides
@@ -915,13 +919,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
 
     /* plan du 08/11, point 11.3 : confirmation dans le bouton (plus de fenetre) */
     PrestigeConfirmation.bouton(bouton, 'Confirmer : nettoyer ?', function () {
-            /* meme requete que le bandeau du point 4.1, qui disparait une fois la suggestion nettoyee */
-            me.nettoyerMaintenant(function () {
-                const grid = Ext.getCmp('gridpanelSuggestionID'), b = grid && grid.down('#bandeauNettoyageSugg');
-                if (b) {
-                    grid.removeDocked(b, true);
-                }
-            });
+            /* meme requete que « Oui, nettoyer » de la fenetre posee a l'ouverture */
+            me.nettoyerMaintenant();
         });
 },
     
@@ -1305,57 +1304,61 @@ onRemoveClick: function (grid, rowIndex) {
             url: '../api/v1/suggestion/ouverture?suggestionId=' + encodeURIComponent(orderIdRef), method: 'POST',
             callback: function (o, succes, rep) {
                 const r = succes ? Ext.decode(rep.responseText, true) : null;
-                charger();
+                if (r && !r.actif && r.aNettoyer > 0) {
+                    /* retour du 25/11 : le bandeau du 21/11 (point 4.1), pose dans la grille, bloquait son defilement et
+                       sa pagination ; la question est posee dans une fenetre, une fois la suggestion affichee (demande
+                       expresse, exception a « pas de fenetre surgissante ») */
+                    grid.getStore().load({params: {orderId: orderIdRef, query: null}, callback: function () {
+                            if (!grid.isDestroyed) {
+                                Me_Window.demanderNettoyage(r.aNettoyer);
+                            }
+                        }});
+                } else {
+                    charger();
+                }
                 if (r && r.actif && r.retires > 0 && window.PrestigeToast) {
                     PrestigeToast.afficher(r.retires + (r.retires > 1 ? ' produits retirés' : ' produit retiré')
                             + ' à l\'ouverture (voir « Produits retirés »).', {niveau: 'info', titre: 'Suggestion nettoyée'});
-                }
-                /* plan du 21/11, point 4.1 : nettoyage automatique coupe, des produits sont repasses au-dessus du seuil :
-                   la question est posee dans un bandeau en haut de la suggestion (pas de fenetre) */
-                if (r && !r.actif && r.aNettoyer > 0) {
-                    Me_Window.afficherBandeauNettoyage(grid, r.aNettoyer);
                 }
             }
         });
     },
 
     /**
-     * Plan du 21/11, point 4.1 : bandeau « nettoyer la suggestion ? ». « Oui, nettoyer » fait exactement ce que fait le
-     * bouton « Nettoyer la suggestion » (meme route, lignes journalisees dans « Produits retires ») ; « Non, garder »
-     * ferme le bandeau sans rien toucher.
+     * Retour du 25/11 (remplace le bandeau du plan du 21/11, point 4.1) : fenetre « Nettoyer la suggestion ? », affichee
+     * apres l'ouverture de la suggestion. « Oui, nettoyer » fait exactement ce que fait le bouton « Nettoyer la
+     * suggestion » (meme route, lignes journalisees dans « Produits retires ») ; « Non, garder » ferme sans rien toucher.
      */
-    afficherBandeauNettoyage: function (grid, n) {
-        const ancien = grid.down('#bandeauNettoyageSugg');
-        if (ancien) {
-            grid.removeDocked(ancien, true);
-        }
-        const fermer = function () {
-            const b = grid.isDestroyed ? null : grid.down('#bandeauNettoyageSugg');
-            if (b) {
-                grid.removeDocked(b, true);
-            }
-        };
-        grid.addDocked({
-            xtype: 'toolbar', dock: 'top', itemId: 'bandeauNettoyageSugg', cls: 'sugg-bandeau-nettoyage',
-            items: [
-                {xtype: 'tbtext', itemId: 'texteBandeauNettoyage', cls: 'sugg-bandeau-texte',
-                    text: '⚠ ' + n + (n > 1 ? ' produits sont repassés' : ' produit est repassé')
-                            + ' au-dessus du seuil (rayon + réserve) depuis la création de la suggestion. Nettoyer la suggestion ?'},
-                '->',
-                {xtype: 'button', itemId: 'btnBandeauNettoyerOui', text: 'Oui, nettoyer', cls: 'ordo-btn ordo-btn-primaire sugg-bandeau-oui',
-                    tooltip: 'Retirer ' + (n > 1 ? 'ces ' + n + ' produits' : 'ce produit')
-                            + ' de la suggestion. Ils restent visibles dans « Produits retirés ».',
-                    handler: function (b) {
-                        b.disable();
-                        Me_Window.nettoyerMaintenant(fermer, function () {
-                            b.enable();
-                        });
-                    }},
-                {xtype: 'button', itemId: 'btnBandeauNettoyerNon', text: 'Non, garder', cls: 'ordo-btn',
-                    tooltip: 'Garder la suggestion telle quelle. « Nettoyer la suggestion » reste disponible en bas.',
-                    handler: fermer}
-            ]
+    demanderNettoyage: function (n) {
+        Ext.ComponentQuery.query('window[itemId=fenetreNettoyageSugg]').forEach(function (w) {
+            w.close();
         });
+        const fenetre = Ext.create('Ext.window.Window', {
+            itemId: 'fenetreNettoyageSugg', cls: 'sugg-fenetre-nettoyage', title: 'Nettoyer la suggestion ?',
+            modal: true, closable: true, resizable: false, width: 460, bodyPadding: 14,
+            items: [{xtype: 'component', itemId: 'texteNettoyageSugg', cls: 'sugg-nettoyage-texte',
+                    html: '⚠ ' + n + (n > 1 ? ' produits sont repassés' : ' produit est repassé')
+                            + ' au-dessus du seuil (rayon + réserve) depuis la création de la suggestion. Nettoyer la suggestion ?'}],
+            dockedItems: [{xtype: 'toolbar', dock: 'bottom', ui: 'footer', layout: {pack: 'end', type: 'hbox'}, items: [
+                        {xtype: 'button', itemId: 'btnNettoyerOui', text: 'Oui, nettoyer', cls: 'ordo-btn ordo-btn-primaire',
+                            tooltip: 'Retirer ' + (n > 1 ? 'ces ' + n + ' produits' : 'ce produit')
+                                    + ' de la suggestion. Ils restent visibles dans « Produits retirés ».',
+                            handler: function (b) {
+                                b.disable();
+                                Me_Window.nettoyerMaintenant(function () {
+                                    fenetre.close();
+                                }, function () {
+                                    b.enable();
+                                });
+                            }},
+                        {xtype: 'button', itemId: 'btnNettoyerNon', text: 'Non, garder', cls: 'ordo-btn',
+                            tooltip: 'Garder la suggestion telle quelle. « Nettoyer la suggestion » reste disponible en bas.',
+                            handler: function () {
+                                fenetre.close();
+                            }}
+                    ]}]
+        });
+        fenetre.show();
     },
 
     /** La requete de « Nettoyer la suggestion », puis la liste et les montants. */

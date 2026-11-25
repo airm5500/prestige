@@ -67,6 +67,8 @@ function lireJournal(depuis) {
   try {
     const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
     const p = await ctx.newPage();
+    /* retour du 25/11 : la question « Nettoyer la suggestion ? » (fenetre a l'ouverture) recoit « Non, garder » */
+    await require('../support/question-nettoyage-suggestion').garder(p);
     p.on('pageerror', (e) => err.push(e.message));
     await p.goto(URL + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');

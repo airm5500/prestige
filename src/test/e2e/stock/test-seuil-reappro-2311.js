@@ -160,6 +160,8 @@ const parFiche = (lignes) => { const m = {}; lignes.forEach((l) => { const f = F
 
     const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
     const p = await ctx.newPage();
+    /* retour du 25/11 : la question « Nettoyer la suggestion ? » (fenetre a l'ouverture) recoit « Non, garder » */
+    await require('../support/question-nettoyage-suggestion').garder(p);
     p.on('pageerror', (e) => err.push(e.message));
     await C.vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
 

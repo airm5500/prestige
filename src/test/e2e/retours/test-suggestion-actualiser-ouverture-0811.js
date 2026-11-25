@@ -76,6 +76,8 @@ const lignes = () => q(`SELECT lg_FAMILLE_ID FROM t_suggestion_order_details WHE
   ok('11.5 : paramètre rangé dans la rubrique « Commandes » de l\'écran des paramètres', /KEY_NETTOYER_SUGGESTION/.test(require('fs').readFileSync(require('path').join(__dirname, '../../../main/java/util/RubriqueParametre.java'), 'utf8')));
   const sess = await C.connecterEtOuvrirVente();
   const { p } = sess;
+  /* retour du 25/11 : la question « Nettoyer la suggestion ? » (fenetre a l'ouverture) recoit « Non, garder » */
+  await require('../support/question-nettoyage-suggestion').garder(p);
   const ouvrir = async () => {
     await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('i_sugg_manager', {}); });
     await p.waitForFunction(() => Ext.getCmp('rechecher') && Ext.getCmp('rechecher').isVisible(true), null, { timeout: 30000 });
