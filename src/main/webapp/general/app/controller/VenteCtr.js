@@ -680,6 +680,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                 /* « Reprendre la vente interrompue » depuis le bandeau : le serveur a deja admis la reprise */
                 me.loadExistantSale(id);
             });
+            /* retour du 25/11, point 4 : vente ouverte prise au serveur (rappel par la fenetre ou par son numero) ->
+             * le nombre du bouton « Ventes en attente » est relu, egal a la base */
+            if (window.PrestigeSaisieVente.surPrise) {
+                window.PrestigeSaisieVente.surPrise('vente', function () {
+                    me.majNombreAttente();
+                });
+            }
             /* retours du 25/11 (1.3) : quitter l'ecran (menu, en-tete) avec une vente en cours -> meme fenetre que Retour */
             if (window.PrestigeSaisieVente.garder) {
                 window.PrestigeSaisieVente.garder('vente', ['doventemanager'], function (continuer) {
@@ -867,7 +874,11 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.onBtnClientAyantDroitClick
                     },
                     'doventemanager #typeVente': {
-                        select: this.onTypeVenteSelect
+                        select: this.onTypeVenteSelect,
+                        /* retour du 25/11, point 3 : vente rappelee (type pose sans selection) */
+                        change: function () {
+                            Ext.defer(this.majBoutonFicheClient, 1, this);
+                        }
                     },
                     /* cas 1 du 03/11 : la colonne « C » n'existe que si KEY_LIGNE_COMPTANT_VO = 1 (créée par le
                      * contrôleur) ; ces écouteurs ne jouent donc jamais sans le paramètre */
@@ -884,6 +895,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.onNetBtnClick
                     },
                     'doventemanager #contenu [xtype=toolbar] #btnFicheClient': {
+                        click: this.onFicheClientClick,
+                        render: this.majBoutonFicheClient
+                    },
+                    'doventemanager #ficheClientAssure': {
                         click: this.onFicheClientClick,
                         render: this.majBoutonFicheClient
                     },
@@ -3866,8 +3881,17 @@ Ext.define('testextjs.controller.VenteCtr', {
     /** Retours du 10/10 (14) : le bouton suit le client de la vente. */
     majBoutonFicheClient: function () {
         const b = Ext.ComponentQuery.query('doventemanager #btnFicheClient')[0], c = this.client;
+        const carte = Ext.ComponentQuery.query('doventemanager #ficheClientAssure')[0];
+        const avecClient = !!(c && c.get && c.get('lgCLIENTID'));
+        /* retour du 25/11, point 3 : assurance (2) et carnet (3) -> bouton de la carte du client ; comptant -> barre */
+        const combo = Ext.ComponentQuery.query('doventemanager #typeVente')[0];
+        const type = combo && !combo.isDestroyed ? String(combo.getValue()) : '1';
+        const credit = type === '2' || type === '3';
         if (b && !b.isDestroyed) {
-            b.setVisible(!!(c && c.get && c.get('lgCLIENTID')));
+            b.setVisible(avecClient && !credit);
+        }
+        if (carte && !carte.isDestroyed) {
+            carte.setVisible(avecClient && credit);
         }
     },
 
@@ -4755,6 +4779,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                         // rappelee en bas de l'ecran, sous la liste des articles
                         'dateHeureCreation': record.dateHeureCreation
                     };
+                    /* retour du 25/11, point 4 : la vente rappelee n'est plus « en attente » : le nombre du bouton
+                     * est relu (sans elle) des qu'elle est ouverte */
+                    me.majNombreAttente();
                     me.netAmountToPay = null;
                     me.ayantDroit = ayantDroit;
                     // Vente en attente : pas encore de règlements en base, on
@@ -8698,6 +8725,8 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.saveModeReglementAttente();
         me.libererRappelVente();
         me.resetAll();
+        /* retour du 25/11, point 4 : la vente remise en attente revient dans le nombre du bouton */
+        me.majNombreAttente();
         me.getVnoproduitCombo().focus(false, 100, function () {
         });
     },

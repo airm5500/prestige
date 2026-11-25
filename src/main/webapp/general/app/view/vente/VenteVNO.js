@@ -278,6 +278,19 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                             }
                                         },
                                         {
+                                            /* retour du 25/11, point 3 : en assurance et carnet, la fiche client est
+                                             * au niveau du client, a cote du suivi de consommation (et non plus dans
+                                             * la barre du reglement) */
+                                            itemId: 'ficheClientAssure',
+                                            iconCls: 'ic7 ic7-fiche',
+                                            tooltip: 'Fiche du client : allergies, terrains, mesures, consommation',
+                                            cls: 'vp-btn-plat',
+                                            margin: '0 0 0 2',
+                                            width: 34, height: 34,
+                                            hidden: true,
+                                            xtype: 'button'
+                                        },
+                                        {
                                             // Ressort : occupe le reste de la carte.
                                             xtype: 'component',
                                             flex: 1

@@ -213,7 +213,7 @@ public final class ConversionTicket {
             }
         }
         corps.trait(false);
-        recap(articles, boites);
+        recap(articles, boites, total);
         sousTotaux(total);
         mentions();
         if (s.ticket == ModeleTicket.VENTE_CARNET) {
@@ -243,11 +243,21 @@ public final class ConversionTicket {
         }
     }
 
-    private void recap(int articles, int boites) {
+    private void recap(int articles, int boites, String total) {
         if (r.recapitulatif() && articles > 0) {
             // retour du 05/11 : « 3 lignes · 3 boîtes » ; retour du 06/11 : « 3 lignes · 3 articles »
-            doc.bloc(TicketDocument.RECAP).texte(articles + (articles > 1 ? " lignes" : " ligne") + " · " + boites
-                    + (boites > 1 ? " articles" : " article"), Style.PETIT);
+            String texte = articles + (articles > 1 ? " lignes" : " ligne") + " · " + boites
+                    + (boites > 1 ? " articles" : " article");
+            if (vide(total)) {
+                doc.bloc(TicketDocument.RECAP).texte(texte, Style.PETIT);
+            } else {
+                /*
+                 * retour du 25/11, point 5 : le montant total de la vente en face, a droite (il avait ete omis) ;
+                 * precise le meme jour (photo du ticket) : « TOTAL : 6 060 F CFA », en gras
+                 */
+                doc.bloc(TicketDocument.RECAP).paire(texte, TicketDocument.gras("TOTAL : " + montantF(total)),
+                        Style.PETIT);
+            }
         }
     }
 
@@ -296,7 +306,8 @@ public final class ConversionTicket {
             }
         }
         corps.trait(false);
-        recap(articles, boites);
+        /* photo du ticket du 25/11 : le combine porte deja « Total des deux ventes », non rappele sur cette ligne */
+        recap(articles, boites, null);
         String total = "";
         for (String l : s.datas) {
             String[] p = l.split(";", -1);

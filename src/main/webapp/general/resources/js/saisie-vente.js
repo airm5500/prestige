@@ -195,10 +195,19 @@
         Ext.Ajax.request({method: 'POST', url: url, failure: Ext.emptyFn});
     }
 
-    function signaler(e, id) {
+    function signaler(e, id, premier) {
         e.dernierSignal = Date.now();
         poster(encodeURIComponent(id) + '/signal', function () {
             bandeau(null);
+            /* retour du 25/11, point 4 : premier signal admis d'une vente ouverte -> l'écran relit ce qui en dépend
+             * (nombre de ventes en attente du bouton : la vente rappelée n'est plus « en attente » en base) */
+            if (premier && e.surPrise && e.courant === id) {
+                try {
+                    e.surPrise(id);
+                } catch (x) {
+                    /* sans effet sur la saisie */
+                }
+            }
         }, function (d) {
             if (!d.libre && d.msg && e.courant === id) {
                 bandeau(d.msg);
@@ -240,7 +249,7 @@
                 bandeau(null);
                 if (id) {
                     delete regles[id];
-                    signaler(e, id);
+                    signaler(e, id, true);
                 }
                 return;
             }
@@ -550,6 +559,12 @@
                 accepte: accepte, ouvertAvant: ''};
             if (!minuteur) {
                 minuteur = setInterval(tic, 2000);
+            }
+        },
+        /** Retour du 25/11, point 4 : fn(id) appelée au premier signal admis d'une vente ouverte sur l'écran nom. */
+        surPrise: function (nom, fn) {
+            if (ecrans[nom]) {
+                ecrans[nom].surPrise = fn;
             }
         },
         /** La vente a été réglée par un geste (attente, suppression, clôture) : pas de déclaration d'interruption. */

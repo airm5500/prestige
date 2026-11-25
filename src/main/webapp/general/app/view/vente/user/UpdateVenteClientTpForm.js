@@ -1323,7 +1323,13 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     closeWindow: function () {
         let me = this;
         let wind = me.up('window');
+        /* retour du 25/11 : une fiche (client, ayant droit) enregistree dans la fenetre puis « Annuler » : l'ecran
+           appelant relit ses donnees (nom, matricule a jour) */
+        const rappel = wind.ficheModifiee ? wind.onSaved : null;
         wind.destroy();
+        if (Ext.isFunction(rappel)) {
+            rappel({success: true, refId: wind.getData() ? wind.getData().lgPREENREGISTREMENTID : null});
+        }
     },
     loadVenteById: function (id) {
         const me = this;

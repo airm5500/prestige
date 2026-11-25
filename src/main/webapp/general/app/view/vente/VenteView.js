@@ -51,8 +51,19 @@ Ext.define('testextjs.view.vente.VenteView', {
             /* contenu présélectionné quand on revient dans le champ
              * (clic ou F3) : la nouvelle saisie écrase l'ancienne */
             selectOnFocus: true,
+            /* retour du 25/11 : sous Chrome, ExtJS applique selectOnFocus en differe ; une saisie rapide juste apres
+             * l'entree dans le champ (douchette, page occupee) voyait son premier caractere selectionne puis ecrase.
+             * La selection differee n'a lieu que si rien n'a ete saisi depuis l'entree dans le champ. */
+            focusInput: function () {
+                if (this.valeurAuFocus === undefined || this.getValue() === this.valeurAuFocus) {
+                    Ext.form.field.Text.prototype.focusInput.apply(this, arguments);
+                }
+            },
             listeners: {
                 afterrender: function (f) {
+                    f.inputEl.on('focus', function () {
+                        f.valeurAuFocus = f.getValue();
+                    });
                     f.inputEl.on('mouseup', function () {
                         // différé : le mouseup natif replace le curseur et
                         // annulerait une sélection immédiate. Retour du 25/10 : seulement

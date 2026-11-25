@@ -332,10 +332,12 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     return ref;
                                 }
                                 var autre = Ext.String.htmlEncode(rec.get('venteLieeRef') || liee);
+                                /* retour du 25/11 : le numero de l'autre vente du couple est ecrit a cote du repere
+                                   (il n'etait que dans l'info-bulle) ; le clic sur l'un ou l'autre ouvre son detail */
                                 return ref + ' <span class="vente-liee" data-vente-liee="' + Ext.String.htmlEncode(liee) + '"'
                                         + ' data-qtip="Vente scindée (assurance + comptant) : vente liée n° ' + autre + '.<br>Clic : voir son détail."'
                                         + ' style="cursor:pointer;display:inline-block;padding:0 5px;border-radius:8px;background:#e3eefc;'
-                                        + 'color:#1f5fae;font-weight:bold;font-size:11px;line-height:15px">&#8644;</span>';
+                                        + 'color:#1f5fae;font-weight:bold;font-size:11px;line-height:15px">&#8644; ' + autre + '</span>';
                             }
                         },
                         {
@@ -359,8 +361,13 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             dataIndex: 'intPRICE',
                             align: 'right',
                             flex: 0.6,
-                            format: '0,000.'
-
+                            format: '0,000.',
+                            /* retour du 25/11 : vente scindee (assurance + comptant) : les montants des deux ventes du
+                               couple en bleu ; les autres ventes comme avant */
+                            renderer: function (v, m, rec) {
+                                var t = Ext.util.Format.number(v, '0,000.');
+                                return rec.get('venteLiee') ? '<span class="vf-montant-liee" style="color:#1f5fae">' + t + '</span>' : t;
+                            }
                         },
                         {
                             sortable: false,
@@ -419,7 +426,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                 const info = 'Saisie : ' + (v || 'non connu')
                                         + (enc ? '<br>Encaissement : ' + enc : '');
                                 meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(info) + '"';
-                                return Ext.String.htmlEncode(v || '');
+                                /* retour du 25/11 : le nom du poste en gras */
+                                return v ? '<span class="vf-poste-nom" style="font-weight:bold">' + Ext.String.htmlEncode(v) + '</span>' : '';
                             }
                         },
                         {

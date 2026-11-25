@@ -747,6 +747,34 @@ public class ClientServiceImpl implements ClientService {
         }
     }
 
+    /** Un autre client (pas celui-ci) a un compte actif chez cet organisme avec ce matricule. */
+    private boolean matriculeUtiliseParUnAutreClient(String secu, TTiersPayant payant, String clientId) {
+        return !getEmg().createQuery(
+                "SELECT o.lgCOMPTECLIENTTIERSPAYANTID FROM TCompteClientTiersPayant o WHERE o.strNUMEROSECURITESOCIAL = ?1"
+                        + " AND o.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2 AND o.strSTATUT = ?3"
+                        + " AND o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID <> ?4",
+                String.class).setParameter(1, StringUtils.normalizeSpace(secu))
+                .setParameter(2, payant.getLgTIERSPAYANTID()).setParameter(3, Constant.STATUT_ENABLE)
+                .setParameter(4, clientId).setMaxResults(1).getResultList().isEmpty();
+    }
+
+    /**
+     * Ayant droit principal du client : celui du client qui porte l'ancien matricule, sinon celui qui a l'identifiant
+     * du client ; jamais l'ayant droit d'un autre client.
+     */
+    private TAyantDroit ayantDroitPrincipal(TClient tc, String ancienMatricule) {
+        if (!StringUtils.isEmpty(ancienMatricule)) {
+            List<TAyantDroit> l = getEmg().createQuery(
+                    "SELECT a FROM TAyantDroit a WHERE a.lgCLIENTID.lgCLIENTID = ?1 AND a.strNUMEROSECURITESOCIAL = ?2",
+                    TAyantDroit.class).setParameter(1, tc.getLgCLIENTID()).setParameter(2, ancienMatricule)
+                    .setMaxResults(1).getResultList();
+            if (!l.isEmpty()) {
+                return l.get(0);
+            }
+        }
+        return getEmg().find(TAyantDroit.class, tc.getLgCLIENTID());
+    }
+
     private boolean doesNumeroSecuriteSocialExist(String secu, TTiersPayant payant) {
         try {
             TypedQuery<TCompteClientTiersPayant> query = this.getEmg().createQuery(
@@ -1925,10 +1953,18 @@ public class ClientServiceImpl implements ClientService {
         ClientDTO data;
         String oldNum = tc.getStrNUMEROSECURITESOCIAL();
         TCompteClientTiersPayant payant = findCompteClientTiersPayantByClientId(client.getLgCLIENTID());
-        TTiersPayant p = payant.getLgTIERSPAYANTID();
+        TTiersPayant p = payant == null ? null : payant.getLgTIERSPAYANTID();
+        /*
+         * Retour du 25/11 (« le matricule est deja utilise » en modifiant la fiche) : le controle comptait aussi les
+         * comptes du client lui-meme (sa propre carte, ses complementaires) et les comptes desactives. Seul un autre
+         * client, avec un compte actif chez le meme organisme, rend le matricule indisponible ; la casse et les espaces
+         * ne comptent pas.
+         */
         if (!StringUtils.isEmpty(client.getStrNUMEROSECURITESOCIAL())) {
-            if (!client.getStrNUMEROSECURITESOCIAL().equals(tc.getStrNUMEROSECURITESOCIAL())) {
-                if (doesNumeroSecuriteSocialExist(client.getStrNUMEROSECURITESOCIAL(), p)) {
+            if (!StringUtils.equalsIgnoreCase(StringUtils.normalizeSpace(client.getStrNUMEROSECURITESOCIAL()),
+                    StringUtils.normalizeSpace(tc.getStrNUMEROSECURITESOCIAL()))) {
+                if (p != null && matriculeUtiliseParUnAutreClient(client.getStrNUMEROSECURITESOCIAL(), p,
+                        tc.getLgCLIENTID())) {
                     json.put("success", false).put("msg", "Le numéro de sécurité :: [<span style=\"color: blue; \"> "
                             + client.getStrNUMEROSECURITESOCIAL() + " </span>] est déjà utilisé dans le système");
                     return json;
@@ -1944,16 +1980,25 @@ public class ClientServiceImpl implements ClientService {
             tc.setBoolCONSENTSMS(client.consentSmsValeur());
         }
         getEmg().merge(tc);
-        payant.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
-        getEmg().merge(payant);
+        if (payant != null) {
+            payant.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
+            getEmg().merge(payant);
+        }
 
         if (tc.getLgTYPECLIENTID().getLgTYPECLIENTID().equals(Constant.CLIENT_ASSURANCE)) {
-            TAyantDroit ayantDroit = findAyantDroitByNum(oldNum);
-            ayantDroit.setDtUPDATED(new Date());
-            ayantDroit.setStrFIRSTNAME(client.getStrFIRSTNAME().toUpperCase());
-            ayantDroit.setStrLASTNAME(client.getStrLASTNAME().toUpperCase());
-            ayantDroit.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
-            getEmg().merge(ayantDroit);
+            /*
+             * Retour du 25/11 : l'ayant droit principal est cherche parmi ceux du client (avant : le premier ayant
+             * droit de toute la base portant l'ancien matricule, celui d'un autre client le cas echeant ; aucun ->
+             * erreur apres l'enregistrement du client).
+             */
+            TAyantDroit ayantDroit = ayantDroitPrincipal(tc, oldNum);
+            if (ayantDroit != null) {
+                ayantDroit.setDtUPDATED(new Date());
+                ayantDroit.setStrFIRSTNAME(client.getStrFIRSTNAME().toUpperCase());
+                ayantDroit.setStrLASTNAME(client.getStrLASTNAME().toUpperCase());
+                ayantDroit.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
+                getEmg().merge(ayantDroit);
+            }
             data = new ClientDTO(findById(tc.getLgCLIENTID()), Collections.emptyList(),
                     findAyantDroitByClientId(tc.getLgCLIENTID()));
         } else {

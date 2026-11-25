@@ -219,6 +219,27 @@ Ext.define('testextjs.view.Navigation', {
             /* Empêcher le dépliage vertical des nœuds par double-clic */
             beforeitemexpand: function () { return false; },
             collapse: function () {},
+            /*
+             * Video du 25/11 (poste sur videoprojecteur, 1280 x 720) : bande vide a droite de l'ecran « Ventes » ouvert
+             * depuis l'ecran de vente. A l'ouverture du volet par-dessus l'ecran, ExtJS le tient un instant pour deplie :
+             * une mise en page lancee a ce moment (l'ecran de vente en relance une quand le clic sur le volet lui retire
+             * le curseur) reserve sa largeur et retrecit la zone de travail d'autant (1280 - 260 - 5 = 1015), alors que
+             * son cadre garde toute la largeur. Au repli, ExtJS ne refait pas la mise en page : l'ecran suivant etait
+             * pose sur 1015 px. Le volet replie, si la mise en page de la zone ne correspond plus a son cadre, celle de
+             * la fenetre est refaite (rien sinon).
+             */
+            unfloat: function () {
+                Ext.defer(function () {
+                    var fenetre = me.ownerCt, centre = Ext.getCmp('content-panel');
+                    if (!fenetre || fenetre.isDestroyed || me.floatedFromCollapse || !centre || centre.isDestroyed
+                            || !centre.lastBox || !centre.getEl()) {
+                        return;
+                    }
+                    if (Math.abs(centre.getEl().getWidth() - centre.lastBox.width) > 1) {
+                        fenetre.updateLayout();
+                    }
+                }, 1);
+            }
         };
     },
 
