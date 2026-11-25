@@ -74,8 +74,9 @@ async function choisirExport(p, texte) {
   await p.click('#' + item);
 }
 
-/* même produit : CIP identique, ou CIP long coupé par la colonne du PDF (au moins 9 chiffres gardés) */
-const memeCip = (ecran, pdf) => ecran === pdf || (pdf.length >= 9 && ecran.length > pdf.length && ecran.startsWith(pdf));
+/* même produit : CIP identique. Retour du 25/11 : la colonne du PDF est agrandie, un CIP long n'est plus coupé à
+ * 9 chiffres ; la tolérance d'avant (préfixe de 9 chiffres) est retirée */
+const memeCip = (ecran, pdf) => ecran === pdf;
 const tronques = [];
 
 (async () => {
