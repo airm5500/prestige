@@ -481,10 +481,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 beforerender: function () {
                                     if (!document.getElementById('style-bandeau-article')) {
                                         Ext.util.CSS.createStyleSheet(
-                                                '.bandeau-article .x-autocontainer-outerCt{display:block!important;width:100%!important;height:auto!important}'
-                                                + '.bandeau-article .x-autocontainer-innerCt{display:flex!important;flex-wrap:wrap;align-items:center;'
-                                                + 'column-gap:22px;row-gap:4px;width:100%!important;height:auto!important}'
-                                                + '.bandeau-article .x-autocontainer-innerCt>.x-field{flex:0 0 auto;margin:0!important;width:auto!important}'
+                                                // ExtJS 4.2 ne pose pas de classe sur ces deux enveloppes : on les vise par
+                                                // la fin de leur id (« -outerCt », « -innerCt »).
+                                                '.bandeau-article>[id$="-outerCt"]{display:block!important;width:100%!important;height:auto!important}'
+                                                + '.bandeau-article>[id$="-outerCt"]>[id$="-innerCt"]{display:flex!important;flex-wrap:wrap;align-items:center;'
+                                                + 'column-gap:22px;row-gap:4px;width:auto!important;height:auto!important;box-sizing:border-box}'
+                                                + '.bandeau-article [id$="-innerCt"]>.x-field{flex:0 0 auto;margin:0!important;width:auto!important}'
                                                 + '.bandeau-article .x-form-display-field{white-space:nowrap}',
                                                 'style-bandeau-article');
                                     }

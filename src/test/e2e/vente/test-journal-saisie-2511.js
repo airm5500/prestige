@@ -163,10 +163,27 @@ const limiter = (ids) => ids.split(',').filter((x) => x && Number(x) > J0).join(
     await j2.p.locator('.x-tab', { hasText: 'Ventes en cours et interrompues' }).first().click();
     await j2.p.waitForFunction((r) => { const v = Ext.ComponentQuery.query('cloturerventemanager ventesencourssaisie')[0]; return v && !v.ventes.isLoading() && v.ventes.findRecord('numero', r); },
       q("SELECT str_REF FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'"), { timeout: 20000 });
+    /* etat de la barre lu dans la page : visible a l'ecran, et bouton par bouton actif ou grise */
+    const barreMenu = () => j2.p.evaluate(() => { const e = Ext.ComponentQuery.query('cloturerventemanager')[0];
+      const b = e.down('#barreMenuVente'), r = b.getEl() ? b.getEl().dom.getBoundingClientRect() : { height: 0 };
+      const ids = ['addBtn', 'typesPuces', 'query', 'rechercher', 'printParVente', 'printListe', 'createInventaire'];
+      return { barre: b.isVisible(true) && r.height > 0, actifs: ids.filter((i) => { const c = e.down('#' + i); return c.isVisible(true) && !c.isDisabled(); }),
+        titres: ids.filter((i) => /Ventes en attente/.test(e.down('#' + i).getEl().dom.title || '')) }; });
     const o2 = await j2.p.evaluate(() => { const e = Ext.ComponentQuery.query('cloturerventemanager')[0]; const v = e.down('ventesencourssaisie');
-      return { barre: e.down('#barreMenuVente').isVisible(true), lignes: v.ventes.getRange().map((r) => r.get('id') + '/' + r.get('etat') + '/' + r.get('lignes')) }; });
-    ok('1. Onglet « Ventes en cours et interrompues » : la vente D de JS2 (INTERROMPUE, 1 ligne, comme en base) ; barre de la liste masquée',
-      !o2.barre && o2.lignes.includes(vD + '/INTERROMPUE/1') && q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'") === '1', JSON.stringify(o2));
+      return { lignes: v.ventes.getRange().map((r) => r.get('id') + '/' + r.get('etat') + '/' + r.get('lignes')) }; });
+    ok('1. Onglet « Ventes en cours et interrompues » : la vente D de JS2 (INTERROMPUE, 1 ligne, comme en base)',
+      o2.lignes.includes(vD + '/INTERROMPUE/1') && q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'") === '1', JSON.stringify(o2));
+    /* retour du 25/11 : la barre ne disparait plus ; « Nouvelle vente » reste active, le reste (liste des ventes en attente) est grise avec sa raison */
+    const b2 = await barreMenu();
+    ok('1. Onglet « Ventes en cours et interrompues » : barre toujours visible, « Nouvelle vente » active, type, recherche, impressions et inventaire grisés avec la raison au survol',
+      b2.barre && JSON.stringify(b2.actifs) === '["addBtn"]' && b2.titres.length === 6, JSON.stringify(b2));
+    await j2.p.locator('.x-tab', { hasText: 'Ventes en attente' }).first().click();
+    await j2.p.waitForTimeout(300);
+    const b1 = await barreMenu();
+    ok('1. Retour à l\'onglet « Ventes en attente » : toute la barre redevient active, sans message de survol ajouté',
+      b1.barre && b1.actifs.length === 7 && b1.titres.length === 0, JSON.stringify(b1));
+    await j2.p.locator('.x-tab', { hasText: 'Ventes en cours et interrompues' }).first().click();
+    await j2.p.waitForTimeout(300);
     const refD = q("SELECT str_REF FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'");
     const bouton = () => j2.p.locator('.x-grid-row', { hasText: refD }).locator('.vcs-reprendre').first();
     await bouton().click(); await j2.p.waitForTimeout(400);
@@ -254,12 +271,19 @@ const limiter = (ids) => ids.split(',').filter((x) => x && Number(x) > J0).join(
     const t0 = Date.now();
     /* ecoute posee sur tout le contexte AVANT le clic : la fenetre peut recevoir le PDF avant qu'on l'observe */
     const attentePdf = ad.p.context().waitForEvent('response', { predicate: (r) => r.url().includes('/vente-saisie/journal/pdf'), timeout: 30000 }).catch(() => null);
-    const [fen] = await Promise.all([ad.p.waitForEvent('popup', { timeout: 15000 }), vues.cliquer(ad.p, 'journalsaisievente #jsvImprimer')]);
-    const repPdf = await attentePdf;
-    if (repPdf) { await repPdf.finished().catch(() => {}); }
+    /* chaque attente est bornee : dans la visionneuse PDF, la fin du telechargement n'est pas toujours signalee
+     * (finished() ne revenait jamais, le test restait bloque des heures) ; le corps lu suffit a dater l'affichage */
+    const borne = (pr, ms) => Promise.race([pr.catch(() => null), new Promise((r) => setTimeout(() => r(null), ms))]);
+    const [fen] = await Promise.all([borne(ad.p.waitForEvent('popup', { timeout: 15000 }), 16000), vues.cliquer(ad.p, 'journalsaisievente #jsvImprimer')]);
+    const repPdf = await borne(attentePdf, 31000);
+    /* le corps n'est pas lisible par le test quand il part dans la visionneuse : on verifie la reponse (200, PDF) et
+     * que la fenetre ouverte est bien celle du PDF */
     const duree = Date.now() - t0;
-    ok('5. « Imprimer » : PDF (application/pdf) affiché sous ' + PLAFOND_PDF_MS + ' ms', !!repPdf && /pdf/.test(repPdf.headers()['content-type'] || '') && duree < PLAFOND_PDF_MS, duree + ' ms');
-    await fen.close().catch(() => {});
+    const urlFen = fen ? fen.url() : '';
+    ok('5. « Imprimer » : PDF (200, application/pdf) ouvert dans sa fenêtre sous ' + PLAFOND_PDF_MS + ' ms', !!repPdf && repPdf.status() === 200
+      && /pdf/.test(repPdf.headers()['content-type'] || '') && /journal\/pdf/.test(urlFen) && duree < PLAFOND_PDF_MS,
+      duree + ' ms ; ' + (repPdf ? repPdf.status() + ' ' + (repPdf.headers()['content-type'] || '') : 'aucune réponse') + ' ; fenêtre ' + urlFen);
+    if (fen) { await borne(fen.close(), 5000); }
 
     /* 6. inventaire (filtre JS2) */
     const attendus = [P3.id, P2.id].sort().join(',');
@@ -287,7 +311,7 @@ const limiter = (ids) => ids.split(',').filter((x) => x && Number(x) > J0).join(
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {
-    for (const s of postes) { await s.b.close().catch(() => {}); }
+    for (const s of postes) { await Promise.race([s.b.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000))]); }
     nettoyer();
     A.nettoyer();
     fs.rmSync(dossier, { recursive: true, force: true });

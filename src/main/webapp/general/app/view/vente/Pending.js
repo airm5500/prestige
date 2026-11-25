@@ -137,11 +137,19 @@ Ext.define('testextjs.view.vente.Pending', {
                     margin: '0 10 10 10',
                     listeners: {
                         tabchange: function (tp, onglet) {
-                            /* la barre (nouvelle vente, recherche, impressions, inventaire) vaut pour les ventes en attente */
-                            var barre = me.down('#barreMenuVente');
-                            if (barre) {
-                                barre.setVisible(onglet.itemId === 'ongletAttente');
-                            }
+                            /* retour du 25/11 : la barre reste visible sur les deux onglets. « Nouvelle vente » vaut
+                             * partout ; type, recherche, impressions et inventaire portent sur la liste des ventes en
+                             * attente : grises sur l'autre onglet, avec la raison au survol */
+                            var attente = onglet.itemId === 'ongletAttente';
+                            Ext.each(['#typesPuces', '#query', '#rechercher', '#printParVente', '#printListe', '#createInventaire'], function (sel) {
+                                var c = me.down(sel);
+                                if (c) {
+                                    c.setDisabled(!attente);
+                                    if (c.getEl()) {
+                                        c.getEl().dom.title = attente ? '' : 'Vaut pour l\'onglet « Ventes en attente »';
+                                    }
+                                }
+                            });
                         }
                     },
                     items: [{
