@@ -128,3 +128,29 @@ Deux points relevés en passant :
 - domain3 était figé (4,6 Go, plus de réponse) : processus arrêté et domaine relancé, même application, même base.
 - `laborex_v1_db` : jeux d'essai posés puis retirés par les tests.
 - `clementine` : lecture seule.
+
+## Suite : rattrapage `rattrapage-casse-ayants-droit-clementine.sql`
+
+Le script est prêt et essayé sur une base jetable (copie des clients et ayants droit de `clementine`), supprimée
+ensuite. La copie locale `clementine` n'a pas été modifiée.
+
+Ce que fait le script :
+
+1. Il crée une table de trace `rattrapage_casse_ayants_droit_20261126` avec le nom et le prénom d'avant. Si la table
+   existe déjà, le script s'arrête.
+2. Il passe en majuscules le nom et le prénom des ayants droit qui ne le sont pas, comme l'écran « Modifier infos
+   client ». Numéros, dates et ventes ne changent pas.
+3. Il affiche les contrôles et donne en commentaire le retour arrière.
+
+| Contrôle de l'essai | Valeur |
+|---|---:|
+| Ayants droit corrigés | 178 |
+| dont ayants droit principaux | 176 |
+| Ayants droit restés hors majuscules | 0 |
+| Noms changés autrement que par la casse | 0 |
+| Empreinte des 1 606 ayants droit hors casse (nom, numéro, date) | identique avant et après |
+| Second lancement | refusé |
+| Retour arrière | 0 différence avec l'état d'origine |
+
+Conditions d'exécution en officine : sauvegarde juste avant ; Prestige peut rester ouvert. Les 4 clients au numéro
+partagé sont corrigés comme les autres : le script travaille par identifiant d'ayant droit, pas par numéro.
