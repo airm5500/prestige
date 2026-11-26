@@ -37,35 +37,85 @@ public class ModeReglementServiceImpl implements ModeReglementService {
 
     }
 
-    @Override
-    public List<ModeReglementTDO> fetchAll() {
-        TypedQuery<TModeReglement> typedQuery = em.createNamedQuery("TModeReglement.findByStrSTATUT",
-                TModeReglement.class);
-        Set<String> excluidIds = Set.of("3", "4", "6");
-        typedQuery.setParameter("strSTATUT", Constant.STATUT_ENABLE);
-        return typedQuery.getResultStream().filter(r -> !excluidIds.contains(r.getLgMODEREGLEMENTID()))
-                .sorted(Comparator.comparing(TModeReglement::getStrNAME)).map(e -> {
-                    ModeReglementTDO modeReglement = new ModeReglementTDO();
-                    TTypeReglement reglement = e.getLgTYPEREGLEMENTID();
-                    modeReglement.setId(e.getLgMODEREGLEMENTID());
-                    modeReglement.setName(reglement.getStrNAME());
-                    modeReglement.setTypeReglementId(reglement.getLgTYPEREGLEMENTID());
-                    modeReglement.setMobileMoney(util.MobileMoney.est(reglement.getLgTYPEREGLEMENTID()));
-                    modeReglement.setClientRequis(Boolean.TRUE.equals(reglement.getBoolCLIENTREQUIS()));
-                    modeReglement.setQrCode(e.getQrCode());
-                    // client par defaut (mobile money) pour l'affichage du menu Mode reglement
-                    if (e.getLgCLIENTDEFAUTID() != null && !e.getLgCLIENTDEFAUTID().trim().isEmpty()) {
-                        modeReglement.setClientDefautId(e.getLgCLIENTDEFAUTID());
-                        dal.TClient client = em.find(dal.TClient.class, e.getLgCLIENTDEFAUTID());
-                        if (client != null) {
-                            modeReglement.setClientDefautNom(
-                                    (client.getStrFIRSTNAME() == null ? "" : client.getStrFIRSTNAME()) + " "
-                                            + (client.getStrLASTNAME() == null ? "" : client.getStrLASTNAME()));
-                        }
-                    }
+    /** Modes ecartes de la liste (et de la vente) : 3, 4 et 6. */
+    static final Set<String> MODES_ECARTES = Set.of("3", "4", "6");
 
-                    return modeReglement;
+    /**
+     * journal support du 26/11, capitale (J26-7) : la liste lisait chaque TModeReglement avec son QR code (MEDIUMBLOB,
+     * jusqu'a 780 Ko par mode), et org.json l'ecrivait en tableau de nombres : plusieurs Mo de JSON, plus de 5 s, pour
+     * une vignette. La liste lit maintenant les colonnes utiles et la seule taille du QR code ; l'image est servie a
+     * part ({@link #qrCode(String)}).
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<ModeReglementTDO> fetchAll() {
+        List<Object[]> lignes = em.createNativeQuery("SELECT m.lg_MODE_REGLEMENT_ID AS mode_id,"
+                + " m.str_NAME AS mode_nom, t.lg_TYPE_REGLEMENT_ID AS type_id, t.str_NAME AS type_nom,"
+                + " t.bool_CLIENT_REQUIS AS client_requis, m.lg_CLIENT_DEFAUT_ID AS client_defaut,"
+                + " IFNULL(LENGTH(m.qr_code), 0) AS qr_taille"
+                + " FROM t_mode_reglement m JOIN t_type_reglement t ON t.lg_TYPE_REGLEMENT_ID = m.lg_TYPE_REGLEMENT_ID"
+                + " WHERE m.str_STATUT = ?1").setParameter(1, Constant.STATUT_ENABLE).getResultList();
+        List<ModeReglementTDO> modes = liste(lignes);
+        for (ModeReglementTDO mode : modes) {
+            // client par defaut (mobile money) pour l'affichage du menu Mode reglement
+            if (mode.getClientDefautId() != null) {
+                dal.TClient client = em.find(dal.TClient.class, mode.getClientDefautId());
+                if (client != null) {
+                    mode.setClientDefautNom((client.getStrFIRSTNAME() == null ? "" : client.getStrFIRSTNAME()) + " "
+                            + (client.getStrLASTNAME() == null ? "" : client.getStrLASTNAME()));
+                }
+            }
+        }
+        return modes;
+    }
+
+    /**
+     * Lignes de la liste (sans base) : {id du mode, nom du mode, id du type, nom du type, client requis, client par
+     * defaut, taille du QR code}. Modes 3, 4 et 6 ecartes, tri sur le nom du mode, aucun octet d'image.
+     */
+    static List<ModeReglementTDO> liste(List<Object[]> lignes) {
+        return lignes.stream().filter(l -> l[0] != null && !MODES_ECARTES.contains(String.valueOf(l[0])))
+                .sorted(Comparator.comparing((Object[] l) -> l[1] == null ? "" : String.valueOf(l[1]),
+                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                .map(l -> {
+                    ModeReglementTDO m = new ModeReglementTDO();
+                    m.setId(String.valueOf(l[0]));
+                    m.setTypeReglementId(l[2] == null ? null : String.valueOf(l[2]));
+                    m.setName(l[3] == null ? null : String.valueOf(l[3]));
+                    m.setMobileMoney(util.MobileMoney.est(m.getTypeReglementId()));
+                    m.setClientRequis(vrai(l[4]));
+                    String client = l[5] == null ? "" : String.valueOf(l[5]).trim();
+                    if (!client.isEmpty()) {
+                        m.setClientDefautId(client);
+                    }
+                    long taille = l[6] == null ? 0L : ((Number) l[6]).longValue();
+                    if (taille > 0) {
+                        // la taille change avec l'image : une nouvelle image n'est pas prise dans le cache du
+                        // navigateur
+                        m.setQrCodeUrl("../api/v1/modereglement/" + m.getId() + "/qrcode?v=" + taille);
+                    }
+                    return m;
                 }).collect(Collectors.toList());
+    }
+
+    private static boolean vrai(Object o) {
+        if (o instanceof Boolean) {
+            return (Boolean) o;
+        }
+        if (o instanceof Number) {
+            return ((Number) o).intValue() != 0;
+        }
+        return o != null && ("1".equals(String.valueOf(o)) || "true".equalsIgnoreCase(String.valueOf(o)));
+    }
+
+    /** Image du QR code d'un mode de reglement, ou null s'il n'en a pas. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public byte[] qrCode(String modeReglementId) {
+        List<Object> r = em.createNativeQuery("SELECT qr_code FROM t_mode_reglement WHERE lg_MODE_REGLEMENT_ID = ?1")
+                .setParameter(1, modeReglementId).getResultList();
+        return r.isEmpty() || !(r.get(0) instanceof byte[]) || ((byte[]) r.get(0)).length == 0 ? null
+                : (byte[]) r.get(0);
     }
 
     @Override
@@ -77,21 +127,29 @@ public class ModeReglementServiceImpl implements ModeReglementService {
     public JSONObject clientsMobileMoney() {
         org.json.JSONArray data = new org.json.JSONArray();
         try {
-            List<TModeReglement> modes = em
-                    .createQuery("SELECT m FROM TModeReglement m WHERE m.strSTATUT = :statut", TModeReglement.class)
-                    .setParameter("statut", Constant.STATUT_ENABLE).getResultList();
-            for (TModeReglement mode : modes) {
-                TTypeReglement type = mode.getLgTYPEREGLEMENTID();
-                if (type == null || !util.MobileMoney.est(type.getLgTYPEREGLEMENTID())
-                        || mode.getLgCLIENTDEFAUTID() == null || mode.getLgCLIENTDEFAUTID().trim().isEmpty()) {
+            /*
+             * journal support du 26/11 (J26-7) : sans charger les TModeReglement, dont le QR code (MEDIUMBLOB) venait
+             * avec chaque mode a chaque ouverture de la vente
+             */
+            @SuppressWarnings("unchecked")
+            List<Object[]> modes = em
+                    .createNativeQuery("SELECT t.lg_TYPE_REGLEMENT_ID, t.str_NAME, m.lg_CLIENT_DEFAUT_ID"
+                            + " FROM t_mode_reglement m JOIN t_type_reglement t ON t.lg_TYPE_REGLEMENT_ID = m.lg_TYPE_REGLEMENT_ID"
+                            + " WHERE m.str_STATUT = ?1")
+                    .setParameter(1, Constant.STATUT_ENABLE).getResultList();
+            for (Object[] mode : modes) {
+                String typeId = mode[0] == null ? null : String.valueOf(mode[0]);
+                String clientId = mode[2] == null ? "" : String.valueOf(mode[2]).trim();
+                if (typeId == null || !util.MobileMoney.est(typeId) || clientId.isEmpty()) {
                     continue;
                 }
-                dal.TClient client = em.find(dal.TClient.class, mode.getLgCLIENTDEFAUTID());
+                dal.TClient client = em.find(dal.TClient.class, clientId);
                 if (client == null) {
                     continue;
                 }
-                data.put(new JSONObject().put("typeReglementId", type.getLgTYPEREGLEMENTID())
-                        .put("modeLibelle", type.getStrNAME()).put("clientId", client.getLgCLIENTID())
+                data.put(new JSONObject().put("typeReglementId", typeId)
+                        .put("modeLibelle", mode[1] == null ? null : String.valueOf(mode[1]))
+                        .put("clientId", client.getLgCLIENTID())
                         .put("nom", client.getStrFIRSTNAME() == null ? "" : client.getStrFIRSTNAME())
                         .put("prenom", client.getStrLASTNAME() == null ? "" : client.getStrLASTNAME())
                         .put("telephone", client.getStrADRESSE() == null ? "" : client.getStrADRESSE()));

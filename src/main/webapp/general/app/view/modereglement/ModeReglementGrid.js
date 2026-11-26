@@ -19,6 +19,7 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                         {name: 'id', type: 'string'},
                         {name: 'name', type: 'string'},
                         {name: 'qrCode', type: 'auto'},
+                        {name: 'qrCodeUrl', type: 'string'},
                         {name: 'typeReglementId', type: 'string'},
                         {name: 'mobileMoney', type: 'boolean'},
                         {name: 'clientRequis', type: 'boolean'},
@@ -113,7 +114,12 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                     text: 'QR Code',
                     dataIndex: 'qrCode',
                     flex: 1.5,
-                    renderer: function (value) {
+                    renderer: function (value, meta, record) {
+                        // journal support du 26/11 (J26-7) : la liste donne l'adresse de l'image, plus ses octets
+                        if (record && record.get('qrCodeUrl')) {
+                            return '<img src="' + Ext.String.htmlEncode(record.get('qrCodeUrl'))
+                                    + '" height="50" style="border-radius:4px;"/>';
+                        }
                         if (value && Array.isArray(value) && value.length > 0) {
                             const uint8Array = new Uint8Array(value);
                             const blob = new Blob([uint8Array], {type: 'image/png'});

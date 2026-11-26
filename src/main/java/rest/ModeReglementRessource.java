@@ -47,6 +47,23 @@ public class ModeReglementRessource {
         return Response.ok(modeReglementService.fetch().toString()).build();
     }
 
+    /**
+     * journal support du 26/11 (J26-7) : image du QR code d'un mode, servie a part de la liste. 404 sans image.
+     */
+    @GET
+    @Path("/{id}/qrcode")
+    @Produces("image/png")
+    public Response qrCode(@PathParam("id") String id) {
+        byte[] image = modeReglementService.qrCode(id);
+        if (image == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        javax.ws.rs.core.CacheControl cache = new javax.ws.rs.core.CacheControl();
+        cache.setPrivate(true);
+        cache.setMaxAge(86400);
+        return Response.ok(image, "image/png").cacheControl(cache).build();
+    }
+
     /** Clients standards par defaut des modes mobile money (lot 3) — volet selection rapide de la vente. */
     @GET
     @Path("/clients-mobile-money")

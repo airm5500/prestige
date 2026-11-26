@@ -23,7 +23,7 @@ const PERIODE = 'dtStart=2026-09-01&dtEnd=2026-09-30';
 const FERMEES = ['v1/ca-comptant?' + PERIODE, 'v1/ca-all?' + PERIODE, 'v1/ca-credit?' + PERIODE, 'v1/reglements?' + PERIODE,
   'v1/factures?' + PERIODE, 'v1/fournisseurs', 'v1/tierspayants', 'v1/valorisation', 'v1/info', 'v1/balance/etat-annuel?' + PERIODE,
   'v1/etat-control-bon/etat-annuel?' + PERIODE, 'v1/recap/creditsmob?' + PERIODE, 'v1/recap/dashboardmob?' + PERIODE,
-  'v3/tvamobile?' + PERIODE, 'v1/produit/stats/vente-annuellep', 'v1/licence/save/XYZ', 'v1/modereglement/all', 'v1/motifreglement'];
+  'v3/tvamobile?' + PERIODE, 'v1/produit/stats/vente-annuellep', 'v1/licence/save/XYZ', 'v1/modereglement/all', 'v1/modereglement/10/qrcode', 'v1/motifreglement'];
 const JSP = ['webservices/MOBILES/configurationmanager/inventaire/ws_emplacement_inventaire.jsp', 'webservices/sm_user/famille/ws_data_other.jsp',
   'webservices/sm_user/diffclient/ws_customer_last_transction_compte_client_data.jsp', 'webservices/tierspayantmanagement/tierspayant/ws_client_data.jsp',
   'webservices/Report/RuptureStock/ws_data.jsp', 'webservices/usermanagement/ws_login.jsp', 'ListBonsServlet', 'myBean', 'UserCtr'];

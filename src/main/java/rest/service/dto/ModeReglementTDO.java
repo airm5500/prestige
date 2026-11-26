@@ -43,6 +43,20 @@ public class ModeReglementTDO {
         this.qrCode = qrCode;
     }
 
+    /**
+     * journal support du 26/11 (J26-7) : adresse de l'image du QR code, ou null s'il n'y en a pas. La liste ne porte
+     * plus les octets de l'image.
+     */
+    private String qrCodeUrl;
+
+    public String getQrCodeUrl() {
+        return qrCodeUrl;
+    }
+
+    public void setQrCodeUrl(String qrCodeUrl) {
+        this.qrCodeUrl = qrCodeUrl;
+    }
+
     /** Vrai si le type du mode est du mobile money (voir util.MobileMoney). */
     private boolean mobileMoney;
     /** Ce mode ouvre-t-il le parcours « choisir ou creer un client » a la vente ? (point 12) */

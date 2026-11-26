@@ -81,6 +81,11 @@ public final class CauseArret {
          * (temoin ecrit par une version qui ne la notait pas).
          */
         public String versionAvant, versionApres;
+        /**
+         * journal support du 26/11 (J26-6) : le temoin est lisible mais ne porte aucune version. Il a donc ete ecrit
+         * par une version anterieure au 22/11, qui ne notait pas la sienne.
+         */
+        public boolean temoinSansVersion;
     }
 
     /** Cause retenue, avec l'explication et le conseil. */
@@ -187,11 +192,17 @@ public final class CauseArret {
         return OUT_OF_MEMORY.matcher(log).find();
     }
 
-    /** Les deux versions sont connues et different : Prestige a ete mis a jour pendant l'arret. */
+    /**
+     * Prestige a ete mis a jour pendant l'arret : les deux versions sont connues et different, ou (journal support du
+     * 26/11, J26-6) le temoin lisible ne portait pas de version alors que celle qui redemarre connait la sienne.
+     */
     static boolean versionChangee(Indices x) {
         String avant = x.versionAvant == null ? "" : x.versionAvant.trim();
         String apres = x.versionApres == null ? "" : x.versionApres.trim();
-        return !avant.isEmpty() && !apres.isEmpty() && !avant.equals(apres);
+        if (apres.isEmpty()) {
+            return false;
+        }
+        return avant.isEmpty() ? x.temoinSansVersion : !avant.equals(apres);
     }
 
     /** Cause probable d'un arret brutal. */
@@ -254,7 +265,9 @@ public final class CauseArret {
              */
             fixer(r, Code.MISE_A_JOUR,
                     "Le serveur a été arrêté puis relancé sur une nouvelle version de Prestige ("
-                            + x.versionAvant.trim() + " → " + x.versionApres.trim() + ") : mise à jour.",
+                            + (x.versionAvant == null || x.versionAvant.trim().isEmpty()
+                                    ? "version d'avant le 22/11, qui ne notait pas la sienne" : x.versionAvant.trim())
+                            + " → " + x.versionApres.trim() + ") : mise à jour.",
                     "Aucune action : arrêt dû à la mise à jour.");
         } else if (serviceServeur) {
             fixer(r, Code.ARRET_SERVICE,

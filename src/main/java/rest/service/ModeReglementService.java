@@ -14,6 +14,9 @@ public interface ModeReglementService {
 
     JSONObject fetch();
 
+    /** Image du QR code d'un mode de reglement, ou null (journal support du 26/11, J26-7). */
+    byte[] qrCode(String modeReglementId);
+
     /**
      * Clients standards par defaut des modes mobile money (lot 3) : un par mode qui en a un de parametre. Sert au volet
      * « selection rapide » de la fenetre client a la vente.

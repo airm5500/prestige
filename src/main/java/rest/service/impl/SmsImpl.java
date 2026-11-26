@@ -727,11 +727,8 @@ public class SmsImpl implements SmsService {
                 return tracer(origine, numero, "NON_ENVOYE", "Non envoyé : envois suspendus", fournisseur, null,
                         utilisateurId, "Non envoyé : envois suspendus");
             }
-            SmsSendResult result = provider.send(sp.mobile, message, null);
-            LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
-                    new Object[] { util.TelephoneCi.masquer(sp.mobile), provider.getCode(), result.toLog() });
+            SmsSendResult result = envoyerEnMorceaux(provider, sp.mobile, message, coupeCircuit);
             if (result.isAccepted()) {
-                coupeCircuit.enregistrerSucces();
                 return tracer(origine, numero, "ENVOYE", null, fournisseur, result.getMessageId(), utilisateurId,
                         "Envoyé");
             }
@@ -747,6 +744,58 @@ public class SmsImpl implements SmsService {
             return tracer(origine, numero, "ECHEC", "Erreur technique à l'envoi", fournisseur, null, utilisateurId,
                     "Échec");
         }
+    }
+
+    /**
+     * Longueur maximale d'un envoi accepte par Orange (journal support du 26/11, J26-5 : « Message too long. Message
+     * length is 940 characters. Maximum allowed is 700 », code SVC0280, pour le recapitulatif du ticket Z).
+     */
+    static final int LONGUEUR_MAX_SMS = 700;
+
+    /**
+     * Envoie un texte au numero d'administration en autant de SMS qu'il faut, chacun de {@link #LONGUEUR_MAX_SMS}
+     * caracteres au plus, dans l'ordre. S'arrete au premier refus et le rend ; sinon rend le dernier accuse.
+     */
+    static SmsSendResult envoyerEnMorceaux(SmsProvider provider, String mobile, String message,
+            SmsCoupeCircuit coupeCircuit) {
+        SmsSendResult result = null;
+        for (String morceau : decouper(message, LONGUEUR_MAX_SMS)) {
+            result = provider.send(mobile, morceau, null);
+            LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
+                    new Object[] { util.TelephoneCi.masquer(mobile), provider.getCode(), result.toLog() });
+            if (!result.isAccepted()) {
+                return result;
+            }
+            coupeCircuit.enregistrerSucces();
+        }
+        return result;
+    }
+
+    /**
+     * Decoupe un texte en morceaux de {@code max} caracteres au plus, dont la mise bout a bout redonne exactement le
+     * texte. Coupe de preference apres une ligne vide (fin de section : un caissier du ticket Z), sinon apres une fin
+     * de ligne ; une ligne plus longue que {@code max} est coupee net, jamais au milieu d'un caractere double. Un texte
+     * vide ou court donne un seul morceau.
+     */
+    static java.util.List<String> decouper(String texte, int max) {
+        java.util.List<String> morceaux = new java.util.ArrayList<>();
+        String reste = texte == null ? "" : texte;
+        while (reste.length() > max) {
+            String candidat = reste.substring(0, max);
+            int coupe = candidat.lastIndexOf("\n\n");
+            if (coupe >= 0 && coupe + 2 >= max / 2) {
+                coupe += 2;
+            } else {
+                coupe = candidat.lastIndexOf('\n') + 1;
+                if (coupe <= 0) {
+                    coupe = max > 1 && Character.isHighSurrogate(reste.charAt(max - 1)) ? max - 1 : max;
+                }
+            }
+            morceaux.add(reste.substring(0, coupe));
+            reste = reste.substring(coupe);
+        }
+        morceaux.add(reste);
+        return morceaux;
     }
 
     /** Numero d'administration sous la forme locale (tel quel s'il n'est pas reconnu). */

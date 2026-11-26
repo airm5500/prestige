@@ -662,6 +662,11 @@ public class SupportEventServiceImpl implements SupportEventService {
             event.setUtilisateur(StringUtils.abbreviate(StringUtils.defaultIfBlank(utilisateur, "SYSTEME"), 255));
             event.setOccurrences(1);
             event.setLastSeenAt(LocalDateTime.now());
+            // journal support du 26/11 (J26-3) : une maintenance porte sa version comme les autres evenements
+            String version = util.VersionBuild.libelle();
+            if (!version.isEmpty()) {
+                event.setVersionApp(version);
+            }
             em.persist(event);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "recordMaintenance " + action, e);
