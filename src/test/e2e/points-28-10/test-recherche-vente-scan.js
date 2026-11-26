@@ -31,6 +31,7 @@ const [FID, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t
   const champ = 'doventemanager #preventeSearchField';
   const nouvelleVente = async () => {
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
+    await require('../support/fenetre-vente-en-cours').repondre(p);
     await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p, 'cloturerventemanager #addBtn');
     await p.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), champ, { timeout: 60000 });
@@ -50,6 +51,9 @@ const [FID, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t
   };
   try {
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
+    /* retour du 25/11 : la vente rappelee par son numero est tenue par le poste ; quitter l'ecran ou en rappeler une
+       autre ouvre « Que faire de la vente ? » : reponse « Mettre en attente », la vente reste intacte */
+    await require('../support/fenetre-vente-en-cours').mettreEnAttente(p);
     const creer = async () => {
       const add = await api('POST', '../api/v1/vente/add/vno', { typeVenteId: '1', natureVenteId: '1', produitId: FID, itemPu: parseInt(PU, 10), qte: 1, qteServie: 1,
         devis: false, prevente: true, remiseId: '', userVendeurId: ADMIN });

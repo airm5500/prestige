@@ -8783,8 +8783,12 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                 success: function (response) {
                     var result = Ext.decode(response.responseText, true);
                     if (result && result.data && result.data.lgPREENREGISTREMENTID) {
-                        me.viderRecherchePrevente();
-                        me.loadExistantSale(result.data.lgPREENREGISTREMENTID);
+                        /* retour du 25/11 : rappel verifie au serveur, comme dans la fenetre ; refus sur la ligne */
+                        me.rappelerEtCharger(result.data.lgPREENREGISTREMENTID, function (msg) {
+                            me.introuvable(msg);
+                        }, function () {
+                            me.viderRecherchePrevente();
+                        });
                     } else {
                         me.introuvable('Aucune vente en attente pour ce ticket');
                     }
@@ -8819,8 +8823,12 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
 
                 if (data.length === 1) {
                     // Si un seul résultat, charger directement
-                    me.viderRecherchePrevente();
-                    me.loadExistantSale(data[0].lgPREENREGISTREMENTID);
+                    /* retour du 25/11 : rappel verifie au serveur, comme dans la fenetre ; refus sur la ligne */
+                    me.rappelerEtCharger(data[0].lgPREENREGISTREMENTID, function (msg) {
+                        me.introuvable(msg);
+                    }, function () {
+                        me.viderRecherchePrevente();
+                    });
                 } else {
                     // Si plusieurs résultats, la fenêtre des ventes en attente s'ouvre sur ce filtre.
                     me.openPreventeSearchWindow(value);
@@ -8968,6 +8976,76 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     },
 
     /**
+     * Ouverture d'une vente en attente, depuis la fenetre « Ventes en attente » ou par son numero (zone « N° ticket /
+     * scan »). Retour du 25/11 : la recherche par numero ouvrait la vente sans le controle du serveur (droit de
+     * reprise ignore, rappel non trace, vente ouverte sur deux postes). Les deux chemins passent ici : rappel verifie
+     * au serveur (droit, vente en attente et non en cours de saisie ailleurs) ; la vente ouverte ici, s'il y en a
+     * une, est d'abord mise en attente, comme avant. refus(msg) : message du refus (bandeau par defaut) ;
+     * avant() : appele juste avant l'ouverture.
+     */
+    rappelerEtCharger: function (id, refus, avant) {
+        const me = this;
+        refus = refus || function (msg) {
+            window.PrestigeSaisieVente.bandeau(msg);
+        };
+        avant = avant || Ext.emptyFn;
+        /* ecran de prevente : la vente n'y est que consultee (ni encaissement ni cloture, pas de signal, pas une prise
+         * en caisse) ; un rappel la mettrait « en cours » sans poste qui la tienne, et la caisse ne pourrait plus la
+         * rappeler (test-prevente-scan-vue-0911) */
+        if (me.getCategorie() === 'PREVENTE') {
+            avant();
+            me.loadExistantSale(id);
+            return;
+        }
+        /* cahier du 24/11, point 2 : rappel verifie au serveur (droit, vente en attente et non en cours de
+         * saisie ailleurs) ; la vente ouverte ici, s'il y en a une, est d'abord mise en attente, comme avant */
+        if (!window.PrestigeSaisieVente) {
+            avant();
+            me.loadExistantSale(id);
+            return;
+        }
+        const ouvrir = function () {
+            window.PrestigeSaisieVente.rappeler(id, function () {
+                avant();
+                me.loadExistantSale(id);
+            }, refus);
+        };
+        const courante = me.current && me.current.lgPREENREGISTREMENTID;
+        const grille = me.getVnogrid && me.getVnogrid();
+        if (courante && courante !== id && me.getCategorie() !== 'PREVENTE' && grille
+                && grille.getStore().getCount() > 0 && window.PrestigeSaisieVente.choixRappel) {
+            /* retours du 25/11 (1.6, meme regle qu'a la vente) : la vente ouverte a des produits -> choix */
+            window.PrestigeSaisieVente.choixRappel({
+                attente: function (ok, ko) {
+                    window.PrestigeSaisieVente.attente(courante, function () {
+                        ok();
+                        ouvrir();
+                    }, ko);
+                },
+                abandonner: function (ok, ko) {
+                    window.PrestigeSaisieVente.supprimer(courante, function () {
+                        Ext.Ajax.request({
+                            method: 'POST',
+                            url: '../api/v1/ventestats/remove/' + encodeURIComponent(courante),
+                            callback: function () {
+                                ok();
+                                me.libererRappelVente();
+                                ouvrir();
+                            }
+                        });
+                    }, ko);
+                }
+            });
+            return;
+        }
+        if (courante && courante !== id && me.getCategorie() !== 'PREVENTE') {
+            window.PrestigeSaisieVente.attente(courante, ouvrir, refus);
+            return;
+        }
+        ouvrir();
+    },
+
+    /**
      * Ventes en attente (maquette validee le 30/09) : nouvelle fenetre du theme commun, liste en cartes et detail,
      * premiere prevente ouverte d'office, fleches et Entree. Le rappel passe par loadExistantSale, comme avant.
      * {@code filtre} : texte de recherche deja tape a la caisse.
@@ -8976,55 +9054,9 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         const me = this;
         const fenetre = Ext.create('testextjs.view.vente.VentesAttenteFenetre', {
             filtreInitial: filtre || '',
+            /* retour du 25/11 : meme rappel que la recherche par numero (rappelerEtCharger) */
             surRappel: function (id) {
-                /* cahier du 24/11, point 2 : rappel verifie au serveur (droit, vente en attente et non en cours de
-                 * saisie ailleurs) ; la vente ouverte ici, s'il y en a une, est d'abord mise en attente, comme avant */
-                if (!window.PrestigeSaisieVente) {
-                    me.loadExistantSale(id);
-                    return;
-                }
-                const ouvrir = function () {
-                    window.PrestigeSaisieVente.rappeler(id, function () {
-                        me.loadExistantSale(id);
-                    }, function (msg) {
-                        window.PrestigeSaisieVente.bandeau(msg);
-                    });
-                };
-                const courante = me.current && me.current.lgPREENREGISTREMENTID;
-                const grille = me.getVnogrid && me.getVnogrid();
-                if (courante && courante !== id && me.getCategorie() !== 'PREVENTE' && grille
-                        && grille.getStore().getCount() > 0 && window.PrestigeSaisieVente.choixRappel) {
-                    /* retours du 25/11 (1.6, meme regle qu'a la vente) : la vente ouverte a des produits -> choix */
-                    window.PrestigeSaisieVente.choixRappel({
-                        attente: function (ok, ko) {
-                            window.PrestigeSaisieVente.attente(courante, function () {
-                                ok();
-                                ouvrir();
-                            }, ko);
-                        },
-                        abandonner: function (ok, ko) {
-                            window.PrestigeSaisieVente.supprimer(courante, function () {
-                                Ext.Ajax.request({
-                                    method: 'POST',
-                                    url: '../api/v1/ventestats/remove/' + encodeURIComponent(courante),
-                                    callback: function () {
-                                        ok();
-                                        me.libererRappelVente();
-                                        ouvrir();
-                                    }
-                                });
-                            }, ko);
-                        }
-                    });
-                    return;
-                }
-                if (courante && courante !== id && me.getCategorie() !== 'PREVENTE') {
-                    window.PrestigeSaisieVente.attente(courante, ouvrir, function (msg) {
-                        window.PrestigeSaisieVente.bandeau(msg);
-                    });
-                    return;
-                }
-                ouvrir();
+                me.rappelerEtCharger(id);
             }
         });
         fenetre.show();

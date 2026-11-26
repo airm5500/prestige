@@ -39,6 +39,9 @@ function attendu(caissiere, jour) {
 
 (async () => {
   const { b, p, api, erreurs } = await C.connecter();
+  /* retour du 25/11 : la vente rappelee par son numero est tenue par le poste ; quitter l'ecran ou en rappeler une
+     autre ouvre « Que faire de la vente ? » : reponse « Mettre en attente », la vente reste intacte */
+  await require('../support/fenetre-vente-en-cours').mettreEnAttente(p);
   const dialogues = []; p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
   const champ = 'doventemanager #preventeSearchField';
   const jour = q('SELECT CURDATE()');
@@ -56,6 +59,7 @@ function attendu(caissiere, jour) {
     };
     const nouvelleVente = async () => {
       await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
+      await require('../support/fenetre-vente-en-cours').repondre(p);
       await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
       await cliquer(p, 'cloturerventemanager #addBtn');
       await p.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), champ, { timeout: 60000 });
@@ -67,6 +71,7 @@ function attendu(caissiere, jour) {
       await p.waitForTimeout(300);
       await p.keyboard.type(ref, { delay: 10 });
       await p.keyboard.press('Enter');
+      await require('../support/fenetre-vente-en-cours').repondre(p);
       await p.waitForTimeout(3500);
       if (await texteMessage(p)) { await repondre(p, 'ok').catch(() => {}); }
       return p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').current; return c && c.lgPREENREGISTREMENTID; });
@@ -94,6 +99,10 @@ function attendu(caissiere, jour) {
       JSON.stringify([p1, p2, p3].map((x) => empreinte(x.id))) === JSON.stringify(avant) && C.stock(pa) === stockAvant[0] && C.stock(pb) === stockAvant[1],
       JSON.stringify({ avant, apres: [p1, p2, p3].map((x) => empreinte(x.id)) }));
 
+    /* retour du 25/11 : p3, rappelee par son numero, est tenue par l'ecran : elle est remise en attente par l'ecran
+       (menu quitte, « Mettre en attente ») avant d'etre encaissee */
+    await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
+    await require('../support/fenetre-vente-en-cours').repondre(p);
     /* encaissement : p1 apres 3 s, p3 apres 7 s (attentes differentes) */
     await p.waitForTimeout(3000);
     const c1 = await v.cloturer(p1.id, { vendeur: AUTRE_VENDEUR });
@@ -109,6 +118,7 @@ function attendu(caissiere, jour) {
 
     /* carte de l'activite des equipes */
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Activité des équipes');
+    await require('../support/fenetre-vente-en-cours').repondre(p);
     await p.waitForFunction(() => Ext.ComponentQuery.query('activiteequipes').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     const j = jour.split('-').reverse().join('/');
     await saisir(p, 'activiteequipes #aeDebut', j);

@@ -28,6 +28,9 @@ function retirerDepot() {
 
 (async () => {
   const { b, p, api, erreurs } = await C.connecter();
+  /* retour du 25/11 : la vente rappelee par son numero est tenue par le poste ; quitter l'ecran ou en rappeler une
+     autre ouvre « Que faire de la vente ? » : reponse « Mettre en attente », la vente reste intacte */
+  await require('../support/fenetre-vente-en-cours').mettreEnAttente(p);
   const dialogues = []; p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
   const champ = 'doventeendepot #preventeSearchField';
   try {
@@ -63,6 +66,7 @@ function retirerDepot() {
       await p.waitForTimeout(300);
       await p.keyboard.type(ref, { delay: 10 });
       await p.keyboard.press('Enter');
+      await require('../support/fenetre-vente-en-cours').repondre(p);
       await p.waitForTimeout(3500);
       if (await texteMessage(p)) { await repondre(p, 'ok').catch(() => {}); }
       await p.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), champ, { timeout: 30000 });
