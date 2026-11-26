@@ -54,6 +54,8 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                             xtype: 'button',
                             itemId: 'btnAddClientAssurance',
                             text: 'Enregistrer',
+                            /* journaux support J26-1 : actif seulement une fois la vente chargee */
+                            disabled: true,
                             handler: me.onSave
                         },
                         {
@@ -1345,8 +1347,11 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
             params: {"id": id},
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
-                if (result.success) {
+                if (result && result.success) {
                     me.data = result.data;
+                    /* journaux support J26-1 : la vente est la, « Enregistrer » peut servir (meme comportement
+                       qu'avant si la suite du remplissage echoue) */
+                    me.down('#btnAddClientAssurance').setDisabled(false);
                     me.typeVente = me.getData().lgTYPEVENTEID;
                     let form = me.down('form');
                     if (me.typeVente === '3') {
@@ -1378,10 +1383,24 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                     form.down('#numAyantDroit').setValue(me.getAyantDroit().strNUMEROSECURITESOCIAL);
                     form.down('#prenomAyantDroit').setValue(me.getAyantDroit().strLASTNAME);
                     me.buildtierspayant();
+                } else {
+                    me.signalerChargementImpossible();
                 }
+            },
+            failure: function () {
+                me.signalerChargementImpossible();
             }
 
         });
+    },
+    /* journaux support J26-1 : la vente n'a pas pu etre lue ; « Enregistrer » reste inactif et le dit lui-meme */
+    signalerChargementImpossible: function () {
+        const btn = this.down('#btnAddClientAssurance');
+        if (btn) {
+            btn.setDisabled(true);
+            btn.setText('Vente non chargée');
+            btn.setTooltip('La vente n\'a pas pu être lue : fermez la fenêtre et rouvrez-la.');
+        }
     },
     buildTpData: function (me) {
         const tpContainerForm = me.down('form').down('#tpContainer').down('#tpContainerform');
@@ -1409,6 +1428,10 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     },
     onSave: function (btn) {
         let wind = btn.up('window');
+        /* journaux support J26-1 (23/08, 18/11, 25/11) : clic avant l'arrivee de la vente */
+        if (!wind.getData()) {
+            return;
+        }
         const tierspayantArray = wind.buildTpData(wind);
       
         const nbPrincipaux = tierspayantArray.filter(tp => tp.principal === true).length;
