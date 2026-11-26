@@ -185,6 +185,29 @@ public final class BoiteNoire {
                 parseLong(valeurs.get(CLE_PLUS_LONGUE_MS)), valeurs.get(CLE_VERSION));
     }
 
+    /**
+     * journal support du 26/11 (J26-6) : temoin LISIBLE qui ne porte aucune version, donc ecrit par une version de
+     * Prestige anterieure au 22/11 (celles d'apres notent la leur des qu'elles la connaissent). Lisible : ancien format
+     * (une date valide) ou format « cle=valeur » avec un horodatage valide. Un temoin vide ou illisible ne prouve rien.
+     */
+    public static boolean ecritSansVersion(String contenu) {
+        String texte = StringUtils.trimToEmpty(contenu);
+        if (texte.isEmpty()) {
+            return false;
+        }
+        if (!texte.contains("=")) {
+            return parseDate(texte, null) != null;
+        }
+        Map<String, String> valeurs = new LinkedHashMap<>();
+        for (String ligne : texte.split("\\R")) {
+            int separateur = ligne.indexOf('=');
+            if (separateur > 0) {
+                valeurs.put(ligne.substring(0, separateur).trim(), ligne.substring(separateur + 1).trim());
+            }
+        }
+        return parseDate(valeurs.get(CLE_HORODATAGE), null) != null && !valeurs.containsKey(CLE_VERSION);
+    }
+
     private static void ajouter(Map<String, String> lignes, String cle, long valeur) {
         if (valeur >= 0) {
             lignes.put(cle, String.valueOf(valeur));

@@ -380,6 +380,7 @@ public class SupportWatchdog {
         // journal d'appaul du 21/11 (N6) : version du dernier battement et version qui redemarre
         x.versionAvant = dernier.version;
         x.versionApres = util.VersionBuild.libelle();
+        x.temoinSansVersion = temoinSansVersion;
         x.extraitLog = journalSessionTombee(dernier.horodatage, x.redemarrage);
         dernierExtrait = x.extraitLog;
         List<Path> dossiers = new ArrayList<>();
@@ -466,11 +467,16 @@ public class SupportWatchdog {
         }
     }
 
+    /** journal support du 26/11 (J26-6) : le dernier temoin relu etait lisible mais sans version (ancien WAR). */
+    private volatile boolean temoinSansVersion;
+
     private BoiteNoire.Instantane lireBattement(LocalDateTime fallback) {
         try {
             String contenu = new String(Files.readAllBytes(heartbeatFile), StandardCharsets.UTF_8);
+            temoinSansVersion = BoiteNoire.ecritSansVersion(contenu);
             return BoiteNoire.lire(contenu, dateDeModification(fallback));
         } catch (Exception e) {
+            temoinSansVersion = false;
             return BoiteNoire.Instantane.horodateSeul(dateDeModification(fallback));
         }
     }

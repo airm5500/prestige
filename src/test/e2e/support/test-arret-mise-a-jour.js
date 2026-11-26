@@ -121,6 +121,28 @@ async function arretForce(modifier) {
     ok('B. Aucune alerte, une seule nouvelle session', b.alertes === 0 && b.nouvelles === 1, `alertes +${b.alertes}, sessions +${b.nouvelles}`);
     const relu = fs.readFileSync(TEMOIN, 'utf8');
     ok('B. Le témoin réécrit porte la version qui tourne', relu.includes('version=' + version), relu.replace(/\n/g, ' '));
+
+    /* journal support du 26/11, capitale (J26-6) : premiere pose depuis un WAR d'avant le 22/11, dont le temoin ne
+       portait pas de version. C : format « cle=valeur » sans version ; D : ancien format (une date). */
+    const sansVersion = (t) => t.replace(/^version=.*\r?\n?/m, '');
+    const scenarios = [['C', 'témoin « clé=valeur » sans version', sansVersion],
+      ['D', 'témoin à l\'ancien format (une date)', (t) => ((t.match(/^horodatage=(.+)$/m) || [])[1] || '').trim() + '\n']];
+    for (const [s, libelle, modifier] of scenarios) {
+      const r = await arretForce(modifier);
+      sessionsCreees.push(r.avant.session);
+      ok(`${s}. Le témoin laissé est bien celui d'un ancien WAR (${libelle})`, !/^version=/m.test(modifier(r.laisse)) && /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(modifier(r.laisse)), modifier(r.laisse).replace(/\n/g, ' '));
+      ok(`${s}. Prestige redémarré`, r.pret && r.temoin, `${r.pret} ${r.temoin}`);
+      ok(`${s}. Ancien WAR : session close « BRUTAL », cause MISE_A_JOUR`, r.close[0] === 'BRUTAL' && r.close[1] === 'MISE_A_JOUR', r.close.join(' | '));
+      ok(`${s}. L'explication dit que l'ancienne version ne notait pas la sienne et donne la nouvelle`, r.close[2].includes('ne notait pas') && r.close[2].includes(version), r.close[2]);
+      ok(`${s}. Aucune alerte, une seule nouvelle session`, r.alertes === 0 && r.nouvelles === 1, `alertes +${r.alertes}, sessions +${r.nouvelles}`);
+    }
+
+    /* E. temoin vide : il ne prouve rien, le diagnostic reste « Arret force » avec son alerte (aucune regression) */
+    const e = await arretForce(() => '');
+    sessionsCreees.push(e.avant.session);
+    ok('E. Prestige redémarré', e.pret && e.temoin, `${e.pret} ${e.temoin}`);
+    ok('E. Témoin vide : session close « BRUTAL », cause ARRET_FORCE', e.close[0] === 'BRUTAL' && e.close[1] === 'ARRET_FORCE', e.close.join(' | '));
+    ok('E. Témoin vide : une alerte, une seule nouvelle session', e.alertes === 1 && e.nouvelles === 1, `alertes +${e.alertes}, sessions +${e.nouvelles}`);
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {
