@@ -2819,48 +2819,14 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             serviceImpression.printTicketVente(1);
             return;
         }
-        int bodySize = body.size();
-        int size = bodySize + footer.size();
-        int breaking = breakingTicketZParam();
-
-        if (size <= breaking) {
-
-            body.addAll(footer);
-            serviceImpression.setTypeTicket(Constant.TICKET_ZZ);
-            serviceImpression.setTicketZdatas(body);
-            serviceImpression.printTicketVente(1);
-        } else {
-            int counter = breaking;
-
-            int k = 0;
-            int page = (int) (Math.ceil(Double.valueOf(bodySize) / counter));
-
-            int begin = 0;
-            while (k < page) {
-                if (bodySize <= counter) {
-                    serviceImpression.setTypeTicket(Constant.TICKET_ZZ);
-                    serviceImpression.setTicketZdatas(body);
-                } else {
-                    serviceImpression.setTypeTicket(Constant.TICKET_Z);
-                    int rest = bodySize - begin;
-                    if (rest < bodySize) {
-
-                        serviceImpression.setDatas(body.subList(begin, counter));
-                    } else if (rest == bodySize) {
-                        serviceImpression.setDatas(body.subList(begin, rest - 1));
-                    } else {
-                        serviceImpression.setDatas(body.subList(begin, bodySize - 1));
-                    }
-
-                }
-                serviceImpression.printTicketVente(1);
-                k++;
-                begin += breaking;
-                counter += breaking;
-
+        /* analyse du 26/11 : decoupage corrige (voir DecoupageTicketZ), un travail par tranche puis le total */
+        for (DecoupageTicketZ.Travail travail : DecoupageTicketZ.decouper(body, footer, breakingTicketZParam())) {
+            serviceImpression.setTypeTicket(travail.type);
+            if (Constant.TICKET_ZZ.equals(travail.type)) {
+                serviceImpression.setTicketZdatas(new LinkedList<>(travail.lignes));
+            } else {
+                serviceImpression.setDatas(travail.lignes);
             }
-            serviceImpression.setTypeTicket(Constant.TICKET_Z);
-            serviceImpression.setDatas(footer);
             serviceImpression.printTicketVente(1);
         }
 
