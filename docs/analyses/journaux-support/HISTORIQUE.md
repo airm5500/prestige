@@ -39,8 +39,8 @@ compare alors les échantillons d'un journal à l'autre.
 | Auto-diagnostic POOL (5 postes), CONFIG_POSTE (PARA) | J26-4 | 26/11 | Confirmé (réglage) | réglage des postes |
 | SMS admin trop long (SVC0280, 940 caractères) | J26-5 | 26/11 | **Confirmé** (test de cohérence, 3 échecs sur le défaut remis à l'essai) | branche `PRES-/journaux-support-j26-1` ; `SmsMessageLongCoherenceTest` |
 | Arrêt brutal à la pose d'une version (témoin d'un WAR d'avant le 22/11, sans version) | J26-6 | 26/11 (CAISSE31, DESKTOP-EONHOTA) ; 30/10 et 19/11 (serveur) | **Confirmé** (test d'écran, 6 échecs sur l'ancien WAR) | branche `PRES-/journaux-support-j26-1` ; `CauseArretPremiereMiseAJourTest`, `test-arret-mise-a-jour.js` (C, D, E) |
-| Lenteur `POST inventaire/creation` | J26-7 | 30/10, 15/11, 19/11, 26/11 | Suspecté | — |
-| Lenteur `GET modereglement/all` | J26-7 | 30/10, 15/11, 19/11, 26/11 ; appaul 19/11 | Suspecté | — |
+| Lenteur `POST inventaire/creation` | J26-7 | 30/10, 15/11, 19/11, 26/11 | Mesuré : 3,9 à 4,3 s pour 11 678 produits (curseur de `proc_inventaire`), sans défaut | proposé : `INSERT … SELECT` (non fait) |
+| Lenteur `GET modereglement/all` (QR codes en tableaux d'octets, 5,7 Mo) | J26-7 | 30/10, 15/11, 19/11, 26/11 ; appaul 19/11 | **Confirmé** (test d'écran, 2 échecs sur l'ancien WAR) | branche `PRES-/journaux-support-j26-1` ; `ModeReglementListeCoherenceTest`, `test-modes-reglement-qrcode.js` |
 | Cohérence : 4 ventes terminées sans mouvement de caisse (mêmes identifiants) | J26-8 | 30/10 (5), 15/11 (5), 19/11 (4), 26/11 (4) | Confirmé, stable | — |
 | Cohérence : lots périmés non marqués | J26-8 | 15/11 (222), 19/11 (221), 26/11 (221) | Confirmé, stable | — |
 | Cohérence : 500 commandes et 10 dossiers de règlement sans détail | J26-8 | 15/11, 19/11, 26/11 | Confirmé, stable | — |
