@@ -35,9 +35,9 @@ compare alors les échantillons d'un journal à l'autre.
 | `UpdateVenteClientTpForm` onSave : `wind.getData()` null | J26-1 | 30/10 (23/08), 19/11 (18/11), 26/11 (25/11) | **Confirmé** (test d'écran, 4 échecs sur l'ancien code) | branche `PRES-/journaux-support-j26-1` ; test `src/test/e2e/journal/test-enregistrer-tp-avant-chargement.js` |
 | `VenteCtr` : `me.getCurrent()` null (`lgPREENREGISTREMENTID`) | — | 19/11 (17/11) | Suspecté | — |
 | Mémoire JVM élevée, CAISSE5 (512 Mo) | J26-2 | 26/11 (×22) ; sans nom de poste : 30/10 (09/09, 16/09) | Confirmé (réglage) | réglage du poste |
-| Alerte de job au texte d'avant le 14/10 : WAR ancien | J26-3 | 26/11 | Suspecté | vérifier les versions des postes |
+| Alerte de job au texte d'avant le 14/10 : WAR ancien | J26-3 | 26/11 | Suspecté (poste à trouver sur place) | détection ajoutée : point VERSION_POSTES de l'auto-diagnostic, branche `PRES-/journaux-support-j26-1` ; `VersionPostesPreflightTest`, `test-preflight-versions-postes.js` |
 | Auto-diagnostic POOL (5 postes), CONFIG_POSTE (PARA) | J26-4 | 26/11 | Confirmé (réglage) | réglage des postes |
-| SMS admin trop long (SVC0280, 940 caractères) | J26-5 | 26/11 | Suspecté | proposé, non fait |
+| SMS admin trop long (SVC0280, 940 caractères) | J26-5 | 26/11 | **Confirmé** (test de cohérence, 3 échecs sur le défaut remis à l'essai) | branche `PRES-/journaux-support-j26-1` ; `SmsMessageLongCoherenceTest` |
 | Arrêt brutal à la pose d'une version | J26-6 | 26/11 (CAISSE31, DESKTOP-EONHOTA) ; 30/10 et 19/11 (serveur) | Suspecté | — |
 | Lenteur `POST inventaire/creation` | J26-7 | 30/10, 15/11, 19/11, 26/11 | Suspecté | — |
 | Lenteur `GET modereglement/all` | J26-7 | 30/10, 15/11, 19/11, 26/11 ; appaul 19/11 | Suspecté | — |

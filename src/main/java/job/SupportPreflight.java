@@ -112,6 +112,7 @@ public class SupportPreflight {
         controles.add(verifierMigrations());
         controles.add(verifierConfigurationPoste());
         controles.add(verifierPool());
+        controles.add(verifierVersionsPostes());
 
         boolean anomalie = aAnomalie(controles);
         String synthese = synthese(controles);
@@ -599,6 +600,94 @@ public class SupportPreflight {
                 autre == null ? null : autre.getAbsolutePath(),
                 autre == null ? null : config.AppConfig.modeDuFichier(autre),
                 rest.service.impl.serveur.CalculReglages.baseLocale(hote), System.getProperty("user.name"));
+    }
+
+    /** Libelle du controle des versions des postes (journal support du 26/11, J26-3). */
+    static final String LIBELLE_VERSION_POSTES = "Version des postes branches sur la base";
+
+    /** Format des dates du controle des versions des postes. */
+    static final DateTimeFormatter FORMAT_VERSION_POSTES = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    /** Fenetre d'observation : un ancien WAR qui tourne ecrit au moins une alerte par jour (moniteur de jobs). */
+    static final int HEURES_VERSION_POSTES = 48;
+
+    /** Evenement du journal du support, tel que le lit le controle des versions des postes. */
+    static final class EvenementSansVersion {
+        final LocalDateTime creeLe;
+        final String url;
+        final String message;
+        final String version;
+
+        EvenementSansVersion(LocalDateTime creeLe, String url, String message, String version) {
+            this.creeLe = creeLe;
+            this.url = url;
+            this.message = message;
+            this.version = version;
+        }
+    }
+
+    /**
+     * Journal support du 26/11 (capitale), J26-3 : une alerte de job au texte retire du code le 14/10 a ete ecrite le
+     * 25/11 sans version. Toute version posterieure au 28/10 (V7.2.25) note sa version sur chaque evenement : un
+     * evenement recent sans version vient donc d'un Payara branche sur cette base avec un WAR plus ancien, qui fait
+     * tourner un code perime (et ses traitements de nuit, s'il se croit serveur). Les lignes de maintenance sont
+     * exclues : les versions anterieures a ce controle ne les dataient pas.
+     *
+     * @param versionLocale
+     *            version de ce poste ; vide : rien a comparer, jamais d'anomalie
+     * @param evenements
+     *            evenements candidats (la requete peut en rendre trop : la regle est appliquee ici)
+     */
+    static Controle evaluerVersionsPostes(String versionLocale, List<EvenementSansVersion> evenements,
+            LocalDateTime maintenant) {
+        if (StringUtils.isBlank(versionLocale)) {
+            return Controle.ok("VERSION_POSTES", LIBELLE_VERSION_POSTES, "version de ce poste inconnue");
+        }
+        LocalDateTime depuis = maintenant.minusHours(HEURES_VERSION_POSTES);
+        int nombre = 0;
+        EvenementSansVersion plusAncien = null;
+        for (EvenementSansVersion e : evenements == null ? java.util.Collections.<EvenementSansVersion> emptyList()
+                : evenements) {
+            if (e == null || e.creeLe == null || e.creeLe.isBefore(depuis) || StringUtils.isNotBlank(e.version)
+                    || StringUtils.startsWith(e.url, "maintenance:")) {
+                continue;
+            }
+            nombre++;
+            if (plusAncien == null || e.creeLe.isBefore(plusAncien.creeLe)) {
+                plusAncien = e;
+            }
+        }
+        if (nombre == 0) {
+            return Controle.ok("VERSION_POSTES", LIBELLE_VERSION_POSTES,
+                    "tous les evenements des " + HEURES_VERSION_POSTES + " dernieres heures portent une version");
+        }
+        return Controle.anomalie("VERSION_POSTES", LIBELLE_VERSION_POSTES, nombre
+                + " evenement(s) ecrit(s) sans version depuis le " + plusAncien.creeLe.format(FORMAT_VERSION_POSTES)
+                + " (le premier : « " + StringUtils.abbreviate(StringUtils.defaultString(plusAncien.message), 80)
+                + " »). Un poste branche sur cette base tourne avec une version d'avant le 28/10/2026. Sur chaque"
+                + " poste, ouvrir Centre de support > Stabilite du serveur : la version doit etre " + versionLocale
+                + ". Mettre a jour le poste qui ne la montre pas.");
+    }
+
+    private Controle verifierVersionsPostes() {
+        try {
+            LocalDateTime maintenant = LocalDateTime.now();
+            List<EvenementSansVersion> l = new ArrayList<>();
+            for (Object ligne : em.createNativeQuery("SELECT created_at, url_ou_ecran, message_court, version_app"
+                    + " FROM t_application_event WHERE created_at >= ?1 AND (version_app IS NULL OR version_app = '')"
+                    + " AND url_ou_ecran NOT LIKE 'maintenance:%' ORDER BY created_at LIMIT 500")
+                    .setParameter(1, java.sql.Timestamp.valueOf(maintenant.minusHours(HEURES_VERSION_POSTES)))
+                    .getResultList()) {
+                Object[] r = (Object[]) ligne;
+                LocalDateTime cree = r[0] instanceof java.sql.Timestamp ? ((java.sql.Timestamp) r[0]).toLocalDateTime()
+                        : r[0] instanceof LocalDateTime ? (LocalDateTime) r[0] : null;
+                l.add(new EvenementSansVersion(cree, (String) r[1], (String) r[2], (String) r[3]));
+            }
+            return evaluerVersionsPostes(util.VersionBuild.libelle(), l, maintenant);
+        } catch (Exception e) {
+            return Controle.ok("VERSION_POSTES", LIBELLE_VERSION_POSTES,
+                    "lecture du journal impossible : " + messageDe(e));
+        }
     }
 
     static boolean aAnomalie(List<Controle> controles) {
