@@ -140,11 +140,24 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
     const cleTtc = Object.keys(tc.paires).find((k) => /deux ventes/i.test(k));
     const ttc = C.chiffres(tc.paires[cleTtc]);
     ok('Ticket combiné = écran : Part du client, Comptant, TTC des deux ventes et NET = rail affiché avant la clôture',
-      tot['Part du client'] === rail.partClient.valeur && tot['Comptant'] === rail.comptant.valeur && ttc === vo.prix + vno.prix && ttc === totalAssurance + totalComptant
+      tot['Part du client'] === rail.partClient.valeur && tot['*Comptant*'] === rail.comptant.valeur && ttc === vo.prix + vno.prix && ttc === totalAssurance + totalComptant
       && tc.net === rail.net.valeur, JSON.stringify({ tot, cleTtc, ttc, net: tc.net, rail }));
     ok('Ticket combiné (point 5.2) : rien sous les lignes assurance au taux de l\'assurance, comme le ticket assurance ; organisme et remises dans les totaux',
       sec1.every((a) => a.credits.length === 0) && Object.keys(tot).some((k) => k.indexOf(TP) === 0) && tot[Object.keys(tot).find((k) => k.indexOf(TP) === 0)] === partTpBase,
       JSON.stringify(tot));
+    /* retour du 26/11 : « Crédit » = total des produits assurance, entre les produits et l'organisme, une seule fois,
+       comme « Comptant » pour la vente au comptant */
+    const totSec1 = tc.totaux.filter((t) => t.section === 1);
+    ok('Ticket combiné : ligne « *Crédit* » = total assurance en base (vente VO) = somme des lignes assurance du ticket, 1re ligne après les produits, avant l\'organisme',
+      tot['*Crédit*'] === vo.prix && tot['*Crédit*'] === totalAssurance && tot['*Crédit*'] === sec1.reduce((s, a) => s + a.montant, 0)
+      && totSec1.length >= 3 && totSec1[0].paire === '*Crédit*' && totSec1[1].paire.indexOf(TP) === 0
+      && tc.totaux.filter((t) => t.paire === '*Crédit*').length === 1 && !tc.totaux.some((t) => t.section === 2 && t.paire === '*Crédit*'),
+      JSON.stringify({ totaux: tc.totaux, voPrix: vo.prix, totalAssurance }));
+    /* retour du 26/11 : « *Crédit* » et « *Comptant* » en gras (libellé et montant), les autres totaux non */
+    const marque = (t) => t.paire === '*Crédit*' || t.paire === '*Comptant*';
+    ok('Ticket combiné : « *Crédit* » et « *Comptant* » en gras, une fois chacun ; organisme, remises et part du client sans gras',
+      tc.totaux.filter(marque).length === 2 && tc.totaux.every((t) => (marque(t) ? t.style === 'GRAS' : t.style === 'NORMAL')),
+      JSON.stringify(tc.totaux));
 
     /* ---- le detail de vente ---- */
     const dVo = await C.detailVente(p, venteId), dVno = await C.detailVente(p, vnoId);

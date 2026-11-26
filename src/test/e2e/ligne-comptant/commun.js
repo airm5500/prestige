@@ -271,7 +271,7 @@ function lireTicket(t) {
         const cle = e.a.replace(/\s*:\s*$/, '').trim();
         paires[cle] = e.b;
         if (/net/i.test(cle) && /payer/i.test(cle)) { net = chiffres(e.b); }
-        if (b.id === 'CORPS') { articles.push({ paire: cle, valeur: chiffres(e.b), section: titres.length }); }
+        if (b.id === 'CORPS') { articles.push({ paire: cle, valeur: chiffres(e.b), section: titres.length, style: e.style }); }
       } else if (e.genre === 'TEXTE') { textes.push(e.a); }
     }
   }

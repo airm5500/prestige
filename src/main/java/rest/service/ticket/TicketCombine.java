@@ -19,6 +19,20 @@ public final class TicketCombine {
     public static final String TITRE_ASSURANCE = "VENTE ASSURANCE";
     public static final String TITRE_COMPTANT = "VENTE AU COMPTANT";
     public static final String TTC_DEUX_VENTES = "Total des deux ventes";
+    public static final String CREDIT = "Crédit";
+    public static final String COMPTANT = "Comptant";
+
+    /**
+     * Retour du 26/11 : « Crédit » et « Comptant », totaux des deux ventes, imprimes entre etoiles (« *Crédit* ») et en
+     * gras ; les autres libelles tels quels.
+     */
+    public static String libelleImprime(String libelle) {
+        return CREDIT.equals(libelle) || COMPTANT.equals(libelle) ? "*" + libelle + "*" : libelle;
+    }
+
+    public static boolean libelleEnGras(String libelle) {
+        return CREDIT.equals(libelle) || COMPTANT.equals(libelle);
+    }
 
     /** Ce que la cloture a enregistre pour les deux ventes. */
     public static final class Entree {
@@ -97,6 +111,10 @@ public final class TicketCombine {
 
         /* section assurance */
         List<String[]> totauxVo = new ArrayList<>();
+        // retour du 26/11 : « Crédit » = total des produits de la vente assurance, entre les produits et les
+        // organismes,
+        // comme « Comptant » termine la section comptant
+        totauxVo.add(new String[] { CREDIT, ConversionTicket.nombre(e.totalVo) });
         // demande 66 (20/11) : taux imprimes bornes a 100 % au total, dans l'ordre recu (celui du bloc client du ticket
         // de vente, organismes a part nulle deja retires) ; les parts ne changent pas
         List<String> taux = tauxImprimes(e.tiersPayants);
@@ -116,7 +134,7 @@ public final class TicketCombine {
         if (e.remiseVno > 0) {
             totauxVno.add(new String[] { "(-) Remise", ConversionTicket.nombre(e.remiseVno) });
         }
-        totauxVno.add(new String[] { "Comptant", ConversionTicket.nombre(e.netVno) });
+        totauxVno.add(new String[] { COMPTANT, ConversionTicket.nombre(e.netVno) });
         s.sections.add(new Section(TITRE_COMPTANT + " — " + e.refVno, comptant, totauxVno));
 
         s.articles.addAll(e.articlesVo);
@@ -128,14 +146,14 @@ public final class TicketCombine {
             ligneArticle(s.datas, a);
         }
         for (String[] t : totauxVo) {
-            s.datas.add(" ; ;" + t[0] + ";;" + t[1]);
+            s.datas.add(" ; ;" + libelleImprime(t[0]) + ";;" + t[1]);
         }
         s.datas.add(" ; ;" + TITRE_COMPTANT + " " + e.refVno + ";;");
         for (Article a : comptant) {
             ligneArticle(s.datas, a);
         }
         for (String[] t : totauxVno) {
-            s.datas.add(" ; ;" + t[0] + ";;" + t[1]);
+            s.datas.add(" ; ;" + libelleImprime(t[0]) + ";;" + t[1]);
         }
         s.datas.add(";;;;------");
         s.datas.add(";;;;" + ConversionTicket.nombre(s.ttc));

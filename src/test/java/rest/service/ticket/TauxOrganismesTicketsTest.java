@@ -33,8 +33,11 @@ class TauxOrganismesTicketsTest {
         return e;
     }
 
+    /** Totaux de la section assurance apres la ligne « Crédit » (retour du 26/11), qui les ouvre : les organismes. */
     private static List<String[]> totauxAssurance(TicketCombine.Sortie s) {
-        return s.sections.get(0).totaux;
+        List<String[]> t = s.sections.get(0).totaux;
+        assertEquals(TicketCombine.CREDIT, t.get(0)[0]);
+        return t.subList(1, t.size());
     }
 
     @Test

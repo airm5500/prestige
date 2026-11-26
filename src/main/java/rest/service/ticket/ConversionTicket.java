@@ -302,7 +302,9 @@ public final class ConversionTicket {
                     continue;
                 }
                 Matcher taux = TAUX_ORGANISME.matcher(t[0]);
-                corps.paire(taux.matches() ? libelleOrganisme(taux) : t[0], montantF(t[1]), Style.NORMAL);
+                // retour du 26/11 : « *Crédit* » et « *Comptant* » en gras, libelle et montant
+                corps.paire(taux.matches() ? libelleOrganisme(taux) : TicketCombine.libelleImprime(t[0]),
+                        montantF(t[1]), TicketCombine.libelleEnGras(t[0]) ? Style.GRAS : Style.NORMAL);
             }
         }
         corps.trait(false);

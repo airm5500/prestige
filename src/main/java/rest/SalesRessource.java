@@ -283,7 +283,9 @@ public class SalesRessource {
                     org.json.JSONArray elements = new org.json.JSONArray();
                     for (rest.service.ticket.TicketDocument.Element e : b.elements) {
                         elements.put(new JSONObject().put("genre", e.genre.name()).put("a", sansGras(e.a))
-                                .put("b", sansGras(e.b)).put("c", sansGras(e.c)).put("d", sansGras(e.d)));
+                                .put("b", sansGras(e.b)).put("c", sansGras(e.c)).put("d", sansGras(e.d))
+                                // retour du 26/11 : le style (gras de « *Crédit* », « *Comptant* ») se relit aussi
+                                .put("style", e.style.name()));
                     }
                     blocs.put(new JSONObject().put("id", b.id).put("elements", elements));
                 }
